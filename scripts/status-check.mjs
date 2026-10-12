@@ -91,7 +91,9 @@ if (args.includes("--everyone")) {
   const detail = new Map();
   let unreadable = false;
 
-  const reports = await checkEveryone(db);
+  // Every line of every check, not the first few: a problem past the few
+  // shown was never raised (2026-10-09: 19 of the owner's 25 repeats).
+  const reports = await checkEveryone(db, { examples: Infinity });
   console.log(`Every student who has answered (${reports.length}), checked now:`);
   for (const r of [...reports].sort((a, b) => Number(a.ok) - Number(b.ok))) {
     if (r.error) { unreadable = true; console.log(`\n  ${r.user_email}: couldn't be checked: ${r.error}`); continue; }
@@ -111,7 +113,12 @@ if (args.includes("--everyone")) {
   const judged = [];
   for (const k of kept.reports || []) {
     const j = k.report?.judging;
-    if (!j || (!j.asked && !j.left && !j.error)) continue;
+    if (!j || (!j.asked && !j.left && !j.error && !j.putAway && !j.keptBoth && !j.putAwayError)) continue;
+    if (j.putAwayError) {
+      const line = `${k.user_email}: the daily run couldn't put away a repeated card`;
+      problems.push(line);
+      detail.set(line, j.putAwayError);
+    }
     // The error itself goes beneath the line, not in it: it carries a count
     // of pairs, or an API error's request id, that is different every
     // morning, and a key that changes daily is raised as new every day.

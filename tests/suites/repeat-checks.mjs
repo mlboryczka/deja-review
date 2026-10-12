@@ -98,7 +98,7 @@ const B = "00000000-0000-0000-0000-0000000000bb";
 const C = "00000000-0000-0000-0000-0000000000cc";
 claude.same.add(pairKey("un cas", "le cas"));
 
-function world({ migrated = true, extraA = [] } = {}) {
+function world({ migrated = true, extraA = [], faults = {} } = {}) {
   let id = 50000;
   const card = (user, row) => ({ user_id: user, category: "V", dates: [], source: "cahier-upload", fsrs_state: 0, en_fsrs_state: 0, created_at: at(30), id: id++, ...row });
   const planted = [
@@ -113,6 +113,7 @@ function world({ migrated = true, extraA = [] } = {}) {
   const bAnswer = { ...rec.answers.find((r) => r.counted), id: "b-answer-1", user_id: B, card_id: bCards[1].id };
   const db = fakeSupabase({
     migrated,
+    faults,
     tables: {
       user_cards: [...rec.cards, ...planted, ...bCards],
       card_reviews: [...rec.answers, bAnswer],
@@ -134,6 +135,8 @@ console.log("\n  the morning check asks Claude about look-alikes it hasn't judge
 {
   resetClaude();
   const db = world();
+  // Counted before the run: the run puts “le cas” away, and its pairs with it.
+  const all = lookalikes({ cards: db.tables.user_cards.filter((c) => c.user_id === USER_ID), pairs: [] }).unjudged.length;
   const reports = byEmail(await checkEveryone(db, { now: end, judge: judge({ cap: 3 }) }));
   const a = reports["a@example.com"];
   const j = a?.report?.judging;
@@ -141,15 +144,17 @@ console.log("\n  the morning check asks Claude about look-alikes it hasn't judge
   ck("it asks about no more than the cap for a student", j?.asked === 3 && claude.pairsAsked.length === 3, JSON.stringify(j));
   ck("  the newest cards first: “le cas”, made two days ago, is asked about first",
      claude.pairsAsked.some((p) => pairKey(p.a.front, p.b.front) === pairKey("un cas", "le cas")), JSON.stringify(claude.pairsAsked.map((p) => [p.a.front, p.b.front])));
-  const all = lookalikes({ cards: db.tables.user_cards.filter((c) => c.user_id === USER_ID), pairs: [] }).unjudged.length;
   ck("  and says what is left for tomorrow", j.left === all - 3 && j.answered === 3 && j.same === 1 && !j.error, `${all} look-alike pairs; ${JSON.stringify(j)}`);
   const kept = db.tables.card_pairs;
   ck("every verdict is kept: both cards' ids and text, the verdict, the question's version and model, from the check",
      kept.length === 3 && kept.every((p) => p.user_id === USER_ID && p.card_a != null && p.card_b != null && p.a_front && p.b_front && p.version === SAME_CARD_VERSION && p.model === SAME_CARD_MODEL && p.source === "check"),
      JSON.stringify(kept[0]));
+  // Judged with at once: the pair Claude called one card is one copy too
+  // many, and the run puts the newer away before it checks (2026-10-09).
   const repeats = resultOf(a, "repeats");
-  ck("and the check judges with them at once: the pair Claude called one card fails it, named",
-     repeats?.status === "fail" && /“un cas” and “le cas” are one card twice: Claude judged them the same card to learn/.test(repeats.details.join(" ")), repeats?.details?.[0]);
+  const lecas = db.tables.user_cards.find((c) => c.user_id === USER_ID && c.front === "le cas");
+  ck("and the run acts on them at once: the newer of the pair Claude called one card is put away, and the check no longer names it",
+     lecas.archived_reason === "duplicate" && j.putAway === 1 && !/le cas/.test(repeats.details.join(" ")), JSON.stringify({ lecas: lecas.archived_reason, j, details: repeats?.details }));
   const back = resultOf(a, "nothing-back");
   ck("the card the owner deleted and the card the student removed, both made again, fail the other check",
      back?.status === "fail" && back.details.some((d) => /“Naza” is back in study: you deleted it/.test(d)) && back.details.some((d) => /“La gomme” is back in study: you removed “la gomme”/.test(d)), back?.details?.join(" | "));
@@ -171,6 +176,57 @@ console.log("\n  the morning check asks Claude about look-alikes it hasn't judge
   const w0 = writes();
   await checkEveryone(db, { now: end });
   ck("checked without `judge` (the morning check on the Mac, Check everyone now): no question, nothing written", claude.calls === 0 && writes() === w0, `${claude.calls} calls, ${writes() - w0} writes`);
+}
+
+console.log("\n  the daily run puts away one copy of each pair Claude judged one card");
+{
+  // "le zorglub", the newer, has answers; "un blorpix" and "le blorpix" both
+  // do. The stand-in calls each pair one card.
+  resetClaude();
+  const added = [pairKey("un zorglub", "le zorglub"), pairKey("un blorpix", "le blorpix")];
+  added.forEach((k) => claude.same.add(k));
+  const answered = { fsrs_state: 2, reps: 3, last_review: at(5), next_due_at: at(-5) };
+  const db = world({ extraA: [
+    { front: "un zorglub", back: "a little gizmo", created_at: at(20) },
+    { front: "le zorglub", back: "the small widget", created_at: at(5), ...answered },
+    { front: "un blorpix", back: "a tall tower", created_at: at(20), ...answered },
+    { front: "le blorpix", back: "the high spire", created_at: at(5), ...answered },
+  ] });
+  const row = (front) => db.tables.user_cards.find((c) => c.user_id === USER_ID && c.front === front);
+  const keptFronts = ["un cas", "le zorglub", "un blorpix", "le blorpix"];
+  const keptBefore = JSON.stringify(keptFronts.map(row));
+  const scheduleOf = (r) => JSON.stringify([r.fsrs_state, r.en_fsrs_state, r.reps, r.next_due_at, r.last_review, r.dates]);
+  const awayBefore = ["le cas", "un zorglub"].map((f) => scheduleOf(row(f)));
+  const a = byEmail(await checkEveryone(db, { now: end, judge: judge() }))["a@example.com"];
+  const j = a.report.judging;
+  ck("neither copy answered: the newer is put away as a repeat of the older",
+     row("le cas").archived_reason === "duplicate" && row("le cas").merged_into === row("un cas").id && row("le cas").source === "archived:cahier-upload" && !!row("le cas").archived_at, JSON.stringify(row("le cas")));
+  ck("only the newer copy answered: it is the one kept, and the older is put away",
+     row("un zorglub").archived_reason === "duplicate" && row("un zorglub").merged_into === row("le zorglub").id && !row("le zorglub").source.startsWith("archived:"), JSON.stringify([row("un zorglub"), row("le zorglub")]));
+  ck("both answered: both stay in study", ["un blorpix", "le blorpix"].every((f) => !row(f).source.startsWith("archived:") && row(f).archived_reason == null));
+  ck("  no kept card is touched", JSON.stringify(keptFronts.map(row)) === keptBefore);
+  ck("  and a copy put away keeps its schedule and class dates", JSON.stringify(["le cas", "un zorglub"].map((f) => scheduleOf(row(f)))) === JSON.stringify(awayBefore));
+  ck("the report says what was done", j.putAway === 2 && j.keptBoth === 1 && !j.putAwayError, JSON.stringify(j));
+  const repeats = resultOf(a, "repeats");
+  ck("  and the check names only the pair left in study", repeats.status === "fail" && /“un blorpix” and “le blorpix” are one card twice/.test(repeats.details.join(" ")) && !/zorglub|le cas/.test(repeats.details.join(" ")), repeats.details.join(" | "));
+  const { judgingText } = await import("../../src/lib/statusChecks.js");
+  ck("  in plain words", /2 repeated cards put away, the copy with answers kept\. 1 pair judged one card left in study: both copies have answers\./.test(judgingText(j)), judgingText(j));
+
+  // The next morning: nothing more to put away, nothing written to the deck.
+  const deckWrites = () => db.calls.filter((c) => c.table === "user_cards" && c.op !== "select").length;
+  const w0 = deckWrites();
+  const again = byEmail(await checkEveryone(db, { now: end, judge: judge() }))["a@example.com"].report.judging;
+  ck("the next morning nothing more is put away", deckWrites() === w0 && !again.putAway && again.keptBoth === 1, JSON.stringify(again));
+
+  // A write that fails: the copy stays, the check still names it, the report says why.
+  resetClaude();
+  const db2 = world({ faults: { update: { table: "user_cards", times: 1, error: { code: "XX000", message: "no room" } } } });
+  const b = byEmail(await checkEveryone(db2, { now: end, judge: judge() }))["a@example.com"];
+  const lecas = db2.tables.user_cards.find((c) => c.user_id === USER_ID && c.front === "le cas");
+  ck("a copy that can't be put away stays in study, the check still names it, and the report says why",
+     !lecas.source.startsWith("archived:") && /couldn't be put away: no room/.test(b.report.judging.putAwayError || "") && /“un cas” and “le cas” are one card twice/.test(resultOf(b, "repeats").details.join(" ")),
+     JSON.stringify(b.report.judging));
+  added.forEach((k) => claude.same.delete(k));
 }
 
 console.log("\n  a question Claude can't answer leaves its pairs for tomorrow");

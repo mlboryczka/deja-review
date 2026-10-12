@@ -1045,12 +1045,16 @@ export function statusText(report) {
 
 // What the morning check's questions to Claude came to (api/_lib/statusDaily.js
 // keeps it on the report as `judging`): how many look-alike pairs it asked
-// about, what Claude said, and how many wait for tomorrow.
+// about, what Claude said, and how many wait for tomorrow; and the repeats it
+// put away (putAwayRepeats, since 2026-10-09).
 export function judgingText(j) {
   if (!j) return "";
-  if (j.skipped) return `Look-alike cards: none put to Claude this morning (${j.skipped}).`;
+  const away = (j.putAway ? ` ${plural(j.putAway, "repeated card")} put away, the copy with answers kept.` : "") +
+    (j.keptBoth ? ` ${plural(j.keptBoth, "pair")} judged one card left in study: both copies have answers.` : "") +
+    (j.putAwayError ? ` ${String(j.putAwayError).replace(/^./, (c) => c.toUpperCase()).replace(/[.\s]+$/, "")}.` : "");
+  if (j.skipped) return `Look-alike cards: none put to Claude this morning (${j.skipped}).${away}`;
   const said = j.answered ? ` Claude judged ${plural(j.same || 0, "pair")} the same card and ${j.answered - (j.same || 0)} different.` : "";
   const left = j.left ? ` ${plural(j.left, "pair")} left for tomorrow.` : " None left.";
   const failed = j.error ? ` ${String(j.error).replace(/[.\s]+$/, "")}.` : "";
-  return `Look-alike cards: ${plural(j.asked || 0, "pair")} put to Claude this morning.${said}${failed}${left}`;
+  return `Look-alike cards: ${plural(j.asked || 0, "pair")} put to Claude this morning.${said}${failed}${left}${away}`;
 }
