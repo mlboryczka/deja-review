@@ -36,6 +36,7 @@ import { lessonRank } from "../../src/data/lessons/index.js";
 import { missingTable } from "../../src/lib/dealLog.js";
 import { archivedSource, isArchived } from "../../src/lib/archive.js";
 import { DIRECTIONS, sideOf } from "../../src/lib/directions.js";
+import { listParts } from "../../src/lib/sameCard.js";
 import { askSameCard, SAME_CARD_VERSION, SAME_CARD_MODEL } from "./sameCardQuestion.js";
 
 // The daily run's schedule in vercel.json. Vercel sends it with the request
@@ -247,9 +248,14 @@ export async function judgeLookalikes(db, recs, { apiKey, startBy = Infinity, de
 }
 
 // One copy of each pair Claude judged one card, put away (2026-10-09). The
-// copy kept is the one with the student's answers; when neither has any, the
-// older one. When both have answers, both stay, and the check goes on naming
-// them: putting either away would hide answers the student gave. The copy put
+// copy kept is the one with the student's answers. When neither has any: a
+// list card over the card that is one of its items ("énervé / fâché" over
+// "énervé"), so no word leaves study; then a lesson card over the student's
+// own, so the lesson stays whole, as the 2026-10-06 clean-up chose; then the
+// older. Both stay, and the check goes on naming them, when both have answers
+// (putting either away would hide answers the student gave) or when the copy
+// without answers is the list card (putting it away would take its other
+// words out of study). The copy put
 // away is archived as a repeat of the kept one (archived_reason "duplicate",
 // merged_into), which keeps its row, schedule, answers and class dates, and
 // keeps it out of study whatever a lesson or a later class brings
@@ -258,6 +264,14 @@ export async function judgeLookalikes(db, recs, { apiKey, startBy = Infinity, de
 // { putAway, keptBoth } and, if a write failed, `putAwayError`.
 const answeredCard = (row, answeredIds) =>
   answeredIds.has(String(row.id)) || DIRECTIONS.some((d) => { const s = sideOf(row, d); return s.fsrs_state !== 0 || s.reps > 0; });
+const isList = (row) => listParts(row).length >= 2;
+const isLessonCard = (row) => typeof row?.source === "string" && row.source.startsWith("lesson:");
+// Of two copies neither of which has answers, `older` first: whether to keep
+// the older.
+const keepOlder = (older, newer) =>
+  isList(older) !== isList(newer) ? isList(older)
+    : isLessonCard(older) !== isLessonCard(newer) ? isLessonCard(older)
+    : true;
 
 export async function putAwayRepeats(db, recs, { at = new Date().toISOString() } = {}) {
   for (const rec of recs) {
@@ -270,7 +284,8 @@ export async function putAwayRepeats(db, recs, { at = new Date().toISOString() }
       if (touched.has(String(a.id)) || touched.has(String(b.id))) continue;
       const hasA = answeredCard(a, answeredIds), hasB = answeredCard(b, answeredIds);
       if (hasA && hasB) { keptBoth++; continue; }
-      const [keep, drop] = hasB ? [b, a] : [a, b];
+      const [keep, drop] = hasA ? [a, b] : hasB ? [b, a] : keepOlder(a, b) ? [a, b] : [b, a];
+      if (isList(drop) && !isList(keep)) { keptBoth++; continue; }
       if (isArchived(drop)) continue;
       const patch = { source: archivedSource(drop.source), archived_reason: "duplicate", archived_at: at, merged_into: keep.id };
       const { error } = await db.from("user_cards").update(patch).eq("id", drop.id).eq("user_id", rec.student.id);

@@ -227,6 +227,32 @@ console.log("\n  the daily run puts away one copy of each pair Claude judged one
      !lecas.source.startsWith("archived:") && /couldn't be put away: no room/.test(b.report.judging.putAwayError || "") && /“un cas” and “le cas” are one card twice/.test(resultOf(b, "repeats").details.join(" ")),
      JSON.stringify(b.report.judging));
   added.forEach((k) => claude.same.delete(k));
+
+  // Which copy stays when neither has answers, and when a list card is the
+  // one without them. Claude's verdicts are planted, as an earlier morning
+  // left them.
+  resetClaude();
+  const db3 = world({ extraA: [
+    { front: "glimmo", back: "a shimmer", created_at: at(20) },
+    { front: "glimmo / fraxu", back: "a sparkle / a gleam", created_at: at(5) },
+    { front: "plonk", back: "a thud", created_at: at(20), ...answered },
+    { front: "plonk / tazz", back: "a bang / a clatter", created_at: at(5) },
+    { front: "vroum", back: "the engine noise", created_at: at(20) },
+    { front: "faire vroum", back: "to go vroom", source: "lesson:lecon1#zz1", created_at: at(5) },
+  ] });
+  const row3 = (front) => db3.tables.user_cards.find((c) => c.user_id === USER_ID && c.front === front);
+  const verdict = (x, y) => {
+    const [a3, b3] = [row3(x), row3(y)];
+    return { user_id: USER_ID, card_a: a3.id, card_b: b3.id, a_front: a3.front, a_back: a3.back, b_front: b3.front, b_back: b3.back, verdict: "same", asked_at: at(1), source: "check" };
+  };
+  db3.tables.card_pairs.push(verdict("glimmo", "glimmo / fraxu"), verdict("plonk", "plonk / tazz"), verdict("vroum", "faire vroum"));
+  const out3 = (front) => row3(front).archived_reason === "duplicate";
+  await checkEveryone(db3, { now: end, judge: judge() });
+  ck("neither answered: the list card stays and the card that is one of its items goes, even when the list is newer",
+     out3("glimmo") && row3("glimmo").merged_into === row3("glimmo / fraxu").id && !out3("glimmo / fraxu"), JSON.stringify([row3("glimmo"), row3("glimmo / fraxu")]));
+  ck("only the item answered: both stay, so the list's other words stay in study", !out3("plonk") && !out3("plonk / tazz"));
+  ck("neither answered: the lesson card stays and the student's own copy goes, even when the lesson card is newer",
+     out3("vroum") && row3("vroum").merged_into === row3("faire vroum").id && !out3("faire vroum"), JSON.stringify([row3("vroum"), row3("faire vroum")]));
 }
 
 console.log("\n  a question Claude can't answer leaves its pairs for tomorrow");
