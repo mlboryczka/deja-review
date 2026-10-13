@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { RAW } from "./data/cards"; // only used for the admin "seed demo deck" action
 import { LESSONS, LESSON_GROUPS, LESSONS_SHOWN, lessonIdOf, lessonRank, cardInstructionFor, lessonBackFor } from "./data/lessons";
 import { reconcileLessons, ADOPTED_SOURCE } from "./lib/lessonSync";
-import { archivedSource } from "./lib/archive";
+import { archivedSource, ARCHIVE_PREFIX } from "./lib/archive";
 import { readPlace, writePlace, dropSets, packSet, unpackEntries } from "./lib/studyPlace";
 import { CHOICE_KEY, choicesOf, startedLessons, lessonsInCards, onCards, setKeyOf, dealScopeOf } from "./lib/lessonChoice";
 import { withdrawRetry } from "./lib/sessionQueue";
@@ -170,7 +170,15 @@ function stripParens(s) {
 // exactly the mistakes being drilled — "je vend" for je vends, "il dois" for
 // il doit, "que j'aie" for que j'aille, chères and chèrement for cher,
 // évidamment for évidemment — and a "Close enough" counts as remembered.
-function matchAnswer(typed, correct, extraAlts = [], { exact = false } = {}) {
+//
+// `meanings`: the answer is a list of English meanings, so every part
+// between commas or semicolons is an answer on its own, however long. "ça
+// sert à rien" = "that serves no purpose, that's useless" refused "that's
+// useless" (the owner, 2026-10-09) because "that serves no purpose" is four
+// words. Only when the side shown has no comma: "Quand il pleut, je reste à
+// la maison" = "When it rains, I stay at home" is one sentence, and "I stay
+// at home" isn't the answer.
+function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings = false } = {}) {
   const t = normalize(typed);
   if (!t) return { match: false };
 
@@ -193,7 +201,7 @@ function matchAnswer(typed, correct, extraAlts = [], { exact = false } = {}) {
     const slashParts = (stripParens(src) || src).split(/\//).map(s => s.trim()).filter(Boolean);
     for (const sp of slashParts) {
       const subParts = sp.split(/[,;|]/).map(s => s.trim()).filter(Boolean);
-      const tooLong = subParts.some(
+      const tooLong = !meanings && subParts.some(
         p => p.split(/\s+/).filter(Boolean).length >= 4 || p.length >= 20
       );
       if (tooLong) {
@@ -1864,7 +1872,10 @@ export default function FlashcardApp({ user, onSignOut }) {
       // widened it doesn't have on its row.
       ...(card.shownDir === "fr" ? [lessonBackFor(card)].filter(Boolean) : []),
     ];
-    const result = matchAnswer(typedAnswer, correctText, extraAlts, { exact: drill });
+    // English typed for a word or phrase whose French has no comma: the
+    // answer's commas separate meanings (see matchAnswer).
+    const meanings = card.shownDir === "fr" && !drill && isTwoWay(card) && !/[,;]/.test(stripParens(card.f));
+    const result = matchAnswer(typedAnswer, correctText, extraAlts, { exact: drill, meanings });
     if (result.match) {
       setTypeResult(result.close ? "close" : "correct");
       setFlipped(true);
@@ -3146,7 +3157,12 @@ export default function FlashcardApp({ user, onSignOut }) {
               // A lesson card whose front the deck already had as its own is
               // not added (reconcileLessons' `taken`), but the word is there.
               const ownFronts = new Set(userCards.filter((c) => !lessonIdOf(c)).map((c) => c.f));
-              const inDeck = owned.length + lesson.cards.filter(([f]) => ownFronts.has(f)).length;
+              // A lesson card taken out as a repeat of a card in the deck is
+              // there as that card: "Allons-y !" as the notes card "On y va /
+              // Allons-y" (the owner, 2026-10-12: "why 107/108?").
+              const asRepeat = archivedCards.filter((c) => c.reason === "duplicate" &&
+                lessonIdOf({ source: String(c.source).slice(ARCHIVE_PREFIX.length) }) === lesson.id).length;
+              const inDeck = owned.length + lesson.cards.filter(([f]) => ownFronts.has(f)).length + asRepeat;
               // Whether its cards come up on Cards (lib/lessonChoice.js), and
               // how many are due today, the way the student is studying: in
               // EN→FR a word due only French side up is not waiting for them.
