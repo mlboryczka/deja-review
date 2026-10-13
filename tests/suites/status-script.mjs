@@ -39,7 +39,7 @@ const pairsOf = (cards) => standInVerdicts(cards, new Date(end).toISOString()).m
 // order=col.asc|desc, offset and limit.
 const state = {
   migrated: true, m16: true, requests: [], answers: rec.answers, cards: rec.cards,
-  pairs: pairsOf(rec.cards), corrections: [CORRECTION], reports: [], runs: [],
+  pairs: pairsOf(rec.cards), corrections: [CORRECTION], reports: [], runs: [], feedback: [],
 };
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, "http://x");
@@ -54,6 +54,7 @@ const server = http.createServer((req, res) => {
   const tables = {
     card_reviews: state.answers, user_cards: state.cards, dealt_sets: rec.deals, fsrs_settings: [rec.settings],
     card_pairs: state.pairs, parse_corrections: state.corrections, status_reports: state.reports, eval_runs: state.runs,
+    beta_feedback: state.feedback,
   };
   const missing = (name) => send(404, { code: "PGRST205", message: `Could not find the table 'public.${name}' in the schema cache` });
   if (!m || !(m[1] in tables)) return missing(m?.[1]);
@@ -64,6 +65,7 @@ const server = http.createServer((req, res) => {
     if (["select", "order", "offset", "limit"].includes(k)) continue;
     if (v.startsWith("eq.")) rows = rows.filter((r) => String(r[k]) === v.slice(3));
     else if (v.startsWith("in.(")) { const set = v.slice(4, -1).split(","); rows = rows.filter((r) => set.includes(String(r[k]))); }
+    else if (v === "is.null") rows = rows.filter((r) => r[k] == null);
   }
   const order = url.searchParams.get("order");
   if (order) {
@@ -232,6 +234,27 @@ console.log("\n  the morning check: --everyone");
        nextDay.out.includes("      Claude couldn't be asked about 212: 401") &&
        !/New since the last morning check/.test(nextDay.out) && nextDay.code === 0,
      nextDay.out.split("\n").slice(-6).join(" / "));
+
+  // Feedback nobody has dealt with (the owner, 2026-10-12: "you should be
+  // resolving it daily"): new until raised, with Claude's review beneath.
+  state.feedback = [
+    { id: 7, user_email: "student@example.com", message: "why 107/108?\nwhy not all?", card_context: null, created_at: "2026-10-12T22:50:53Z", resolved_at: null,
+      review: { kind: "app", reasoning: "One lesson card isn't counted.", brief: "Count it." } },
+    { id: 6, user_email: "student@example.com", message: "fixed already", card_context: null, created_at: "2026-10-10T10:00:00Z", resolved_at: "2026-10-11T10:00:00Z", review: null },
+  ];
+  const fbLine = "feedback #7 from student@example.com on 2026-10-12: why 107/108? why not all?";
+  const withFb = await run(["--everyone"]);
+  ck("open feedback is something new to look at, on one line, with Claude's review beneath it, and it exits 1",
+     /Open feedback: 1\./.test(withFb.out) &&
+       (withFb.out.split("New since the last morning check")[1] || "").includes(`- ${fbLine}\n      Claude's review (app): One lesson card isn't counted. Brief: Count it.`) &&
+       !withFb.out.includes("fixed already") && withFb.code === 1,
+     (withFb.out.split("New since the last morning check")[1] || "").split("\n").slice(0, 4).join(" / "));
+  await run(["--everyone", "--record"]);
+  const fbAgain = await run(["--everyone"]);
+  ck("  raised once: the next morning it is not new", (fbAgain.out.split("Raised with the owner before and still failing")[1] || "").includes(`- ${fbLine} (raised `) && fbAgain.code === 0);
+  state.feedback = [];
+  await run(["--everyone", "--record"]);
+  ck("  resolved, it drops off the list", !(fbLine in JSON.parse(readFileSync(RAISED, "utf8"))));
   state.runs = [];
   state.reports = [];
 }

@@ -71,7 +71,10 @@ if (missing.length) {
 // RAISED_FILE. --record saves today's problems to it (the scheduled morning
 // check passes it); without it the list is only read. A problem that stops
 // failing drops off the list, so if it comes back it's new again. A daily run
-// that couldn't ask Claude about look-alike cards is a problem too.
+// that couldn't ask Claude about look-alike cards is a problem too, and so is
+// every piece of feedback not yet resolved (the owner, 2026-10-12: "you
+// should be resolving it daily"), until scripts/resolve-feedback.mjs resolves
+// it.
 //
 // The last line says which: "All clear.", "Nothing new: ..." or "Something new
 // needs looking at."; the exit code is 0, 0 and 1.
@@ -143,6 +146,27 @@ if (args.includes("--everyone")) {
     if (e.error) { unreadable = true; console.log(`  Couldn't read its tests: ${e.error}`); }
     for (const line of e.regressions || []) { console.log(`  - ${line}`); problems.push(`${label}: ${line}`); }
     if (!e.error && !(e.regressions || []).length) console.log("  Nothing it got right before is wrong now.");
+  }
+
+  // Feedback nobody has dealt with, oldest first, with Claude's review of it
+  // (api/_lib/feedbackReview.js) beneath.
+  const fb = await db.from("beta_feedback").select("id, user_email, message, card_context, created_at, review")
+    .is("resolved_at", null).order("created_at", { ascending: true });
+  if (fb.error) {
+    unreadable = true;
+    console.log(`\nOpen feedback: couldn't be read: ${fb.error.message}`);
+  } else {
+    console.log(`\nOpen feedback: ${fb.data.length || "none"}.`);
+    for (const f of fb.data) {
+      const card = f.card_context?.front ? ` [card: ${f.card_context.front}]` : "";
+      const line = `feedback #${f.id} from ${f.user_email} on ${String(f.created_at).slice(0, 10)}: ${String(f.message || "").replace(/\s+/g, " ").trim()}${card}`;
+      problems.push(line);
+      const r = f.review;
+      if (r?.kind) {
+        const fix = r.kind === "card" && r.front ? ` Corrected card: “${r.front}” = “${r.back}”.` : "";
+        detail.set(line, `Claude's review (${r.kind}): ${r.reasoning || ""}${fix}${r.brief ? ` Brief: ${r.brief}` : ""}`);
+      }
+    }
   }
 
   const fresh = problems.filter((x) => !raised[x]);
