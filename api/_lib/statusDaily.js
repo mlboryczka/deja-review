@@ -22,14 +22,21 @@
 // evaluation harness is catching this properly". The question is the one
 // every card-writer asks (api/_lib/sameCardQuestion.js), capped per student
 // per day (LOOKALIKES_PER_DAY); what isn't asked waits for the next morning,
-// and the report says how many. No button anywhere starts it. Nothing here
-// writes anything but status_reports and those verdicts, and the verdicts
-// only from the daily run: the morning check on the Mac and "Check everyone
-// now" only read.
+// and the report says how many. No button anywhere starts it.
+//
+// Since 2026-10-09 the daily run also puts away one copy of each pair Claude
+// judged one card (putAwayRepeats, below): the owner said yes to "put away
+// the newer copy and keep the copy with the student's answers". Nothing here
+// writes anything but status_reports, those verdicts and those put-away
+// copies, and only from the daily run: the morning check on the Mac and
+// "Check everyone now" only read.
 
 import { runStatusChecks, lookalikes, LOOKALIKES_PER_DAY } from "../../src/lib/statusChecks.js";
 import { lessonRank } from "../../src/data/lessons/index.js";
 import { missingTable } from "../../src/lib/dealLog.js";
+import { archivedSource, isArchived } from "../../src/lib/archive.js";
+import { DIRECTIONS, sideOf } from "../../src/lib/directions.js";
+import { listParts } from "../../src/lib/sameCard.js";
 import { askSameCard, SAME_CARD_VERSION, SAME_CARD_MODEL } from "./sameCardQuestion.js";
 
 // The daily run's schedule in vercel.json. Vercel sends it with the request
@@ -94,8 +101,10 @@ export async function loadStudent(db, student) {
   };
 }
 
-// The checks on a loaded record, as the report kept for it.
-export function reportFor(rec, { now = Date.now() } = {}) {
+// The checks on a loaded record, as the report kept for it. `examples`: how
+// many lines of each check to keep (the checks' own default when left out);
+// the morning check on the Mac asks for all, so none goes unraised.
+export function reportFor(rec, { now = Date.now(), examples } = {}) {
   const { student } = rec;
   if (rec.error) return { user_id: student.id, user_email: student.email, ok: false, error: rec.error };
   // Rows saved without a time zone are read in the student's latest one.
@@ -112,6 +121,7 @@ export function reportFor(rec, { now = Date.now() } = {}) {
     timeZone: latestZone,
     lessonRank,
     now,
+    ...(examples != null ? { examples } : {}),
   });
   if (rec.judging) report.judging = rec.judging;
   return {
@@ -130,7 +140,10 @@ export function reportFor(rec, { now = Date.now() } = {}) {
 export async function checkStudent(db, student, { now = Date.now(), judge = null } = {}) {
   const rec = await loadStudent(db, student);
   if (!rec) return null;
-  if (judge && !rec.error) await judgeLookalikes(db, [rec], judge);
+  if (judge && !rec.error) {
+    await judgeLookalikes(db, [rec], judge);
+    await putAwayRepeats(db, [rec]);
+  }
   return reportFor(rec, { now });
 }
 
@@ -141,8 +154,10 @@ export async function checkStudent(db, student, { now = Date.now(), judge = null
 // to `cap` a student (the newest cards first), in the pooled calls
 // askSameCard makes, before any check is run. Nothing starts after `startBy`,
 // and no call runs past `deadline` (times in ms), so the run still has time
-// to keep the verdicts and check everyone.
-export async function checkEveryone(db, { now = Date.now(), judge = null } = {}) {
+// to keep the verdicts and check everyone. With `judge`, the copies Claude
+// judged one card are then put away (putAwayRepeats). `examples` as for
+// reportFor.
+export async function checkEveryone(db, { now = Date.now(), judge = null, examples } = {}) {
   const loaded = [];
   for (const student of await listStudents(db)) {
     try {
@@ -152,10 +167,13 @@ export async function checkEveryone(db, { now = Date.now(), judge = null } = {})
       loaded.push({ student, error: e.message || String(e) });
     }
   }
-  if (judge) await judgeLookalikes(db, loaded.filter((r) => !r.error), judge);
+  if (judge) {
+    await judgeLookalikes(db, loaded.filter((r) => !r.error), judge);
+    await putAwayRepeats(db, loaded.filter((r) => !r.error));
+  }
   return loaded.map((rec) => {
     try {
-      return reportFor(rec, { now });
+      return reportFor(rec, { now, examples });
     } catch (e) {
       return { user_id: rec.student.id, user_email: rec.student.email, ok: false, error: e.message || String(e) };
     }
@@ -226,6 +244,58 @@ export async function judgeLookalikes(db, recs, { apiKey, startBy = Infinity, de
         ? `Claude couldn't be asked about ${unanswered}: ${failure}`
         : `No answer about ${unanswered}: a call failed or ran out of time`;
     }
+  }
+}
+
+// One copy of each pair Claude judged one card, put away (2026-10-09). The
+// copy kept is the one with the student's answers. When neither has any: a
+// list card over the card that is one of its items ("énervé / fâché" over
+// "énervé"), so no word leaves study; then a lesson card over the student's
+// own, so the lesson stays whole, as the 2026-10-06 clean-up chose; then the
+// older. Both stay, and the check goes on naming them, when both have answers
+// (putting either away would hide answers the student gave) or when the copy
+// without answers is the list card (putting it away would take its other
+// words out of study). The copy put
+// away is archived as a repeat of the kept one (archived_reason "duplicate",
+// merged_into), which keeps its row, schedule, answers and class dates, and
+// keeps it out of study whatever a lesson or a later class brings
+// (src/lib/lessonSync.js, src/lib/cardMatch.js). A card is touched once a
+// morning: a third copy waits for the next. Adds to each record's `judging`
+// { putAway, keptBoth } and, if a write failed, `putAwayError`.
+const answeredCard = (row, answeredIds) =>
+  answeredIds.has(String(row.id)) || DIRECTIONS.some((d) => { const s = sideOf(row, d); return s.fsrs_state !== 0 || s.reps > 0; });
+const isList = (row) => listParts(row).length >= 2;
+const isLessonCard = (row) => typeof row?.source === "string" && row.source.startsWith("lesson:");
+// Of two copies neither of which has answers, `older` first: whether to keep
+// the older.
+const keepOlder = (older, newer) =>
+  isList(older) !== isList(newer) ? isList(older)
+    : isLessonCard(older) !== isLessonCard(newer) ? isLessonCard(older)
+    : true;
+
+export async function putAwayRepeats(db, recs, { at = new Date().toISOString() } = {}) {
+  for (const rec of recs) {
+    if (!rec.pairsTable || !rec.pairs) continue;
+    const { same } = lookalikes({ cards: rec.cards, pairs: rec.pairs });
+    const answeredIds = new Set((rec.answers || []).map((r) => String(r.card_id)));
+    const touched = new Set();
+    let putAway = 0, keptBoth = 0, failed = null;
+    for (const { a, b } of same) {
+      if (touched.has(String(a.id)) || touched.has(String(b.id))) continue;
+      const hasA = answeredCard(a, answeredIds), hasB = answeredCard(b, answeredIds);
+      if (hasA && hasB) { keptBoth++; continue; }
+      const [keep, drop] = hasA ? [a, b] : hasB ? [b, a] : keepOlder(a, b) ? [a, b] : [b, a];
+      if (isList(drop) && !isList(keep)) { keptBoth++; continue; }
+      if (isArchived(drop)) continue;
+      const patch = { source: archivedSource(drop.source), archived_reason: "duplicate", archived_at: at, merged_into: keep.id };
+      const { error } = await db.from("user_cards").update(patch).eq("id", drop.id).eq("user_id", rec.student.id);
+      if (error) { failed = error.message; break; }
+      Object.assign(drop, patch);
+      touched.add(String(a.id)).add(String(b.id));
+      putAway++;
+    }
+    if (!putAway && !keptBoth && !failed) continue;
+    rec.judging = { ...(rec.judging || {}), putAway, keptBoth, ...(failed ? { putAwayError: `a repeat couldn't be put away: ${failed}` } : {}) };
   }
 }
 

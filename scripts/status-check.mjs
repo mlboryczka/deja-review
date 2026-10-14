@@ -72,7 +72,10 @@ if (missing.length) {
 // RAISED_FILE. --record saves today's problems to it (the scheduled morning
 // check passes it); without it the list is only read. A problem that stops
 // failing drops off the list, so if it comes back it's new again. A daily run
-// that couldn't ask Claude about look-alike cards is a problem too.
+// that couldn't ask Claude about look-alike cards is a problem too, and so is
+// every piece of feedback not yet resolved (the owner, 2026-10-12: "you
+// should be resolving it daily"), until scripts/resolve-feedback.mjs resolves
+// it.
 //
 // The last line says which: "All clear.", "Nothing new: ..." or "Something new
 // needs looking at."; the exit code is 0, 0 and 1.
@@ -92,7 +95,9 @@ if (args.includes("--everyone")) {
   const detail = new Map();
   let unreadable = false;
 
-  const reports = await checkEveryone(db);
+  // Every line of every check, not the first few: a problem past the few
+  // shown was never raised (2026-10-09: 19 of the owner's 25 repeats).
+  const reports = await checkEveryone(db, { examples: Infinity });
   console.log(`Every student who has answered (${reports.length}), checked now:`);
   for (const r of [...reports].sort((a, b) => Number(a.ok) - Number(b.ok))) {
     if (r.error) { unreadable = true; console.log(`\n  ${r.user_email}: couldn't be checked: ${r.error}`); continue; }
@@ -112,7 +117,12 @@ if (args.includes("--everyone")) {
   const judged = [];
   for (const k of kept.reports || []) {
     const j = k.report?.judging;
-    if (!j || (!j.asked && !j.left && !j.error)) continue;
+    if (!j || (!j.asked && !j.left && !j.error && !j.putAway && !j.keptBoth && !j.putAwayError)) continue;
+    if (j.putAwayError) {
+      const line = `${k.user_email}: the daily run couldn't put away a repeated card`;
+      problems.push(line);
+      detail.set(line, j.putAwayError);
+    }
     // The error itself goes beneath the line, not in it: it carries a count
     // of pairs, or an API error's request id, that is different every
     // morning, and a key that changes daily is raised as new every day.
@@ -184,6 +194,27 @@ if (args.includes("--everyone")) {
         const line = `Supabase: the ${what} ${what === "database" ? "is" : "are"} over ${tier * 100}% of the free plan's ${limitText}`;
         problems.push(line);
         detail.set(line, `${mb(used)} MB used`);
+      }
+    }
+  }
+
+  // Feedback nobody has dealt with, oldest first, with Claude's review of it
+  // (api/_lib/feedbackReview.js) beneath.
+  const fb = await db.from("beta_feedback").select("id, user_email, message, card_context, created_at, review")
+    .is("resolved_at", null).order("created_at", { ascending: true });
+  if (fb.error) {
+    unreadable = true;
+    console.log(`\nOpen feedback: couldn't be read: ${fb.error.message}`);
+  } else {
+    console.log(`\nOpen feedback: ${fb.data.length || "none"}.`);
+    for (const f of fb.data) {
+      const card = f.card_context?.front ? ` [card: ${f.card_context.front}]` : "";
+      const line = `feedback #${f.id} from ${f.user_email} on ${String(f.created_at).slice(0, 10)}: ${String(f.message || "").replace(/\s+/g, " ").trim()}${card}`;
+      problems.push(line);
+      const r = f.review;
+      if (r?.kind) {
+        const fix = r.kind === "card" && r.front ? ` Corrected card: “${r.front}” = “${r.back}”.` : "";
+        detail.set(line, `Claude's review (${r.kind}): ${r.reasoning || ""}${fix}${r.brief ? ` Brief: ${r.brief}` : ""}`);
       }
     }
   }
