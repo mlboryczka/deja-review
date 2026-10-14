@@ -92,18 +92,56 @@ function daysBetween(fromIso, toIso) {
 }
 
 // ── Fitting the memory settings ────────────────────────────────────────
-// First fit at FIRST_FIT answers; after that, another try once there are
-// REFIT_ANSWERS more and REFIT_DAYS have passed. A fit is only used if it
-// predicts the student's latest answers better than the settings in use.
-export const FIRST_FIT = 1000;
-export const REFIT_ANSWERS = 500;
-export const REFIT_DAYS = 30;
+// A student's own settings are first tried at FIRST_FIT answers, and again
+// once there are REFIT_ANSWERS more and REFIT_DAYS have passed. A fit is only
+// used if it predicts the student's latest answers better than the settings
+// in use (api/fsrs-fit.js).
+//
+// Two kinds of fit are tried (owner, 2026-10-14: "the gaps should be based
+// individually on each student"):
+//
+//   "first-gaps"  the starting settings with the student's own numbers for how
+//                 long a word lasts after its first answer, right or wrong
+//                 (FIRST_GAP_WEIGHTS). Every word answered twice says
+//                 something about these, so a student's answers pin them down
+//                 early.
+//   "own"         every number fitted to the student. Most of them are about
+//                 gaps of weeks and months, which a student's answers only
+//                 cover later.
+//
+// On the owner's 809 answers (2026-10-14), words right the first time came
+// back right 112 of 119 times where the starting settings expected 88%, and
+// words missed the first time 60 of 103 times where they expected 71%. On
+// their newest answers the full fit predicted slightly worse than the starting
+// settings, and "first-gaps" slightly better than both. Until then a fit was
+// first tried at 1,000 answers, then every 500 answers and 30 days.
+export const FIRST_FIT = 350;
+export const REFIT_ANSWERS = 50;
+export const REFIT_DAYS = 7;
+// w[0]: how long a word lasts after a first answer that was wrong; w[2]: after
+// one that was right. (w[1] and w[3] are Hard and Easy, which this app hasn't.)
+export const FIRST_GAP_WEIGHTS = Object.freeze([0, 2]);
 
 export function fitDue({ answers, checkedAt = null, checkedAnswers = null, now = Date.now() }) {
   if (!(answers >= FIRST_FIT)) return false;
   if (!checkedAt) return true;
   const days = (now - new Date(checkedAt).getTime()) / 86400000;
   return answers - (checkedAnswers || 0) >= REFIT_ANSWERS && days >= REFIT_DAYS;
+}
+
+// The starting settings with a fit's numbers for the first gaps.
+export function withFirstGaps(fitted, base = STARTING_WEIGHTS) {
+  const w = [...base];
+  for (const i of FIRST_GAP_WEIGHTS) w[i] = fitted[i];
+  return w;
+}
+
+// Which settings a student is on: "start", "first-gaps" or "own". The server
+// keeps the kind in use in fit_result.inUse; a fit from before 2026-10-14 was
+// always a full one.
+export function settingsKind(row) {
+  if (!usableWeights(row?.weights)) return "start";
+  return row?.fit_result?.inUse === "first-gaps" ? "first-gaps" : "own";
 }
 
 // A set of 21 weights that ts-fsrs can use, or null.

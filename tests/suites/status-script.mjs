@@ -1,7 +1,7 @@
 // scripts/status-check.mjs, the status check from the command line, run
 // against a stand-in Supabase (the auth admin list and every table it reads)
 // holding a simulated student's record. Checks that it finds the admin's
-// account, reads every page of answers, runs the eleven checks, says so
+// account, reads every page of answers, runs the thirteen checks, says so
 // plainly when migration_013 or migration_016 hasn't been run, lists every
 // detail with --all, and never sends anything but a GET. And what it reads
 // for the two checks of the deck (2026-10-06): Claude's verdicts on look-alike
@@ -111,7 +111,7 @@ console.log("\n  the admin's own record, found without being named");
   ck("and how many carry their settings", /\(\d+ saved with their settings\)/.test(r.out) && !/\(0 saved/.test(r.out));
   ck("it read the sets and the settings", r.out.includes(`${rec.deals.length} sets recorded`) && /Settings: automatic, now \d+%/.test(r.out), r.out.split("\n").slice(0, 2).join(" | "));
   const marks = r.out.split("\n").filter((l) => /^\[(PASS|FAIL|WAIT)\]/.test(l));
-  ck("all eleven checks reported", marks.length === 11, `${marks.length}`);
+  ck("all thirteen checks reported", marks.length === 13, `${marks.length}`);
   ck("it read Claude's verdicts, why cards were taken out, and the corrections",
      r.out.includes(`${state.pairs.length} verdicts of Claude's on look-alike cards, 0 cards removed, 1 correction.`) &&
      ["card_pairs", "parse_corrections"].every((t) => state.requests.some((q) => q.path === `/rest/v1/${t}`)), r.out.split("\n")[1]);
@@ -123,7 +123,9 @@ console.log("\n  the admin's own record, found without being named");
   // on which 30 days count as recent, so it isn't this suite's business; the
   // checks of what the app did are, and the exit code must say if any failed.
   const failed = marks.filter((l) => l.startsWith("[FAIL]"));
-  ck("the simulated record passes every check of what the app did", failed.every((l) => l.includes("predictions")), failed.join(" | "));
+  // The two checks of FSRS against results are the luck of the simulated
+  // student's memory (tests/suites/status.mjs says why).
+  ck("the simulated record passes every check of what the app did", failed.every((l) => l.includes("predictions") || l.includes("first gap")), failed.join(" | "));
   ck("and the exit code says whether any check failed", r.code === (failed.length ? 1 : 0), `exit ${r.code}, ${failed.length} failed`);
   ck("it only ever read: every request a GET", state.requests.length > 0 && state.requests.every((q) => q.method === "GET"), [...new Set(state.requests.map((q) => q.method))].join(","));
   ck("and asked for answers more than once, a page at a time", state.requests.filter((q) => q.path === "/rest/v1/card_reviews").length >= 3);

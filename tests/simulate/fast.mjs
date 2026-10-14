@@ -3,11 +3,11 @@
 // browser. Run it before any change to scheduling or to which cards a set
 // takes; it fails if any check of the app's behaviour fails.
 //
-// "FSRS's predictions match your results" is reported but doesn't fail the
-// run: it measures how well FSRS's starting settings fit a student's memory,
-// and these students' memory is invented, deliberately unlike FSRS. A real
-// student's settings are fitted to them after about 1,000 answers; these keep
-// the starting ones.
+// "FSRS's predictions match your results" and "A new word's first gap suits
+// how you remember" are reported but don't fail the run: they measure how
+// well FSRS's starting settings fit a student's memory, and these students'
+// memory is invented, deliberately unlike FSRS. A real student's own settings
+// are tried from about 350 answers; these keep the starting ones.
 //
 // It also runs the two checks of the deck (2026-10-06): no card twice, and
 // nothing deleted or corrected back. The simulated deck holds each card once,
@@ -35,6 +35,8 @@ const seeds = [1, 2];
 
 let failed = 0;
 const pct = (x) => `${Math.round(x * 100)}%`;
+// The checks of FSRS against results, reported but not failing a run (above).
+const LUCK = new Set(["predictions", "first-gaps"]);
 for (const student of students) {
   for (const seed of seeds) for (const messy of [0, 0.3]) {
     const t = Date.now();
@@ -54,13 +56,13 @@ for (const student of students) {
     if (messy) console.log(`  ${h.oldCopy} openings on an old copy, ${h.notes} class notes arriving mid-set, ${h.reload} reloads, ${h.detour} detours into a lesson`);
     console.log(`  remembers about ${Math.round(m.known)} of ${m.seen} cards met; right on ${pct(m.reviewRetention)} of reviews; target ended at ${pct(m.targets.at(-1))}`);
     for (const r of report.results) {
-      const info = r.id === "predictions" || (r.id === "dealt" && known.onlyThese && known.count > 0);
+      const info = LUCK.has(r.id) || (r.id === "dealt" && known.onlyThese && known.count > 0);
       const mark = r.status === "pass" ? "✓" : r.status === "fail" ? (info ? "·" : "✗") : "–";
       console.log(`  ${mark} ${r.title}: ${r.summary}`);
       if (r.status === "fail" || info) for (const d of r.details) console.log(`      ${d}`);
       if (r.id === "dealt" && known.onlyThese && known.count > 0) console.log(`      Known, not yet fixed: ${known.count} card${known.count === 1 ? "" : "s"} asked again straight after a detour into a lesson.`);
     }
-    if (report.results.some((r) => r.status === "fail" && r.id !== "predictions" && !(r.id === "dealt" && known.onlyThese))) failed++;
+    if (report.results.some((r) => r.status === "fail" && !LUCK.has(r.id) && !(r.id === "dealt" && known.onlyThese))) failed++;
   }
 }
 console.log(failed ? `\n${failed} run(s) failed a check.` : "\nEvery run passed every check of the app's behaviour.");

@@ -18,7 +18,8 @@ import { sideOf, sideColumns, isTwoWay, otherDirection, directionsOf } from "../
 import { reviewedToday, localISODate, startOfLocalDay } from "../../src/lib/studyDay.js";
 import { reviewRow } from "../../src/lib/reviewLog.js";
 import { dealRow } from "../../src/lib/dealLog.js";
-import { DEFAULT_TARGET, recordStudyDay, nextAutoTarget } from "../../src/lib/fsrsSettings.js";
+import { DEFAULT_TARGET, recordStudyDay, nextAutoTarget, fitDue } from "../../src/lib/fsrsSettings.js";
+import { buildHistories, fittingSequences } from "../../src/lib/fsrsHistory.js";
 import { RAW } from "../../src/data/cards.js";
 import { LESSONS, lessonRank } from "../../src/data/lessons/index.js";
 import { lessonSource, lessonCardKey, lessonIdOf } from "../../src/lib/lessonSource.js";
@@ -290,6 +291,17 @@ export function simulate({
         settings.target = next;
         settings.target_changed_at = new Date(now).toISOString();
       }
+    }
+    // And the server's daily try of the student's own settings (api/fsrs-fit.js),
+    // made whenever one is due. The simulation doesn't run the optimizer, so a
+    // try keeps the starting settings, as one that doesn't predict better does;
+    // "Your own settings were tried when due" reads the record it leaves.
+    const usable = fittingSequences(buildHistories(answers), TIME_ZONE).reduce((n, q) => n + q.length, 0);
+    if (fitDue({ answers: usable, checkedAt: settings.fit_checked_at ?? null, checkedAnswers: settings.fit_checked_answers ?? null, now })) {
+      Object.assign(settings, {
+        fit_checked_at: new Date(now).toISOString(), fit_checked_answers: usable,
+        fit_result: { adopted: false, kind: null, inUse: "start" },
+      });
     }
     applySettings({ weights: settings.weights, retention: settings.target });
     m.targets.push(settings.target);

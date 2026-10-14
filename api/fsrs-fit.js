@@ -4,13 +4,16 @@
 // estimate in step with the settings in use. The app calls it once a day, in
 // the background; this decides whether there is anything to do.
 //
-//   1. Fitting. Once the student has given about 1,000 answers, their own
-//      settings are fitted from them (the official FSRS optimizer). Then again
-//      each month, once there are 500 more. A fit is only used if it predicts
-//      the student's most recent answers — ones it was not fitted on — better
-//      than the settings in use; otherwise nothing changes. On the FSRS team's
-//      open data (2026-09-26) a personal fit beat the starting settings for 78%
-//      of students at 1,000 answers, and was a coin flip at 250.
+//   1. Fitting. From about 350 answers, the student's own settings are fitted
+//      from them (the official FSRS optimizer), and again each week once there
+//      are 50 more. Two kinds are tried: every number fitted to the student,
+//      and the starting settings with only the student's own first gaps (lib/
+//      fsrsSettings.js says why). The better of the two is used only if it
+//      predicts the student's most recent answers — ones it was not fitted
+//      on — better than the settings in use; otherwise nothing changes. On the
+//      FSRS team's open data (2026-09-26) a full personal fit beat the starting
+//      settings for 78% of students at 1,000 answers, and was a coin flip at
+//      250, which is why nothing is used without that test.
 //   2. Estimates. Whenever the settings in use change — a fit is adopted, or
 //      the app's starting settings change — every card's memory estimate
 //      (stability and difficulty) is worked out again from its own answers
@@ -25,7 +28,7 @@ import { createClient } from "@supabase/supabase-js";
 import { requireUser } from "./_lib/auth.js";
 import { buildHistories, fittingSequences, replayHistory } from "../src/lib/fsrsHistory.js";
 import { makeScheduler } from "../src/lib/spacedRepetition.js";
-import { STARTING_WEIGHTS, STARTING_VERSION, FIRST_FIT, fitDue, usableWeights } from "../src/lib/fsrsSettings.js";
+import { STARTING_WEIGHTS, STARTING_VERSION, FIRST_FIT, fitDue, usableWeights, withFirstGaps, settingsKind } from "../src/lib/fsrsSettings.js";
 
 export const config = { maxDuration: 60 };
 
@@ -98,7 +101,10 @@ export async function fitUser({ admin, userId, timeZone, now = Date.now(), optim
     const opt = optimizer || (await import("@open-spaced-repetition/binding"));
     fit = await tryFit(opt, sequences, weights);
     const at = new Date(now).toISOString();
-    Object.assign(patch, { fit_checked_at: at, fit_checked_answers: answers, fit_result: fit.result });
+    // The kind of settings in use after this try, kept with its result:
+    // settingsKind() reads it back.
+    const inUse = fit.weights ? fit.kind : settingsKind(row);
+    Object.assign(patch, { fit_checked_at: at, fit_checked_answers: answers, fit_result: { ...fit.result, inUse } });
     if (fit.weights) {
       weights = fit.weights;
       settings = `fit:${at}`;
@@ -130,9 +136,12 @@ export async function fitUser({ admin, userId, timeZone, now = Date.now(), optim
   };
 }
 
-// Fit on the older 80% of the student's answers, test on the newest 20%. Only
-// if the fit predicts those better than the settings in use is it kept — and
-// then fitted again on everything, for the settings actually used.
+// Fit on the older 80% of the student's answers, test on the newest 20%. Two
+// sets of settings are tested there: every number the fit gives ("own"), and
+// the starting settings with only its first gaps ("first-gaps"). The better
+// one is kept only if it predicts those answers better than the settings in
+// use — and then fitted again on everything, for the settings actually used.
+// A tie between the two goes to "first-gaps", which changes less.
 async function tryFit(opt, sequences, current) {
   const items = [];
   for (const s of sequences) {
@@ -144,18 +153,27 @@ async function tryFit(opt, sequences, current) {
     new opt.FSRSBindingItem(it.reviews.map((r) => new opt.FSRSBindingReview(r.rating, r.deltaT))));
   const train = toItems(items.slice(0, cut));
   const test = toItems(items.slice(cut));
-  const result = { trainAnswers: train.length, testAnswers: test.length, lossFitted: null, lossInUse: null, adopted: false };
+  const result = {
+    trainAnswers: train.length, testAnswers: test.length,
+    lossFitted: null, lossFirstGaps: null, lossInUse: null, adopted: false, kind: null,
+  };
   if (train.length < 200 || test.length < 50) return { weights: null, result };
 
-  const candidate = usableWeights(await opt.computeParameters(train, { enableShortTerm: false }));
-  if (!candidate) return { weights: null, result };
-  result.lossFitted = new opt.FSRSBinding(candidate).evaluate(test).logLoss;
-  result.lossInUse = new opt.FSRSBinding([...current]).evaluate(test).logLoss;
-  if (!(result.lossFitted < result.lossInUse)) return { weights: null, result };
+  const fitted = usableWeights(await opt.computeParameters(train, { enableShortTerm: false }));
+  if (!fitted) return { weights: null, result };
+  const loss = (w) => new opt.FSRSBinding([...w]).evaluate(test).logLoss;
+  result.lossFitted = loss(fitted);
+  result.lossFirstGaps = loss(withFirstGaps(fitted));
+  result.lossInUse = loss(current);
+  const kind = result.lossFirstGaps <= result.lossFitted ? "first-gaps" : "own";
+  const best = kind === "first-gaps" ? result.lossFirstGaps : result.lossFitted;
+  if (!(best < result.lossInUse)) return { weights: null, result };
 
-  const weights = usableWeights(await opt.computeParameters(toItems(items), { enableShortTerm: false }));
-  result.adopted = !!weights;
-  return { weights, result };
+  const all = usableWeights(await opt.computeParameters(toItems(items), { enableShortTerm: false }));
+  if (!all) return { weights: null, result };
+  result.adopted = true;
+  result.kind = kind;
+  return { weights: kind === "own" ? all : withFirstGaps(all), kind, result };
 }
 
 // Every card's estimate, worked out again from its answers under `weights`,

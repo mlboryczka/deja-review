@@ -55,7 +55,9 @@ const failsOnly = (report, id, label) => {
 // own (FSRS's predictions against results, below), so here it is left out,
 // and a change to how the simulated deck is built can't turn the suite red
 // by reshuffling the luck.
-const LUCK = new Set(["predictions"]);
+// "A new word's first gap suits how you remember" is the same question asked
+// of a word's second answer only, so it is luck here too, with tests below.
+const LUCK = new Set(["predictions", "first-gaps"]);
 console.log("\n  a simulated student studying by the app's rules");
 {
   const report = check(base);
@@ -415,6 +417,67 @@ console.log("\n  FSRS's predictions against results");
   ck("but 60 such reviews are too few to judge, and wait", result(few, "predictions").status === "wait", result(few, "predictions").summary);
 }
 
+// ── A word's first gap, and the student's own settings (2026-10-14) ────
+console.log("\n  a new word's first gap");
+{
+  // n words met on day 0, answered again `gap` days later; `right` of the
+  // second answers right. The first answer right or wrong as `first`.
+  const t0 = Date.parse(`${CHECKS_START}T10:00:00`) + 3 * DAY;
+  const words = ({ n, first, gap, right, from = 0 }) => Array.from({ length: n }, (_, i) => [
+    { id: `f${from + i}`, card_id: from + i + 1, direction: "fr", answered_at: new Date(t0 + i * 60000).toISOString(),
+      correct: first, counted: true, state_before: State.New, due_after: new Date(t0 + gap * DAY + i * 60000).toISOString() },
+    { id: `s${from + i}`, card_id: from + i + 1, direction: "fr", answered_at: new Date(t0 + gap * DAY + i * 60000).toISOString(),
+      correct: i < right, counted: true, state_before: State.Review },
+  ]).flat();
+  const judge = (answers, settings = null) => result(runStatusChecks({ answers, cards: [], settings, timeZone: TIME_ZONE, now: t0 + 12 * DAY }), "first-gaps");
+
+  // As on the owner's record: right the first time and every one right ten
+  // days on, where the starting settings expect about 82%.
+  const knew = words({ n: 120, first: true, gap: 10, right: 120 });
+  const r1 = judge(knew);
+  ck("words right first time, all right again where 82% was expected: fails", r1.status === "fail", `${r1.status}: ${r1.summary}`);
+  ck("  saying they come back sooner than they need to", /got right the first time: expected 8\d% .* you got 100% \(120 words\)\. They come back sooner than they need to\./.test(r1.details[0]), r1.details[0]);
+  ck("  and which settings judged it", /Judged with the starting settings\./.test(r1.summary), r1.summary);
+  const missed = words({ n: 120, first: false, gap: 1, right: 36, from: 500 });
+  const r2 = judge(missed);
+  ck("words missed first, 30% right the next day where 78% was expected: fails, waiting too long", r2.status === "fail" && /They wait longer than they should\./.test(r2.details[0]), r2.details[0]);
+  const fitted = { weights: STARTING_WEIGHTS.map((x, i) => (i === 2 ? 40 : x)), fitted_at: new Date(t0).toISOString(), fit_result: { inUse: "first-gaps" } };
+  const r3 = judge(knew, fitted);
+  ck("with first gaps fitted to that student, the same answers pass", r3.status === "pass", `${r3.status}: ${r3.summary} ${r3.details[0]}`);
+  ck("  judged with the starting settings and their own first gaps", /Judged with the starting settings with your own first gaps since /.test(r3.summary), r3.summary);
+  const r4 = judge(knew.slice(0, 120));
+  ck("60 words are too few to judge, and wait", r4.status === "wait" && /Too few/.test(r4.details[0]), `${r4.status}: ${r4.details[0]}`);
+  ck("a second answer counted on the day of the first isn't one", judge(words({ n: 120, first: true, gap: 0, right: 0 })).status === "wait");
+}
+
+console.log("\n  your own settings, tried when due");
+{
+  // 200 words answered twice: 400 answers that count, then a study day.
+  const t0 = Date.parse(`${CHECKS_START}T10:00:00`) + 3 * DAY;
+  const rows = [];
+  for (let i = 0; i < 200; i++) {
+    rows.push({ id: `a${i}`, card_id: i + 1, direction: "fr", answered_at: new Date(t0 + i * 60000).toISOString(), correct: true, counted: true, state_before: State.New, due_after: new Date(t0 + 4 * DAY).toISOString() });
+    rows.push({ id: `b${i}`, card_id: i + 1, direction: "fr", answered_at: new Date(t0 + 4 * DAY + i * 60000).toISOString(), correct: true, counted: true, state_before: State.Review, due_after: new Date(t0 + 9 * DAY).toISOString() });
+  }
+  const lastDay = t0 + 9 * DAY;
+  rows.push({ id: "c", card_id: 1, direction: "fr", answered_at: new Date(lastDay).toISOString(), correct: true, counted: true, state_before: State.Review });
+  const judge = (settings) => result(runStatusChecks({ answers: rows, cards: [], settings, timeZone: TIME_ZONE, now: lastDay + 3600000 }), "own-settings");
+  const never = judge({ weights: null, target: 0.9 });
+  ck("400 answers that count and never tried: fails, naming the day", never.status === "fail" && /due a try when you studied on \w{3} \d+/.test(never.summary), never.summary);
+  const today = judge({ weights: null, target: 0.9, fit_checked_at: new Date(lastDay - 600000).toISOString(), fit_checked_answers: 400, fit_result: { adopted: false, inUse: "start" } });
+  ck("tried that day: passes, saying it kept what was in use", today.status === "pass" && /kept what was in use/.test(today.summary), today.summary);
+  const recent = judge({ weights: null, target: 0.9, fit_checked_at: new Date(lastDay - 3 * DAY).toISOString(), fit_checked_answers: 380 });
+  ck("tried three days before: not due yet, passes", recent.status === "pass" && /Not due/.test(recent.summary), recent.summary);
+  const old = judge({ weights: null, target: 0.9, fit_checked_at: new Date(lastDay - 8 * DAY).toISOString(), fit_checked_answers: 100 });
+  ck("tried eight days before on 100 answers: due again, and missed, fails", old.status === "fail", old.summary);
+  const switched = judge({ weights: STARTING_WEIGHTS.map((x, i) => (i === 2 ? 8 : x)), fitted_at: new Date(lastDay - 600000).toISOString(), target: 0.9,
+    fit_checked_at: new Date(lastDay - 600000).toISOString(), fit_checked_answers: 400, fit_result: { adopted: true, kind: "first-gaps", inUse: "first-gaps" } });
+  ck("a try that switched says to what", switched.status === "pass" && /switched to your own first gaps/.test(switched.summary) && /Now on the starting settings with your own first gaps/.test(switched.summary), switched.summary);
+  const few = result(runStatusChecks({ answers: rows.slice(0, 100), cards: [], settings: { weights: null }, timeZone: TIME_ZONE, now: lastDay }), "own-settings");
+  ck("50 words answered twice are too few: waits, saying how many count", few.status === "wait" && /first tried at 350 answers that count; you have 100/.test(few.summary), few.summary);
+  ck("no settings on record: waits", judge(null).status === "wait");
+}
+
 // ── The records the app writes ─────────────────────────────────────────
 console.log("\n  what the app records");
 {
@@ -449,7 +512,7 @@ console.log("\n  what the app records");
 }
 {
   const text = statusText(check(base));
-  ck("the details to paste to Claude name every check", text.split("\n").filter((l) => /^\[(PASS|FAIL|WAIT)\]/.test(l)).length === 11, text.slice(0, 200));
+  ck("the details to paste to Claude name every check", text.split("\n").filter((l) => /^\[(PASS|FAIL|WAIT)\]/.test(l)).length === 13, text.slice(0, 200));
 }
 
 // ── The deck: no card twice, nothing back ──────────────────────────────

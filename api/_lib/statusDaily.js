@@ -1,7 +1,8 @@
 // The status check on every student (2026-10-06).
 //
 // The checks (src/lib/statusChecks.js; nine then, eleven since the two of the
-// deck) used to run only on the admin's own record, in the admin's browser,
+// deck, thirteen since the first gaps and own settings of 2026-10-14) used to
+// run only on the admin's own record, in the admin's browser,
 // while the app was open. Here they run on
 // the server on every student who has answered anything, with the service
 // role:

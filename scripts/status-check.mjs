@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // The status check on a student's real record, from the command line: the
-// same eleven checks the server runs on every student each day
+// same thirteen checks the server runs on every student each day
 // (src/lib/statusChecks.js), for looking into what they report. Claude runs
 // it each morning on this Mac (a scheduled task) and tells the owner only
 // when something needs their decision; the app itself shows no Status line.
@@ -59,7 +59,7 @@ if (missing.length) {
   console.error(`Missing: ${missing.join(", ")}\nPut them in .env.local or the environment.`);
   process.exit(1);
 }
-// --everyone: the morning check. The same eleven checks on every student who
+// --everyone: the morning check. The same thirteen checks on every student who
 // has answered anything, run now (api/_lib/statusDaily.js); what the server's
 // daily run last asked Claude about look-alike cards, from its kept reports;
 // and whether a change to how Claude is asked has made it get wrong what it
@@ -326,7 +326,7 @@ console.log(pairs === null
   ? `No card_pairs table yet (migration_016 not run): no verdicts of Claude's on look-alike cards, and no record of cards removed; ${fixes}.`
   : `${count(pairs.length, "verdict")} of Claude's on look-alike cards, ${count(removed, "card")} removed, ${fixes}.`);
 console.log(settings
-  ? `Settings: ${settings.target_mode === "fixed" ? `fixed at ${Math.round(settings.target * 100)}%` : `automatic, now ${Math.round(settings.target * 100)}%`}; ${settings.weights ? `own weights since ${settings.fitted_at}` : "starting weights"}.`
+  ? `Settings: ${settings.target_mode === "fixed" ? `fixed at ${Math.round(settings.target * 100)}%` : `automatic, now ${Math.round(settings.target * 100)}%`}; ${!settings.weights ? "starting weights" : settings.fit_result?.inUse === "first-gaps" ? `starting weights with own first gaps since ${settings.fitted_at}` : `own weights since ${settings.fitted_at}`}.`
   : "Settings: none saved (starting settings, 90%).");
 console.log("");
 console.log(statusText(report));

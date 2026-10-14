@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "./supabase";
 import { applySettings, State } from "./lib/spacedRepetition";
 import {
-  TARGET_CHOICES, DEFAULT_TARGET, targetOf, recordStudyDay, nextAutoTarget,
+  TARGET_CHOICES, DEFAULT_TARGET, targetOf, recordStudyDay, nextAutoTarget, settingsKind,
 } from "./lib/fsrsSettings";
 import { directionsOf, isTwoWay, sideOf } from "./lib/directions";
 import { localISODate, startOfLocalDay } from "./lib/studyDay";
@@ -157,6 +157,7 @@ export function useFsrsSettings(user, { cards, freshSeq, dir, onEstimatesChanged
     choice: choiceOf(row),
     target: targetOf(row),
     fittedAt: row?.weights ? row.fitted_at : null,
+    fittedKind: settingsKind(row),
     answers: lastFit?.answers ?? row?.fit_checked_answers ?? null,
     setChoice,
   };

@@ -36,8 +36,8 @@
 // given in.
 
 import { State, Rating, makeScheduler, toFsrsTime } from "./spacedRepetition.js";
-import { buildHistories, replayHistory } from "./fsrsHistory.js";
-import { STARTING_WEIGHTS, targetOf, usableWeights } from "./fsrsSettings.js";
+import { buildHistories, replayHistory, fittingSequences } from "./fsrsHistory.js";
+import { STARTING_WEIGHTS, targetOf, usableWeights, settingsKind, fitDue, FIRST_FIT, REFIT_ANSWERS, REFIT_DAYS } from "./fsrsSettings.js";
 import { sideOf, isTwoWay, directionsOf, otherDirection } from "./directions.js";
 import { classDaysOf, addedByStudent } from "./sessionQueue.js";
 import { lessonIdOf } from "./lessonSource.js";
@@ -45,7 +45,7 @@ import { classifyCard } from "./cardTypes.js";
 import { isArchived } from "./archive.js";
 import { CAT_DB_TO_UI } from "./cardCategories.js";
 import { cardIndex, isSureMatch, isListPart, sureKey } from "./sameCard.js";
-import { forgetting_curve, get_fuzz_range } from "ts-fsrs";
+import { forgetting_curve, get_fuzz_range, createEmptyCard } from "ts-fsrs";
 
 // The first study day checked: the day the current rules and the check
 // started (2026-09-27).
@@ -744,6 +744,117 @@ function checkPredictions(idx, ctx) {
   return { ...out, status: "pass", summary, details: lines };
 }
 
+// ── A word's first gap, and the student's own settings (2026-10-14) ────
+//
+// How long a word lasts after its first answer, right or wrong, is two of
+// FSRS's numbers, and the ones a student's answers show first. On the owner's
+// record of 2026-10-14 the starting settings were wrong about both, in
+// opposite directions: words right the first time came back right 112 of 119
+// times where 88% was expected, and words missed first 60 of 103 times where
+// 71% was. Over all answers the two cancelled out, so "FSRS's predictions
+// match your results" passed. Here each is judged on its own, with the
+// settings in use now: what do they expect of a word's second answer, after
+// the gap it actually had, and what did the student get?
+export const FIRST_GAP_MIN = 100;
+const FIRST_GAP_OFF = 0.1;
+
+const settingsName = (settings) => {
+  const kind = settingsKind(settings);
+  const since = settings?.fitted_at ? ` since ${dayLabel(Math.floor(ms(settings.fitted_at) / DAY))}` : "";
+  return kind === "own" ? `your own settings${since}`
+    : kind === "first-gaps" ? `the starting settings with your own first gaps${since}`
+    : "the starting settings";
+};
+
+export function firstGaps(idx, ctx) {
+  const w = usableWeights(ctx.settings?.weights) || [...STARTING_WEIGHTS];
+  const sched = makeScheduler({ weights: w });
+  const t0 = new Date(0);
+  const after = (got) => sched.next(createEmptyCard(t0), t0, got ? Rating.Good : Rating.Again).card.stability;
+  const lasts = { right: after(true), missed: after(false) };
+  const since = ctx.now - 30 * DAY;
+  const groups = { right: [], missed: [] };
+  for (const [, list] of idx.byItem) {
+    let first = null;
+    for (const r of list) {
+      if (!r.counted) continue;
+      if (r.state_before === State.New) { first = r; continue; }
+      if (first) {
+        const at = ms(r.answered_at);
+        const tz = idx.tzOf(r);
+        const elapsed = dayNo(at, tz) - dayNo(ms(first.answered_at), tz);
+        if (at >= since && ctx.inWindow(r) && elapsed >= 1) {
+          const kind = first.correct ? "right" : "missed";
+          groups[kind].push({ p: forgetting_curve(w, elapsed, lasts[kind]), got: !!r.correct });
+        }
+      }
+      first = null;
+    }
+  }
+  return groups;
+}
+
+function checkFirstGaps(idx, ctx) {
+  const out = { id: "first-gaps", title: "A new word's first gap suits how you remember" };
+  const groups = firstGaps(idx, ctx);
+  const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
+  const using = `Judged with ${settingsName(ctx.settings)}.`;
+  if (!groups.right.length && !groups.missed.length) {
+    return { ...out, status: "wait", summary: `No word has had its second answer in the last 30 days. ${using}`, details: [] };
+  }
+  const bad = [], lines = [];
+  let judged = 0;
+  for (const [kind, words] of [["right", "Words you got right the first time"], ["missed", "Words you missed the first time"]]) {
+    const g = groups[kind];
+    if (!g.length) continue;
+    const e = mean(g.map((x) => x.p)), a = mean(g.map((x) => (x.got ? 1 : 0)));
+    const line = `${words}: expected ${pct(e)} right when they came back, you got ${pct(a)} (${plural(g.length, "word")}).`;
+    if (g.length < FIRST_GAP_MIN) { lines.push(`${line} Too few to judge yet: needs ${FIRST_GAP_MIN}.`); continue; }
+    judged++;
+    if (Math.abs(a - e) > FIRST_GAP_OFF) {
+      bad.push(`${line} ${a > e ? "They come back sooner than they need to." : "They wait longer than they should."}`);
+    } else lines.push(line);
+  }
+  if (bad.length) return { ...out, status: "fail", summary: `${bad.length === 2 ? "Both first gaps are" : "A first gap is"} off by more than ${pct(FIRST_GAP_OFF)}. ${using}`, details: [...bad, ...lines] };
+  if (!judged) return { ...out, status: "wait", summary: `Too few second answers in the last 30 days to judge yet. ${using}`, details: lines };
+  return { ...out, status: "pass", summary: `Second answers match what's expected. ${using}`, details: lines };
+}
+
+// The app asks the server to try the student's own settings once a day, when
+// it opens (api/fsrs-fit.js): from FIRST_FIT answers, then again once there
+// are REFIT_ANSWERS more and REFIT_DAYS have passed (fitDue). Only the last
+// try is on record, so this judges the student's last study day: if a try was
+// due when they started, one should have happened that day.
+function checkOwnSettings(idx, ctx) {
+  const out = { id: "own-settings", title: "Your own settings were tried when due" };
+  const s = ctx.settings;
+  const counted = idx.rows.filter((r) => r.counted);
+  if (!s) return { ...out, status: "wait", summary: "No settings on record yet.", details: [] };
+  if (!counted.length) return { ...out, status: "wait", summary: "No answers yet.", details: [] };
+  const last = counted[counted.length - 1];
+  const tz = idx.tzOf(last) || ctx.timeZone;
+  const lastDay = dayNo(ms(last.answered_at), tz);
+  const opened = counted.find((r) => dayNo(ms(r.answered_at), idx.tzOf(r) || tz) === lastDay);
+  const openedAt = ms(opened.answered_at);
+  const usable = (rows) => fittingSequences(buildHistories(rows), tz).reduce((n, q) => n + q.length, 0);
+  const before = usable(counted.filter((r) => ms(r.answered_at) < openedAt));
+  const now = usable(counted);
+  const using = `Now on ${settingsName(s)}.`;
+  const checked = ms(s.fit_checked_at);
+  const lastTry = Number.isFinite(checked) ? ` Last tried ${dayLabel(dayNo(checked, tz))}, on ${plural(s.fit_checked_answers ?? 0, "answer")}${s.fit_result?.adopted ? `, and switched to ${s.fit_result.kind === "first-gaps" ? "your own first gaps" : "your own settings"}` : ", and kept what was in use"}.` : "";
+  if (Number.isFinite(checked) && dayNo(checked, tz) >= lastDay) {
+    return { ...out, status: "pass", summary: `Tried on your last study day, ${dayLabel(lastDay)}. ${using}${lastTry}`, details: [] };
+  }
+  const due = fitDue({ answers: before, checkedAt: s.fit_checked_at || null, checkedAnswers: s.fit_checked_answers ?? null, now: openedAt });
+  if (due) {
+    return { ...out, status: "fail", summary: `Your own settings were due a try when you studied on ${dayLabel(lastDay)}, but none happened. ${using}${lastTry}`, details: [] };
+  }
+  if (now < FIRST_FIT) {
+    return { ...out, status: "wait", summary: `Your own settings are first tried at ${FIRST_FIT} answers that count; you have ${now}. ${using}`, details: [] };
+  }
+  return { ...out, status: "pass", summary: `Not due on your last study day, ${dayLabel(lastDay)}: tried every ${REFIT_DAYS} days once there are ${REFIT_ANSWERS} more answers. ${using}${lastTry}`, details: [] };
+}
+
 // ── The deck: no card twice, nothing back ─────────────────────────────
 //
 // Both judge with the code every card-writer uses to decide whether a new
@@ -1018,6 +1129,8 @@ export function runStatusChecks({
     checkFirstMeetings(idx, ctx),
     checkDealt(idx, ctx),
     checkPredictions(idx, ctx),
+    checkFirstGaps(idx, ctx),
+    checkOwnSettings(idx, ctx),
     checkNoRepeats(cards, ctx),
     checkNothingBack(cards, ctx),
   ].map((r) => ({ ...r, details: r.details.slice(0, examples), more: Math.max(0, r.details.length - examples) }));

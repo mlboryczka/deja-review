@@ -60,14 +60,32 @@ is the student's own day.
 ## Each student's own settings
 
 FSRS describes how a person forgets with 21 numbers, and every student starts
-on the same ones. Once a student has given about 1,000 answers that FSRS
-counted, the server fits new numbers to their answers with the FSRS team's own
+on the same ones. Once a student has given about 350 answers that FSRS counted,
+the server fits new numbers to their answers with the FSRS team's own
 optimizer. It fits on the older 80% of the answers and tests the result on the
-newest 20%, which it hasn't seen. Only if the fit predicts those better than
-the numbers in use does the student get a fit made on all their answers. It
-tries again after 500 more answers and 30 days. On the FSRS team's open data, a
-personal fit beat the starting settings for 78% of users at 1,000 answers. At
-250 answers it was a coin flip.
+newest 20%, which it hasn't seen. Two sets of numbers are tested: every number
+the fit gives, and the starting numbers with only the fit's two for how long a
+word lasts after its first answer, right or wrong. Only if the better of the
+two predicts the newest answers better than the numbers in use does the
+student get it, made again on all their answers. The server tries again every
+week once there are 50 more answers. The "How much to remember" window says
+which numbers the student is on.
+
+The first gaps are tried on their own because a student's answers show them
+first: every word answered twice says something about them, while most of the
+other numbers are about gaps of weeks and months that a new student hasn't had
+yet. On the owner's 809 answers (2026-10-14), words right the first time came
+back right 112 of 119 times where the starting numbers expected 88%, and words
+missed the first time 60 of 103 times where they expected 71%. A full fit
+predicted their newest answers slightly worse than the starting numbers, and
+the first gaps alone slightly better than both. With them, a word the owner
+gets right the first time comes back after about 14 days instead of 6.
+
+Before 2026-10-14 the server first tried at 1,000 answers, then every 500
+answers and 30 days, and only full fits. On the FSRS team's open data, a full
+personal fit beat the starting settings for 78% of users at 1,000 answers, and
+at 250 answers it was a coin flip, which is why nothing is used without the
+test on the newest answers.
 
 When the numbers change, the server works out each card's memory estimate again
 from its own answers. No due date moves, and a card answered in the meantime is

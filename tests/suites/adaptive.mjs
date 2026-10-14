@@ -3,18 +3,20 @@
 // real optimizer, on a simulated student whose memory is NOT what the starting
 // settings assume. No browser, nothing leaves the machine.
 //
-// The rules under test are the owner's (2026-09-26): a student's settings are
-// fitted from their own answers once there are about 1,000, and used only if
-// they predict the student's latest answers better; whenever the settings in
-// use change, every card's estimate is worked out again from its answers, and
-// no due date moves; the target is the student's choice, or automatic —
-// easing from 90% towards 85% while they're behind.
+// The rules under test are the owner's (2026-09-26, and 2026-10-14 for the
+// first gaps): a student's settings are fitted from their own answers from
+// about 350, every week, and used only if they predict the student's latest
+// answers better — all of them, or just the first gaps after a word's first
+// answer, whichever predicts better; whenever the settings in use change,
+// every card's estimate is worked out again from its answers, and no due date
+// moves; the target is the student's choice, or automatic — easing from 90%
+// towards 85% while they're behind.
 process.env.TZ = "America/New_York";
 
 import { checker } from "../check.mjs";
 import {
-  STARTING_WEIGHTS, STARTING_VERSION, DEFAULT_TARGET, AUTO_FLOOR, FIRST_FIT,
-  targetOf, recordStudyDay, nextAutoTarget, fitDue, usableWeights,
+  STARTING_WEIGHTS, STARTING_VERSION, DEFAULT_TARGET, AUTO_FLOOR, FIRST_FIT, REFIT_ANSWERS, REFIT_DAYS,
+  FIRST_GAP_WEIGHTS, targetOf, recordStudyDay, nextAutoTarget, fitDue, usableWeights, withFirstGaps, settingsKind,
 } from "../../src/lib/fsrsSettings.js";
 import { buildHistories, fittingSequences, replayHistory, studyDayNumber } from "../../src/lib/fsrsHistory.js";
 import { makeScheduler, scheduleAnswer, applySettings, scheduler as live, Rating } from "../../src/lib/spacedRepetition.js";
@@ -52,13 +54,24 @@ console.log("\n  the target: the student's choice, or automatic");
 
 console.log("\n  when a fit is tried");
 {
-  ck(`not before ${FIRST_FIT} answers`, !fitDue({ answers: FIRST_FIT - 1 }));
+  ck(`first at about 350 answers: not at ${FIRST_FIT - 1}`, FIRST_FIT === 350 && !fitDue({ answers: FIRST_FIT - 1 }));
   ck(`at ${FIRST_FIT}, the first time`, fitDue({ answers: FIRST_FIT }));
   const checkedAt = "2026-10-01T12:00:00Z";
-  ck("again only with 500 more answers", !fitDue({ answers: 1400, checkedAt, checkedAnswers: 1000, now: Date.parse("2026-12-01") }));
-  ck("and a month on", !fitDue({ answers: 1600, checkedAt, checkedAnswers: 1000, now: Date.parse("2026-10-20") }));
-  ck("with both, again", fitDue({ answers: 1600, checkedAt, checkedAnswers: 1000, now: Date.parse("2026-11-02") }));
+  ck(`again only with ${REFIT_ANSWERS} more answers`, REFIT_ANSWERS === 50
+     && !fitDue({ answers: 400 + REFIT_ANSWERS - 1, checkedAt, checkedAnswers: 400, now: Date.parse("2026-12-01") }));
+  ck(`and ${REFIT_DAYS} days on`, REFIT_DAYS === 7
+     && !fitDue({ answers: 600, checkedAt, checkedAnswers: 400, now: Date.parse("2026-10-07T12:00:00Z") }));
+  ck("with both, again: every week for a student who studies", fitDue({ answers: 600, checkedAt, checkedAnswers: 400, now: Date.parse("2026-10-08T12:00:00Z") }));
   ck("the starting settings are 21 usable numbers", usableWeights(STARTING_WEIGHTS)?.length === 21);
+
+  const fitted = STARTING_WEIGHTS.map((x) => x * 2);
+  const mixed = withFirstGaps(fitted);
+  ck("the first gaps are the numbers after a wrong and a right first answer", JSON.stringify(FIRST_GAP_WEIGHTS) === "[0,2]");
+  ck("a first-gaps fit is the starting settings with only those two from the fit",
+     mixed.every((x, i) => (FIRST_GAP_WEIGHTS.includes(i) ? x === fitted[i] : x === STARTING_WEIGHTS[i])), JSON.stringify(mixed));
+  ck("which settings a student is on: the starting ones with no fit", settingsKind(null) === "start" && settingsKind({ weights: null }) === "start");
+  ck("their own, for a fit from before first gaps were tried", settingsKind({ weights: fitted, fit_result: { adopted: true } }) === "own");
+  ck("and the first gaps when the last fit used says so", settingsKind({ weights: mixed, fit_result: { inUse: "first-gaps" } }) === "first-gaps");
 }
 
 // ── Histories ───────────────────────────────────────────────────────────
@@ -104,8 +117,13 @@ function rng(seed) {
 }
 const HIDDEN = [...STARTING_WEIGHTS];
 HIDDEN[0] = 0.1; HIDDEN[2] = 1.2; HIDDEN[8] = 1.2; HIDDEN[20] = 0.4;
-function simulate({ days = 120, newPerDay = 12, seed = 7 } = {}) {
-  const truth = makeScheduler({ weights: HIDDEN });
+// A student like the owner on 2026-10-14: the starting settings are right
+// about them except for the first gaps. A word they get right the first time
+// lasts far longer than the starting settings assume, one they miss shorter.
+const FIRST_GAPS_ONLY = [...STARTING_WEIGHTS];
+FIRST_GAPS_ONLY[0] = 0.05; FIRST_GAPS_ONLY[2] = 8.4;
+function simulate({ days = 120, newPerDay = 12, seed = 7, memory = HIDDEN } = {}) {
+  const truth = makeScheduler({ weights: memory });
   const rand = rng(seed);
   const cards = [], reviews = [], hidden = new Map();
   let id = 1;
@@ -207,7 +225,7 @@ console.log("\n  a card's estimate, worked out again from its answers");
 console.log("\n  the server: waiting, fitting, keeping, and never moving a due date");
 {
   applySettings({});
-  const small = simulate({ days: 12, newPerDay: 10, seed: 11 });
+  const small = simulate({ days: 5, newPerDay: 10, seed: 11 });
   const db = standIn(small);
   const dues = new Map(small.cards.map((c) => [c.id, c.next_due_at]));
   const first = await fitUser({ admin: db, userId: "u1", timeZone: TZ, optimizer: binding });
@@ -229,7 +247,11 @@ console.log("\n  the server: waiting, fitting, keeping, and never moving a due d
   const row = db2.tables.fsrs_settings[0];
   ck(`at ${FIRST_FIT}+ answers a fit is tried`, fit.answers >= FIRST_FIT && !!fit.fit, JSON.stringify(fit.fit));
   ck("and used, because it predicts the student's latest answers better than the starting settings",
-     fit.status === "fitted" && fit.fit.lossFitted < fit.fit.lossInUse && usableWeights(row.weights)?.length === 21, JSON.stringify(fit.fit));
+     fit.status === "fitted" && Math.min(fit.fit.lossFitted, fit.fit.lossFirstGaps) < fit.fit.lossInUse && usableWeights(row.weights)?.length === 21, JSON.stringify(fit.fit));
+  ck("both kinds were tried, and the one in use is the one that predicted better",
+     Number.isFinite(fit.fit.lossFirstGaps) && fit.fit.kind === (fit.fit.lossFirstGaps <= fit.fit.lossFitted ? "first-gaps" : "own")
+     && row.fit_result.inUse === fit.fit.kind && settingsKind(row) === fit.fit.kind, JSON.stringify(fit.fit));
+  ck("a student who forgets differently all round gets every number fitted", fit.fit.kind === "own", JSON.stringify(fit.fit));
   ck("every card's estimate is worked out again under the student's own settings", fit.recomputed > 100 && row.computed_with === `fit:${row.fitted_at}`, `${fit.recomputed}`);
   const mine = makeScheduler({ weights: row.weights });
   const h = buildHistories(big.reviews).find((x) => x.cardId === big.cards[3].id);
@@ -238,12 +260,38 @@ console.log("\n  the server: waiting, fitting, keeping, and never moving a due d
   ck("no due date moved", big.cards.every((c) => c.next_due_at === bigDues.get(c.id)));
   ck("and a card answered meanwhile is left alone", moved.stability === movedS);
 
+  // A student the starting settings are right about but for the first gaps,
+  // and a fit that gets the first gaps right but the rest badly wrong: only
+  // the first gaps are taken.
+  const owner = simulate({ days: 60, newPerDay: 12, seed: 13, memory: FIRST_GAPS_ONLY });
+  const offElsewhere = { ...binding, computeParameters: async () => { const w = [...FIRST_GAPS_ONLY]; w[8] = 0.2; w[20] = 0.6; return w; } };
+  const db4 = standIn(owner);
+  const gaps = await fitUser({ admin: db4, userId: "u1", timeZone: TZ, optimizer: offElsewhere });
+  const row4 = db4.tables.fsrs_settings[0];
+  ck("a fit right only about the first gaps: just those are used",
+     gaps.status === "fitted" && gaps.fit.kind === "first-gaps" && gaps.fit.lossFirstGaps < gaps.fit.lossInUse && gaps.fit.lossFirstGaps < gaps.fit.lossFitted,
+     JSON.stringify(gaps.fit));
+  ck("the settings in use are the starting ones with the student's two first-gap numbers",
+     row4.weights.every((x, i) => (FIRST_GAP_WEIGHTS.includes(i) ? x === FIRST_GAPS_ONLY[i] : x === STARTING_WEIGHTS[i])), JSON.stringify(row4.weights));
+  ck("and the settings window can say so", settingsKind(row4) === "first-gaps" && row4.fit_result.inUse === "first-gaps");
+  const sched4 = makeScheduler({ weights: row4.weights, retention: 0.86 });
+  const firstGap = (got) => sched4.next_interval(sched4.next(createEmptyCard(new Date(2026, 9, 15)), new Date(2026, 9, 15), got ? Rating.Good : Rating.Again).card.stability, 0);
+  // 8.4 days' memory at an 86% target is about 14 days, give or take FSRS's spread.
+  ck("a word right the first time now waits about two weeks, not six days", firstGap(true) >= 12 && firstGap(true) <= 17, `${firstGap(true)} days`);
+  ck("a word missed the first time still comes back the next day", firstGap(false) === 1, `${firstGap(false)} days`);
+  const later = await fitUser({ admin: db4, userId: "u1", timeZone: TZ, optimizer: offElsewhere, now: Date.now() + 2 * DAY });
+  ck("two days on, nothing is tried again: a week has to pass", later.status === "up-to-date" && !later.fit, JSON.stringify(later));
+
   // A fit that predicts worse is not used.
   const worse = { ...binding, computeParameters: async () => { const w = [...STARTING_WEIGHTS]; w[0] = w[1] = w[2] = w[3] = 90; return w; } };
   const db3 = standIn(simulate({ days: 120, newPerDay: 12, seed: 9 }));
   const kept = await fitUser({ admin: db3, userId: "u1", timeZone: TZ, optimizer: worse });
-  ck("a fit that predicts the latest answers worse is not used", kept.status === "kept" && !db3.tables.fsrs_settings[0].weights && kept.fit.lossFitted > kept.fit.lossInUse, JSON.stringify(kept.fit));
-  ck("and the next try waits for 500 more answers and a month",
+  ck("a fit that predicts the latest answers worse is not used, in either kind",
+     kept.status === "kept" && !db3.tables.fsrs_settings[0].weights && kept.fit.lossFitted > kept.fit.lossInUse && kept.fit.lossFirstGaps > kept.fit.lossInUse,
+     JSON.stringify(kept.fit));
+  ck("the student stays on the starting settings, and that is kept with the result",
+     db3.tables.fsrs_settings[0].fit_result.inUse === "start" && settingsKind(db3.tables.fsrs_settings[0]) === "start");
+  ck(`and the next try waits for ${REFIT_ANSWERS} more answers and a week`,
      db3.tables.fsrs_settings[0].fit_checked_answers === kept.answers && !!db3.tables.fsrs_settings[0].fit_checked_at);
 
   const none = await fitUser({ admin: standIn({ ...small, noTable: true }), userId: "u1", timeZone: TZ, optimizer: binding });
