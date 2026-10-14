@@ -3,7 +3,8 @@
 // holding a simulated student's record. Checks that it finds the admin's
 // account, reads every page of answers, runs the thirteen checks, says so
 // plainly when migration_013 or migration_016 hasn't been run, lists every
-// detail with --all, and never sends anything but a GET. And what it reads
+// detail with --all, and never sends anything that could change the
+// database, each request judged by what its kind does. And what it reads
 // for the two checks of the deck (2026-10-06): Claude's verdicts on look-alike
 // cards, the owner's corrections and why cards were taken out, with a card in
 // the deck twice and a deleted card back each failing their check. And the
@@ -17,7 +18,7 @@ import http from "node:http";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { mkdtempSync, readFileSync, existsSync } from "node:fs";
+import { mkdtempSync, readFileSync, existsSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { checker } from "../check.mjs";
 import { simulate, USER_ID, standInVerdicts } from "../simulate/student.mjs";
@@ -25,6 +26,47 @@ import { simulate, USER_ID, standInVerdicts } from "../simulate/student.mjs";
 const ck = checker();
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const SCRIPT = join(ROOT, "scripts", "status-check.mjs");
+
+// Whether a request the script sends could change anything, judged by its
+// kind. This was one blanket rule, "every request a GET", which called the
+// free plans' size question (2026-10-14) a write: the database answers a
+// question of one of its own functions only through a POST. The owner: "it
+// needs to be different for each type of question". So each kind has its own:
+//
+//   reading a table                  GET  /rest/v1/<table>      a read
+//   reading the list of accounts     GET  /auth/v1/admin/users  a read
+//   asking one of the database's     POST /rest/v1/rpc/<name>   a read only if
+//   own functions                                                its migration
+//     declares it stable or immutable (Postgres then refuses any change made
+//     inside it) and its body has no insert, update, delete or other change;
+//     plan_usage (migration_018) is one, apply_memory_estimates is not
+//   anything else                                               a write
+//
+// The functions are read from migrations/, the last definition of each.
+const READ_ONLY = (() => {
+  const out = new Map();
+  const dir = join(ROOT, "migrations");
+  for (const file of readdirSync(dir).filter((f) => f.endsWith(".sql")).sort()) {
+    const sql = readFileSync(join(dir, file), "utf8").replace(/--[^\n]*/g, "");
+    for (const part of sql.split(/create\s+or\s+replace\s+function\s+/i).slice(1)) {
+      const name = part.match(/^(?:public\.)?(\w+)\s*\(/i)?.[1];
+      const [head, body = ""] = part.split("$$");
+      if (!name) continue;
+      const declared = /\b(stable|immutable)\b/i.test(head);
+      const changes = /\b(insert|update|delete|truncate|alter|drop|create|grant|revoke)\b/i.test(body);
+      out.set(name.toLowerCase(), declared && !changes);
+    }
+  }
+  return out;
+})();
+function whatItDoes(q) {
+  if (q.method === "GET" && /^\/rest\/v1\/\w+$/.test(q.path)) return "read";
+  if (q.method === "GET" && q.path === "/auth/v1/admin/users") return "read";
+  const fn = q.method === "POST" && q.path.match(/^\/rest\/v1\/rpc\/(\w+)$/)?.[1];
+  if (fn && READ_ONLY.get(fn.toLowerCase()) === true) return "read";
+  return "write";
+}
+const writes = (requests) => requests.filter((q) => whatItDoes(q) !== "read").map((q) => `${q.method} ${q.path}`);
 const KEY = "stand-in-service-key";
 const STUDENT = "student@example.com";
 
@@ -45,6 +87,9 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url, "http://x");
   state.requests.push({ method: req.method, path: url.pathname, auth: req.headers.authorization, apikey: req.headers.apikey });
   const send = (code, body) => { res.writeHead(code, { "content-type": "application/json" }); res.end(JSON.stringify(body)); };
+  if (req.method === "POST" && url.pathname === "/rest/v1/rpc/plan_usage") {
+    return send(200, { database_bytes: 50e6, storage_bytes: 12e6 });
+  }
   if (req.method !== "GET") return send(405, { message: "the stand-in only answers reads" });
   if (req.headers.apikey !== KEY || req.headers.authorization !== `Bearer ${KEY}`) return send(401, { message: "no key" });
   if (url.pathname === "/auth/v1/admin/users") {
@@ -102,6 +147,19 @@ function run(args = [], env = {}) {
   });
 }
 
+console.log("\n  what each kind of request does");
+{
+  const kind = (method, path) => whatItDoes({ method, path });
+  ck("reading a table, or the list of accounts, is a read", kind("GET", "/rest/v1/card_reviews") === "read" && kind("GET", "/auth/v1/admin/users") === "read");
+  ck("adding to a table, changing it or deleting from it is a write",
+     ["POST", "PATCH", "PUT", "DELETE"].every((m) => kind(m, "/rest/v1/user_cards") === "write"));
+  ck("the free plans' size question is a read: plan_usage is declared stable and changes nothing",
+     READ_ONLY.get("plan_usage") === true && kind("POST", "/rest/v1/rpc/plan_usage") === "read");
+  ck("a database function that changes cards is a write, though it is asked the same way",
+     READ_ONLY.get("apply_memory_estimates") === false && kind("POST", "/rest/v1/rpc/apply_memory_estimates") === "write");
+  ck("and one no migration defines is a write", kind("POST", "/rest/v1/rpc/no_such_function") === "write");
+}
+
 console.log("\n  the admin's own record, found without being named");
 {
   state.requests = [];
@@ -127,7 +185,7 @@ console.log("\n  the admin's own record, found without being named");
   // student's memory (tests/suites/status.mjs says why).
   ck("the simulated record passes every check of what the app did", failed.every((l) => l.includes("predictions") || l.includes("first gap")), failed.join(" | "));
   ck("and the exit code says whether any check failed", r.code === (failed.length ? 1 : 0), `exit ${r.code}, ${failed.length} failed`);
-  ck("it only ever read: every request a GET", state.requests.length > 0 && state.requests.every((q) => q.method === "GET"), [...new Set(state.requests.map((q) => q.method))].join(","));
+  ck("it only ever read: each request judged by what its kind does", state.requests.length > 0 && writes(state.requests).length === 0, writes(state.requests).join(", "));
   ck("and asked for answers more than once, a page at a time", state.requests.filter((q) => q.path === "/rest/v1/card_reviews").length >= 3);
 }
 
@@ -211,7 +269,8 @@ console.log("\n  the morning check: --everyone");
        !/New since the last morning check/.test(again.out) && /Nothing new: everything still failing was raised before\./.test(again.out) && again.code === 0,
      again.out.split("\n").slice(-3).join(" "));
   ck("it read Claude's verdicts and the corrections for every student", ["card_pairs", "parse_corrections", "status_reports", "eval_runs"].every((t) => state.requests.some((q) => q.path === `/rest/v1/${t}`)));
-  ck("and only ever read", state.requests.every((q) => q.method === "GET"), [...new Set(state.requests.map((q) => q.method))].join(","));
+  ck("and only ever read, the free plans' size question included", writes(state.requests).length === 0 && state.requests.some((q) => q.path === "/rest/v1/rpc/plan_usage"), writes(state.requests).join(", "));
+  ck("  which it asked and was answered", /Supabase, database: 50 MB of 500 MB \(10%\)\./.test(r.out) && /Supabase, stored files: 12 MB of 1 GB \(1%\)\./.test(r.out), r.out.match(/Free plans:[\s\S]*?\n\n/)?.[0]);
 
   state.runs = [run1("bbbbbbb", [okCase], "2026-10-07T15:00:00Z"), run1("bbbbbbb", [slip], "2026-10-14T15:00:00Z")];
   state.reports[0].report.judging = { asked: 200, answered: 0, same: 0, left: 675, error: "Claude couldn't be asked about 200: 529 overloaded" };
@@ -288,7 +347,7 @@ console.log("\n  a fault in the record");
      (t.out.split("New since the last morning check")[1] || "").split("\n")[1]);
   ck("  and nothing the --everyone run already says: Claude's tests, feedback, free plans",
      !/Claude's marking of typed answers|Open feedback|Free plans/.test(t.out));
-  ck("  only ever reading", state.requests.length > 0 && state.requests.every((q) => q.method === "GET"), [...new Set(state.requests.map((q) => q.method))].join(","));
+  ck("  only ever reading", state.requests.length > 0 && writes(state.requests).length === 0, writes(state.requests).join(", "));
   const RAISED_TEST = join(HOME, ".claude", "scheduled-tasks", "morning-check", "raised-test-app.json");
   const before = existsSync(RAISED) ? readFileSync(RAISED, "utf8") : null;
   await run(["--test-app", "--record"]);
