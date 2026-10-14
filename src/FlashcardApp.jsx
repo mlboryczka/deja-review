@@ -2052,8 +2052,14 @@ export default function FlashcardApp({ user, onSignOut }) {
       ...(card.shownDir === "fr" ? [lessonBackFor(card)].filter(Boolean) : []),
     ];
     // English typed for a word or phrase whose French has no comma: the
-    // answer's commas separate meanings (see matchAnswer).
-    const meanings = card.shownDir === "fr" && !drill && isTwoWay(card) && !/[,;]/.test(stripParens(card.f));
+    // answer's commas separate meanings (see matchAnswer). A grammar card
+    // too, when its French is a few words and its answer a ";" list: "en même
+    // temps" = "at the same time; meanwhile" refused "at the same time"
+    // (feedback #44, the owner, 2026-10-14). A rule's prose answer stays whole.
+    const frShown = stripParens(card.f) || "";
+    const meaningList = isTwoWay(card) ||
+      (/;/.test(String(card.b || "")) && frShown.trim().split(/\s+/).length <= 4);
+    const meanings = card.shownDir === "fr" && !drill && meaningList && !/[,;→]/.test(frShown);
     const result = matchAnswer(typedAnswer, correctText, extraAlts, { exact: drill, meanings });
     if (result.match) {
       setTypeResult(result.close ? "close" : "correct");
