@@ -53,6 +53,10 @@ function niceStep(range) {
 const remWord = (gain) =>
   gain > 0 ? `~${gain.toLocaleString()} more remembered` : gain < 0 ? `~${(-gain).toLocaleString()} fewer remembered` : "no change in remembered";
 
+// The headline on Last 7 days: what the week added, not the total.
+const weekBig = (gain) =>
+  gain > 0 ? `+${gain.toLocaleString()} remembered` : gain < 0 ? `−${(-gain).toLocaleString()} remembered` : "No change";
+
 // ~N remembered, day by day. points: one per day, oldest first, today last.
 export function RememberedChart({ points, now, week, all, allLabel }) {
   const [range, setRange] = useState("7");
@@ -120,7 +124,7 @@ export function RememberedChart({ points, now, week, all, allLabel }) {
     <div style={S.card} data-stats-trend>
       <div style={S.trendHead}>
         <div>
-          <div style={S.trendBig}>~{Math.round(points.at(-1)?.remembered ?? all.remembered).toLocaleString()} remembered</div>
+          <div style={S.trendBig}>{range === "7" ? weekBig(week.gain) : `~${Math.round(points.at(-1)?.remembered ?? all.remembered).toLocaleString()} remembered`}</div>
           <div style={S.trendLine}>{sentence}</div>
         </div>
         <div style={S.seg} role="radiogroup" aria-label="Chart range">
