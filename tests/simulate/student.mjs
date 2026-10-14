@@ -12,7 +12,7 @@
 //
 // Needs TZ set before any date is made (the runners set America/New_York).
 
-import { buildSession, placeRetry, applyAnswer, BLOCK_SIZE } from "../../src/lib/sessionQueue.js";
+import { buildSession, placeRetry, applyAnswer, countsAnswer, BLOCK_SIZE } from "../../src/lib/sessionQueue.js";
 import { RE_QUEUE_OFFSET, State, applySettings, settingsInUse, makeScheduler } from "../../src/lib/spacedRepetition.js";
 import { sideOf, sideColumns, isTwoWay, otherDirection, directionsOf } from "../../src/lib/directions.js";
 import { reviewedToday, localISODate, startOfLocalDay } from "../../src/lib/studyDay.js";
@@ -328,7 +328,8 @@ export function simulate({
       const card = byRow.get(item.row_id);
       const dir = item.shownDir;
       const side = sideOf(card, dir);
-      const counted = !item._retry && !reviewedToday(side.last_review, new Date(now));
+      // As the app counts (countsAnswer): the day's first answer, and the retry after a counted miss.
+      const counted = countsAnswer(side, { retry: !!item._retry }, now);
       const res = s.answer(card, dir, now);
       let sr = null;
       const before = counted ? sideColumns(side, dir) : null;
@@ -337,7 +338,7 @@ export function simulate({
         Object.assign(card, sr);
         m.counted++;
         if (side.fsrs_state === State.New) m.newMet++;
-        else { m.reviews++; if (res.got) m.reviewsRight++; }
+        else if (!item._retry) { m.reviews++; if (res.got) m.reviewsRight++; }
       }
       answers.push(stored(reviewRow({
         id: uuid(), userId: USER_ID, cardId: card.row_id, dir, got: res.got, before, after: sr, at: now,

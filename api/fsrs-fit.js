@@ -141,7 +141,9 @@ export async function fitUser({ admin, userId, timeZone, now = Date.now(), optim
 // the starting settings with only its first gaps ("first-gaps"). The better
 // one is kept only if it predicts those answers better than the settings in
 // use — and then fitted again on everything, for the settings actually used.
-// A tie between the two goes to "first-gaps", which changes less.
+// A tie between the two goes to "first-gaps", which changes less. Fitted with
+// FSRS's same-day rule on: the repeat after a miss counts since 2026-10-14,
+// and its weights (w17–w19) are fitted from those repeats like the rest.
 async function tryFit(opt, sequences, current) {
   const items = [];
   for (const s of sequences) {
@@ -159,7 +161,7 @@ async function tryFit(opt, sequences, current) {
   };
   if (train.length < 200 || test.length < 50) return { weights: null, result };
 
-  const fitted = usableWeights(await opt.computeParameters(train, { enableShortTerm: false }));
+  const fitted = usableWeights(await opt.computeParameters(train, { enableShortTerm: true }));
   if (!fitted) return { weights: null, result };
   const loss = (w) => new opt.FSRSBinding([...w]).evaluate(test).logLoss;
   result.lossFitted = loss(fitted);
@@ -169,7 +171,7 @@ async function tryFit(opt, sequences, current) {
   const best = kind === "first-gaps" ? result.lossFirstGaps : result.lossFitted;
   if (!(best < result.lossInUse)) return { weights: null, result };
 
-  const all = usableWeights(await opt.computeParameters(toItems(items), { enableShortTerm: false }));
+  const all = usableWeights(await opt.computeParameters(toItems(items), { enableShortTerm: true }));
   if (!all) return { weights: null, result };
   result.adopted = true;
   result.kind = kind;

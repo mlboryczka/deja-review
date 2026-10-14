@@ -221,7 +221,8 @@ await browser.close();
 
 console.log("\n  FSRS gets one answer per card per day");
 // The retry after a miss, and a card revisited with Previous card, are both
-// still answerable — but the first answer of the day is the review. Counted
+// still answerable. The first answer of the day is the review, and since
+// 2026-10-14 the retry after a miss counts too; a card revisited doesn't. Counted
 // as PATCHes to user_cards, for the same reason as above: the counter shows
 // where you are, not what was written.
 {
@@ -263,8 +264,8 @@ console.log("\n  FSRS gets one answer per card per day");
 
   await press("ArrowRight"); // get the retry right
   ck("answering the retry ends the block, at exactly its length", !!(await page.$("[data-checkpoint]")));
-  ck("and writes nothing: that card already had today's review",
-     oneADay.length === total - 1, `${oneADay.length} writes`);
+  ck("and writes it: the repeat after a miss counts",
+     oneADay.length === total, `${oneADay.length} writes`);
 
   // Stepping back from the end lands on the last card before the retry, with
   // the retry still after it — two answers to finish, both cards already
@@ -275,7 +276,7 @@ console.log("\n  FSRS gets one answer per card per day");
   await press("ArrowRight");
   await press("ArrowRight");
   ck("answering both again is graded on screen", !!(await page.$("[data-checkpoint]")));
-  ck("but writes nothing either", oneADay.length === total - 1, `${oneADay.length} writes`);
+  ck("but writes nothing more: the same grades again change nothing", oneADay.length === total, `${oneADay.length} writes`);
 
   await browser.close();
 }

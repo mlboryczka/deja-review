@@ -26,15 +26,18 @@
 // own right/wrong fits of 9,999 other users give nearly the same numbers. On
 // 32 held-out users they predict as well as ts-fsrs's defaults overall, and a
 // little better over a student's first 1,000 answers, which is when starting
-// settings matter. The values for Hard, Easy and same-day reviews (w1, w3,
-// w15–w19) are never used here.
+// settings matter. The values for Hard and Easy (w1, w3, w15, w16) are never
+// used here. Those for a second answer on the same day (w17–w19) were 0, since
+// such answers weren't counted; since the repeat after a miss counts
+// (2026-10-14, lib/spacedRepetition.js), they are ts-fsrs's own FSRS-6
+// defaults until a student's own are fitted.
 export const STARTING_WEIGHTS = Object.freeze([
   0.2474, 1.1246, 3.7039, 10.0193, 6.4509, 0.8317, 3.0979, 0.0011, 1.738, 0.2089,
-  0.7597, 1.507, 0.0421, 0.3452, 1.7235, 0.6014, 1.8729, 0, 0, 0, 0.1459,
+  0.7597, 1.507, 0.0421, 0.3452, 1.7235, 0.6014, 1.8729, 0.5425, 0.0912, 0.0658, 0.1459,
 ]);
 // Which settings a student's memory estimates were worked out with. When this
 // changes, the server works every card's estimate out again from its answers.
-export const STARTING_VERSION = "right-wrong-2026-09-26";
+export const STARTING_VERSION = "right-wrong-2026-09-26+same-day-2026-10-14";
 
 // ── The target ─────────────────────────────────────────────────────────
 export const TARGET_CHOICES = Object.freeze({

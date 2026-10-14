@@ -1,7 +1,7 @@
 // scripts/status-check.mjs, the status check from the command line, run
 // against a stand-in Supabase (the auth admin list and every table it reads)
 // holding a simulated student's record. Checks that it finds the admin's
-// account, reads every page of answers, runs the thirteen checks, says so
+// account, reads every page of answers, runs the fourteen checks, says so
 // plainly when migration_013 or migration_016 hasn't been run, lists every
 // detail with --all, and never sends anything that could change the
 // database, each request judged by what its kind does. And what it reads
@@ -94,7 +94,8 @@ const HOME = mkdtempSync(join(tmpdir(), "status-script-home-"));
 const RAISED = join(HOME, ".claude", "scheduled-tasks", "morning-check", "raised.json");
 function run(args = [], env = {}) {
   return new Promise((resolve) => {
-    const c = spawn(process.execPath, [SCRIPT, ...args], {
+    // The simulated student follows today's rules from its first day.
+    const c = spawn(process.execPath, [SCRIPT, ...args, "--rules-from", "2026-09-27"], {
       env: {
         PATH: process.env.PATH, HOME,
         SUPABASE_URL: BASE, SUPABASE_SERVICE_ROLE_KEY: KEY,
@@ -131,7 +132,7 @@ console.log("\n  the admin's own record, found without being named");
   ck("and how many carry their settings", /\(\d+ saved with their settings\)/.test(r.out) && !/\(0 saved/.test(r.out));
   ck("it read the sets and the settings", r.out.includes(`${rec.deals.length} sets recorded`) && /Settings: automatic, now \d+%/.test(r.out), r.out.split("\n").slice(0, 2).join(" | "));
   const marks = r.out.split("\n").filter((l) => /^\[(PASS|FAIL|WAIT)\]/.test(l));
-  ck("all thirteen checks reported", marks.length === 13, `${marks.length}`);
+  ck("all fourteen checks reported", marks.length === 14, `${marks.length}`);
   ck("it read Claude's verdicts, why cards were taken out, and the corrections",
      r.out.includes(`${state.pairs.length} verdicts of Claude's on look-alike cards, 0 cards removed, 1 correction.`) &&
      ["card_pairs", "parse_corrections"].every((t) => state.requests.some((q) => q.path === `/rest/v1/${t}`)), r.out.split("\n")[1]);

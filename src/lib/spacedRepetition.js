@@ -31,6 +31,8 @@ export { State, Rating };
 //     queue, and leave. Same-session repetition is already handled by
 //     re-queueing wrong answers (RE_QUEUE_OFFSET below), so minute-scale
 //     steps would just mean cards the session builder can't schedule properly.
+//     Since 2026-10-14 that repeat counts (nextCard below): FSRS's rule for a
+//     second answer on the same day, without its minute-scale steps.
 //
 //   maximumInterval — 10 years. Effectively "no ceiling", which is the whole
 //     point; the old 21-day cap is what made you re-review words you'd known
@@ -122,11 +124,17 @@ export function toFsrsCard(card) {
 // are enabled — and those reschedule in minutes, which this app can't use
 // (see enableShortTerm above). So the miss is recorded explicitly. The
 // session builder reads it to surface recently-missed cards first.
+//
+// Stability and difficulty are kept as the database keeps them, in single
+// precision (real columns). An answer later the same day — the repeat after a
+// miss, counted since 2026-10-14 — then starts from exactly what was saved,
+// and FSRS draws the same spread for it as the status check does from the
+// record; from the unrounded figures it drew another, a day out.
 export function fromFsrsCard(fsrsCard, got) {
   return {
     last_answer_correct: got,
-    stability: fsrsCard.stability,
-    difficulty: fsrsCard.difficulty,
+    stability: Math.fround(fsrsCard.stability),
+    difficulty: Math.fround(fsrsCard.difficulty),
     fsrs_state: fsrsCard.state,
     reps: fsrsCard.reps,
     lapses: fsrsCard.lapses,
@@ -186,6 +194,48 @@ export function fromFsrsTime(ms) {
     d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds(), d.getUTCMilliseconds()).getTime();
 }
 
+// ── The repeat after a miss (2026-10-14) ──────────────────────────────
+//
+// A missed card comes back RE_QUEUE_OFFSET cards later in the same set. That
+// answer used to be practice only: FSRS counted the day's first answer and no
+// other. Since 2026-10-14 (the owner) it counts too, by FSRS's own rule for a
+// second answer on the same study day, its "short-term" stability (weights
+// w17–w19): a right repeat can only keep or slightly raise the card's memory
+// estimate, a missed one lowers it again, and either moves its difficulty.
+// ts-fsrs applies that rule only with its minute-scale steps switched on, so
+// the new estimate is worked out by a second scheduler with them on, and the
+// gap, as for every answer, from the estimate: never under a day. The repeat
+// is then the card's latest answer, and its due date the one that stands.
+//
+// In the FSRS team's records, counting same-day repeats made FSRS's
+// predictions more accurate for about 85% of users; no study shows whether
+// students learn more for it. With FSRS's own same-day weights, a new word
+// missed twice in one set came back after 1, 1, 3 and 6 days instead of 1,
+// 3, 11 and 33 (2026-10-14).
+const sameDayOf = new WeakMap();
+function sameDay(sched) {
+  let s = sameDayOf.get(sched);
+  if (!s) {
+    const p = sched.parameters;
+    s = fsrs({ w: Array.from(p.w), request_retention: p.request_retention, maximum_interval: p.maximum_interval, enable_fuzz: false, enable_short_term: true });
+    sameDayOf.set(sched, s);
+  }
+  return s;
+}
+
+// One answer through FSRS, as the app counts it: ts-fsrs's next(), with the
+// same-day rule for a second answer on the same study day. Card and times are
+// ts-fsrs's, in FSRS time (toFsrsTime). The replay of a card's answers
+// (lib/fsrsHistory.js) goes through this too, so both always agree.
+export function nextCard(card, now, rating, sched = scheduler) {
+  const { card: next } = sched.next(card, now, rating);
+  const last = card.last_review ? new Date(card.last_review).getTime() : NaN;
+  const sameStudyDay = Number.isFinite(last) && Math.floor(last / DAY_MS) === Math.floor(new Date(now).getTime() / DAY_MS);
+  if ((card.state ?? State.New) === State.New || !sameStudyDay) return next;
+  const m = sameDay(sched).next_state({ difficulty: card.difficulty, stability: card.stability }, 0, rating);
+  return { ...next, stability: m.stability, difficulty: m.difficulty };
+}
+
 // One answer, scheduled: one direction's state (plain field names) in, the
 // same shape out.
 //
@@ -202,7 +252,7 @@ export function scheduleAnswer(side, got, nowMs = Date.now(), sched = scheduler)
   if (card.last_review) card.last_review = new Date(toFsrsTime(card.last_review.getTime()));
   card.due = new Date(toFsrsTime(card.due.getTime()));
   const now = toFsrsTime(nowMs);
-  const { card: next } = sched.next(card, new Date(now), got ? Rating.Good : Rating.Again);
+  const next = nextCard(card, new Date(now), got ? Rating.Good : Rating.Again, sched);
   const days = sched.next_interval(next.stability, next.elapsed_days ?? 0);
   return fromFsrsCard({
     ...next,

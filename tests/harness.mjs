@@ -94,7 +94,8 @@ export async function servedDeck() {
 //   • words and phrases are asked both ways, grammar and pronunciation as
 //     written; the setting ("fr" | "en" | "mix") picks the ways for words
 //   • a way round is dealt if it is due by tonight or has never been answered
-//   • a word never answered either way is met only one way in a block
+//   • a word is asked one way a day (2026-10-14): of two ways open, a due one
+//     before a new one, the one missed last time, else the more overdue
 // Only for fixtures smaller than a block, with nothing answered today.
 // Returns [{ row, dir }].
 const TWO_WAY_DB = new Set(["V", "E"]);
@@ -108,8 +109,12 @@ export function firstBlockItems(rows, direction = "mix") {
     const col = (d, f) => row[d === "en" ? `en_${f}` : f];
     const isNew = (d) => (col(d, "fsrs_state") ?? 0) === 0;
     const open = dirs.filter((d) => isNew(d) || (col(d, "next_due_at") && new Date(col(d, "next_due_at")) <= tonight));
-    const bothNew = open.length === 2 && open.every(isNew);
-    for (const dir of bothNew ? open.slice(0, 1) : open) out.push({ row, dir });
+    const rank = (d) => [isNew(d) ? 1 : 0, col(d, "last_answer_correct") === false ? 0 : 1, Date.parse(col(d, "next_due_at") || 0) || 0];
+    const first = [...open].sort((a, b) => {
+      const [x, y] = [rank(a), rank(b)];
+      return x[0] - y[0] || x[1] - y[1] || x[2] - y[2];
+    })[0];
+    if (first) out.push({ row, dir: first });
   }
   return out;
 }

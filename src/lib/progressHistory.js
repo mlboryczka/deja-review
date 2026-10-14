@@ -132,11 +132,19 @@ export function statsOverTime({ cards, rows, now = Date.now() }) {
       const end = i + 1 < starts.length ? starts[i + 1] - 1 : now;
       days.push({ iso: localISODate(new Date(starts[i])), start: starts[i], end, cards: 0, fresh: 0, reviews: 0, retries: 0, right: 0, remembered: 0 });
     }
+    // A retry is a way's later answer the same day: practice, or since
+    // 2026-10-14 the repeat after a miss, which FSRS counts. Either way it
+    // isn't a new card or a review, nor a first try.
+    const countedOn = new Map(); // "card_id:direction" -> the day of its last counted answer
     for (const rec of records) {
-      const day = days[index.get(localISODate(new Date(rec.at)))];
+      const iso = localISODate(new Date(rec.at));
+      const day = days[index.get(iso)];
       if (!day) continue;
       day.cards++;
-      if (!rec.counted) { day.retries++; continue; }
+      const way = `${rec.card_id}:${rec.direction === "en" ? "en" : "fr"}`;
+      const repeat = rec.counted && countedOn.get(way) === iso;
+      if (rec.counted) countedOn.set(way, iso);
+      if (!rec.counted || repeat) { day.retries++; continue; }
       if (lives.get(rec.card_id)?.firstId === rec.id) day.fresh++;
       else day.reviews++;
       if (rec.correct) day.right++;

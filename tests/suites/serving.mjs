@@ -9,7 +9,8 @@
 // wave through a UTC bug.
 process.env.TZ = "America/New_York";
 
-import { buildSession, orderNewCards, classDaysOf, addedByStudent, placeRetry, withdrawRetry, applyAnswer } from "../../src/lib/sessionQueue.js";
+import { buildSession, orderNewCards, classDaysOf, addedByStudent, placeRetry, withdrawRetry, applyAnswer, countsAnswer } from "../../src/lib/sessionQueue.js";
+import { scheduleAnswer } from "../../src/lib/spacedRepetition.js";
 import { packSet, unpackEntries } from "../../src/lib/studyPlace.js";
 import { SIDE_FIELDS, sideOf, itemKey, withLocalAnswers } from "../../src/lib/directions.js";
 import { localISODate, localISODateDaysAgo } from "../../src/lib/studyDay.js";
@@ -252,7 +253,9 @@ console.log("\n  the basic lessons are met from Leçon 1");
 //
 // Agreed with the owner, 2026-09-14: a word or phrase card is asked both ways,
 // "la pomme → ?" and "apple → ?", each scheduled by FSRS from its own answers.
-// Neither way waits for the other. Grammar and pronunciation cards are only
+// Since 2026-10-14 (the owner) a word is asked one way a day: once one way has
+// been answered today, the other waits for tomorrow, and a block never deals
+// both ways of one card. Grammar and pronunciation cards are only
 // ever asked as written. The direction setting chooses which ways of words and
 // phrases are dealt; grammar comes up in every setting.
 const en = (side) => Object.fromEntries(Object.entries(side).map(([k, v]) => [`en_${k}`, v]));
@@ -270,7 +273,7 @@ console.log("\n  a word is asked both ways, each on its own schedule");
 {
   const both = word(DUE, DUE);
   const { queue } = build([both]);
-  ck("due both ways: both ways are in the block", ways(queue, both) === "en+fr", ways(queue, both));
+  ck("due both ways: one way today, not both", ways(queue, both) === "fr" || ways(queue, both) === "en", ways(queue, both));
   const frOnly = word(DUE, LATER);
   const enOnly = word(LATER, DUE);
   const q2 = build([frOnly, enOnly]).queue;
@@ -285,14 +288,23 @@ console.log("\n  a word is asked both ways, each on its own schedule");
      JSON.stringify(q3.queue.filter((e) => e.row_id === missedEn.row_id).map((e) => [e.shownDir, e._bucket])));
 }
 
-console.log("\n  neither way waits for the other");
+console.log("\n  a word is asked one way a day");
 {
   const seenInFrench = word(DUE);
   const { queue } = build([seenInFrench]);
-  ck("a word due in French and never asked in English gets both: a review and a new card",
-     ways(queue, seenInFrench) === "en+fr", ways(queue, seenInFrench));
+  ck("a word due in French and never asked in English: the review today, the new way another day",
+     ways(queue, seenInFrench) === "fr", ways(queue, seenInFrench));
   const seenInEnglish = word({}, DUE);
-  ck("and the same the other way round", ways(build([seenInEnglish]).queue, seenInEnglish) === "en+fr");
+  ck("and the same the other way round", ways(build([seenInEnglish]).queue, seenInEnglish) === "en");
+  const frOlder = word({ ...DUE, next_due_at: new Date(NOW - 3 * DAY).toISOString() }, DUE);
+  ck("due both ways: the more overdue way is dealt", ways(build([frOlder]).queue, frOlder) === "fr");
+  const enMissed = word(DUE, { ...DUE, last_answer_correct: false });
+  ck("due both ways, one missed last time: the missed way is dealt", ways(build([enMissed]).queue, enMissed) === "en");
+  const frToday = word({ ...LATER, last_review: new Date(NOW - 3600000).toISOString() }, DUE);
+  ck("answered in French this morning: English, though due, waits for tomorrow", ways(build([frToday]).queue, frToday) === "");
+  ck("  and comes tomorrow", ways(build([frToday], { now: NOW + DAY }).queue, frToday) === "en", ways(build([frToday], { now: NOW + DAY }).queue, frToday));
+  const both = build([word(DUE, DUE), word(DUE, DUE), word(DUE, DUE)]);
+  ck("the other way, waiting for tomorrow, isn't counted as work left today", both.dueRemaining === 0, `${both.dueRemaining}`);
   const brandNew = many(40, () => word({}));
   const firsts = build(brandNew).queue;
   const dirs = new Set(firsts.map((e) => e.shownDir));
@@ -310,12 +322,12 @@ console.log("\n  a word's two first meetings are kept apart");
   const metYesterday = word({ ...LATER, reps: 1, last_review: new Date(NOW - DAY).toISOString() });
   ck("met for the first time yesterday: asked in English today", ways(build([metYesterday]).queue, metYesterday) === "en");
   const knownAnsweredToday = word({ ...LATER, reps: 4, last_review: new Date(NOW - 3600000).toISOString() });
-  ck("a word known for a while, answered in French today, can still be met in English today",
-     ways(build([knownAnsweredToday]).queue, knownAnsweredToday) === "en");
+  ck("a word known for a while, answered in French today, is met in English another day too",
+     ways(build([knownAnsweredToday]).queue, knownAnsweredToday) === "");
   const enToday = word({}, { ...LATER, reps: 1, last_review: new Date(NOW - 3600000).toISOString() });
   ck("and met first in English this morning: French waits too", ways(build([enToday]).queue, enToday) === "");
   const twoDue = word({ ...DUE, reps: 1 }, { ...DUE, reps: 1 });
-  ck("the rule is only about first meetings: two due reviews share a block", ways(build([twoDue]).queue, twoDue) === "en+fr");
+  ck("two due reviews of one word don't share a block either", ways(build([twoDue]).queue, twoDue).split("+").length === 1, ways(build([twoDue]).queue, twoDue));
 }
 
 console.log("\n  the direction setting");
@@ -325,7 +337,7 @@ console.log("\n  the direction setting");
   const inSetting = (direction) => build([w, g], { direction }).queue;
   ck("FR→EN: words are asked in French", ways(inSetting("fr"), w) === "fr");
   ck("EN→FR: words are asked in English", ways(inSetting("en"), w) === "en");
-  ck("Mixed: both", ways(inSetting("mix"), w) === "en+fr");
+  ck("Mixed: one way a day", ["en", "fr"].includes(ways(inSetting("mix"), w)), ways(inSetting("mix"), w));
   ck("grammar is asked in every setting, as written",
      ["fr", "en", "mix"].every((d) => ways(inSetting(d), g) === "fr"),
      ["fr", "en", "mix"].map((d) => ways(inSetting(d), g)).join(" | "));
@@ -342,6 +354,24 @@ console.log("\n  one answer a day, per way round");
      !queue.some((e) => e.row_id === knownBoth.row_id), queue.filter((e) => e.row_id === knownBoth.row_id).map((e) => e.shownDir).join(","));
 }
 
+console.log("\n  the repeat after a miss counts (2026-10-14)");
+{
+  const morning = new Date(NOW - 3600000).toISOString();
+  ck("a way's first answer of the day counts", countsAnswer({ ...DUE }, {}, NOW));
+  ck("the retry after a miss this morning counts", countsAnswer({ ...DUE, last_review: morning, last_answer_correct: false }, { retry: true }, NOW));
+  ck("a card answered right this morning, shown again, is practice", !countsAnswer({ ...DUE, last_review: morning, last_answer_correct: true }, { retry: true }, NOW));
+  ck("and so is one shown again that isn't the retry", !countsAnswer({ ...DUE, last_review: morning, last_answer_correct: false }, {}, NOW));
+  // A word known for ten days, missed this morning, and its repeat.
+  const known = { fsrs_state: 2, stability: 10, difficulty: 5, reps: 4, lapses: 0, last_review: new Date(NOW - 10 * DAY).toISOString(), next_due_at: new Date(NOW).toISOString() };
+  const miss = scheduleAnswer(known, false, NOW - 3600000);
+  const right = scheduleAnswer(miss, true, NOW);
+  const wrong = scheduleAnswer(miss, false, NOW);
+  ck("the repeat is scheduled by FSRS's same-day rule: right keeps or raises the estimate", right.stability >= miss.stability, `${miss.stability} -> ${right.stability}`);
+  ck("  missed lowers it, and makes the word harder", wrong.stability < miss.stability && wrong.difficulty > miss.difficulty, `${miss.stability} -> ${wrong.stability}`);
+  ck("  either way the word comes back tomorrow at the earliest", [right, wrong].every((x) => Date.parse(x.next_due_at) >= NOW + 12 * 3600000));
+  ck("  and a word missed twice comes back no later than one missed once and then got right", Date.parse(wrong.next_due_at) <= Date.parse(right.next_due_at));
+}
+
 console.log("\n  re-dealing the rest of a block keeps what is already in it");
 {
   const a = word(DUE, DUE);
@@ -351,7 +381,7 @@ console.log("\n  re-dealing the rest of a block keeps what is already in it");
   const keys = queue.map(itemKey);
   ck("an entry already in the block is not dealt again", !keys.includes(itemKey(staying[0])), keys.join(" "));
   ck("a word whose first meeting is in the block gets no second one", !queue.some((e) => e.row_id === b.row_id), keys.join(" "));
-  ck("the other way of a due word still comes", keys.includes(`${a.row_id}:en`), keys.join(" "));
+  ck("the other way of a word already in the block waits for tomorrow", !keys.includes(`${a.row_id}:en`), keys.join(" "));
 }
 
 // ── The write: an answer lands on the way round it was asked ────────────

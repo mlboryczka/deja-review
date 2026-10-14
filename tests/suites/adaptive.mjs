@@ -217,9 +217,28 @@ console.log("\n  a card's estimate, worked out again from its answers");
     n++;
     const diff = Math.abs(e.stability - c.stability) / c.stability;
     worst = Math.max(worst, diff);
-    if (diff < 1e-6 && Math.abs(e.difficulty - c.difficulty) < 1e-6) same++;
+    // The app keeps both in single precision, as the database does
+    // (fromFsrsCard): a replay agrees to that precision.
+    if (diff < 1e-5 && Math.abs(e.difficulty - c.difficulty) < 1e-5 * Math.max(1, c.difficulty)) same++;
   }
   ck("replaying a card's answers gives exactly what the app scheduled, answer by answer", same === n && n > 50, `${same} of ${n}, worst ${worst}`);
+}
+
+console.log("\n  the repeat after a miss, in the fitting and the replay (2026-10-14)");
+{
+  applySettings({});
+  const at = (d, h, m = 0) => Date.parse(new Date(2026, 9, d, h, m).toISOString());
+  const row = (id, ms, correct, state_before) => ({ id, card_id: 9, direction: "fr", answered_at: new Date(ms).toISOString(), correct, counted: true, state_before });
+  const rows = [row("a", at(15, 10), false, 0), row("b", at(15, 10, 20), true, 2), row("c", at(16, 18), true, 2)];
+  const [h] = buildHistories(rows);
+  const seq = fittingSequences([h], TZ);
+  ck("the fitting sees the counted repeat, the same day as the miss", JSON.stringify(seq[0].map((x) => [x.rating, x.deltaT])) === "[[1,0],[3,0],[3,1]]", JSON.stringify(seq[0]));
+  let side = { fsrs_state: 0 };
+  for (const r of rows) side = scheduleAnswer(side, r.correct, Date.parse(r.answered_at), live);
+  const e = replayHistory(h, { sched: live, timeZone: TZ });
+  ck("a card's answers replayed, repeat included, give what the app scheduled",
+     Math.abs(e.stability - side.stability) < 1e-5 * side.stability && Math.abs(e.difficulty - side.difficulty) < 1e-5 * side.difficulty,
+     `${e.stability} vs ${side.stability}`);
 }
 
 console.log("\n  the server: waiting, fitting, keeping, and never moving a due date");

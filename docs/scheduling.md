@@ -15,12 +15,18 @@ This page covers how the app uses FSRS, and the rules it adds on top.
 A word or phrase can be asked from French ("la pomme → ?") or from English
 ("apple → ?"). Each way round has its own schedule, because recognising a word
 and producing it are different skills, and which is harder differs from one
-student and one word to the next. Neither way waits for the other.
+student and one word to the next.
 
-One rule links them: a word's two first meetings are kept apart. Once a word
-has been asked one way for the first time, the other way waits for a later
-day, so the second question doesn't come straight after the student has seen
-the answer. Grammar cards are asked one way only, as written.
+One rule links them: a word is asked one way a day (since 2026-10-14). Once a
+word has been answered one way, for the first time or not, the other way waits
+until the next day, and a set never holds both. If both ways are due the same
+day, the way missed last time comes first, otherwise the one more overdue; the
+other comes the next day. The second answer the same day came just after
+seeing the word, and FSRS took it for memory: on the owner's record, a review
+whose other way had been answered earlier that day was right 90% of the time
+where FSRS expected 81% (63 answers), against 79% where it expected 82%
+otherwise (549). Until then only a word's two first meetings were kept apart.
+Grammar cards are asked one way only, as written.
 
 The student can study from French, from English, or both mixed.
 
@@ -40,13 +46,24 @@ well with two grades:
   Hard, which made every right answer wait at least three days however shaky
   the card was.
 
-## One answer a day counts
+## Which answers count
 
-FSRS gets one answer per card, each way round, per day: the first. A missed
-card comes back later in the same set as a retry, but the student has just
-seen the answer, so the retry says nothing about memory from one day to the
-next. It is practice, and the same goes for a second set later that day, a
-reload, or another computer. Every answer is still kept in the record.
+FSRS gets the first answer per card, each way round, each day, and the retry
+after a miss. A missed card comes back 20 cards later in the same set. Until
+2026-10-14 that retry was practice only; now it counts, by FSRS's own rule for
+a second answer on the same day (its "short-term" stability). A right retry
+keeps or slightly raises the card's memory estimate. A missed one lowers it
+and makes the card harder, so it comes back sooner over the next days: a new
+word missed twice in one set came back after 1, 1, 3 and 6 days instead of 1,
+3, 11 and 33, with FSRS's own numbers for same-day answers. The gap is never
+under a day. In the FSRS team's records, counting same-day repeats made its
+predictions more accurate for about 85% of users; no study shows students
+learn more for it. The numbers for same-day answers start as FSRS's own, and
+each student's weekly fit adjusts them from their retries.
+
+Anything else shown again the same day is practice: a card revisited with
+Previous card, a second set later that day, a reload, or another computer.
+Every answer is still kept in the record.
 
 ## The study day runs from 4am to 4am
 

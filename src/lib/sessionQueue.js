@@ -45,14 +45,22 @@
 // blocked practice, which tests worse than interleaved practice for long-term
 // retention. So: pick by priority, then shuffle.
 //
-// Neither direction waits for the other: both of a new word's items are new
-// from the start (agreed with the owner, 2026-09-14 — which way is harder
-// differs per student). What IS kept apart is a word's two FIRST meetings:
-// once a card has been answered for the first time one way, its other way
-// waits for a later day, and a block never deals both new items of one card.
-// Otherwise the second answer comes straight after being shown the word, and
-// FSRS would schedule a recall that never happened. This decides only when an
-// item is first shown; FSRS schedules nothing until it has been answered.
+// Both of a new word's items are new from the start (agreed with the owner,
+// 2026-09-14 — which way is harder differs per student), but a word is asked
+// one way a day. Once a card has been answered one way today — a first
+// meeting or a review — its other way waits for tomorrow, and a block never
+// deals both ways of one card. The second answer the same day comes just
+// after seeing the word, and FSRS would take an echo for a recall: on the
+// owner's record (2026-10-14), a review whose other way had been answered
+// earlier that day was right 90% of the time where FSRS expected 81% (63
+// answers); otherwise 79% where it expected 82% (549). So the owner agreed to
+// keep a word's two ways apart (2026-10-14); until then only its two FIRST
+// meetings were. Of a card's two ways due on one day, the one the order below
+// reaches first is dealt (missed last time, else the more overdue); the other
+// is dealt tomorrow.
+//
+// This decides only when an item is shown; FSRS schedules nothing until it
+// has been answered.
 //
 // Each entry is { ...card, shownDir: "fr" | "en", flippable, _bucket: "lapse" |
 // "review" | "new" }. FlashcardApp uses _bucket only for the counter;
@@ -97,16 +105,12 @@ function itemDirections(card, direction) {
   return [direction === "en" ? "en" : "fr"];
 }
 
-// This card was answered for the very first time today the OTHER way round.
-// Its item this way is new, and waits for tomorrow — see the header.
-function metOtherWayToday(card, dir, now) {
+// This card was answered today the OTHER way round, for the first time or
+// not. Its item this way waits for tomorrow — see the header.
+function answeredOtherWayToday(card, dir, now) {
   if (!isTwoWay(card)) return false;
   const other = sideOf(card, otherDirection(dir));
-  return (
-    (other.fsrs_state ?? State.New) !== State.New &&
-    (other.reps ?? 0) <= 1 &&
-    reviewedToday(other.last_review, new Date(now))
-  );
+  return (other.fsrs_state ?? State.New) !== State.New && reviewedToday(other.last_review, new Date(now));
 }
 
 function shuffleInPlace(arr, rng = Math.random) {
@@ -214,7 +218,8 @@ export function buildSession(cards, opts = {}) {
   const inBlock = opts.inBlock || [];
   const taken = new Set(inBlock.map(itemKey));
   const cardKey = (c) => c.row_id ?? c.id;
-  const newCardsTaken = new Set(inBlock.filter((c) => c._bucket === "new").map(cardKey));
+  // The cards with a way in this block: their other way waits for tomorrow.
+  const cardsTaken = new Set(inBlock.map(cardKey));
 
   const lapses = [];
   const reviews = [];
@@ -225,10 +230,11 @@ export function buildSession(cards, opts = {}) {
     for (const dir of itemDirections(card, direction)) {
       const item = { ...card, shownDir: dir, flippable };
       if (taken.has(itemKey(item))) continue;
+      if (answeredOtherWayToday(card, dir, now)) continue;
       const side = sideOf(card, dir);
       const state = side.fsrs_state ?? State.New;
       if (isNewCard(side)) {
-        if (!metOtherWayToday(card, dir, now)) fresh.push(item);
+        fresh.push(item);
       } else if (dueMs(side) <= endOfToday) {
         // A card you missed last time. FSRS's Relearning state would say this
         // for us, but it only exists with minute-scale relearning steps turned
@@ -251,10 +257,23 @@ export function buildSession(cards, opts = {}) {
     ...lapses.map(({ item }) => ({ ...item, _bucket: "lapse" })),
     ...reviews.map(({ item }) => ({ ...item, _bucket: "review" })),
   ];
-  const dueTaken = due.slice(0, Math.max(0, target));
+  // One way of a card a day: of two due, the first in this order. A card
+  // counts once towards today's work, whether this block takes it or a later
+  // one does.
+  const dueTaken = [];
+  const counted = new Set(cardsTaken);
+  let dueToday = 0;
+  for (const item of due) {
+    if (counted.has(cardKey(item))) continue;
+    counted.add(cardKey(item));
+    dueToday++;
+    if (dueTaken.length >= Math.max(0, target)) continue;
+    cardsTaken.add(cardKey(item));
+    dueTaken.push(item);
+  }
 
-  // New cards only in the room the due cards left — and never both of one
-  // card's first meetings in the same block.
+  // New cards only in the room the due cards left — and never a card that
+  // already has a way in the block.
   const newSlots = Math.max(0, target - dueTaken.length);
   const newTaken = [];
   if (newSlots > 0) {
@@ -267,8 +286,8 @@ export function buildSession(cards, opts = {}) {
     });
     for (const item of ordered) {
       if (newTaken.length >= newSlots) break;
-      if (newCardsTaken.has(cardKey(item))) continue;
-      newCardsTaken.add(cardKey(item));
+      if (cardsTaken.has(cardKey(item))) continue;
+      cardsTaken.add(cardKey(item));
       newTaken.push({ ...item, _bucket: "new" });
     }
   }
@@ -282,8 +301,9 @@ export function buildSession(cards, opts = {}) {
     queue: tagged,
     counts: countBuckets(tagged),
     // How much due work is left beyond this block. The checkpoint (stage 4)
-    // uses it to say "the next blocks are reviews only".
-    dueRemaining: due.length - dueTaken.length,
+    // uses it to say "the next blocks are reviews only". A card's other way,
+    // waiting for tomorrow, isn't today's work.
+    dueRemaining: dueToday - dueTaken.length,
     newAvailable: fresh.length,
   };
 }
@@ -366,4 +386,14 @@ export function withdrawRetry(deck, idx, key) {
 // in-memory patch.
 export function applyAnswer(card, got, nowMs = Date.now(), dir = card?.shownDir ?? "fr") {
   return sideColumns(scheduleAnswer(sideOf(card, dir), got, nowMs), dir);
+}
+
+// Whether FSRS counts an answer to one way of a card, given now: the day's
+// first answer to it, and since 2026-10-14 (the owner) the repeat after a
+// miss counted today — a retry whose way was last answered today, wrong.
+// Anything else shown again the same day is practice. `side` is that way's
+// state as it stands when the answer is given (sideOf(card, dir)).
+export function countsAnswer(side, { retry = false } = {}, nowMs = Date.now()) {
+  if (!reviewedToday(side.last_review, new Date(nowMs))) return true;
+  return retry && side.last_answer_correct === false;
 }

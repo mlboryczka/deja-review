@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // The status check on a student's real record, from the command line: the
-// same thirteen checks the server runs on every student each day
+// same fourteen checks the server runs on every student each day
 // (src/lib/statusChecks.js), for looking into what they report. Claude runs
 // it each morning on this Mac (a scheduled task) and tells the owner only
 // when something needs their decision; the app itself shows no Status line.
@@ -22,6 +22,9 @@
 //   node scripts/status-check.mjs --from 2026-09-20   judge answers from an earlier day
 //   node scripts/status-check.mjs --tz Europe/Paris   time zone for answers saved without one
 //   node scripts/status-check.mjs --all               every detail, not the first six per check
+//   node scripts/status-check.mjs --rules-from 2026-09-27
+//                                                     hold the newer rules (2026-10-14) to answers from
+//                                                     that day: for the tests' simulated students
 //   node scripts/status-check.mjs --everyone          every student, and the tests of Claude's work
 //   node scripts/status-check.mjs --everyone --record the same, saving what's been raised (the morning check)
 //   node .claude/worktrees/testing/scripts/status-check.mjs --test-app --record
@@ -41,6 +44,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
 const argVal = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : null; };
 const ALL = args.includes("--all");
+// The day the app's newer rules are held from (lib/statusChecks.js), when not
+// their own: the tests' simulated students follow them from their first day.
+const RULES_FROM = argVal("--rules-from") ? { repeatsCount: argVal("--rules-from"), oneWayADay: argVal("--rules-from") } : null;
 const TZ = argVal("--tz") || Intl.DateTimeFormat().resolvedOptions().timeZone;
 process.env.TZ = TZ;
 
@@ -67,7 +73,7 @@ if (missing.length) {
   console.error(`Missing: ${missing.join(", ")}\nPut them in .env.local or the environment.`);
   process.exit(1);
 }
-// --everyone: the morning check. The same thirteen checks on every student who
+// --everyone: the morning check. The same fourteen checks on every student who
 // has answered anything, run now (api/_lib/statusDaily.js); what the server's
 // daily run last asked Claude about look-alike cards, from its kept reports;
 // and whether a change to how Claude is asked has made it get wrong what it
@@ -140,7 +146,7 @@ if (args.includes("--test-app")) {
   try { raised = JSON.parse(fs.readFileSync(RAISED_FILE, "utf8")); } catch {}
   const problems = [];
   let unreadable = false;
-  const [r] = await checkEveryone(db, { examples: Infinity, only: new Set([owner]) });
+  const [r] = await checkEveryone(db, { examples: Infinity, only: new Set([owner]), rulesFrom: RULES_FROM });
   console.log(`The test app (dejareview-mlb.vercel.app), judged by its own version of the checks, on ${owner}'s record:`);
   if (!r) {
     console.log(`  ${owner} hasn't answered anything yet.`);
@@ -174,7 +180,7 @@ if (args.includes("--everyone")) {
 
   // Every line of every check, not the first few: a problem past the few
   // shown was never raised (2026-10-09: 19 of the owner's 25 repeats).
-  const reports = await checkEveryone(db, { examples: Infinity });
+  const reports = await checkEveryone(db, { examples: Infinity, rulesFrom: RULES_FROM });
   console.log(`Every student who has answered (${reports.length}), checked now:`);
   for (const r of [...reports].sort((a, b) => Number(a.ok) - Number(b.ok))) {
     if (r.error) { unreadable = true; console.log(`\n  ${r.user_email}: couldn't be checked: ${r.error}`); continue; }
@@ -369,6 +375,7 @@ const report = runStatusChecks({
   lessonRank,
   from: argVal("--from") || CHECKS_START,
   examples: ALL ? Infinity : undefined,
+  rulesFrom: RULES_FROM,
 });
 
 const withSettings = (answers || []).filter((r) => r.counted && Array.isArray(r.weights)).length;

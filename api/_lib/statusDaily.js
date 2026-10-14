@@ -1,7 +1,7 @@
 // The status check on every student (2026-10-06).
 //
 // The checks (src/lib/statusChecks.js; nine then, eleven since the two of the
-// deck, thirteen since the first gaps and own settings of 2026-10-14) used to
+// deck, fourteen since the first gaps, own settings and one way a day of 2026-10-14) used to
 // run only on the admin's own record, in the admin's browser,
 // while the app was open. Here they run on
 // the server on every student who has answered anything, with the service
@@ -105,7 +105,7 @@ export async function loadStudent(db, student) {
 // The checks on a loaded record, as the report kept for it. `examples`: how
 // many lines of each check to keep (the checks' own default when left out);
 // the morning check on the Mac asks for all, so none goes unraised.
-export function reportFor(rec, { now = Date.now(), examples } = {}) {
+export function reportFor(rec, { now = Date.now(), examples, rulesFrom } = {}) {
   const { student } = rec;
   if (rec.error) return { user_id: student.id, user_email: student.email, ok: false, error: rec.error };
   // Rows saved without a time zone are read in the student's latest one.
@@ -120,6 +120,7 @@ export function reportFor(rec, { now = Date.now(), examples } = {}) {
     pairsTable: rec.pairsTable,
     corrections: rec.corrections,
     timeZone: latestZone,
+    rulesFrom,
     lessonRank,
     now,
     ...(examples != null ? { examples } : {}),
@@ -160,7 +161,7 @@ export async function checkStudent(db, student, { now = Date.now(), judge = null
 // reportFor.
 // `only`: a Set of emails to check and no one else (the morning check of the
 // test app, scripts/status-check.mjs --test-app).
-export async function checkEveryone(db, { now = Date.now(), judge = null, examples, only = null } = {}) {
+export async function checkEveryone(db, { now = Date.now(), judge = null, examples, only = null, rulesFrom } = {}) {
   const loaded = [];
   for (const student of await listStudents(db)) {
     if (only && !only.has(student.email)) continue;
@@ -177,7 +178,7 @@ export async function checkEveryone(db, { now = Date.now(), judge = null, exampl
   }
   return loaded.map((rec) => {
     try {
-      return reportFor(rec, { now, examples });
+      return reportFor(rec, { now, examples, rulesFrom });
     } catch (e) {
       return { user_id: rec.student.id, user_email: rec.student.email, ok: false, error: e.message || String(e) };
     }

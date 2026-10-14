@@ -5,7 +5,7 @@ early, a missed word fails to come back first, or a schedule is saved from the
 wrong answer, the student still just sees cards, and nothing looks broken. So
 Déjà Review checks its own work in four ways:
 
-1. **The status check**: thirteen checks on every student's real record of
+1. **The status check**: fourteen checks on every student's real record of
    answers and their deck, run every morning.
 2. **Tests of Claude's work**: its marking of disputed answers, its reading
    of class notes, and its judging of whether two look-alike cards are the
@@ -39,8 +39,11 @@ The checks, as the reports name them:
 1. *Every answer was scheduled the way FSRS says.* Each answer is replayed
    through FSRS. The stored memory estimates must match to four figures, and
    the gap must fall within FSRS's usual random spread.
-2. *FSRS counted one answer per card, each way, each day.* Only the day's first
-   answer may move a schedule. A retry later in the set is practice.
+2. *FSRS counted each way's first answer of the day, and the repeat after a
+   miss.* From 2026-10-15 a later answer may count only after a counted miss
+   that day. The record doesn't say which later answer was the retry (a card
+   asked again after a detour into a lesson isn't one), so one left uncounted
+   passes. Before then only the day's first answer counted.
 3. *Every card's schedule is its last answer's result.*
 
 **Following the app's rules**
@@ -52,23 +55,25 @@ The checks, as the reports name them:
    mistake in that code can't hide in its own check.
 7. *A new word met one way at a time.* A word's French-to-English and
    English-to-French questions are never both new on the same day.
-8. *Every card asked came from a set, never straight back.*
+8. *A word was asked one way a day.* Added 2026-10-14. From 2026-10-15 no word
+   is answered both ways round on one day, and no set deals it both ways.
+9. *Every card asked came from a set, never straight back.*
 
 **How well it's working**
 
-9. *FSRS's predictions match your results.* Over the last 30 days, answers are
+10. *FSRS's predictions match your results.* Over the last 30 days, answers are
    grouped by the chance FSRS gave them of being right. A group fails if its
    real share right is 10 points off once it holds 100 answers, and all the
    answers together fail at 5 points off once there are 300.
-10. *A new word's first gap suits how you remember.* Added 2026-10-14. A
+11. *A new word's first gap suits how you remember.* Added 2026-10-14. A
     word's second answer is judged on its own, split by whether its first
     answer was right or wrong, with the settings in use now: what share they
     expect right after the gap the word actually had, against what the
     student got. Each half fails at 10 points off once it holds 100 words. On
     the owner's record the starting settings were wrong about both halves in
     opposite directions (112 of 119 right where 88% was expected; 60 of 103
-    where 71% was), and the two cancelled out in check 9, which passed.
-11. *Your own settings were tried when due.* Added 2026-10-14. The app tries
+    where 71% was), and the two cancelled out in check 10, which passed.
+12. *Your own settings were tried when due.* Added 2026-10-14. The app tries
     each student's own settings from about 350 answers, then every week once
     there are 50 more ([How cards are scheduled](scheduling.md)). If a try
     was due when the student last studied, one must have happened that day.
@@ -77,14 +82,14 @@ The checks, as the reports name them:
 
 **The deck itself**
 
-12. *No card is in your deck twice.* Two cards in study fail it when they are
+13. *No card is in your deck twice.* Two cards in study fail it when they are
     one card by the rule every path that makes cards from notes uses, or when
     Claude has judged the pair the same card. A card that is one item of
     another card's list, such as "à l'heure" beside "à temps / à l'heure", is
     one card twice (the owner's decision). The check imports that rule
     rather than restating it, so it means by "the same card" exactly what the
     upload and the linked notebook mean.
-13. *Nothing you deleted or corrected came back.* A card the student removed,
+14. *Nothing you deleted or corrected came back.* A card the student removed,
     or the form a card had before the owner corrected it, fails it when it is
     in study again, made after it was taken out.
 
@@ -258,7 +263,7 @@ failed.
 
 ## In the code
 
-- `src/lib/statusChecks.js`: the thirteen checks, shared by the server, the
+- `src/lib/statusChecks.js`: the fourteen checks, shared by the server, the
   script and the simulations; the deck checks import `src/lib/sameCard.js`,
   the rule the card-writers use
 - `src/StatusModal.jsx`: the Status window

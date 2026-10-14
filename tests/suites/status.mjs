@@ -37,7 +37,9 @@ const CORRECTIONS = [
 const check = (rec, extra = {}) => runStatusChecks({
   answers: rec.answers, deals: rec.deals, cards: rec.cards, settings: rec.settings,
   pairs: rec.pairs ?? standInVerdicts(rec.cards), corrections: rec.corrections ?? CORRECTIONS,
-  timeZone: TIME_ZONE, lessonRank, now: endOf(rec), ...extra,
+  timeZone: TIME_ZONE, lessonRank, now: endOf(rec),
+  // The simulated student follows today's rules from its first day.
+  rulesFrom: { repeatsCount: CHECKS_START, oneWayADay: CHECKS_START }, ...extra,
 });
 const result = (report, id) => report.results.find((r) => r.id === id);
 const failsOnly = (report, id, label) => {
@@ -479,6 +481,47 @@ console.log("\n  your own settings, tried when due");
 }
 
 // ── The records the app writes ─────────────────────────────────────────
+console.log("\n  the repeat after a miss counts, from the day it began to");
+{
+  const t = Date.parse("2026-10-16T10:00:00");
+  const ans = (id, minutes, correct, counted, card = 1, direction = "fr") => ({
+    id, card_id: card, direction, answered_at: new Date(t + minutes * 60000).toISOString(), correct, counted,
+    state_before: 2, stability_before: 5, difficulty_before: 5, last_review_before: new Date(t - 5 * DAY).toISOString(),
+    due_after: new Date(t + 2 * DAY).toISOString(),
+  });
+  const judge = (answers, id = "one-a-day") => result(runStatusChecks({ answers, cards: [], timeZone: TIME_ZONE, now: t + DAY }), id);
+  const ok = judge([ans("a", 0, false, true), ans("b", 20, true, true)]);
+  ck("a miss and its repeat, both counted: passes", ok.status === "pass", `${ok.status}: ${ok.details[0] || ok.summary}`);
+  const reAsked = judge([ans("a", 0, false, true), ans("b", 10, false, false), ans("c", 20, true, true)]);
+  ck("a miss, the card asked again after a detour (not counted), then its retry counted: passes",
+     reAsked.status === "pass", `${reAsked.status}: ${reAsked.details[0] || reAsked.summary}`);
+  const afterRight = judge([ans("a", 0, true, true), ans("b", 20, true, true)]);
+  ck("a later answer counted after a right one: fails", afterRight.status === "fail" && /the last one counted before it was right/.test(afterRight.details[0]), afterRight.details[0]);
+  const firstNot = judge([ans("a", 0, false, false), ans("b", 20, true, true)]);
+  ck("a day's first answer not counted: fails", firstNot.status === "fail" && /its first answer on Oct 16 wasn't counted/.test(firstNot.details.join(" ")), firstNot.details.join(" | "));
+  const early = judge([ans("a", 0, false, true), ans("b", 20, true, true)], "not-early");
+  ck("and the repeat, the same day as the miss, isn't a card asked before it was due", early.status !== "fail", `${early.status}: ${early.details[0] || early.summary}`);
+  const before = result(runStatusChecks({ answers: [ans("a", -3 * 1440, false, true), ans("b", -3 * 1440 + 20, true, false)], cards: [], timeZone: TIME_ZONE, now: t + DAY }), "one-a-day");
+  ck("before Oct 15 the repeat wasn't counted yet, and that passes", before.status === "pass", `${before.status}: ${before.details[0] || before.summary}`);
+}
+
+console.log("\n  a word asked one way a day");
+{
+  const t = Date.parse("2026-10-16T10:00:00");
+  const ans = (id, day, minutes, direction, card = 1) => ({
+    id, card_id: card, direction, answered_at: new Date(t + day * DAY + minutes * 60000).toISOString(), correct: true, counted: true,
+    state_before: 2, stability_before: 5, difficulty_before: 5, last_review_before: new Date(t - 5 * DAY).toISOString(),
+    due_after: new Date(t + 9 * DAY).toISOString(),
+  });
+  const judge = (answers) => result(runStatusChecks({ answers, cards: [], timeZone: TIME_ZONE, now: t + 3 * DAY }), "one-way-a-day");
+  const apart = judge([ans("a", 0, 0, "fr"), ans("b", 1, 0, "en")]);
+  ck("a word's two ways on different days: passes", apart.status === "pass", `${apart.status}: ${apart.summary}`);
+  const both = judge([ans("a", 0, 0, "fr"), ans("b", 0, 30, "en")]);
+  ck("both ways the same day: fails, naming the day", both.status === "fail" && /both ways round on Oct 16/.test(both.details[0]), both.details[0]);
+  const old = judge([ans("a", -3, 0, "fr"), ans("b", -3, 30, "en")]);
+  ck("before Oct 15, when both ways could share a day, nothing is judged", old.status === "wait", `${old.status}: ${old.summary}`);
+}
+
 console.log("\n  what the app records");
 {
   const card = { row_id: 5, f: "la pomme", b: "apple", cat: "vocab", fsrs_state: 2, stability: 4.2, difficulty: 5.1, reps: 3, lapses: 1, last_review: "2026-09-20T15:00:00.000Z", next_due_at: "2026-09-24T15:00:00.000Z" };
@@ -512,7 +555,7 @@ console.log("\n  what the app records");
 }
 {
   const text = statusText(check(base));
-  ck("the details to paste to Claude name every check", text.split("\n").filter((l) => /^\[(PASS|FAIL|WAIT)\]/.test(l)).length === 13, text.slice(0, 200));
+  ck("the details to paste to Claude name every check", text.split("\n").filter((l) => /^\[(PASS|FAIL|WAIT)\]/.test(l)).length === 14, text.slice(0, 200));
 }
 
 // ── The deck: no card twice, nothing back ──────────────────────────────

@@ -7,7 +7,7 @@
 // answers FSRS counted (the first of each day), in the order they were given.
 
 import { createEmptyCard } from "ts-fsrs";
-import { toFsrsTime, scheduler as current, Rating, State } from "./spacedRepetition.js";
+import { toFsrsTime, scheduler as current, Rating, State, nextCard } from "./spacedRepetition.js";
 
 const DAY_MS = 86400000;
 
@@ -64,8 +64,10 @@ export function buildHistories(rows) {
 }
 
 // What the fitting is given: each fresh history as right/wrong grades (3 / 1)
-// with the days between them. The first answer's gap is 0; a second answer on
-// the same day is left out, as the app leaves it out.
+// with the days between them. The first answer's gap is 0. A second answer on
+// the same day is the repeat after a miss, which FSRS counts since 2026-10-14
+// (lib/spacedRepetition.js), at a gap of 0 days; before then such answers
+// weren't counted, so no history holds one.
 export function fittingSequences(histories, timeZone) {
   const seqs = [];
   for (const h of histories) {
@@ -74,7 +76,7 @@ export function fittingSequences(histories, timeZone) {
     let prevDay = null;
     for (const a of h.answers) {
       const day = studyDayNumber(a.at, timeZone);
-      if (prevDay !== null && day <= prevDay) continue;
+      if (prevDay !== null && day < prevDay) continue;
       reviews.push({ rating: a.got ? 3 : 1, deltaT: prevDay === null ? 0 : day - prevDay, at: a.at });
       prevDay = day;
     }
@@ -103,7 +105,7 @@ export function replayHistory(h, { sched = current, timeZone } = {}) {
     };
   }
   for (const a of h.answers) {
-    card = sched.next(card, t(a.at), a.got ? Rating.Good : Rating.Again).card;
+    card = nextCard(card, t(a.at), a.got ? Rating.Good : Rating.Again, sched);
   }
   return { stability: card.stability, difficulty: card.difficulty, lastAnswerAt: h.answers[h.answers.length - 1].at };
 }

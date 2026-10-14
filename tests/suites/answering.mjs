@@ -3,7 +3,7 @@
 // because every one of these bugs looked right on screen.
 //
 // Found on 2026-09-14 by driving every exception path in a study session.
-import { openApp, finish, checker, sessionCounter, cardBox, servedDeck, gotoStats, nullViolation } from "../harness.mjs";
+import { openApp, finish, checker, sessionCounter, cardBox, servedDeck, gotoStats, nullViolation, firstBlockItems } from "../harness.mjs";
 import { SIDE_FIELDS } from "../../src/lib/directions.js";
 import { localISODateDaysAgo } from "../../src/lib/studyDay.js";
 
@@ -118,6 +118,18 @@ const twoWayDeck = () => [
     fsrs_state: 2, stability: 4, difficulty: 5, reps: 2, lapses: 0, next_due_at: new Date(Date.now() - DAY).toISOString(),
     last_review: new Date(Date.now() - 5 * DAY).toISOString(), last_answer_correct: true },
 ];
+// Since 2026-10-14 a word is asked one way a day, so the tests of answers
+// landing on the way round shown use two words: "une colline" due both ways
+// (the English way, missed last time, comes first; the French way waits for
+// tomorrow) and "la fenêtre" due French side up only.
+const twoWordsDeck = () => [
+  ...twoWayDeck(),
+  { id: 103, front: "la fenêtre", back: "the window", category: "V", dates: ["2026-01-10"], flagged_for_review: false, batch_id: null, source: "cahier-upload",
+    fsrs_state: 2, stability: 5, difficulty: 5, reps: 4, lapses: 0, next_due_at: new Date(Date.now() - DAY).toISOString(),
+    last_review: new Date(Date.now() - 6 * DAY).toISOString(), last_answer_correct: true,
+    en_fsrs_state: 2, en_stability: 30, en_difficulty: 5, en_reps: 3, en_lapses: 0, en_next_due_at: new Date(Date.now() + 25 * DAY).toISOString(),
+    en_last_review: new Date(Date.now() - 2 * DAY).toISOString(), en_last_answer_correct: true },
+];
 // Words due French side up today, their English side answered two days ago
 // and not due: every card is asked the same way round, so each prompt's
 // answer is known.
@@ -221,7 +233,7 @@ console.log("\n  a save that fails is shown, and retried");
 
 console.log("\n  each answer is saved to the way round it was shown");
 {
-  const deck = twoWayDeck();
+  const deck = twoWordsDeck();
   const t = await open({ rows: deck });
   const shown = [];
   for (let i = 0; i < 3; i++) {
@@ -229,8 +241,8 @@ console.log("\n  each answer is saved to the way round it was shown");
     await t.page.keyboard.press(" "); await t.wait(400);
     await t.click("Got It"); await t.wait(500);
   }
-  ck("the block asks the word both ways and the rule as written",
-     shown.map((x) => `${x.row?.id}:${x.dir}`).sort().join(" ") === "101:en 101:fr 102:fr",
+  ck("the block asks each word one way, the missed way first, and the rule as written",
+     shown.map((x) => `${x.row?.id}:${x.dir}`).sort().join(" ") === "101:en 102:fr 103:fr",
      JSON.stringify(shown.map((x) => [x.row?.id, x.dir, x.front])));
   const saved = t.writes.filter((w) => w.status === 200);
   ck("one write per answer", saved.length === 3, `${saved.length}`);
@@ -238,7 +250,7 @@ console.log("\n  each answer is saved to the way round it was shown");
      saved.every((w, i) => sideOfWrite(w.body) === shown[i].dir),
      JSON.stringify(saved.map((w, i) => [shown[i].dir, sideOfWrite(w.body)])));
   const enWrite = saved.find((w) => sideOfWrite(w.body) === "en")?.body;
-  const frWrite = saved.find((w, i) => shown[i].row?.id === 101 && shown[i].dir === "fr")?.body;
+  const frWrite = saved.find((w, i) => shown[i].row?.id === 103 && shown[i].dir === "fr")?.body;
   ck("and is computed from that way's own history: English reps 9 → 10, French 4 → 5",
      enWrite?.en_reps === 10 && frWrite?.reps === 5, `en ${enWrite?.en_reps}, fr ${frWrite?.reps}`);
   const rec = t.reviews.map((r) => r.body);
@@ -251,13 +263,13 @@ console.log("\n  each answer is saved to the way round it was shown");
 
 console.log("\n  correcting a grade keeps the two ways apart");
 {
-  const deck = twoWayDeck().slice(0, 1);
+  const deck = [twoWordsDeck()[0], twoWordsDeck()[2]];
   const t = await open({ rows: deck });
   const first = await shownWay(t.page, deck);
   await t.page.keyboard.press(" "); await t.wait(400); await t.click("Got It"); await t.wait(500);
   const second = await shownWay(t.page, deck);
   await t.page.keyboard.press(" "); await t.wait(400); await t.click("Got It"); await t.wait(500);
-  ck("the word came up both ways", [first.dir, second.dir].sort().join("+") === "en+fr", `${first.dir}, ${second.dir}`);
+  ck("the two words came up one each way", [first.dir, second.dir].sort().join("+") === "en+fr", `${first.dir}, ${second.dir}`);
   await t.click("Previous card"); await t.wait(500);
   const fixing = await shownWay(t.page, deck);
   const earlierAnswer = fixing.dir === first.dir ? 0 : 1;
@@ -277,7 +289,7 @@ console.log("\n  correcting a grade keeps the two ways apart");
 
 console.log("\n  an unsaved answer is not lost to an answer the other way round");
 {
-  const deck = twoWayDeck().slice(0, 1);
+  const deck = [twoWordsDeck()[0], twoWordsDeck()[2]];
   const t = await open({ rows: deck, patchStatus: 503 });
   for (let i = 0; i < 2; i++) {
     await t.page.keyboard.press(" "); await t.wait(400); await t.click("Got It"); await t.wait(700);
@@ -296,7 +308,9 @@ console.log("\n  changing direction re-deals the rest of the block, without a ne
   const deck = await servedDeck();
   const wordFronts = new Set(deck.filter((r) => r.category === "V" || r.category === "E").map((r) => r.front));
   const t = await open();
+  const early = [];
   for (let i = 0; i < 3; i++) {
+    early.push((await cardBox(t.page))?.front);
     await t.page.keyboard.press(" "); await t.wait(400);
     await t.click("Got It"); await t.wait(400);
   }
@@ -315,8 +329,15 @@ console.log("\n  changing direction re-deals the rest of the block, without a ne
   const frenchWords = prompts.filter((p) => wordFronts.has(p));
   ck("every word or phrase left in the block is asked in English", prompts.length > 0 && frenchWords.length === 0,
      `${prompts.length} cards; asked in French: ${frenchWords.join(", ")}`);
-  ck("grammar is still asked, as written", prompts.some((p) => deck.some((r) => r.category === "G" && p && r.front.startsWith(p))),
-     prompts.join(" | "));
+  // A grammar card may come up before the switch: with a word asked one way a
+  // day (2026-10-14) the block is shorter, and it was among the first three
+  // about one time in five. So: every grammar card in the block is asked, as
+  // written, before the switch or after it.
+  const grammar = firstBlockItems(deck).filter((x) => x.row.category === "G").map((x) => x.row.front);
+  const asked = [...early, ...prompts];
+  ck("grammar is still asked, as written, before the switch or after",
+     grammar.length > 0 && grammar.every((f) => asked.some((p) => p && f.startsWith(p))),
+     `${grammar.join(", ")} in ${asked.join(" | ")}`);
   await t.browser.close();
 }
 

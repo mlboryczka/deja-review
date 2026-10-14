@@ -48,6 +48,8 @@ for (const student of students) {
       answers: run.answers, deals: run.deals, cards: run.cards, settings: run.settings,
       pairs: standInVerdicts(run.cards), corrections: [],
       timeZone: TIME_ZONE, lessonRank, now: end,
+      // Simulated students follow today's rules from their first day.
+      rulesFrom: { repeatsCount: "2026-09-27", oneWayADay: "2026-09-27" },
     });
     const m = run.metrics;
     const h = m.messy;

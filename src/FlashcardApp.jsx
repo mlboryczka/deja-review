@@ -70,7 +70,7 @@ import { localISODate, reviewedToday, endOfLocalDay, browserTimeZone } from "./l
 import { progressByArea, progressChanges, aboutRemembered, areaDates } from "./lib/progress";
 import { statsOverTime, HISTORY_COLUMNS, endOfDayAgo, allSeenBy } from "./lib/progressHistory";
 import { RememberedChart, StudyCalendar, ProgressByLesson, Bands, splitText } from "./StatsSections";
-import { buildSession, applyAnswer, placeRetry, countBuckets, BLOCK_SIZE } from "./lib/sessionQueue";
+import { buildSession, applyAnswer, placeRetry, countBuckets, countsAnswer, BLOCK_SIZE } from "./lib/sessionQueue";
 import { RE_QUEUE_OFFSET, State, settingsInUse } from "./lib/spacedRepetition";
 import { sideOf, sideColumns, directionsOf, isTwoWay, itemKey, resetColumns } from "./lib/directions";
 import { newReviewId, reviewRow, withoutExtras, missingColumn } from "./lib/reviewLog";
@@ -1858,10 +1858,11 @@ export default function FlashcardApp({ user, onSignOut }) {
     // updateCard logs its own failures and never throws.
     updateCard(card.id, newProg);
 
-    // Spaced-repetition update — the FIRST answer of the day only. A retry,
-    // or a card revisited with Previous card, is still shown and still
-    // graded on screen, but FSRS already has today's answer for it; see
-    // reviewedToday() for what recording a second one did to the schedule.
+    // Spaced-repetition update — the FIRST answer of the day, and since
+    // 2026-10-14 the retry after a miss counted today (countsAnswer, and
+    // nextCard in lib/spacedRepetition.js for FSRS's same-day rule). Anything
+    // else shown again the same day is still graded on screen, but FSRS
+    // already has today's answer for it.
     //
     // Optimistic local deck patch first so the in-memory card carries today's
     // last_review into its retry; DB update is fire-and-forget (errors
@@ -1871,8 +1872,8 @@ export default function FlashcardApp({ user, onSignOut }) {
     // review: if its first answer in this block was the one recorded, the new
     // grade replaces it, recomputed from the card's state before that answer.
     // Without this, a mistaken Got It stood — the day's answer was already in,
-    // so the corrected Again was shown and never recorded. Retries are never
-    // corrections; they stay practice.
+    // so the corrected Again was shown and never recorded. A counted retry
+    // answered again is corrected the same way.
     //
     // Everything here is for the way round the card was SHOWN: "la pomme → ?"
     // is recorded to the French-side state and "apple → ?" to the English-side
@@ -1891,7 +1892,7 @@ export default function FlashcardApp({ user, onSignOut }) {
         sr = applyAnswer({ ...card, ...earlier.before }, got, answeredAt, cardDir);
       }
     } else {
-      recordsReview = !card._retry && !reviewedToday(sideOf(card, cardDir).last_review);
+      recordsReview = countsAnswer(sideOf(card, cardDir), { retry: !!card._retry }, answeredAt);
       if (recordsReview) sr = applyAnswer(card, got, answeredAt, cardDir);
     }
     const before = isCorrection ? earlier.before : recordsReview ? sideColumns(sideOf(card, cardDir), cardDir) : null;
@@ -1954,12 +1955,14 @@ export default function FlashcardApp({ user, onSignOut }) {
     // end of a flip-only session still has something true to report.
     // A correction changes the block's count of right answers, never its count
     // of answers: the checkpoint's "50 answers" is the block's own length.
-    const recordedBefore = isCorrection && !!earlier.before;
+    // "Right first time" is about first answers: a counted retry isn't one.
+    const recordedBefore = isCorrection && !!earlier.before && !card._retry;
+    const firstAnswer = recordsReview && !card._retry;
     setStats(s => ({
       ...s,
       answered: s.answered + (isCorrection ? 0 : 1),
-      firstAnswered: s.firstAnswered + (recordsReview ? 1 : 0),
-      firstGot: s.firstGot + (recordsReview && got ? 1 : 0)
+      firstAnswered: s.firstAnswered + (firstAnswer ? 1 : 0),
+      firstGot: s.firstGot + (firstAnswer && got ? 1 : 0)
         + (recordedBefore ? (got ? 1 : 0) - (earlier.got ? 1 : 0) : 0),
       ...(source === "typed"
         ? { seen: s.seen+1, got: s.got+(got?1:0), missed: s.missed+(got?0:1) }
