@@ -25,7 +25,10 @@ export const missingTable = (error) => !!error && (error.code === "42P01" || err
 export const missingFunction = (error) => !!error && (error.code === "PGRST202" || error.code === "42883");
 
 // One entry dealt: the card, the way round, why it was dealt, and the card's
-// state that way round as the app read it.
+// state that way round as the app read it. A new card also says how often its
+// French is said, as the app read it (2026-10-14; null when not counted): the
+// order new cards come in depends on it, and the deck on screen may be older
+// than the count in the database.
 function dealtItem(c) {
   const s = sideOf(c, c.shownDir ?? "fr");
   return {
@@ -35,6 +38,7 @@ function dealtItem(c) {
     due: s.next_due_at ?? null,
     st: s.fsrs_state ?? 0,
     miss: s.last_answer_correct === false,
+    ...(c._bucket === "new" ? { said: Number.isFinite(c.said) && c.said > 0 ? c.said : null } : {}),
   };
 }
 

@@ -97,6 +97,10 @@ export function deckCard(row) {
     en_reps: row.en_reps ?? 0,
     en_last_review: row.en_last_review || null,
     en_last_answer_correct: row.en_last_answer_correct ?? null,
+    // How often its French is said, per million words, and when it was
+    // counted (migration_019).
+    said: Number.isFinite(row.said_per_million) ? row.said_per_million : null,
+    said_at: row.said_counted_at ? ms(row.said_counted_at) : null,
   };
 }
 
@@ -579,6 +583,9 @@ function newCardKey(card, { lessonMode, cutoff, lessonRank }, has = () => true) 
   if (latest >= cutoff) return [0, -labelNo(latest), -days.length];
   return [1, -days.length, labelNo(days[0])];
 }
+// How often a card is said, per million words, if it was counted (written out
+// again here, as the order's other rules are).
+const saidHere = (n) => (Number.isFinite(n) && n > 0 ? n : 0);
 const before = (a, b) => {
   for (let i = 0; i < Math.max(a.length, b.length); i++) {
     const x = a[i] ?? -Infinity, y = b[i] ?? -Infinity;
@@ -612,21 +619,41 @@ function checkNewOrder(idx, ctx) {
     // A card whose class dates may have changed since the set was dealt (a
     // repeat put away into it, datesMoved) can't be placed as it stood then.
     const changed = (card) => (idx.datesMoved.get(card.row_id) || []).some((m) => m.at > at && card.dates.some((d) => m.dates.has(d)));
-    const keyed = (card) => ({
+    // How often each card is said, as the app knew it (2026-10-14). A set
+    // dealt before the app ordered by it records no count, and is judged by
+    // the old order alone. Otherwise a card dealt has its count in the
+    // record, and one waiting has the count in the database if it was made
+    // before the set was dealt.
+    const bySaid = !lessonMode && dealtNew.some((x) => "said" in x);
+    const saidThen = (card, x) => (!bySaid ? 0 : x ? saidHere(x.said) : card.said_at != null && card.said_at <= at ? saidHere(card.said) : 0);
+    const keyed = (card, x) => ({
       card,
+      said: saidThen(card, x),
       changed: changed(card),
       unsure: addedByStudent(card) ? [] : classDaysOf(card).filter((iso) => known(iso) === "maybe"),
       key: newCardKey(card, opts, sure),
     });
+    // Among earlier notes, two counted cards come most said first; two
+    // uncounted ones in the old order. A counted card and an uncounted one
+    // take places in the old order the counted cards share, so which comes
+    // first between them isn't judged.
+    const comesBefore = (w, x, has) => {
+      const kw = newCardKey(w.card, opts, has), kx = newCardKey(x.card, opts, has);
+      if (kw[0] === 1 && kx[0] === 1) {
+        if (w.said > 0 && x.said > 0) return w.said > x.said;
+        if (w.said > 0 || x.said > 0) return false;
+      }
+      return before(kw, kx);
+    };
     // `w` comes before `x` however the uncertain dates stood.
     const surelyBefore = (w, x) => {
       if (w.changed || x.changed) return false;
-      if (!w.unsure.length && !x.unsure.length) return before(w.key, x.key);
+      if (!w.unsure.length && !x.unsure.length) return comesBefore(w, x, sure);
       const unsure = [...new Set([...w.unsure, ...x.unsure])];
       if (unsure.length > 4) return false;
       for (let m = 0; m < 1 << unsure.length; m++) {
         const has = (iso) => sure(iso) || unsure.some((u, i) => u === iso && m & (1 << i));
-        if (!before(newCardKey(w.card, opts, has), newCardKey(x.card, opts, has))) return false;
+        if (!comesBefore(w, x, has)) return false;
       }
       return true;
     };
@@ -646,10 +673,10 @@ function checkNewOrder(idx, ctx) {
     for (const x of dealtNew) {
       const card = idx.deck.get(x.c);
       if (!card) continue;
-      const dealt = keyed(card);
+      const dealt = keyed(card, x);
       const ahead = waiting.find((w) => surelyBefore(w, dealt));
       if (ahead) {
-        bad.push(`The set dealt ${when(at, tz)} took ${nameOf(idx, x.c, x.d)} ahead of ${nameOf(idx, ahead.id, ahead.dir)}, which comes first${lessonMode ? " in the lesson" : " (a more recent class, or one that came up more often)"}.`);
+        bad.push(`The set dealt ${when(at, tz)} took ${nameOf(idx, x.c, x.d)} ahead of ${nameOf(idx, ahead.id, ahead.dir)}, which comes first${lessonMode ? " in the lesson" : " (a more recent class, a word said more often, or one that came up in more classes)"}.`);
         break;
       }
     }

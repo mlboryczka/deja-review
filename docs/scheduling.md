@@ -134,13 +134,24 @@ however well it is known.
 
 New cards come in a fixed order. In a lesson they follow the lesson's teaching
 order. Otherwise they come from the last two weeks of classes first, newest
-class first, then from older classes, starting with the words that came up in
-the most classes, and lesson cards come after the student's own. A card the
-student added themselves, from the tutor or, for the owner so far, from a
-podcast passage, came up in no class, so it counts as if from a class on the
-day it was added: one added today is among the newest. The set is
-then shuffled, because practising one kind of
-card in a run feels easier at the time but is remembered worse afterwards.
+class first, then from older classes, and lesson cards come after the
+student's own. A card the student added themselves, from the tutor or, for
+the owner so far, from a podcast passage, came up in no class, so it counts as
+if from a class on the day it was added: one added today is among the newest.
+
+From the older classes, the words and phrases said most often in everyday
+French come first (the owner, 2026-10-14): "avoir besoin de" before "être coté
+en bourse". How often is counted in French film and TV subtitles, as
+described [below](#how-often-a-card-is-said). A card that can't be counted that
+way keeps its place in the order used before, which put the words that came up
+in the most classes first, the older class first on a tie. Those are full
+sentences, which are rarely said word for word, grammar drills, cards said
+fewer than 5 times in the subtitles, and cards not counted yet. So sentences
+and drills come at the same rate as before, and the counted cards fill the
+other places, most said first.
+
+The set is then shuffled, because practising one kind of card in a run feels
+easier at the time but is remembered worse afterwards.
 
 A missed card comes back as a retry 20 cards later. It takes the place of the
 set's last card, which moves to the next set, so a set never grows.
@@ -151,6 +162,51 @@ count and the same retries waiting. Choosing a different number of cards
 changes the set on screen at once: the card on screen, every answer and the
 retries waiting all stay, and only the cards not yet reached are added or
 taken away.
+
+## How often a card is said
+
+Each card's French is counted as a whole phrase in French film and TV
+subtitles: OpenSubtitles 2018, French, from the OPUS project (P. Lison and J.
+Tiedemann, 2016), about 107 million lines and 633 million words. Researchers
+use film subtitles as a stand-in for everyday spoken French. The forms of each
+word come from Lexique 3.83 (B. New and C. Pallier, lexique.org, CC BY-SA 4.0).
+A card's number is how many times per million words its French is said.
+
+- A word in its dictionary form counts in all its forms. "avoir besoin de"
+  counts "j'ai besoin de" and "elle avait besoin d'aide".
+- A word written in a particular form counts in that form only. "je serais"
+  doesn't count "je suis".
+- An article and one word, like "un poste", count the noun in all its forms:
+  "le poste", "des postes". "le pouvoir" counts the noun only, never "je
+  peux". Before more words the article stands for any: "le mauvais choix"
+  counts "un mauvais choix", and "un de plus" never counts "de plus".
+- In a phrase, "se" stands for me, te, se, nous and vous ("je me rends
+  compte"), and "son, sa, ses" for every possessive ("perdre mon temps").
+- After a verb, "quelqu'un" or "quelque chose" stands for anyone or anything,
+  so "appeler quelqu'un" counts as "appeler".
+- A card with choices, like "énervé / fâché" or "un chien, une chienne", takes
+  its most said choice.
+- A spelling that can be two words counts for each by its share in the
+  subtitles, from Lexique. Where it can be être or avoir it counts for them
+  alone, so "je suis" never counts for "suivre". A word spelled as the card
+  spells it always counts in full: "est" in "c'est", though Lexique also has
+  "est" for the east.
+- What isn't matched: a word put between the card's words, as in "j'ai eu
+  besoin de". Every phrase loses those alike.
+
+Grammar drills ("vivre (présent) → je"), notes ("cela = ça"), patterns ("le/la
+seul(e) + nom"), grammar cards and lesson cards aren't counted. A card said
+fewer than 5 times gets no number, which is most full sentences.
+
+The count runs on the owner's Mac, where the subtitles and Lexique are kept
+(`~/.claude/scheduled-tasks/morning-check/data/`, too big for the repo).
+`node scripts/count-phrases.mjs --email <student>` prints what it would save,
+and `--apply` saves each card's number (`said_per_million`, from
+migration_019). It counts only the cards not counted yet, but it reads all
+the subtitles however few cards there are, keeping half the Mac's processors
+busy for a good while (`--helpers` sets how many). A card stays in the last
+two weeks' group for two weeks, so counting new cards once a week is enough to
+have every card counted before its number is needed.
 
 ## How progress is counted
 
@@ -178,6 +234,8 @@ When the app switched to FSRS, each card's real history came with it.
 ## In the code
 
 - `src/lib/sessionQueue.js`: what goes into a set, and in what order
+- `scripts/phrases.mjs` and `scripts/count-phrases.mjs`: how often a card is
+  said
 - `src/lib/spacedRepetition.js`: scheduling an answer
 - `src/lib/studyDay.js`: the 4am day
 - `src/lib/fsrsSettings.js` and `api/fsrs-fit.js`: each student's own settings

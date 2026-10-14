@@ -522,6 +522,39 @@ console.log("\n  a word asked one way a day");
   ck("before Oct 15, when both ways could share a day, nothing is judged", old.status === "wait", `${old.status}: ${old.summary}`);
 }
 
+console.log("\n  older notes, most said first (2026-10-14)");
+{
+  // Two cards from a class in September, both unseen; a set on Oct 20 takes
+  // x. The set records x's count as the app read it.
+  const COUNTED = "2026-10-15T09:00:00Z";
+  const card = (id, front, said, countedAt = COUNTED) => ({
+    id, front, back: front, category: "V", dates: ["2026-09-01"], source: "cahier-upload", created_at: "2026-09-01T12:00:00Z",
+    fsrs_state: 0, en_fsrs_state: 0, said_per_million: said, said_counted_at: said == null ? null : countedAt,
+  });
+  const set = (id, iso, items) => ({ id, dealt_at: new Date(iso).toISOString(), scope: "all|all", direction: "fr", kind: "block", items, kept: [], time_zone: TIME_ZONE });
+  const answer = (id, cardId, iso) => ({ id, card_id: cardId, direction: "fr", answered_at: new Date(iso).toISOString(), correct: true, counted: true, state_before: 0, time_zone: TIME_ZONE });
+  // `dealtX` is x's entry in the Oct 20 set; `wCountedAt` when w was counted.
+  const judge = (xSaid, wSaid, { dealtX = { c: 1, d: "fr", b: "new", said: xSaid }, wCountedAt = COUNTED } = {}) => result(runStatusChecks({
+    cards: [card(1, "x", xSaid), card(2, "w", wSaid, wCountedAt), card(3, "q", null)],
+    deals: [set("s1", "2026-10-19T10:00:00", [{ c: 3, d: "fr", b: "new", said: null }]), set("s2", "2026-10-20T10:00:00", [dealtX])],
+    answers: [answer("a1", 3, "2026-10-19T10:01:00"), answer("a2", 1, "2026-10-20T10:01:00")],
+    timeZone: TIME_ZONE, now: Date.parse("2026-10-21T10:00:00"),
+  }), "new-order");
+  const show = (r) => `${r.status}: ${r.details[0] || r.summary}`;
+  const lessSaid = judge(1, 500);
+  ck("a set taking a card said less often while one said more often waits: fails", lessSaid.status === "fail" && /took “x” ahead of “w”/.test(lessSaid.details[0]), show(lessSaid));
+  const moreSaid = judge(900, 500);
+  ck("the card said more often first: passes", moreSaid.status === "pass", show(moreSaid));
+  const uncounted = judge(1, null);
+  ck("a counted card against one that couldn't be counted isn't judged", uncounted.status === "pass", show(uncounted));
+  const oldSet = judge(1, 500, { dealtX: { c: 1, d: "fr", b: "new" } });
+  ck("a set dealt before the order went by counts is judged by the old order, and passes", oldSet.status === "pass", show(oldSet));
+  const olderDeck = judge(1, 500, { dealtX: { c: 1, d: "fr", b: "new", said: null } });
+  ck("a set dealt from a deck loaded before the count isn't judged by it", olderDeck.status === "pass", show(olderDeck));
+  const countedLater = judge(1, 500, { wCountedAt: "2026-10-21T01:00:00Z" });
+  ck("a card counted after the set was dealt isn't judged by its count", countedLater.status === "pass", show(countedLater));
+}
+
 console.log("\n  what the app records");
 {
   const card = { row_id: 5, f: "la pomme", b: "apple", cat: "vocab", fsrs_state: 2, stability: 4.2, difficulty: 5.1, reps: 3, lapses: 1, last_review: "2026-09-20T15:00:00.000Z", next_due_at: "2026-09-24T15:00:00.000Z" };
@@ -551,6 +584,11 @@ console.log("\n  what the app records");
      row.items.length === dealt.queue.length && row.items.every((x) => x.c && (x.d === "fr" || x.d === "en") && x.b === "new"),
      JSON.stringify(row.items[0]));
   ck("the cards kept in the set once each, retries left out", row.kept.length === 1 && row.kept[0].c === deck[0].row_id && row.kept[0].b === "review", JSON.stringify(row.kept));
+  // How often a new card is said, as the app read it (2026-10-14).
+  const counted = dealRow({ id: "d2", userId: "u", kind: "new", scope: "all|all", direction: "fr", slots: 2, at: "2026-10-20T15:00:00Z", timeZone: TIME_ZONE,
+    dealt: { queue: [{ ...deck[1], said: 412.5, shownDir: "fr", _bucket: "new" }, { ...deck[2], shownDir: "fr", _bucket: "new" }, { ...deck[3], said: 9, shownDir: "fr", _bucket: "review" }] } });
+  ck("a new card's entry says how often it's said as the app read it, null when not counted; a due card's says nothing",
+     counted.items[0].said === 412.5 && counted.items[1].said === null && !("said" in counted.items[2]), JSON.stringify(counted.items));
   ck("and what was left over", row.due_left === dealt.dueRemaining && row.new_available === dealt.newAvailable && row.slots === 12);
 }
 {

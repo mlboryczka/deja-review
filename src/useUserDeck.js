@@ -11,6 +11,11 @@ import { missingColumn } from "./lib/reviewLog";
 // Before the migration the request is refused, and the deck is fetched again
 // without it, once per page.
 let askReasons = true;
+// Since migration_019 a card says how often its French is said, per million
+// words of French film and TV subtitles (said_per_million): the order new
+// cards come in reads it (lib/sessionQueue.js). Asked for the same way: while
+// the database has the column, and dropped first when a column is refused.
+let askSaid = true;
 
 // Loads the user's flashcard deck from user_cards.
 //
@@ -116,6 +121,9 @@ function shapeRow(row) {
     // When the card was added. Only read for tutor chat cards, which
     // came up in no class and are dated by this instead.
     created_at: row.created_at || null,
+    // How often its French is said, per million words (migration_019); 0 or
+    // null when it can't be counted, and the card keeps its place.
+    said: Number.isFinite(row.said_per_million) ? row.said_per_million : null,
     // FSRS scheduling state (migration_006). Nulls are legitimate:
     // a never-reviewed card has no stability and no last review.
     next_due_at: row.next_due_at || null,
@@ -206,7 +214,8 @@ export function useUserDeck(user) {
               "last_review, last_answer_correct, created_at, " +
               "en_next_due_at, en_lapses, en_stability, en_difficulty, en_fsrs_state, " +
               "en_reps, en_last_review, en_last_answer_correct" +
-              (askReasons ? ", archived_reason" : "")
+              (askReasons ? ", archived_reason" : "") +
+              (askSaid ? ", said_per_million" : "")
           )
           .eq("user_id", userId)
           // ORDER BY is not decoration here. A deck of several thousand cards
@@ -220,6 +229,12 @@ export function useUserDeck(user) {
           .range(from, from + PAGE - 1);
 
         if (cancelled) return;
+        if (error && askSaid && missingColumn(error)) {
+          askSaid = false;
+          allRows = [];
+          from = 0;
+          continue;
+        }
         if (error && askReasons && missingColumn(error)) {
           askReasons = false;
           allRows = [];

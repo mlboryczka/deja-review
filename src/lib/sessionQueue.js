@@ -150,6 +150,10 @@ export function classDaysOf(card) {
   );
 }
 
+// How often a card's French is said, per million words; 0 when it can't be
+// counted, or hasn't been.
+export const saidOf = (card) => (Number.isFinite(card?.said) && card.said > 0 ? card.said : 0);
+
 // The order a student meets never-seen cards in.
 //
 // Inside a lesson: the lesson's teaching order, via `lessonRank`.
@@ -157,8 +161,14 @@ export function classDaysOf(card) {
 // Otherwise, from their notes:
 //   1. Recent classes (the last `recentDays`), newest class first — this
 //      week's words are the most useful now, and will come up again in class.
-//   2. Earlier notes, the words that came up in the most classes first, the
-//      older class first on a tie. Undated cards last.
+//   2. Earlier notes, most said first (2026-10-14, the owner): a card's
+//      `said` is how often its French is said, as a whole phrase, per million
+//      words of French film and TV subtitles (scripts/count-phrases.mjs,
+//      migration_019). The cards that have one take the places the old order
+//      gives the counted cards, most said first; a card without one — most
+//      full sentences, grammar drills, a card not counted yet — keeps its
+//      place. The old order: the words that came up in the most classes
+//      first, the older class first on a tie. Undated cards last.
 //   3. Then unseen lesson cards, in lesson order. A student with notes will
 //      rarely get this far; one with no notes yet still has something to
 //      learn in normal study instead of an empty screen.
@@ -195,6 +205,9 @@ export function orderNewCards(fresh, {
   }
   recent.sort((a, b) => (a.latest < b.latest ? 1 : a.latest > b.latest ? -1 : b.count - a.count));
   earlier.sort((a, b) => b.count - a.count || (a.first < b.first ? -1 : a.first > b.first ? 1 : 0));
+  const places = earlier.flatMap((e, i) => (saidOf(e.c) > 0 ? [i] : []));
+  const mostSaid = places.map((i) => earlier[i]).sort((a, b) => saidOf(b.c) - saidOf(a.c));
+  places.forEach((i, k) => { earlier[i] = mostSaid[k]; });
   lessons.sort((a, b) => rankOf(a) - rankOf(b));
   return [
     ...recent.map((e) => e.c),

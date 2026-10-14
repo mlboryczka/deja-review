@@ -354,6 +354,26 @@ console.log("\n  one answer a day, per way round");
      !queue.some((e) => e.row_id === knownBoth.row_id), queue.filter((e) => e.row_id === knownBoth.row_id).map((e) => e.shownDir).join(","));
 }
 
+console.log("\n  older notes come most said first (2026-10-14)");
+{
+  // Today's order for older notes: most classes first, the older class first
+  // on a tie: a, c, b, d, e. Counted: a, c and e; b isn't, d is said too rarely.
+  const old = (f, dates, said) => word({}, null, { f, dates, said });
+  const a = old("a", ["2026-01-05", "2026-01-06", "2026-01-07"], 5);
+  const c = old("c", ["2026-01-04", "2026-01-06"], 900);
+  const b = old("b", ["2026-01-05", "2026-01-06"], null);
+  const d = old("d", ["2026-01-05"], 0);
+  const e = old("e", ["2026-01-08"], 300);
+  const recent = old("r", ["2026-09-10"], 1);
+  const lesson = { ...old("l", [], 2000), source: "lesson:imperatif#x" };
+  const order = orderNewCards([a, b, c, d, e, recent, lesson], { now: NOW, rng: rng() }).map((x) => x.f);
+  ck("this week's class still first, the lesson's cards still last", order[0] === "r" && order.at(-1) === "l", order.join(" "));
+  ck("the counted cards take the counted places, most said first: c, e, then a", order.slice(1, 6).join(" ") === "c e b d a", order.join(" "));
+  ck("and a card that couldn't be counted keeps its place: b third, d fourth, as before", order[3] === "b" && order[4] === "d", order.join(" "));
+  const none = orderNewCards([a, b, c, d, e].map((x) => ({ ...x, said: null })), { now: NOW, rng: rng() }).map((x) => x.f);
+  ck("with nothing counted, the order is today's", none.join(" ") === "a c b d e", none.join(" "));
+}
+
 console.log("\n  the repeat after a miss counts (2026-10-14)");
 {
   const morning = new Date(NOW - 3600000).toISOString();

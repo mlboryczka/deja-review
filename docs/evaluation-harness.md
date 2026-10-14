@@ -52,7 +52,12 @@ The checks, as the reports name them:
 5. *Due cards came before new ones, missed cards first.*
 6. *New cards came in the agreed order.* The rules are written out again inside
    the check rather than borrowed from the code that deals the cards, so a
-   mistake in that code can't hide in its own check.
+   mistake in that code can't hide in its own check. From 2026-10-14 older
+   classes' cards come most said first. Each set records how often each new
+   card in it is said, as the app knew it then, so a set dealt before the
+   counts, or from a deck loaded before them, is judged by the order it was
+   dealt in. A card counted after the set was dealt isn't judged by its
+   count, and a counted card isn't judged against one that wasn't.
 7. *A new word met one way at a time.* A word's French-to-English and
    English-to-French questions are never both new on the same day.
 8. *A word was asked one way a day.* Added 2026-10-14. From 2026-10-15 no word
