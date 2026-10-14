@@ -64,7 +64,8 @@ if (missing.length) {
 // daily run last asked Claude about look-alike cards, from its kept reports;
 // and whether a change to how Claude is asked has made it get wrong what it
 // got right before (api/_lib/evalStatus.js), for each of the three tests of
-// Claude's work. Reads the database only.
+// Claude's work; and how much of Vercel's and Supabase's free plans the app
+// uses. Reads the database only.
 //
 // Each problem found is told apart as new, or raised before: the list of those
 // already raised with the owner is kept on this Mac, outside the repo, in
@@ -146,6 +147,55 @@ if (args.includes("--everyone")) {
     if (e.error) { unreadable = true; console.log(`  Couldn't read its tests: ${e.error}`); }
     for (const line of e.regressions || []) { console.log(`  - ${line}`); problems.push(`${label}: ${line}`); }
     if (!e.error && !(e.regressions || []).length) console.log("  Nothing it got right before is wrong now.");
+  }
+
+  // How much of the two free plans the app uses, so the owner hears in time to
+  // consider paying. Vercel's free plan builds at most 12 server routes (a file
+  // in api/, api/_lib not counted) and a 13th fails the whole deploy; both
+  // branches are counted, as committed: main is the students' app and testing
+  // the owner's test app. Supabase's free plan holds 500 MB of database, and
+  // past it the database stops saving answers; and 1 GB of files. Their sizes
+  // come from plan_usage() (migration_018). Each limit is raised once past 80%
+  // and once more past 95%, with today's figures beneath, not in, the line.
+  // Monthly traffic (Vercel's calls, server time and data; Supabase's data sent
+  // out) can't be read from here; both services email the owner about it.
+  console.log("\nFree plans:");
+  const { execFileSync } = await import("node:child_process");
+  const ROUTES = 12;
+  for (const [branch, app] of [["main", "students' app"], ["testing", "test app"]]) {
+    let files;
+    try { files = execFileSync("git", ["ls-tree", "--name-only", branch, "api/"], { cwd: ROOT, encoding: "utf8" }); } catch { continue; }
+    const n = files.split("\n").filter((f) => /^api\/[^_/][^/]*\.js$/.test(f)).length;
+    console.log(`  Vercel, the ${app}: ${n} of the ${ROUTES} server routes the free plan builds.`);
+    if (n >= ROUTES) {
+      const line = `Vercel: the ${app} uses all ${ROUTES} server routes the free plan builds`;
+      problems.push(line);
+      detail.set(line, `${n} of ${ROUTES} on ${branch}; a 13th fails the deploy`);
+    }
+  }
+  const { data: usage, error: usageError } = await db.rpc("plan_usage");
+  if (usageError) {
+    const notRun = usageError.code === "PGRST202" || /plan_usage/.test(usageError.message || "");
+    const line = notRun
+      ? "Supabase: the size of the database can't be read until migration_018 is run"
+      : "Supabase: couldn't read how much of the free plan is used";
+    console.log(`  ${line}.`);
+    problems.push(line);
+    if (!notRun) detail.set(line, usageError.message);
+  } else {
+    const mb = (b) => Math.round(Number(b) / 1e6);
+    for (const [what, used, limit, limitText] of [
+      ["database", usage.database_bytes, 500e6, "500 MB"],
+      ["stored files", usage.storage_bytes, 1e9, "1 GB"],
+    ]) {
+      const share = Number(used) / limit;
+      console.log(`  Supabase, ${what}: ${mb(used)} MB of ${limitText} (${Math.round(share * 100)}%).`);
+      for (const tier of [0.8, 0.95].filter((t) => share >= t)) {
+        const line = `Supabase: the ${what} ${what === "database" ? "is" : "are"} over ${tier * 100}% of the free plan's ${limitText}`;
+        problems.push(line);
+        detail.set(line, `${mb(used)} MB used`);
+      }
+    }
   }
 
   // Feedback nobody has dealt with, oldest first, with Claude's review of it
