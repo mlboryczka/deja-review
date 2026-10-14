@@ -18,55 +18,17 @@ import http from "node:http";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { mkdtempSync, readFileSync, existsSync, readdirSync } from "node:fs";
+import { mkdtempSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { checker } from "../check.mjs";
+import { READ_ONLY, whatItDoes, writes } from "../requestKinds.mjs";
 import { simulate, USER_ID, standInVerdicts } from "../simulate/student.mjs";
 
 const ck = checker();
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const SCRIPT = join(ROOT, "scripts", "status-check.mjs");
 
-// Whether a request the script sends could change anything, judged by its
-// kind. This was one blanket rule, "every request a GET", which called the
-// free plans' size question (2026-10-14) a write: the database answers a
-// question of one of its own functions only through a POST. The owner: "it
-// needs to be different for each type of question". So each kind has its own:
-//
-//   reading a table                  GET  /rest/v1/<table>      a read
-//   reading the list of accounts     GET  /auth/v1/admin/users  a read
-//   asking one of the database's     POST /rest/v1/rpc/<name>   a read only if
-//   own functions                                                its migration
-//     declares it stable or immutable (Postgres then refuses any change made
-//     inside it) and its body has no insert, update, delete or other change;
-//     plan_usage (migration_018) is one, apply_memory_estimates is not
-//   anything else                                               a write
-//
-// The functions are read from migrations/, the last definition of each.
-const READ_ONLY = (() => {
-  const out = new Map();
-  const dir = join(ROOT, "migrations");
-  for (const file of readdirSync(dir).filter((f) => f.endsWith(".sql")).sort()) {
-    const sql = readFileSync(join(dir, file), "utf8").replace(/--[^\n]*/g, "");
-    for (const part of sql.split(/create\s+or\s+replace\s+function\s+/i).slice(1)) {
-      const name = part.match(/^(?:public\.)?(\w+)\s*\(/i)?.[1];
-      const [head, body = ""] = part.split("$$");
-      if (!name) continue;
-      const declared = /\b(stable|immutable)\b/i.test(head);
-      const changes = /\b(insert|update|delete|truncate|alter|drop|create|grant|revoke)\b/i.test(body);
-      out.set(name.toLowerCase(), declared && !changes);
-    }
-  }
-  return out;
-})();
-function whatItDoes(q) {
-  if (q.method === "GET" && /^\/rest\/v1\/\w+$/.test(q.path)) return "read";
-  if (q.method === "GET" && q.path === "/auth/v1/admin/users") return "read";
-  const fn = q.method === "POST" && q.path.match(/^\/rest\/v1\/rpc\/(\w+)$/)?.[1];
-  if (fn && READ_ONLY.get(fn.toLowerCase()) === true) return "read";
-  return "write";
-}
-const writes = (requests) => requests.filter((q) => whatItDoes(q) !== "read").map((q) => `${q.method} ${q.path}`);
+// Each request judged by what its kind does (tests/requestKinds.mjs).
 const KEY = "stand-in-service-key";
 const STUDENT = "student@example.com";
 

@@ -28,6 +28,7 @@ import { createServer } from "node:http";
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import fs from "node:fs";
+import { writes } from "../requestKinds.mjs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -616,14 +617,14 @@ console.log("\n  scripts/record-cleanup-reasons.mjs");
   ck("  a deleted card that came back is marked removed; the uncorrected copy repeats the corrected card",
      /15732 “Naza”: removed/.test(dry.out) && /15050 “Je parle jamais de Pierre\.”: repeats 2808/.test(dry.out));
   ck("  a card back in study since (a lesson took it over) is left alone, and said so", /16650 “après”: back in study since the clean-up, left alone/.test(dry.out));
-  ck("  and it only read", state.requests.every((q) => q.method === "GET"));
+  ck("  and it only read", writes(state.requests).length === 0);
   const refused = await run(["--apply"]);
-  ck("--apply before migration_016 refuses and writes nothing", refused.code === 1 && state.requests.every((q) => q.method === "GET"), refused.out.trim().split("\n").at(-1));
+  ck("--apply before migration_016 refuses and writes nothing", refused.code === 1 && writes(state.requests).length === 0, refused.out.trim().split("\n").at(-1));
 
   state.migrated = true;
   state.requests = [];
   const dry2 = await run();
-  ck("after it, a dry run still only reads", dry2.code === 0 && /Dry run: nothing written/.test(dry2.out) && state.requests.every((q) => q.method === "GET"));
+  ck("after it, a dry run still only reads", dry2.code === 0 && /Dry run: nothing written/.test(dry2.out) && writes(state.requests).length === 0);
   const applied = await run(["--apply"]);
   const patches = state.requests.filter((q) => q.method === "PATCH");
   ck("--apply writes the four it can", applied.code === 0 && patches.length === 4 && /Recorded 4 of 4/.test(applied.out), applied.out.trim().split("\n").at(-1));
