@@ -103,6 +103,12 @@ The checks are one file, used in three places:
   dot. The Status window's "All students" tab shows them.
 - **In the terminal**, as a script that runs the checks on any student's live
   record and only reads.
+- **On the owner's test app, every morning** (added 2026-10-14). Vercel runs
+  scheduled jobs only on the students' app, so the server's daily run always
+  uses the students' version of the checks. The morning check on the owner's
+  Mac therefore also runs the test app's version, from the testing branch, on
+  the owner's record, since the owner is the only one using the test app. Its
+  problems are named "Test app:" and remembered separately.
 
 The checks were tuned on real data so that they don't raise false alarms. When
 they first ran on the owner's own record, three failed, and none of the

@@ -158,9 +158,12 @@ export async function checkStudent(db, student, { now = Date.now(), judge = null
 // to keep the verdicts and check everyone. With `judge`, the copies Claude
 // judged one card are then put away (putAwayRepeats). `examples` as for
 // reportFor.
-export async function checkEveryone(db, { now = Date.now(), judge = null, examples } = {}) {
+// `only`: a Set of emails to check and no one else (the morning check of the
+// test app, scripts/status-check.mjs --test-app).
+export async function checkEveryone(db, { now = Date.now(), judge = null, examples, only = null } = {}) {
   const loaded = [];
   for (const student of await listStudents(db)) {
+    if (only && !only.has(student.email)) continue;
     try {
       const rec = await loadStudent(db, student);
       if (rec) loaded.push(rec);

@@ -274,7 +274,34 @@ console.log("\n  a fault in the record");
   const at = lines.findIndex((l) => l.startsWith("[FAIL] Every answer was scheduled"));
   const details = lines.slice(at + 1).filter((l, i, a) => a.slice(0, i + 1).every((x) => x.startsWith("  - "))).length;
   ck("--all lists all ten", details === 10 && !/and \d+ more/.test(all.out.split("[FAIL] Every answer")[1].split("\n[")[0]), `${details} listed`);
+
+  // The morning check of the owner's test app (2026-10-14): the admin's record
+  // only, with this version's checks, its problems kept apart.
+  state.requests = [];
+  const t = await run(["--test-app"]);
+  ck("--test-app judges the admin's record only, as the test app's",
+     /^The test app \(dejareview-mlb\.vercel\.app\), judged by its own version of the checks, on student@example\.com's record:/.test(t.out) && !t.out.includes("other@example.com"),
+     t.out.split("\n")[0]);
+  ck("  every check, and each failure named as the test app's, exiting 1",
+     /\[FAIL\] Every answer was scheduled the way FSRS says/.test(t.out) &&
+       (t.out.split("New since the last morning check")[1] || "").includes("- Test app: student@example.com: Every answer was scheduled the way FSRS says: ") && t.code === 1,
+     (t.out.split("New since the last morning check")[1] || "").split("\n")[1]);
+  ck("  and nothing the --everyone run already says: Claude's tests, feedback, free plans",
+     !/Claude's marking of typed answers|Open feedback|Free plans/.test(t.out));
+  ck("  only ever reading", state.requests.length > 0 && state.requests.every((q) => q.method === "GET"), [...new Set(state.requests.map((q) => q.method))].join(","));
+  const RAISED_TEST = join(HOME, ".claude", "scheduled-tasks", "morning-check", "raised-test-app.json");
+  const before = existsSync(RAISED) ? readFileSync(RAISED, "utf8") : null;
+  await run(["--test-app", "--record"]);
+  const kept = JSON.parse(readFileSync(RAISED_TEST, "utf8"));
+  const scheduling = (keys) => keys.filter((k) => k.includes("Every answer was scheduled the way FSRS says")).length;
+  ck("--record keeps the test app's problems in a list of their own",
+     scheduling(Object.keys(kept)) === 10 && Object.keys(kept).every((k) => k.startsWith("Test app: ")) && (existsSync(RAISED) ? readFileSync(RAISED, "utf8") : null) === before,
+     Object.keys(kept)[0]);
+  const t2 = await run(["--test-app"]);
+  ck("  so the next morning they are not new, and it exits 0", /Nothing new: everything still failing was raised before\./.test(t2.out) && t2.code === 0, t2.out.split("\n").slice(-2).join(" "));
   state.answers = rec.answers;
+  await run(["--test-app", "--record"]);
+  ck("  and once fixed, they drop off it", scheduling(Object.keys(JSON.parse(readFileSync(RAISED_TEST, "utf8")))) === 0);
 }
 
 server.close();

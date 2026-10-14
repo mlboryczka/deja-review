@@ -24,6 +24,8 @@
 //   node scripts/status-check.mjs --all               every detail, not the first six per check
 //   node scripts/status-check.mjs --everyone          every student, and the tests of Claude's work
 //   node scripts/status-check.mjs --everyone --record the same, saving what's been raised (the morning check)
+//   node .claude/worktrees/testing/scripts/status-check.mjs --test-app --record
+//                                                     the owner's test app, with its own version of the checks
 //
 // The time zone defaults to this computer's; answers saved since migration_013
 // carry their own.
@@ -42,12 +44,18 @@ const ALL = args.includes("--all");
 const TZ = argVal("--tz") || Intl.DateTimeFormat().resolvedOptions().timeZone;
 process.env.TZ = TZ;
 
-for (const file of [".env.local", ".env"]) {
-  const p = path.join(ROOT, file);
-  if (!fs.existsSync(p)) continue;
-  for (const line of fs.readFileSync(p, "utf8").split("\n")) {
-    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
-    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+// Run from a worktree (.claude/worktrees/<name>, where the test app's branch
+// lives) that has no settings of its own, the main checkout's are read.
+const MAIN = /[\\/]\.claude[\\/]worktrees[\\/][^\\/]+$/.test(ROOT) ? path.resolve(ROOT, "..", "..", "..") : null;
+for (const dir of [ROOT, MAIN].filter(Boolean)) {
+  if (dir === MAIN && process.env.SUPABASE_URL) break;
+  for (const file of [".env.local", ".env"]) {
+    const p = path.join(dir, file);
+    if (!fs.existsSync(p)) continue;
+    for (const line of fs.readFileSync(p, "utf8").split("\n")) {
+      const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+      if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+    }
   }
 }
 
@@ -79,6 +87,75 @@ if (missing.length) {
 //
 // The last line says which: "All clear.", "Nothing new: ..." or "Something new
 // needs looking at."; the exit code is 0, 0 and 1.
+function finish({ problems, detail, raised, raisedFile, unreadable }) {
+  const fresh = problems.filter((x) => !raised[x]);
+  const old = problems.filter((x) => raised[x]);
+  const beneath = (x) => (detail.has(x) ? `\n      ${detail.get(x)}` : "");
+  if (fresh.length) {
+    console.log(`\nNew since the last morning check (${fresh.length}):`);
+    for (const x of fresh) console.log(`  - ${x}${beneath(x)}`);
+  }
+  if (old.length) {
+    console.log(`\nRaised with the owner before and still failing (${old.length}):`);
+    for (const x of old) console.log(`  - ${x} (raised ${raised[x]})${beneath(x)}`);
+  }
+  if (args.includes("--record")) {
+    const today = new Date().toISOString().slice(0, 10);
+    const keep = Object.fromEntries(problems.map((x) => [x, raised[x] || today]));
+    fs.mkdirSync(path.dirname(raisedFile), { recursive: true });
+    fs.writeFileSync(raisedFile, JSON.stringify(keep, null, 2) + "\n");
+  }
+
+  const isNew = fresh.length > 0 || unreadable;
+  console.log(!problems.length && !unreadable ? "\nAll clear."
+    : isNew ? "\nSomething new needs looking at."
+    : "\nNothing new: everything still failing was raised before.");
+  process.exit(isNew ? 1 : 0);
+}
+
+// --test-app: the morning check of the owner's test app, dejareview-mlb, whose
+// code is the testing branch (the owner, 2026-10-14: the daily run "should be
+// done also on the -mlb application"). Vercel runs scheduled jobs only on the
+// students' app, so the server's daily run never uses the test app's version
+// of the checks; the morning check runs this copy of the script from the
+// testing worktree instead. The owner is the only student on the test app,
+// so only their record is judged here; everything else the morning check
+// looks at (Claude's tests, feedback, the free plans) is the same app-wide
+// and comes from the --everyone run. Problems raised are kept apart from that
+// run's, in raised-test-app.json, and each is named "Test app:".
+if (args.includes("--test-app")) {
+  const os = await import("node:os");
+  const { createClient } = await import("@supabase/supabase-js");
+  const { checkEveryone } = await import("../api/_lib/statusDaily.js");
+  const { statusText } = await import("../src/lib/statusChecks.js");
+  const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+  const tidy = (s) => String(s || "").trim().toLowerCase();
+  const owner = tidy(argVal("--email")) || tidy(ADMIN_EMAIL) || tidy(process.env.VITE_ADMIN_EMAIL);
+  if (!owner) {
+    console.error("Whose record? Pass --email, or set ADMIN_EMAIL.");
+    process.exit(1);
+  }
+  const RAISED_FILE = path.join(os.homedir(), ".claude", "scheduled-tasks", "morning-check", "raised-test-app.json");
+  let raised = {};
+  try { raised = JSON.parse(fs.readFileSync(RAISED_FILE, "utf8")); } catch {}
+  const problems = [];
+  let unreadable = false;
+  const [r] = await checkEveryone(db, { examples: Infinity, only: new Set([owner]) });
+  console.log(`The test app (dejareview-mlb.vercel.app), judged by its own version of the checks, on ${owner}'s record:`);
+  if (!r) {
+    console.log(`  ${owner} hasn't answered anything yet.`);
+  } else if (r.error) {
+    unreadable = true;
+    console.log(`  couldn't be checked: ${r.error}`);
+  } else {
+    console.log(statusText(r.report).split("\n").map((l) => `  ${l}`).join("\n"));
+    for (const c of r.report.results.filter((x) => x.status === "fail")) {
+      for (const d of c.details.length ? c.details : [c.summary]) problems.push(`Test app: ${r.user_email}: ${c.title}: ${d}`);
+    }
+  }
+  finish({ problems, detail: new Map(), raised, raisedFile: RAISED_FILE, unreadable });
+}
+
 if (args.includes("--everyone")) {
   const os = await import("node:os");
   const { createClient } = await import("@supabase/supabase-js");
@@ -219,29 +296,7 @@ if (args.includes("--everyone")) {
     }
   }
 
-  const fresh = problems.filter((x) => !raised[x]);
-  const old = problems.filter((x) => raised[x]);
-  const beneath = (x) => (detail.has(x) ? `\n      ${detail.get(x)}` : "");
-  if (fresh.length) {
-    console.log(`\nNew since the last morning check (${fresh.length}):`);
-    for (const x of fresh) console.log(`  - ${x}${beneath(x)}`);
-  }
-  if (old.length) {
-    console.log(`\nRaised with the owner before and still failing (${old.length}):`);
-    for (const x of old) console.log(`  - ${x} (raised ${raised[x]})${beneath(x)}`);
-  }
-  if (args.includes("--record")) {
-    const today = new Date().toISOString().slice(0, 10);
-    const keep = Object.fromEntries(problems.map((x) => [x, raised[x] || today]));
-    fs.mkdirSync(path.dirname(RAISED_FILE), { recursive: true });
-    fs.writeFileSync(RAISED_FILE, JSON.stringify(keep, null, 2) + "\n");
-  }
-
-  const isNew = fresh.length > 0 || unreadable;
-  console.log(!problems.length && !unreadable ? "\nAll clear."
-    : isNew ? "\nSomething new needs looking at."
-    : "\nNothing new: everything still failing was raised before.");
-  process.exit(isNew ? 1 : 0);
+  finish({ problems, detail, raised, raisedFile: RAISED_FILE, unreadable });
 }
 
 // The admin's account: ADMIN_EMAIL, or the app's own VITE_ADMIN_EMAIL, which a
