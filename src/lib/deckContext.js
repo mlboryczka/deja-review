@@ -185,7 +185,8 @@ export function cardAnswer(card) {
 // transcript, and the passage being answered, with whether it has been
 // answered yet. The podcasts page hands it up as
 //   { key, episode: { title, date, show },
-//     passage: { fr, kind, answered, typed, verdict } | null,
+//     passage: { number, fr, kind, answered, typed, verdict } | null,
+//     questions: [{ number, fr, kind, answered, typed, verdict }],
 //     transcript }
 // (build spec §11) and FlashcardApp passes it to the tutor as `podcast`.
 //
@@ -222,8 +223,43 @@ export function podcastAbout(podcast) {
   const label = podcastLabel(podcast).slice(0, 70);
   const fr = textOf(podcast?.passage?.fr);
   if (!fr) return label;
-  const head = fr.length > 120 ? `${fr.slice(0, 119).trimEnd()}…` : fr;
-  return label ? `${label}: « ${head} »` : `« ${head} »`;
+  const head = fr.length > 110 ? `${fr.slice(0, 109).trimEnd()}…` : fr;
+  const q = questionNumber(podcast.passage);
+  const passage = q ? `Question ${q}, « ${head} »` : `« ${head} »`;
+  return label ? `${label}: ${passage}` : passage;
+}
+
+// The passage's number as the page shows it ("Question 2"), or 0.
+export function questionNumber(passage) {
+  const n = Number(passage?.number);
+  return Number.isInteger(n) && n > 0 ? n : 0;
+}
+
+// Every question of the episode goes to the tutor, numbered as on the page,
+// so "question 2" means the second whichever passage is on screen (owner,
+// 2026-10-18). Each with whether it has been answered, under the same rule
+// as the passage on screen. An episode has about eight.
+const PODCAST_QUESTIONS_MAX = 20;
+
+function questionsOf(list) {
+  if (!Array.isArray(list)) return [];
+  const out = [];
+  for (const q of list.slice(0, PODCAST_QUESTIONS_MAX)) {
+    const number = questionNumber(q);
+    const fr = textOf(q?.fr).slice(0, PODCAST_PASSAGE_MAX);
+    if (!number || !fr) continue;
+    const answered = !!q.answered;
+    const typed = answered ? textOf(q.typed).slice(0, PODCAST_PASSAGE_MAX) : "";
+    out.push({
+      number,
+      fr,
+      kind: q.kind === "translate" ? "translate" : "gist",
+      answered,
+      ...(typed ? { typed } : null),
+      ...(answered && PODCAST_VERDICTS.has(q.verdict) ? { verdict: q.verdict } : null),
+    });
+  }
+  return out;
 }
 
 /**
@@ -245,6 +281,7 @@ export function podcastContext(podcast) {
     show: textOf(ep.show).slice(0, 200),
     passage: fr
       ? {
+          ...(questionNumber(p) ? { number: questionNumber(p) } : null),
           fr,
           kind: p.kind === "translate" ? "translate" : "gist",
           answered,
@@ -252,6 +289,7 @@ export function podcastContext(podcast) {
           ...(answered && PODCAST_VERDICTS.has(p.verdict) ? { verdict: p.verdict } : null),
         }
       : null,
+    questions: questionsOf(podcast.questions),
     transcript: textOf(podcast.transcript).slice(0, PODCAST_TRANSCRIPT_MAX),
   };
   return out.title || out.show || out.passage || out.transcript ? out : null;

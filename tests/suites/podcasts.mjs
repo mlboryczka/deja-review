@@ -546,6 +546,8 @@ await page.waitForSelector("[data-episode-page='e1'] [data-passage]", { timeout:
   ck("and with an empty answer box", !!(await page.$("[data-passage='s2-cccc3333'] [data-passage-answer]")));
   const instr = await page.$$eval("[data-passage] [data-passage-instruction]", (els) => els.map((e) => e.innerText.trim()));
   ck("each passage says what to do", instr.every((t) => /^(What’s being said here\? Give the idea in English\.|Translate into English\.)$/.test(t)), instr.join(" / "));
+  const nums = await page.$$eval("[data-passage] [data-passage-number]", (els) => els.map((e) => e.innerText.trim()));
+  ck("the questions are numbered down the page, across stories", nums.length === total && nums.every((t, i) => t === `Question ${i + 1}`), nums.join(", "));
   const fr = await page.$eval("[data-passage='s1-aaaa1111'] [data-passage-fr]", (e) => e.innerText.trim());
   ck("the French passage is on screen", fr === EP1.questions.passages[0].fr, fr);
   ck("Check waits for an answer", await page.$eval("[data-passage='s1-aaaa1111'] [data-passage-check]", (b) => b.disabled));

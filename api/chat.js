@@ -30,10 +30,13 @@
 //       podcast?: {                               // on Podcasts, instead of a card
 //         title, date, show,                      // the RFI episode
 //         passage: {                              // the passage being answered, or null
+//           number?,                              // "Question 2" on the page
 //           fr, kind: "gist" | "translate",
 //           answered,                             // has it been checked yet
 //           typed?, verdict?,                     // once answered: "got" | "partly" | "missed"
 //         } | null,
+//         questions?: [{ number, fr, kind, answered, typed?, verdict? }],
+//                                                 // every passage, numbered as on the page
 //         transcript,                             // RFI's transcript, clipped
 //       },
 //       relatedCards?: [{ front, back }],         // deck matches for the question
@@ -134,6 +137,7 @@ Instead of a card, the [Context] block may name an episode of an RFI podcast for
 - If the passage has NOT been answered yet, do not translate it, summarise it or give its gist — not even if they ask outright, because that is the exercise. Help with a single word, a grammar point or how something is said instead, and tell them that checking their answer shows a good one.
 - Once it has been answered, you may explain the passage in full and say what their answer missed.
 - When they ask about a word or phrase from the episode, quote the transcript where it comes up.
+- The questions are numbered on their screen (Question 1, Question 2, …) and the [Context] block lists them all. "Question 2" or "number 2" means that one, even when another passage is on their screen, and whether that question has been answered decides what you may say about it, as above.
 
 ## Proposing flashcards
 
@@ -425,7 +429,8 @@ function podcastLines(pod) {
   ];
   if (fr) {
     const task = PASSAGE_TASK[p.kind] || PASSAGE_TASK.gist;
-    lines.push(`The passage on their screen, where ${task}: "${fr}"`);
+    const n = questionNo(p);
+    lines.push(`The passage on their screen${n ? ` (Question ${n})` : ""}, where ${task}: "${fr}"`);
     const typed = clipTo(p.typed, PODCAST_PASSAGE_MAX);
     if (!p.answered) {
       lines.push("They have NOT answered it yet — do not translate or summarise it.");
@@ -435,8 +440,39 @@ function podcastLines(pod) {
       lines.push("They have answered it.");
     }
   }
+  const list = questionLines(pod.questions);
+  if (list) lines.push(`All the questions in this episode, numbered as on their screen:\n${list}`);
   if (transcript) lines.push(`The episode's transcript (RFI's own):\n${transcript}`);
   return lines.join("\n");
+}
+
+// Every question, numbered as on the page, so "question 2" can be answered
+// whichever passage is on screen (owner, 2026-10-18). About eight an episode.
+const PODCAST_QUESTIONS_MAX = 20;
+const PASSAGE_KIND = { gist: "give the idea in English", translate: "translate into English" };
+const questionNo = (q) => {
+  const n = Number(q?.number);
+  return Number.isInteger(n) && n > 0 && n <= 99 ? n : 0;
+};
+
+function questionLines(list) {
+  if (!Array.isArray(list)) return "";
+  const out = [];
+  for (const q of list.slice(0, PODCAST_QUESTIONS_MAX)) {
+    if (!q || typeof q !== "object") continue;
+    const n = questionNo(q);
+    const fr = clipTo(q.fr, PODCAST_PASSAGE_MAX);
+    if (!n || !fr) continue;
+    const kind = PASSAGE_KIND[q.kind] || PASSAGE_KIND.gist;
+    const typed = q.answered ? clipTo(q.typed, PODCAST_PASSAGE_MAX) : "";
+    const state = !q.answered
+      ? "NOT answered yet — do not translate or summarise it"
+      : typed && VERDICT_TEXT[q.verdict]
+        ? `answered "${typed}", which ${VERDICT_TEXT[q.verdict]}`
+        : "answered";
+    out.push(`Question ${n} (${kind}; ${state}): "${fr}"`);
+  }
+  return out.join("\n");
 }
 
 // Attach the context to the final user turn, leaving the caller's array alone.

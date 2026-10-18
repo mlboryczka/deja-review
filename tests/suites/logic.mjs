@@ -828,6 +828,24 @@ console.log("\n  the tutor on Podcasts — the episode and the passage, instead 
      after.includes("People marched calmly") && /partly right/.test(after) && !/NOT answered/.test(after), after.slice(0, 400));
   ck("a gist passage is described as giving the idea", /give the idea of it in English/.test(after), after.slice(0, 400));
 
+  // The questions are numbered on the page, and "question 2" in the chat
+  // means the second whichever passage is on screen (owner, 2026-10-18).
+  const numbered = {
+    ...podcast({ number: 1, fr: passageFr, kind: "gist", answered: true, typed: "People marched calmly", verdict: "partly" }),
+    questions: [
+      { number: 1, fr: passageFr, kind: "gist", answered: true, typed: "People marched calmly", verdict: "partly" },
+      { number: 2, fr: "Le gouvernement a promis de répondre avant vendredi.", kind: "translate", answered: false, typed: "a half-typed draft", verdict: null },
+    ],
+  };
+  const numCtx = buildTutorContext({ question: "question 2", cards: [], podcast: numbered });
+  const numText = text(buildRequestMessages({ messages: [{ role: "user", content: "question 2" }], context: numCtx }).at(-1));
+  ck("the passage on screen says which question it is", /passage on their screen \(Question 1\)/.test(numText), numText.slice(0, 300));
+  ck("every question goes, numbered as on the page", /Question 1 \(give the idea/.test(numText) && /Question 2 \(translate into English; NOT answered/.test(numText) && numText.includes("répondre avant vendredi"),
+     numText.slice(0, 900));
+  ck("a question not yet answered sends no draft", !numText.includes("a half-typed draft"), numText.slice(0, 900));
+  ck("an answered one says what they wrote and how it was marked", /Question 1 \(give the idea in English; answered "People marched calmly", which was marked as partly right\)/.test(numText), numText.slice(0, 900));
+  ck("what a question was about names its number", /Question 1, « Les manifestants/.test(podcastAbout(numbered)) && podcastAbout(numbered).length <= 200, podcastAbout(numbered));
+
   const episodeOnly = buildTutorContext({ question: "what does amerrir mean?", cards: [], podcast: podcast(null) });
   const epText = text(buildRequestMessages({ messages: [{ role: "user", content: "what does amerrir mean?" }], context: episodeOnly }).at(-1));
   ck("with no passage on screen, the episode and its transcript still go", /Podcast episode on screen/.test(epText) && epText.includes(middle) && !/passage on their screen/.test(epText),

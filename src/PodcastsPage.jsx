@@ -731,12 +731,23 @@ function EpisodeView({
     const state = passageState(answer, now);
     const answered = !!p && (state === "got" || state === "waiting");
     const transcript = (paragraphs || []).join("\n\n");
+    // Every question, numbered as on the page, so "question 2" in the chat
+    // means the second one whichever passage is on screen (owner,
+    // 2026-10-18). Each carries whether it has been answered, since the
+    // tutor mustn't give the gist of one that hasn't.
+    const questions = passages.map((x, i) => {
+      const a = latest.get(answerKey(ep.id, x.key)) || null;
+      const s = passageState(a, now);
+      const done = s === "got" || s === "waiting";
+      return { number: i + 1, fr: x.fr, kind: x.kind, answered: done, typed: done ? a.typed || "" : "", verdict: done ? a.verdict : null };
+    });
     return {
       key: `pod:${ep.id}:${p ? p.key : ""}`,
       episode: { title: String(ep.title || ""), date, show: podcast?.name || "" },
       passage: p
-        ? { fr: p.fr, kind: p.kind, answered, typed: answered ? answer.typed || "" : "", verdict: answered ? answer.verdict : null }
+        ? { number: passages.indexOf(p) + 1, fr: p.fr, kind: p.kind, answered, typed: answered ? answer.typed || "" : "", verdict: answered ? answer.verdict : null }
         : null,
+      questions,
       transcript: transcript.length > TUTOR_TRANSCRIPT_CHARS ? transcript.slice(0, TUTOR_TRANSCRIPT_CHARS) : transcript,
     };
   }, [ep, passages, latest, now, paragraphs, date, podcast]);
@@ -1024,6 +1035,7 @@ function QuestionsTab({
               <PassageBlock
                 key={p.key}
                 first={i === 0}
+                number={passages.indexOf(p) + 1}
                 user={user}
                 episodeId={ep.id}
                 passage={p}
@@ -1072,7 +1084,7 @@ function PassageText({ fr, phrases, lit }) {
 }
 
 function PassageBlock({
-  first, user, episodeId, passage, answer, state, canPlay, listening, onListen, onFocus,
+  first, number, user, episodeId, passage, answer, state, canPlay, listening, onListen, onFocus,
   onAnswer, onAsk, addState, onAdd, onNeedKey,
 }) {
   const userId = user?.id ?? null;
@@ -1132,7 +1144,10 @@ function PassageBlock({
   return (
     <div style={first ? S.qb : { ...S.qb, ...S.qbNext }} data-passage={passage.key} data-passage-state={state} data-passage-kind={kind}>
       {state === "due" && <div style={S.again} data-passage-again>Back for another try</div>}
-      <div style={S.instr} data-passage-instruction>{INSTRUCTION[kind]}</div>
+      <div style={S.instr}>
+        <span style={S.qnum} data-passage-number={number}>{`Question ${number}`}</span>
+        <span data-passage-instruction>{INSTRUCTION[kind]}</span>
+      </div>
       <div style={S.passage} data-passage-fr>
         <PassageText fr={String(passage.fr || "")} phrases={phrases} lit={answered} />
       </div>
@@ -1477,6 +1492,7 @@ const S = {
   qbNext: { marginTop: 18, paddingTop: 16, borderTopWidth: 1 },
   again: { marginBottom: 8, fontSize: 11.5, fontWeight: 700, letterSpacing: "0.04em", color: T.color.secondary },
   instr: { fontSize: 13.5, fontWeight: 700, color: T.color.onSurface, margin: "0 0 10px" },
+  qnum: { color: T.color.secondary, marginRight: 8 },
   passage: { padding: "14px 16px", background: T.color.surfaceLow, borderRadius: T.radius.lg, fontFamily: T.font.serif, fontSize: 16, lineHeight: 1.65, color: T.color.primary },
   kp: { background: "rgba(156,66,52,0.14)", borderRadius: 3, padding: "0 2px" },
   passageTools: { display: "flex", alignItems: "center", gap: 12, marginTop: 10 },

@@ -6,7 +6,7 @@ import { T } from "./theme";
 import { CAT_UI_TO_DB } from "./lib/cardCategories";
 import { keyHeaders, BYOK_REQUIRED, BAD_KEY } from "./lib/anthropicKey";
 import { cleanFrenchPrompt } from "./lib/cardText";
-import { buildTutorContext, cardPrompt, cardAnswer, podcastAbout, podcastLabel } from "./lib/deckContext";
+import { buildTutorContext, cardPrompt, cardAnswer, podcastAbout, podcastLabel, questionNumber } from "./lib/deckContext";
 import { readThread, writeThread } from "./lib/tutorThreads";
 import { logCorrection, CORRECTION_CATEGORIES, CORRECTION_ACTIONS } from "./lib/parseCorrections";
 
@@ -979,7 +979,9 @@ export default function ChatPanel({
                 data-tutor-podcast={podcast.key || ""}
                 title={podcastLabel(podcast) || undefined}
               >
-                {podcast.passage?.fr ? `« ${podcast.passage.fr} »` : podcastLabel(podcast)}
+                {podcast.passage?.fr
+                  ? `${questionNumber(podcast.passage) ? `Question ${questionNumber(podcast.passage)}: ` : ""}« ${podcast.passage.fr} »`
+                  : podcastLabel(podcast)}
               </div>
             )}
           </div>
