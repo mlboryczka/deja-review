@@ -49,6 +49,12 @@ const SIDEBAR_TOGGLE_ICON = (minimized) => (
 // one row and stacked — but they scroll now (.chip-row in styles.css), so the
 // card is the only thing this floor is protecting.
 const MIN_REFLOW_CONTENT = 680;
+// Podcasts has no card to protect: its passages, answers and word rows all
+// wrap. At 480 the page's 32px of padding either side leaves a 416px column,
+// which the player row (button, title, time, speed) still fits on one line.
+// Held to the card's floor, a 1,395px window put the tutor over the passage
+// being asked about, dimmed (owner, 2026-10-18).
+const MIN_REFLOW_PODCASTS = 480;
 import ChatPanel, { CHAT_PANEL_WIDTH } from "./ChatPanel";
 import { T } from "./theme";
 import {
@@ -2181,9 +2187,10 @@ export default function FlashcardApp({ user, onSignOut }) {
   // that held the keys the same way. (Nor :focus-visible, which Chrome turns
   // on for a clicked button at the very keypress being asked about.)
   const sidebarWidth = sidebarMin ? SIDEBAR_MIN_WIDTH : SIDEBAR_WIDTH;
-  const roomToReflow = (panelWidth) =>
-    winWidth - sidebarWidth - panelWidth >= MIN_REFLOW_CONTENT;
-  const chatReflow = showChat && roomToReflow(CHAT_PANEL_WIDTH);
+  const roomToReflow = (panelWidth, floor = MIN_REFLOW_CONTENT) =>
+    winWidth - sidebarWidth - panelWidth >= floor;
+  const chatReflow =
+    showChat && roomToReflow(CHAT_PANEL_WIDTH, podcastsOn ? MIN_REFLOW_PODCASTS : MIN_REFLOW_CONTENT);
   const lessonReflow = showLessonPanel && roomToReflow(LESSON_PANEL_WIDTH);
   // On a window too narrow for the notes to sit beside the cards, they cover
   // the page under a dim, and the "Lesson notes" button with it. A copy of
