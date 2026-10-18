@@ -8,6 +8,7 @@ import { keyHeaders, BYOK_REQUIRED, BAD_KEY } from "./lib/anthropicKey";
 import { cleanFrenchPrompt } from "./lib/cardText";
 import { buildTutorContext, cardPrompt, cardAnswer, podcastAbout, podcastLabel } from "./lib/deckContext";
 import { readThread, writeThread } from "./lib/tutorThreads";
+import { logCorrection, CORRECTION_CATEGORIES, CORRECTION_ACTIONS } from "./lib/parseCorrections";
 
 // "Ask the tutor" slide-over. Look a word or phrase up, get an explanation,
 // and add the cards Claude proposes straight into the deck.
@@ -30,6 +31,11 @@ import { readThread, writeThread } from "./lib/tutorThreads";
 //     replace that card's English rather than adding. Add used to upsert on
 //     (user_id, front), which quietly overwrote the card you had — its gloss,
 //     its category and its source — and then said "Added".
+//   • Asked to change a card you already have, the tutor changes it, through
+//     the endpoint the card editor uses, and says what the card said before
+//     with an Undo beside it. It used to answer that it had no way to edit
+//     cards and send you to the editor (owner, 2026-10-18): asking was the
+//     decision, so it is not put to you again as a button.
 //
 // Usage:
 //   <ChatPanel open={showChat} onClose={...} user={user} cards={userCards}
@@ -234,6 +240,63 @@ function ProposedCard({ card, added, deckByFront, onAdd, onReplace }) {
   );
 }
 
+// What a change did, for the line under it.
+function editOutcome(edit) {
+  const was = edit.oldFront && edit.oldFront !== edit.front
+    ? `${edit.oldFront} — ${edit.oldBack}`
+    : edit.oldBack;
+  switch (edit.status) {
+    case "pending": return "Changing your card…";
+    case "done":
+    case "undoing": return `Changed on your card. It said “${was}”.`;
+    case "undone": return "Undone. Your card is back as it was.";
+    default: return `Not changed: ${edit.error || "something went wrong."}`;
+  }
+}
+
+// One change the tutor made to a card the student has. Its own component for
+// the same reason as ProposedCard; it holds no state, the message does, so the
+// thread remembers what was done after the panel remounts.
+function EditedCard({ edit, onUndo }) {
+  const front = edit.front || edit.newFront || edit.target;
+  const back = edit.front ? edit.back : edit.newBack;
+  const undoable = edit.status === "done" || edit.status === "undoing";
+  return (
+    <div style={S.cardChip} data-edited-card data-edit-status={edit.status}>
+      <div style={S.chipMain}>
+        <div style={S.chipFront}>{front}</div>
+        {back ? <div style={S.chipBack}>{back}</div> : null}
+        <div style={S.chipMeta}>{editOutcome(edit)}</div>
+      </div>
+      {undoable && (
+        <div style={S.chipActions}>
+          <button
+            style={S.chipReplace}
+            onClick={() => onUndo(edit)}
+            disabled={edit.status === "undoing"}
+            title="Put the card back as it was"
+          >
+            Undo
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// An edit as it goes back to the server with the thread, so the tutor's next
+// turn knows what it changed and whether the change stuck.
+function editReport(e) {
+  const was = e.oldFront ? `${e.oldFront} — ${e.oldBack}` : e.target;
+  const now = e.front
+    ? `${e.front} — ${e.back}`
+    : [e.newFront || e.target, e.newBack].filter(Boolean).join(" — ");
+  const status = e.status === "undone" ? "undone" : e.status === "failed" ? "failed" : "done";
+  return { was, now, status };
+}
+
+let editSeq = 0;
+
 export default function ChatPanel({
   open,
   onClose,
@@ -298,6 +361,10 @@ export default function ChatPanel({
     for (const c of cards) if (c?.f) m.set(frontKey(c.f), c);
     return m;
   }, [cards]);
+  // The deck as it is when an edit lands, not as it was when the question
+  // was sent: a card added from this chat a moment ago is one to edit.
+  const cardsRef = useRef(cards);
+  cardsRef.current = cards;
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
   const panelRef = useRef(null);
@@ -456,6 +523,113 @@ export default function ChatPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [thread?.id]);
 
+  // Rewrite one edit wherever it sits in the thread. An edit's save finishes
+  // after its answer, and the thread may have moved on by then; one that
+  // New chat has cleared is simply not found.
+  const patchEdit = useCallback((key, fields) => {
+    setMessages((prev) =>
+      prev.some((m) => m.edits?.some((e) => e.key === key))
+        ? prev.map((m) =>
+            m.edits?.some((e) => e.key === key)
+              ? { ...m, edits: m.edits.map((e) => (e.key === key ? { ...e, ...fields } : e)) }
+              : m
+          )
+        : prev
+    );
+  }, []);
+
+  // The card editor's own save (FlashcardApp's saveCardEdit): the same
+  // endpoint, which checks the card is the caller's, and the same entry in
+  // the corrections ledger. Only the French and English change; the card's
+  // answers and schedule are its own and stay.
+  const writeCard = useCallback(async (rowId, originalFront, front, back) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch("/api/admin-update-card", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session?.access_token || ""}`,
+      },
+      body: JSON.stringify({ row_id: rowId, original_front: originalFront, front, back }),
+    });
+    if (!res.ok) {
+      let msg = `HTTP ${res.status}`;
+      try { msg = (await res.json()).error || msg; } catch { /* not JSON */ }
+      throw new Error(msg);
+    }
+  }, []);
+
+  const applyEdit = useCallback(
+    async (edit) => {
+      const key = frontKey(edit.target);
+      const deck = cardsRef.current;
+      // By the stored French first; then by the French as the card face shows
+      // it, which is what the tutor sees of the card on screen when its gloss
+      // is stripped.
+      const card =
+        deck.find((c) => c?.f && frontKey(c.f) === key) ||
+        deck.find((c) => c?.f && frontKey(cleanFrenchPrompt(c.f, c.b)) === key) ||
+        null;
+      if (!card || card.row_id == null) {
+        return patchEdit(edit.key, { status: "failed", error: "that card isn't in your deck." });
+      }
+      const front = edit.newFront || card.f;
+      const back = edit.newBack || card.b;
+      const was = { rowId: card.row_id, oldFront: card.f, oldBack: card.b, front, back };
+      if (front === card.f && back === card.b) {
+        return patchEdit(edit.key, { ...was, status: "failed", error: "your card already says this." });
+      }
+      try {
+        await writeCard(card.row_id, card.f, front, back);
+        onCardUpdated?.(card.row_id, { f: front, b: back, id: frontKey(front), flagged: false });
+        logCorrection({
+          category: front !== card.f ? CORRECTION_CATEGORIES.FRONT_TEXT_EDIT : CORRECTION_CATEGORIES.BACK_TEXT_EDIT,
+          action: CORRECTION_ACTIONS.EDIT,
+          card_id: card.row_id,
+          batch_id: card.batch_id || null,
+          original_front: card.f,
+          original_back: card.b,
+          corrected_front: front,
+          corrected_back: back,
+          notes: "Changed by the tutor, at the student's request",
+        });
+        patchEdit(edit.key, { ...was, status: "done" });
+      } catch (e) {
+        console.error("Tutor edit failed:", e);
+        patchEdit(edit.key, { ...was, status: "failed", error: e.message || "something went wrong." });
+      }
+    },
+    [patchEdit, writeCard, onCardUpdated]
+  );
+
+  const undoEdit = useCallback(
+    async (edit) => {
+      if (edit.rowId == null) return;
+      setError("");
+      patchEdit(edit.key, { status: "undoing" });
+      try {
+        await writeCard(edit.rowId, edit.front, edit.oldFront, edit.oldBack);
+        onCardUpdated?.(edit.rowId, { f: edit.oldFront, b: edit.oldBack, id: frontKey(edit.oldFront) });
+        logCorrection({
+          category: edit.oldFront !== edit.front ? CORRECTION_CATEGORIES.FRONT_TEXT_EDIT : CORRECTION_CATEGORIES.BACK_TEXT_EDIT,
+          action: CORRECTION_ACTIONS.EDIT,
+          card_id: edit.rowId,
+          original_front: edit.front,
+          original_back: edit.back,
+          corrected_front: edit.oldFront,
+          corrected_back: edit.oldBack,
+          notes: "The student undid the tutor's change",
+        });
+        patchEdit(edit.key, { status: "undone" });
+      } catch (e) {
+        console.error("Undoing tutor edit failed:", e);
+        patchEdit(edit.key, { status: "done" });
+        setError(`Couldn't undo the change to "${edit.front}": ${e.message || "unknown error"}`);
+      }
+    },
+    [patchEdit, writeCard, onCardUpdated]
+  );
+
   const send = useCallback(
     async (text) => {
       const trimmed = (text ?? input).trim();
@@ -528,6 +702,7 @@ export default function ChatPanel({
               ...(m.cards?.length
                 ? { cards: m.cards.map((c) => ({ front: c.front, back: c.back })) }
                 : null),
+              ...(m.edits?.length ? { edits: m.edits.map(editReport) } : null),
             })),
             // Rebuilt from scratch every turn against the question just asked,
             // so it never accumulates in the thread.
@@ -558,6 +733,7 @@ export default function ChatPanel({
         const decoder = new TextDecoder();
         let buffer = "";
         let streamError = null;
+        let edits = [];
 
         // SSE frames are separated by a blank line and can be split across
         // network chunks, so hold the tail back until its terminator arrives.
@@ -584,6 +760,8 @@ export default function ChatPanel({
               drain();
             } else if (event.type === "cards") {
               updateLast((m) => ({ ...m, cards: event.cards || [] }));
+            } else if (event.type === "edits") {
+              edits = Array.isArray(event.edits) ? event.edits : [];
             } else if (event.type === "error") {
               streamError = event;
             } else if (event.type === "done") {
@@ -608,6 +786,19 @@ export default function ChatPanel({
         if (!gotDone) throw new Error("The answer was cut off before it finished. Try asking again.");
         if (!gotText) throw new Error("The tutor returned nothing. Try rephrasing.");
         setAnnouncement(plainText(full));
+        // Made only once the answer is whole, so a change never lands under
+        // an answer that broke off before saying what it was changing.
+        if (edits.length) {
+          const made = edits.map((e) => ({
+            key: `edit-${++editSeq}`,
+            target: String(e.front || ""),
+            newFront: String(e.newFront || ""),
+            newBack: String(e.newBack || ""),
+            status: "pending",
+          }));
+          updateLast((m) => ({ ...m, edits: made }));
+          made.forEach(applyEdit);
+        }
       } catch (e) {
         // Superseded by New chat: that thread is gone, leave the new one alone.
         if (threadGenRef.current !== gen) return;
@@ -639,7 +830,7 @@ export default function ChatPanel({
         abortRef.current = null;
       }
     },
-    [input, sending, messages, cards, currentCard, podcast, user, updateLast, drain, drained, stopDrain]
+    [input, sending, messages, cards, currentCard, podcast, user, updateLast, drain, drained, stopDrain, applyEdit]
   );
 
   const addCard = useCallback(
@@ -853,6 +1044,13 @@ export default function ChatPanel({
                       onAdd={addCard}
                       onReplace={replaceBack}
                     />
+                  ))}
+                </div>
+              )}
+              {m.edits?.length > 0 && (
+                <div style={S.cardList}>
+                  {m.edits.map((e) => (
+                    <EditedCard key={e.key} edit={e} onUndo={undoEdit} />
                   ))}
                 </div>
               )}

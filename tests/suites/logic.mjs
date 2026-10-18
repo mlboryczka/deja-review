@@ -4,7 +4,7 @@ import { classifyCard } from "../../src/lib/cardTypes.js";
 import { looksMultiSense } from "../../src/lib/multiSense.js";
 import { cleanFrenchPrompt, cleanEnglishPrompt, dropFinalPeriod } from "../../src/lib/cardText.js";
 import { findRelatedCards, recentMisses, relevantMisses, buildTutorContext, cardPrompt } from "../../src/lib/deckContext.js";
-import { buildRequestMessages, normalizeCards } from "../../api/chat.js";
+import { buildRequestMessages, normalizeCards, normalizeEdits } from "../../api/chat.js";
 import { reconcileLessons } from "../../src/lib/lessonSync.js";
 import { planReplace } from "../../src/lib/replaceDeck.js";
 import { lessonSource, lessonCardKey } from "../../src/lib/lessonSource.js";
@@ -287,6 +287,31 @@ console.log("\n  /api/chat — what a conversation becomes");
   ck("a grammar card with nothing to produce is dropped", !cards.includes("bien que + subjonctif"), cards.join(", "));
   ck("a pronunciation card is dropped", !cards.includes("le e muet"), cards.join(", "));
   ck("an arrow drill and a word survive", cards.length === 2, cards.join(", "));
+
+  // Changing a card the student has (2026-10-18): asked to, the tutor edits
+  // it, and its next turn knows what it changed and whether it stuck.
+  const edits = normalizeEdits([
+    { front: "ainsi que", new_back: "as well as / along with" },
+    { front: "ainsi que", new_back: "again" },
+    { front: "une colline" },
+    { front: "", new_back: "x" },
+  ]);
+  ck("an edit keeps its card and its new English", edits.length === 1 && edits[0].front === "ainsi que" && edits[0].newBack === "as well as / along with", JSON.stringify(edits));
+  ck("an edit that changes nothing, or names no card, is dropped", !edits.some((e) => e.front === "une colline" || !e.front), JSON.stringify(edits));
+
+  const edited = buildRequestMessages({
+    messages: [
+      { role: "user", content: "take just as off that card" },
+      { role: "assistant", content: "Done.", edits: [{ was: "ainsi que — as well as / just as", now: "ainsi que — as well as", status: "done" }] },
+      { role: "user", content: "and the other one?" },
+      { role: "assistant", content: "Changed.", edits: [{ was: "une colline — a hill", now: "une colline — a mound", status: "undone" }] },
+      { role: "user", content: "why not?" },
+    ],
+    context: { currentCard: { prompt: "ainsi que", answer: "as well as", front: "ainsi que", back: "as well as", answered: true } },
+  });
+  ck("an earlier answer keeps the cards it changed", /Cards you changed: ainsi que — as well as \/ just as → ainsi que — as well as\]/.test(text(edited[1])), text(edited[1]));
+  ck("an edit the student undid says so", /they undid this/.test(text(edited[3])), text(edited[3]));
+  ck("the card on screen is named as the deck stores it", /In their deck it is the card "ainsi que" — "as well as"/.test(text(edited.at(-1))), text(edited.at(-1)));
 }
 
 // Keeping a deck in step with a lesson. The requirement that costs real data:

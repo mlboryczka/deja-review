@@ -29,6 +29,10 @@ const PROPOSED = {
   note: "the near-synonym you'll meet next",
 };
 
+// Asking the tutor to change the card on screen (2026-10-18).
+const EDIT_ASK = "take that off the card";
+const NEW_BACK = "a test gloss";
+
 // ── The stand-in tutor endpoint ────────────────────────────────────────────
 // Holds the stream open between the two halves of the answer so the test can
 // look at the screen mid-generation.
@@ -78,6 +82,17 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  // Asked to change a card: edits the one on screen, named as the request
+  // named it, which is how the real tutor learns which card it is.
+  if (requests.at(-1).messages?.at(-1)?.content === EDIT_ASK) {
+    const cc = requests.at(-1).context?.currentCard || {};
+    send({ type: "text", delta: "I'll change the English on that card." });
+    send({ type: "edits", edits: [{ front: cc.front || "", newFront: "", newBack: NEW_BACK }] });
+    send({ type: "done" });
+    res.end();
+    return;
+  }
+
   // Third: proposes a card the deck already has, under a different gloss.
   if (requests.length === 3) {
     send({ type: "text", delta: "Think of what you would climb on a walk. **Feminine**, too." });
@@ -87,7 +102,7 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  // Fourth: the function dies mid-answer. No "done", no error — just the end.
+  // Last: the function dies mid-answer. No "done", no error — just the end.
   send({ type: "text", delta: "The short answer is that it depends on" });
   setTimeout(() => res.end(), 200);
 });
@@ -371,6 +386,37 @@ if (!enCard) {
   await page.keyboard.press("ArrowRight");
   await page.waitForTimeout(300);
   ck("after a click in the panel, the arrow key leaves the card alone", (await chip()) === beforeKey, `${beforeKey} → ${await chip()}`);
+
+  // ── Changing a card the student has (2026-10-18) ─────────────────────────
+  // Asked to change a card, the tutor changes it through the card editor's
+  // endpoint, says what it said before, and Undo puts it back. It used to
+  // answer that it had no way to edit cards.
+  const saves = [];
+  await page.route("**/api/admin-update-card", (r) => {
+    const b = r.request().postDataJSON();
+    saves.push(b);
+    return r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, row: { id: b.row_id, front: b.front, back: b.back } }) });
+  });
+  await page.fill("[data-tutor-panel] textarea", EDIT_ASK);
+  await page.click("button:text-is('Send')");
+  await page.waitForSelector("[data-edited-card][data-edit-status='done']", { timeout: 8000 }).catch(() => {});
+  const told = requests.at(-1)?.context?.currentCard || {};
+  ck("the tutor is told the card on screen as the deck stores it", told.front === enCard.front && told.back === enCard.back, JSON.stringify(told));
+  ck(
+    "the change is saved at once, through the card editor's endpoint, on that card",
+    saves.length === 1 && saves[0].row_id != null && saves[0].front === enCard.front && saves[0].back === NEW_BACK,
+    JSON.stringify(saves)
+  );
+  const editText = await page.locator("[data-edited-card]").innerText().catch(() => "");
+  ck("the chat shows the new English and what the card said before", editText.includes(NEW_BACK) && editText.includes(`It said “${enCard.back}”`), editText);
+  await page.click("[data-edited-card] button:text-is('Undo')");
+  await page.waitForSelector("[data-edited-card][data-edit-status='undone']", { timeout: 8000 }).catch(() => {});
+  ck(
+    "Undo puts the card back as it was",
+    saves.length === 2 && saves[1].row_id === saves[0].row_id && saves[1].front === enCard.front && saves[1].back === enCard.back,
+    JSON.stringify(saves[1] || null)
+  );
+  await page.unroute("**/api/admin-update-card");
 }
 
 // ── An answer that never finished ──────────────────────────────────────────
@@ -386,6 +432,10 @@ ck(
   await page.evaluate(() => /cut off/i.test(document.querySelector("[data-tutor-panel]")?.innerText || "")),
   ""
 );
+if (enCard) {
+  const told = (requests.at(-1)?.messages || []).flatMap((m) => m.edits || []);
+  ck("the next question tells the tutor the change was undone", told.length === 1 && told[0].status === "undone", JSON.stringify(told));
+}
 
 server.close();
 await finish(browser, ck);

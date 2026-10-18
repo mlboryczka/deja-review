@@ -279,6 +279,10 @@ export function buildTutorContext({ question, previousQuestion, cards, currentCa
     ctx.currentCard = {
       prompt: cardPrompt(currentCard),
       answer: cardAnswer(currentCard),
+      // The card as the deck stores it, so "change that card" names a card
+      // the tutor can edit (edit_flashcard goes by the stored French).
+      front: String(currentCard.f).slice(0, 200),
+      back: String(currentCard.b ?? "").slice(0, 200),
       // Until the answer has been shown, the tutor must not be the thing that
       // shows it: a recall FSRS records after the tutor said the word is a
       // recall that never happened.

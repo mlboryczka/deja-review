@@ -3,7 +3,9 @@
 // A French tutor chat. The user asks about a word, phrase, or grammar
 // point; Claude explains it and — when there's something worth drilling —
 // proposes flashcards via a tool call. The client renders those proposals
-// as "Add to deck" chips; nothing is written to user_cards here.
+// as "Add to deck" chips; nothing is written to user_cards here. Asked to
+// change a card the student already has, it calls edit_flashcard, and the
+// client makes the change through the card editor's own endpoint.
 //
 // Keeping the write on the client matters: user_cards is RLS-protected
 // (migration_003), so the insert runs as the signed-in user with their own
@@ -14,11 +16,13 @@
 //   {
 //     messages: [
 //       { role: "user", content: "...", about?: "..." },  // about: what was on screen when asked
-//       { role: "assistant", content: "...", cards?: [{ front, back }] },
+//       { role: "assistant", content: "...", cards?: [{ front, back }],
+//         edits?: [{ was, now, status }] },        // cards it changed: "front — back" each
 //     ],
 //     context?: {
 //       currentCard?: {                           // the card on screen
 //         prompt, answer,                         // as the card shows them
+//         front?, back?,                          // as the deck stores it, to edit it by
 //         answered,                               // has the answer been shown yet
 //         result?, typed?,                        // this attempt, after a typed answer
 //         missedLastTime,
@@ -40,6 +44,7 @@
 // Response: an SSE stream of JSON events, one per `data:` line —
 //   { type: "text",  delta: "..." }              prose, as it is generated
 //   { type: "cards", cards: [...] }              card proposals, once complete
+//   { type: "edits", edits: [...] }              changes to cards they have
 //   { type: "done" }                            the answer is complete
 //   { type: "error", error: "...", code?: "..." }
 // A stream that ends without "done" was cut off — the function ran out of
@@ -115,7 +120,7 @@ Write plain prose. No bullet lists, headings or tables — they are not rendered
 
 The latest user turn may carry a "[Context]" block: the card on their screen, cards already in their deck that relate to the question, and recent misses that bear on it. Use it — refer to their actual cards, tell them when they already have something, point out when your answer contradicts a card they own. Never mention the block itself or that you were given it.
 
-Earlier turns may carry bracketed notes — what was on their screen when they asked (a card, or a podcast passage), the cards you proposed. They are for your reference. Never write notes like them yourself.
+Earlier turns may carry bracketed notes — what was on their screen when they asked (a card, or a podcast passage), the cards you proposed, the cards you changed. They are for your reference. Never write notes like them yourself.
 
 ## The card on screen
 
@@ -143,7 +148,41 @@ Call propose_flashcards when the exchange contains something worth drilling.
 - category: "vocab" single words, "expr" multi-word expressions and idioms, "gram" an arrow drill as above. Pronunciation can't be typed, so it is explained, never carded.
 - note: one line on why this card earns its place. Shown to the learner, not stored.
 - If a card in their deck already covers it, say so instead of proposing a duplicate.
-- If they're just chatting, or nothing in the answer is drillable, don't call the tool at all.`;
+- If they're just chatting, or nothing in the answer is drillable, don't call the tool at all.
+
+## Changing a card they already have
+
+You can change the cards in their deck. When they ask you to — "take 'just as' off that card", "make it 'to unload'", "fix the spelling" — call edit_flashcard. The change is made as soon as you call it and they can undo it, so never tell them to make it themselves, and don't ask them to confirm what they just asked for.
+- Say in one line what you are changing, then call the tool.
+- front is the card's French side exactly as their deck has it: the card on screen, a related card, a recent miss, or one they added from this chat.
+- new_back and new_front are written whole — the complete new side, keeping everything they didn't ask to change exactly as it was. Leave out the side that stays the same.
+- Only when they ask. If you notice a card of theirs is wrong, say so and offer to change it.
+- If you can't tell which card they mean, ask which.`;
+
+const EDIT_TOOL = {
+  name: "edit_flashcard",
+  description:
+    "Change a card already in the learner's deck, when they ask you to. The change is made at once, and they can undo it.",
+  input_schema: {
+    type: "object",
+    properties: {
+      front: {
+        type: "string",
+        description: "The card's French side exactly as it is in their deck now.",
+      },
+      new_front: {
+        type: "string",
+        description: "The whole new French side. Leave out to keep it.",
+      },
+      new_back: {
+        type: "string",
+        description:
+          "The whole new English side (on a grammar drill, the French answer). Leave out to keep it.",
+      },
+    },
+    required: ["front"],
+  },
+};
 
 const PROPOSE_TOOL = {
   name: "propose_flashcards",
@@ -197,8 +236,10 @@ const PROPOSE_TOOL = {
 // had moved on, "another example?" was answered about the new card. A user
 // turn carries the prompt of the card that was on screen when it was asked,
 // and an assistant turn the cards it proposed, so "change the second card"
-// means something. Both are fixed when the turn is written, so the history
-// stays byte-identical from turn to turn and keeps its cache.
+// means something, and the cards it changed, so "put it back" does. Both are
+// fixed when the turn is written, so the history stays byte-identical from
+// turn to turn and keeps its cache — except an edit the student undoes later,
+// which changes that one note once.
 function sanitizeMessages(raw) {
   if (!Array.isArray(raw)) return [];
   const cleaned = [];
@@ -208,11 +249,13 @@ function sanitizeMessages(raw) {
     if (!content) continue;
     const about = role === "user" && typeof m.about === "string" ? m.about.trim().slice(0, 200) : "";
     const proposed = role === "assistant" ? cardList(m.cards).slice(0, 4) : [];
+    const changed = role === "assistant" ? editList(m.edits) : [];
     cleaned.push({
       role,
       content: content.slice(0, MAX_CHARS_PER_MESSAGE),
       about,
       proposed,
+      changed,
     });
   }
   const over = cleaned.length - MAX_TURNS;
@@ -233,9 +276,30 @@ function renderTurn(m, isLatest) {
       ? `[Asked while this was on screen: "${m.about}"]\n${m.content}`
       : m.content;
   }
-  return m.proposed.length
-    ? `${m.content}\n\n[Cards you proposed: ${m.proposed.join("; ")}]`
-    : m.content;
+  const notes = [];
+  if (m.proposed.length) notes.push(`[Cards you proposed: ${m.proposed.join("; ")}]`);
+  if (m.changed.length) notes.push(`[Cards you changed: ${m.changed.join("; ")}]`);
+  return notes.length ? `${m.content}\n\n${notes.join("\n")}` : m.content;
+}
+
+const EDIT_OUTCOME = {
+  undone: " (they undid this)",
+  failed: " (this could not be made; the card is unchanged)",
+};
+
+// An edit as the client reports it back: what the card was, what it became,
+// and whether it stuck.
+function editList(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .slice(0, 4)
+    .map((e) => {
+      const was = clip(e?.was);
+      const now = clip(e?.now);
+      if (!was && !now) return "";
+      return `${was || "?"} → ${now || "?"}${EDIT_OUTCOME[e?.status] || ""}`;
+    })
+    .filter(Boolean);
 }
 
 function cardLine(c) {
@@ -302,6 +366,8 @@ function currentCardLines(cur) {
   const answer = clip(cur.answer);
   if (!prompt) return "";
   const lines = [`Card on screen: it shows "${prompt}"; the expected answer is "${answer}".`];
+  const front = clip(cur.front);
+  if (front) lines.push(`In their deck it is the card "${front}" — "${clip(cur.back)}".`);
   const typed = clip(cur.typed);
   if (!cur.answered) {
     lines.push("They have NOT answered it yet — do not reveal the expected answer.");
@@ -398,7 +464,9 @@ function withContext(messages, contextBlock) {
 // The podcast section (2026-10-09) added about 850 characters to the system
 // prompt, which by the same reckoning puts the pair near 1,050 tokens: an
 // estimate, not measured, and close enough to the line that this breakpoint
-// stays the one that matters.
+// stays the one that matters. The edit tool and its section (2026-10-18) add
+// roughly 1,300 characters more, likely enough for the system breakpoint to
+// cache on its own (also unmeasured).
 function withHistoryCache(messages) {
   if (messages.length < 2) return messages;
   const i = messages.length - 2;
@@ -430,6 +498,25 @@ export function normalizeCards(input) {
     // A grammar card without its arrow asks for English (answerLang reads the
     // arrow) and is usually a rule to recite. Neither can be studied.
     .filter((c) => c.front && c.back && c.category && (c.category !== "gram" || c.front.includes("→")));
+}
+
+// The same floor for a change to a card the student has. Which card it is,
+// and whether the change is real, is the client's to settle against the deck.
+export function normalizeEdits(inputs) {
+  const text = (v) => (typeof v === "string" ? v.trim() : "");
+  const seen = new Set();
+  const out = [];
+  for (const input of Array.isArray(inputs) ? inputs : []) {
+    const front = text(input?.front);
+    const newFront = text(input?.new_front);
+    const newBack = text(input?.new_back);
+    if (!front || (!newFront && !newBack)) continue;
+    const key = front.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ front, newFront, newBack });
+  }
+  return out.slice(0, 4);
 }
 
 // Everything the model is sent as `messages`, from the request body. Exported
@@ -511,7 +598,7 @@ export default async function handler(req, res) {
       system: [
         { type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
       ],
-      tools: [PROPOSE_TOOL],
+      tools: [PROPOSE_TOOL, EDIT_TOOL],
       messages,
     });
     upstream = stream;
@@ -521,12 +608,19 @@ export default async function handler(req, res) {
     const final = await stream.finalMessage();
 
     let cards = [];
+    const editInputs = [];
     for (const block of final.content || []) {
       if (block.type === "tool_use" && block.name === "propose_flashcards") {
         cards = normalizeCards(block.input);
+      } else if (block.type === "tool_use" && block.name === "edit_flashcard") {
+        editInputs.push(block.input);
       }
     }
     if (cards.length) send({ type: "cards", cards });
+    // Not sent from an answer that was cut off: a tool call that stopped
+    // short could carry half the English it meant to write.
+    const edits = final.stop_reason === "max_tokens" ? [] : normalizeEdits(editInputs);
+    if (edits.length) send({ type: "edits", edits });
 
     // An answer that stopped for any reason other than finishing is not a
     // finished answer, however much of it arrived.
