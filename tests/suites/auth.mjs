@@ -162,6 +162,30 @@ r = resolveAnthropicKey({ headers: {} }, { id: "u3", email: "Owner@Example.com "
 ck("a near-miss on the owner's address does not get the server key",
    r.code === "byok_required", r.code || r.payer);
 
+// On the test app the owner's key also pays for the accounts they named
+// (owner, 2026-10-19: "she can just use mine"), by id, and only there.
+console.log("\n  who pays on the test app: the owner's key for the accounts they named");
+{
+  const { OWNERS_KEY_ON_TEST_APP } = await import("../../src/lib/testApp.js");
+  const LAURA = { id: OWNERS_KEY_ON_TEST_APP[0], email: "laura@example.com" };
+  const on = (host, extra = {}) => ({ headers: { host, ...extra } });
+  r = resolveAnthropicKey(on("dejareview-mlb.vercel.app"), LAURA);
+  ck("Laura on the test app falls back to the server key",
+     r.key === process.env.ANTHROPIC_API_KEY && r.payer === "server", r.code || r.payer);
+  r = resolveAnthropicKey(on("french-flashcards-git-testing-mlboryczkas-projects.vercel.app"), LAURA);
+  ck("  at its other address too", r.payer === "server", r.code || r.payer);
+  r = resolveAnthropicKey(on("dejareview.vercel.app"), LAURA);
+  ck("Laura on the students' app brings her own key, as any student does", r.code === "byok_required", r.code || r.payer);
+  r = resolveAnthropicKey(on("dejareview-mlb.vercel.app"), STUDENT);
+  ck("another student on the test app brings their own key", r.code === "byok_required", r.code || r.payer);
+  r = resolveAnthropicKey(on("dejareview-mlb.vercel.app"), { id: "u9", email: LAURA.email });
+  ck("  even with the same email on another account: it's the id that counts", r.code === "byok_required", r.code || r.payer);
+  r = resolveAnthropicKey(on("dejareview-mlb.vercel.app", { "x-anthropic-key": USER_KEY }), LAURA);
+  ck("Laura's own key, if she adds one, still wins", r.key === USER_KEY && r.payer === "user", r.payer);
+  r = resolveAnthropicKey(on("dejareview-mlb.vercel.app"), OWNER);
+  ck("the owner on the test app is unchanged", r.payer === "server", r.code || r.payer);
+}
+
 anthropic.close();
 
 const n = ck.fails();

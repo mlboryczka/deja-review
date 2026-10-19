@@ -1930,9 +1930,14 @@ owner's test app, and reaches `main` only when the owner says so (see
   drawn when that rule holds for the page's own address (see *The sidebar*).
 - **The server is the real check.** `api/podcasts.js` verifies the session,
   then applies the rule to the address Vercel routed the request by, and
-  answers 403 "Admin only" to anyone else before any action runs. Who pays
-  for Claude is unchanged: the caller's own key, or the server's for the
-  owner only.
+  answers 403 "Admin only" to anyone else before any action runs.
+- **Who pays.** The caller's own key, or the server's (the owner's Claude
+  account) for the owner anywhere and, on the test app only, for the
+  accounts in `OWNERS_KEY_ON_TEST_APP` (`src/lib/testApp.js`): Laura
+  Caufour, by account id (owner, 2026-10-19: "she can just use mine").
+  This covers everything on the test app that calls Claude, not only
+  Podcasts: it is `resolveAnthropicKey`, which every route uses. Anyone
+  else signing in there still needs their own key.
 - **A student's app is unchanged**: no switch, no Podcasts pages, nothing new
   read or kept in their browser. The `podcasts` suite checks that a student
   build has no switch.
@@ -3016,7 +3021,13 @@ origin with its slash; typing the emailed code always worked. The owner
 also said "if i give laura access to -mlb then she should see everything in
 that version, including podcast module", so Podcasts now opens to anyone
 signed in on the test app (see *Podcasts*). Anyone with an account can sign
-in there; the address is only shared by the owner.
+in there; the address is only shared by the owner. Then "she can just use
+mine. wire this -mlb version to use my claude account for anyone who has
+access (only laura and I have acces)": on the test app Laura's requests now
+fall back to the server's key as the owner's do. She is named by account id,
+since the repo is public, and only she is: any account can sign in on the
+test app (sign-up is open), so "anyone signed in there" would have let a
+stranger spend the owner's account.
 
 ---
 

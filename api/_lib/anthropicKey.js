@@ -2,7 +2,9 @@
 //
 // The rule: you bring your own key, or you don't get to spend. The one
 // exception is the deploy owner, whose requests fall back to the server's
-// ANTHROPIC_API_KEY so their own use of the app is unchanged.
+// ANTHROPIC_API_KEY so their own use of the app is unchanged, and on the
+// owner's test app the few accounts they named (src/lib/testApp.js; owner,
+// 2026-10-19).
 //
 // Before this, /api/chat and /api/split-senses accepted any signed-in caller
 // and /api/review-answer accepted anyone at all — all three billing the
@@ -14,6 +16,7 @@
 // the call to Anthropic. The client keeps it in the user's own browser.
 
 import { isAdmin } from "./auth.js";
+import { usesOwnersKeyOnTestApp } from "../../src/lib/testApp.js";
 
 export const KEY_HEADER = "x-anthropic-key";
 
@@ -43,7 +46,10 @@ export function resolveAnthropicKey(req, user) {
     return { key: supplied, payer: "user" };
   }
 
-  if (isAdmin(user) && process.env.ANTHROPIC_API_KEY) {
+  // The host is the address Vercel routed this request by, so the students'
+  // app's code only ever sees its own.
+  const named = usesOwnersKeyOnTestApp({ userId: user?.id, host: req.headers?.host });
+  if ((isAdmin(user) || named) && process.env.ANTHROPIC_API_KEY) {
     return { key: process.env.ANTHROPIC_API_KEY, payer: "server" };
   }
 
