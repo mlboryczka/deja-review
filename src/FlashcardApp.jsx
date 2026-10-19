@@ -88,11 +88,19 @@ import { uploadResultText } from "./lib/uploadText";
 import PodcastsPage from "./PodcastsPage";
 import { usePodcastFollows } from "./usePodcasts";
 import { podcastBySlug } from "./lib/podcastCatalogue";
+import { podcastsOpenTo } from "./lib/testApp";
 
 const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase();
 // The owner's account. Client-side only, so it only ever HIDES things: every
 // podcasts action is refused on the server for anyone else (api/podcasts.js).
 const isAdminUser = (user) => !!(user?.email && user.email.toLowerCase() === ADMIN_EMAIL);
+// Podcasts: the owner, and anyone signed in on the owner's test app
+// (lib/testApp.js, owner 2026-10-19). The server checks the same rule.
+const podcastsUser = (user) => podcastsOpenTo({
+  isOwner: isAdminUser(user),
+  signedIn: !!user?.id,
+  host: typeof window !== "undefined" ? window.location.hostname : "",
+});
 
 // ─── PODCASTS: WHERE THE OWNER WAS ───────────────────────────────────────
 // The sidebar's switch has two halves, Flashcards and Podcasts (owner,
@@ -484,10 +492,11 @@ export default function FlashcardApp({ user, onSignOut }) {
   // top of the deck-build effect.
   const scheduledRef = useRef(null);
   // The owner's place in Podcasts, read once (see readPodcastsPlace). Never
-  // read for anyone else, so a student's app opens exactly as it always has.
+  // read for anyone without Podcasts, so a student's app opens exactly as it
+  // always has.
   const podPlaceRef = useRef(undefined);
   if (podPlaceRef.current === undefined) {
-    podPlaceRef.current = isAdminUser(user) ? readPodcastsPlace(user?.id) : null;
+    podPlaceRef.current = podcastsUser(user) ? readPodcastsPlace(user?.id) : null;
   }
   // The page: study | lessons | stats | podcasts. "study" is Cards and also
   // the inside of a lesson (lessonFilter). "podcasts" is the whole Podcasts
@@ -796,12 +805,15 @@ export default function FlashcardApp({ user, onSignOut }) {
   // early returns (Loading, the onboarding screen): a hook below them would
   // change the number of hooks once the deck loads, and React throws.
   //
+  // Who has it: the owner, and anyone signed in on the test app (owner,
+  // 2026-10-19; lib/testApp.js).
+  const hasPodcasts = podcastsUser(user);
   // Whether Podcasts is showing. Owner only: `mode` can only become
   // "podcasts" through goPodcasts or the owner's saved place, both of which
   // check, and this checks again so nothing a student could reach depends on
   // that holding.
-  const podcastsOn = isAdmin && mode === "podcasts";
-  useEffect(() => { if (mode === "podcasts" && !isAdmin) setMode("study"); }, [mode, isAdmin]);
+  const podcastsOn = hasPodcasts && mode === "podcasts";
+  useEffect(() => { if (mode === "podcasts" && !hasPodcasts) setMode("study"); }, [mode, hasPodcasts]);
   // Which Podcasts page: Episodes, My podcasts, one podcast, or one episode
   // and its tab (shape: build spec §11). Kept here, not in the page, because
   // the sidebar marks Episodes, My podcasts or the podcast you're in from it,
@@ -818,8 +830,8 @@ export default function FlashcardApp({ user, onSignOut }) {
   useEffect(() => { if (mode !== "podcasts") lastCardsModeRef.current = mode; }, [mode]);
   // The switch's two halves. Stable, so the tour can call goFlashcards.
   const goPodcasts = useCallback(() => {
-    if (isAdmin) setMode("podcasts");
-  }, [isAdmin]);
+    if (hasPodcasts) setMode("podcasts");
+  }, [hasPodcasts]);
   const goFlashcards = useCallback(() => {
     setMode((m) => (m === "podcasts" ? lastCardsModeRef.current || "study" : m));
   }, []);
@@ -836,7 +848,7 @@ export default function FlashcardApp({ user, onSignOut }) {
   }, [podcastsOn]);
   // The podcasts the owner follows, listed under My podcasts in the sidebar
   // and handed to the page. Not asked for at all in a student's app.
-  const podFollows = usePodcastFollows(user, { enabled: isAdmin });
+  const podFollows = usePodcastFollows(user, { enabled: hasPodcasts });
   const followedSlugs = useMemo(
     () => (podFollows?.follows || NO_FOLLOWS).map((f) => f?.podcast).filter((s) => typeof s === "string" && s),
     [podFollows?.follows]
@@ -844,9 +856,9 @@ export default function FlashcardApp({ user, onSignOut }) {
   // The owner's place, kept as it changes (see readPodcastsPlace). Never
   // written for anyone else.
   useEffect(() => {
-    if (!isAdmin || !user?.id) return;
+    if (!hasPodcasts || !user?.id) return;
     writePodcastsPlace(user.id, { open: podcastsOn, view: podView });
-  }, [isAdmin, user?.id, podcastsOn, podView]);
+  }, [hasPodcasts, user?.id, podcastsOn, podView]);
   // What the tutor is told about the episode on screen: the podcasts page
   // hands it up (shape: build spec §11) and the tutor gets it while Podcasts
   // is showing. The hidden flashcard is never sent from here: tutorCard is
@@ -2985,9 +2997,9 @@ export default function FlashcardApp({ user, onSignOut }) {
         {/* Flashcards or Podcasts (owner, 2026-10-09): two halves at the top
             of the nav, below the rail's expand button, the selected one
             white. On the rail they stack as two icons, named on hover. Owner
-            only until the owner has tried it: a student's sidebar has no
-            switch and is exactly what it was. */}
-        {isAdmin && (
+            only until the owner has tried it, except on the test app: a
+            student's sidebar has no switch and is exactly what it was. */}
+        {hasPodcasts && (
           <div
             data-module-switch
             role="group"

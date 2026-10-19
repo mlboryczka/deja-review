@@ -829,7 +829,7 @@ route means retiring or merging one. `api/_lib/` is shared code, not a route.
 | `admin-update-card.js` | Saves a card edit, for any student's own cards despite the name. Uses the service role: edits from the browser under RLS silently did nothing. A body with `action: "remove"` is a student removing a card: archived with the reason "removed", answers kept (`api/_lib/removeCard.js`) |
 | `admin-users.js` | Admin only: every account and its activity. `?view=status` is the latest status check on every student; with `&run=1` they are all checked now |
 | `parse-corrections.js` | Admin only: logs corrections that `cahier-parse` learns from |
-| `podcasts.js` | Podcasts, the owner's only for now: every action in one route, named by `action` in the body, because of the 12-route limit. `follow` (a Spotify link, or a podcast's slug), `refresh` (the followed podcasts' feeds), `episode` (RFI's transcript, and the questions, written once), `mark` (Claude marks one answer) and `add-card` (a word from a passage to the caller's cards). Anyone but the owner gets 403 "Admin only". The work is in `api/_lib/podcasts.js` (see *Podcasts*) |
+| `podcasts.js` | Podcasts, the owner's only for now, and anyone's signed in on the test app: every action in one route, named by `action` in the body, because of the 12-route limit. `follow` (a Spotify link, or a podcast's slug), `refresh` (the followed podcasts' feeds), `episode` (RFI's transcript, and the questions, written once), `mark` (Claude marks one answer) and `add-card` (a word from a passage to the caller's cards). Anyone else gets 403 "Admin only". The work is in `api/_lib/podcasts.js` (see *Podcasts*) |
 
 - Every route checks the caller's Supabase session, except `cahier-daily`,
   which checks `CRON_SECRET`. The service role key bypasses RLS, so a route
@@ -1919,12 +1919,20 @@ owner's test app, and reaches `main` only when the owner says so (see
 
 **Who can see it**
 
-- **Only the owner has the switch.** The sidebar's Flashcards / Podcasts
-  switch is drawn only when the signed-in account is `VITE_ADMIN_EMAIL`
-  (`isAdmin`), which only hides it (see *The sidebar*).
+- **The owner, and anyone signed in on the test app** (owner, 2026-10-19:
+  "if i give laura access to -mlb then she should see everything in that
+  version"). One rule, `podcastsOpenTo` in `src/lib/testApp.js`, read by
+  both sides: the owner anywhere, or anyone signed in when the address is
+  one of the test app's two. On the students' app it is still the owner's
+  alone. The owner's own tools (feedback, Claude's marking, Status) are not
+  part of it and stay the owner's on both apps.
+- **The switch only hides.** The sidebar's Flashcards / Podcasts switch is
+  drawn when that rule holds for the page's own address (see *The sidebar*).
 - **The server is the real check.** `api/podcasts.js` verifies the session,
-  then answers 403 "Admin only" to anyone but `ADMIN_EMAIL`, before any
-  action runs.
+  then applies the rule to the address Vercel routed the request by, and
+  answers 403 "Admin only" to anyone else before any action runs. Who pays
+  for Claude is unchanged: the caller's own key, or the server's for the
+  owner only.
 - **A student's app is unchanged**: no switch, no Podcasts pages, nothing new
   read or kept in their browser. The `podcasts` suite checks that a student
   build has no switch.
@@ -2993,6 +3001,22 @@ Replace and the morning check alike. Tested against stand-ins only
 `serving`, `progress`, `repeats`, `status` and `auth`): no call was made to
 the real Claude, RFI or Spotify, and nothing was written to the live
 database.
+
+### 2026-10-19 — Laura on the test app
+
+The owner asked for Laura Caufour's account on the test app. She signed in
+from the emailed link and landed on the students' app. Supabase's list of
+addresses it may send people back to has the test app with a slash
+(`dejareview-mlb.vercel.app/**`), and the sign-in page asked for the bare
+origin, which doesn't match, so Supabase fell back to its default,
+dejareview.vercel.app. Checked without sending an email: `GET
+/auth/v1/verify?token=x&type=magiclink&redirect_to=<address>` answers with
+where a link to that address would go. `src/Auth.jsx` now asks for the
+origin with its slash; typing the emailed code always worked. The owner
+also said "if i give laura access to -mlb then she should see everything in
+that version, including podcast module", so Podcasts now opens to anyone
+signed in on the test app (see *Podcasts*). Anyone with an account can sign
+in there; the address is only shared by the owner.
 
 ---
 

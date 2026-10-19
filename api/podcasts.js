@@ -34,6 +34,7 @@ import { createClient } from "@supabase/supabase-js";
 import { requireUser, isAdmin } from "./_lib/auth.js";
 import { resolveAnthropicKey } from "./_lib/anthropicKey.js";
 import { handlePodcastRequest, supabasePodcastStore, claudeError } from "./_lib/podcasts.js";
+import { podcastsOpenTo } from "../src/lib/testApp.js";
 
 // Writing an episode's questions can take a couple of minutes (its own limit
 // is 150 s, api/_lib/podcastQuestions.js), after reading RFI's page.
@@ -46,7 +47,12 @@ export default async function handler(req, res) {
 
   const user = await requireUser(req, res);
   if (!user) return;
-  if (!isAdmin(user)) return res.status(403).json({ error: "Admin only" });
+  // The owner, and anyone signed in on the owner's test app (owner,
+  // 2026-10-19). The host is the address Vercel routed this request by, so
+  // the students' app's code only ever sees its own.
+  if (!podcastsOpenTo({ isOwner: isAdmin(user), signedIn: true, host: req.headers.host })) {
+    return res.status(403).json({ error: "Admin only" });
+  }
 
   const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
   const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {

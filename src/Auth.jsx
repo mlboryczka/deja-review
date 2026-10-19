@@ -30,7 +30,11 @@ export default function Auth() {
     setError("");
     const { error: authError } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: window.location.origin },
+      // With the slash: Supabase's list of addresses it may send people back
+      // to has the test app as dejareview-mlb.vercel.app/**, which the bare
+      // origin doesn't match, so its link opened the students' app instead
+      // (2026-10-19).
+      options: { emailRedirectTo: `${window.location.origin}/` },
     });
     setLoading(false);
     if (authError) setError(authError.message);
