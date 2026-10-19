@@ -23,8 +23,6 @@
 //          short topic each and are headed with the episode's title.
 //
 // The limits every part of the module shares:
-//   RETRY_DAYS    a passage missed or partly understood comes back this many
-//                 days later (owner, 2026-10-09: 3)
 //   MAX_PASSAGES  never more questions than this in one episode (owner,
 //                 2026-10-09: 10). Episodes longer than 12 minutes are out of
 //                 scope for now, and still get at most this many, spread over
@@ -42,5 +40,4 @@ export const PODCASTS = [
 
 export const podcastBySlug = (slug) => PODCASTS.find((p) => p.slug === slug) || null;
 
-export const RETRY_DAYS = 3;
 export const MAX_PASSAGES = 10;

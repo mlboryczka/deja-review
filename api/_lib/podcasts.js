@@ -46,10 +46,11 @@
 //
 // MARKING. Claude says which of the passage's ideas the answer holds
 // (api/_lib/podcastQuestions.js). The answer is saved for that student only,
-// with the model and prompt version, and a passage not fully understood comes
-// back RETRY_DAYS later (owner, 2026-10-09: "missed or partly-right passages
-// come back after 3 days"). A failed save still gives the student Claude's
-// verdict, saying it wasn't saved.
+// with the model and prompt version, and kept for good, so the app can learn
+// the student's level from it. Nothing comes back for another try, whatever
+// the verdict (owner, 2026-10-19), so no come-back date (due_at) is written
+// any more. A failed save still gives the student Claude's verdict, saying it
+// wasn't saved.
 //
 // ADDING A CARD never touches anything the student has (owner's rule:
 // updates never reset progress). The word goes through the rule every
@@ -75,7 +76,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { missingTable } from "../../src/lib/dealLog.js";
 import { isArchived } from "../../src/lib/archive.js";
 import { matchNewCards, plannedWrites } from "../../src/lib/cardMatch.js";
-import { PODCASTS, podcastBySlug, RETRY_DAYS, MAX_PASSAGES } from "../../src/lib/podcastCatalogue.js";
+import { PODCASTS, podcastBySlug, MAX_PASSAGES } from "../../src/lib/podcastCatalogue.js";
 import { estimatePassageTimes, findPassage, normalizePassage } from "../../src/lib/podcastTiming.js";
 import {
   fetchText as fetchFromWeb, parseFeed, parseEpisodePage, parseSpotifyLink, spotifyTitle, matchTitle,
@@ -88,7 +89,6 @@ import { readDeck } from "./notesReading.js";
 import { askSameCard } from "./sameCardQuestion.js";
 import { cleanFrenchFront } from "../parse-cahier.js";
 
-const DAY_MS = 86400000;
 // How long one request may hold an episode while Claude writes its questions:
 // longer than the call's own limit (QUESTIONS_TIME_MS, 150 s), so a lease
 // never runs out under a call still going, and short enough that a request
@@ -585,7 +585,6 @@ async function mark({ body, user, store, apiKey, now }) {
   }
   const feedback = { caught: marked.caught, missed: marked.missed, note: dropRepeatedAnswer(marked.note, passage.answer) };
   const answeredAt = iso(now);
-  const dueAt = marked.verdict === "got" ? null : iso(now + RETRY_DAYS * DAY_MS);
   const timeZone = typeof body.timeZone === "string" && body.timeZone.length <= 64 ? body.timeZone : null;
   const saved = await store.saveAnswer({
     user_id: user.id,
@@ -599,7 +598,6 @@ async function mark({ body, user, store, apiKey, now }) {
     model: MARK_MODEL,
     prompt_version: MARK_VERSION,
     answered_at: answeredAt,
-    due_at: dueAt,
     time_zone: timeZone,
   });
   if (saved.error || saved.missing) {
@@ -613,7 +611,6 @@ async function mark({ body, user, store, apiKey, now }) {
       verdict: marked.verdict,
       feedback,
       answered_at: row?.answered_at ?? answeredAt,
-      due_at: row ? row.due_at ?? null : dueAt,
     },
     saved: !!row,
   });
@@ -782,7 +779,7 @@ export function supabasePodcastStore(db) {
     // or not it saved.
     async saveAnswer(row) {
       const { data, error } = await db.from("podcast_answers").insert(row)
-        .select("id,passage_key,verdict,feedback,answered_at,due_at").single();
+        .select("id,passage_key,verdict,feedback,answered_at").single();
       if (missingTable(error)) return { missing: true };
       if (error) return { error: error.message || String(error) };
       return { row: data };

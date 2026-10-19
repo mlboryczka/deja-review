@@ -12,9 +12,10 @@
 //     French, so it stays the same if the questions are written again;
 //   - the counts and the gist/translate mix the owner approved reach Claude,
 //     and never more than MAX_PASSAGES are kept;
-//   - a verdict is "Got it" only when every idea was caught; a passage not
-//     fully understood comes back RETRY_DAYS later; an answer is saved for the
-//     student who wrote it, and nobody else's answer is ever in a reply;
+//   - a verdict is "Got it" only when every idea was caught; no answer gets a
+//     come-back date, whatever its verdict (owner, 2026-10-19: nothing comes
+//     back); an answer is saved for the student who wrote it, and nobody
+//     else's answer is ever in a reply;
 //   - a reply from Claude that can't be read saves nothing;
 //   - no key, no call; anyone but the owner gets 403 and no call;
 //   - "Add to my cards" inserts one new row (never an upsert over a card,
@@ -93,7 +94,7 @@ const {
 const Q = await import("../../api/_lib/podcastQuestions.js");
 const { QUESTIONS_SYSTEM, MARK_SYSTEM, QUESTIONS_MODEL, QUESTIONS_VERSION, MARK_MODEL, MARK_VERSION,
   STORY_PASSAGES, SHORT_PASSAGES, MIN_PASSAGES, GIST_SHARE, translateCount, readMark } = Q;
-const { RETRY_DAYS, MAX_PASSAGES, PODCASTS, podcastBySlug } = await import("../../src/lib/podcastCatalogue.js");
+const { MAX_PASSAGES, PODCASTS, podcastBySlug } = await import("../../src/lib/podcastCatalogue.js");
 const { normalizePassage } = await import("../../src/lib/podcastTiming.js");
 const source = await import("../../api/_lib/podcastSource.js");
 const { SAME_CARD_SYSTEM } = await import("../../api/_lib/sameCardQuestion.js");
@@ -183,7 +184,6 @@ const OWNER_B = { id: "00000000-0000-4000-8000-0000000000b2", email: "owner2@exa
 const STUDENT = { id: "00000000-0000-4000-8000-0000000000c3", email: "student@example.com" };
 const KEY = "sk-ant-test-server-key";
 const NOW = Date.parse("2026-10-09T10:00:00Z");
-const DAY = 86400000;
 const clone = (x) => JSON.parse(JSON.stringify(x));
 
 const episodeRow = (extra = {}) => ({
@@ -254,8 +254,8 @@ function memoryStore({ missing = false, answersMissing = false } = {}) {
       if (missing || answersMissing) return gone();
       const saved = { id: randomUUID(), created_at: new Date(NOW).toISOString(), ...clone(row) };
       db.answers.push(saved);
-      const { id, passage_key, verdict, feedback, answered_at, due_at } = saved;
-      return { row: clone({ id, passage_key, verdict, feedback, answered_at, due_at }) };
+      const { id, passage_key, verdict, feedback, answered_at } = saved;
+      return { row: clone({ id, passage_key, verdict, feedback, answered_at }) };
     },
     async deck(userId) { log.push(["deck"]); return { rows: db.cards.filter((c) => c.user_id === userId).map(clone), hasReasons: true }; },
     async addCards(rows) {
@@ -555,7 +555,6 @@ console.log("\n  marking an answer");
      Array.isArray(calls[0].body.system) && calls[0].body.system[0].cache_control?.type === "ephemeral" &&
      calls[0].body.messages[0].content.includes(p.fr) && calls[0].body.messages[0].content.includes("<answer>\nThe bus drivers in Rennes are on strike.\n</answer>"));
   ck("every idea caught is \"got\"", got.status === 200 && got.json.answer.verdict === "got", JSON.stringify(got.json).slice(0, 160));
-  ck("  and never comes back", got.json.answer.due_at === null);
   const saved = store.db.answers.at(-1);
   ck("the answer is saved, trimmed, for the student who wrote it, with the passage, the model and the prompt version",
      got.json.saved === true && saved.user_id === OWNER.id && saved.episode_id === ep.id && saved.passage_key === p.key && saved.kind === p.kind &&
@@ -569,12 +568,14 @@ console.log("\n  marking an answer");
      partly.json.answer.verdict === "partly" && JSON.stringify(partly.json.answer.feedback.caught) === JSON.stringify([p.ideas[0]]) &&
      JSON.stringify(partly.json.answer.feedback.missed) === JSON.stringify(p.ideas.slice(1)) && /grève/.test(partly.json.answer.feedback.note),
      JSON.stringify(partly.json.answer.feedback));
-  ck(`  and comes back ${RETRY_DAYS} days later`, partly.json.answer.due_at === new Date(NOW + RETRY_DAYS * DAY).toISOString() &&
-     store.db.answers.at(-1).due_at === partly.json.answer.due_at, partly.json.answer.due_at);
   replies.mark = marked("missed", [], [1, 2]);
   const missed = await run(store, OWNER, { action: "mark", episodeId: ep.id, key: p.key, typed: "No idea." });
-  ck("no idea caught is \"missed\", and comes back too", missed.json.answer.verdict === "missed" && missed.json.answer.feedback.caught.length === 0 &&
-     missed.json.answer.due_at === new Date(NOW + RETRY_DAYS * DAY).toISOString());
+  ck("no idea caught is \"missed\"", missed.json.answer.verdict === "missed" && missed.json.answer.feedback.caught.length === 0);
+  const three = store.db.answers.slice(-3);
+  ck("all three answers are kept, and none, whatever its verdict, is given a come-back date",
+     three.map((a) => a.verdict).join(",") === "got,partly,missed" && three.every((a) => a.due_at == null) &&
+     [got, partly, missed].every((r) => !("due_at" in r.json.answer)),
+     JSON.stringify(three.map((a) => [a.verdict, a.due_at ?? null])));
 }
 
 console.log("\n  Claude's idea numbers are checked");

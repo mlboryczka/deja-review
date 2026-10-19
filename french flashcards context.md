@@ -1507,7 +1507,7 @@ Twenty need no browser:
 - `podcast-marking`: the Podcasts server (`api/_lib/podcasts.js`,
   `podcastQuestions.js`) with a stand-in Claude counted at the wire: the
   questions written once and checked against the transcript, "Got it" only
-  with every idea caught, a passage back `RETRY_DAYS` later, a failure kept
+  with every idea caught, no answer given a come-back date, a failure kept
   as a short code, anyone but the owner refused, Add to my cards inserting
   one new card and touching no other, and every action before
   `migration_017`.
@@ -1563,8 +1563,9 @@ says what to wait for when a page has no "Previous card".
 - `podcasts`: the Podcasts pages, on their own Vite (port 5191) with the test
   account as admin, the podcast tables and `/api/podcasts` stood in: the
   switch for the owner only and none for a student, the round trip both ways
-  with the same card and no card written, Episodes and "To try again", an
-  episode's tabs, Listen starting `LISTEN_LEAD_S` early, answering, Add to my
+  with the same card and no card written, Episodes, a passage missed before
+  2026-10-19 staying answered, an episode's tabs, Listen starting
+  `LISTEN_LEAD_S` early, answering, Add to my
   cards as one request with no card written from the browser, the tutor told
   about the episode, and the message before `migration_017`.
 
@@ -1934,9 +1935,8 @@ keeps which page is showing)
 - **Episodes**: every episode of the podcasts followed, newest first, each
   row with its podcast's name above the title and a status: "Not started",
   "3 of 9 passages answered", or "7 of 9 passages understood" once all are
-  answered. "To try again" comes first when a passage is due back, and such
-  a row says "2 passages to try again". With nothing followed: "Add a podcast
-  under My podcasts to see its episodes here."
+  answered. With nothing followed: "Add a podcast under My podcasts to see
+  its episodes here."
 - **My podcasts**: a box for a Spotify link ("Paste a Spotify link", Add),
   and a card for each podcast followed, saying "4 of 12 episodes done".
   There is no way to stop following one yet.
@@ -2063,12 +2063,16 @@ keeps which page is showing)
   each with "Add to my cards".
 - The answer is saved for that student only (`podcast_answers`), with the
   model and prompt version. A failed save still shows the verdict.
-- **A passage not fully understood comes back three days later** (owner,
-  2026-10-09; `RETRY_DAYS`): unanswered again, in its episode, with "Back for
-  another try" above it, and the episode listed under "To try again". The
-  result box says when: "The 2 passages you didn't fully get come back on
-  Monday 12 October." A passage's state is its latest answer
-  (`src/lib/podcastProgress.js`).
+- **An answered passage is done, whatever the verdict** (owner, 2026-10-19:
+  "none of these passages will come back. i will answer them and then that's
+  it, i'll move on to another podcast."). This replaced the three-day
+  come-back of 2026-10-09: no "To try again", no "Back for another try", and
+  the result box says only "2 of 9 passages understood". Answers saved before
+  then keep their come-back date, which nothing reads. A passage's state is
+  its latest answer (`src/lib/podcastProgress.js`).
+- **Every answer is still kept** (owner, same day: "these answer should,
+  however, all be logged so that the application starts learning my
+  level"), for the learner profile, which isn't built yet.
 
 **"Add to my cards" makes an ordinary card and touches nothing else**
 (owner's rule: updates never reset progress)
@@ -2113,8 +2117,9 @@ keeps which page is showing)
   was added from. Each student reads, adds and removes their own.
 - `podcast_answers`: every answer to a passage, one row each, like
   `card_reviews`: the passage's key and French, what was typed, the verdict
-  and feedback, and `due_at` for a passage coming back. The server writes
-  them; each student reads their own; nobody changes or deletes one.
+  and feedback. `due_at`, a come-back date, was written only before
+  2026-10-19 and is read by nothing. The server writes them; each student
+  reads their own; nobody changes or deletes one.
 - **Podcast answers never go into `card_reviews` or `dealt_sets`**, which the
   status check, the FSRS fit and Stats read.
 - **Until `migration_017` is run**, the Podcasts pages say "Podcasts need a

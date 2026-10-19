@@ -264,10 +264,10 @@ export function usePodcastEpisodes(user, slugs, { enabled = true } = {}) {
 // Supabase hands back at most 1,000 rows per request whatever .limit() asks
 // for, and oldest first means the rows cut off would be the NEWEST. A
 // passage's state is its latest answer, so after about a thousand answers
-// (twenty weeks or so of the daily Journal) a passage just got would have
-// shown unanswered again, "Back for another try", after a reload. The id
-// after the time keeps the order the same from one page to the next.
-const ANSWER_COLUMNS = "id, episode_id, passage_key, kind, fr, typed, verdict, feedback, answered_at, due_at";
+// (twenty weeks or so of the daily Journal) a passage just answered would
+// have shown unanswered again after a reload. The id after the time keeps the
+// order the same from one page to the next.
+const ANSWER_COLUMNS = "id, episode_id, passage_key, kind, fr, typed, verdict, feedback, answered_at";
 const ANSWER_PAGE = 1000;
 
 async function readAnswers(userId) {

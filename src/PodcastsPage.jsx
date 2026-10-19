@@ -7,8 +7,8 @@ import { BYOK_REQUIRED, BAD_KEY } from "./lib/anthropicKey";
 import { cardIndex } from "./lib/sameCard";
 import { isArchived } from "./lib/archive";
 import {
-  answerKey, latestAnswers, passageState, passagesOf, episodeProgress, episodeStatus,
-  countLine, comeBackLine, podcastDone, feedbackSentence, phraseRanges, transcriptSections,
+  answerKey, latestAnswers, passageState, isAnswered, passagesOf, episodeProgress, episodeStatus,
+  countLine, podcastDone, feedbackSentence, phraseRanges, transcriptSections,
   listenWindow, longDate, shortDate, clock, storyAt, RFI_TIME_ZONE,
 } from "./lib/podcastProgress";
 import {
@@ -34,8 +34,9 @@ export { clearPodcastDrafts } from "./usePodcasts";
 //   • Claude marks each answer: Got it, Partly or Missed, says what was caught
 //     and what was missed, then "A good answer: …" and the passage's key
 //     phrases highlighted, each with "Add to my cards".
-//   • A passage missed or partly got comes back three days later, unanswered,
-//     in its episode, and the Episodes page lists it under "To try again".
+//   • An answered passage is done, whatever Claude's verdict: nothing comes
+//     back for another try (owner, 2026-10-19, replacing the three-day
+//     come-back of 2026-10-09). Every answer is still kept.
 //   • Add to my cards makes a normal card through the server, by the deck's
 //     same-card rule. It never touches a card the student has, its schedule
 //     or the set they are in (owner rule: updates never reset progress), and a
@@ -97,17 +98,6 @@ const studentTimeZone = () => {
     return undefined;
   }
 };
-
-// Re-read "now" every minute, so a passage that comes due while the page is
-// open shows up for another try without a reload.
-function useNow(everyMs = 60000) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), everyMs);
-    return () => clearInterval(id);
-  }, [everyMs]);
-  return now;
-}
 
 const HOME = { view: "episodes", podcast: null, episodeId: null, from: "episodes", tab: "questions" };
 const normalView = (view) => {
@@ -193,7 +183,6 @@ export default function PodcastsPage({
   const eps = usePodcastEpisodes(user, slugs, { enabled: !followsMissing });
   const ans = usePodcastAnswers(user, { enabled: !followsMissing });
   const latest = useMemo(() => latestAnswers(ans.rows), [ans.rows]);
-  const now = useNow();
   const missing = !!(followsMissing || eps.missing || ans.missing);
 
   const go = useCallback((patch) => setView((prev) => ({ ...HOME, ...(prev || {}), ...patch })), [setView]);
@@ -278,7 +267,6 @@ export default function PodcastsPage({
         slugs={slugs}
         episodes={eps.episodes}
         latest={latest}
-        now={now}
         onOpen={(slug) => go({ view: "podcast", podcast: slug, episodeId: null })}
         onFollowed={onFollowed}
       />
@@ -290,7 +278,6 @@ export default function PodcastsPage({
         episodes={eps.episodes.filter((e) => e.podcast === v.podcast)}
         loading={eps.loading}
         latest={latest}
-        now={now}
         onOpen={(e) => openEpisode(e, "podcast")}
       />
     );
@@ -304,7 +291,6 @@ export default function PodcastsPage({
         tab={v.tab}
         listRow={eps.episodes.find((e) => e.id === v.episodeId) || null}
         latest={latest}
-        now={now}
         go={go}
         onPatchList={eps.patch}
         onAnswer={ans.add}
@@ -324,7 +310,6 @@ export default function PodcastsPage({
         loading={eps.loading}
         error={eps.error}
         latest={latest}
-        now={now}
         onOpen={(e) => openEpisode(e, "episodes")}
       />
     );
@@ -339,9 +324,9 @@ export default function PodcastsPage({
 }
 
 // ── Lists ──────────────────────────────────────────────────────────────────
-function EpisodeRow({ episode, latest, now, withPodcast, onOpen }) {
+function EpisodeRow({ episode, latest, withPodcast, onOpen }) {
   const podcast = podcastBySlug(episode.podcast);
-  const status = episodeStatus(episodeProgress(episode, latest, now));
+  const status = episodeStatus(episodeProgress(episode, latest));
   return (
     <button
       type="button"
@@ -360,7 +345,7 @@ function EpisodeRow({ episode, latest, now, withPodcast, onOpen }) {
   );
 }
 
-function EpisodesView({ follows, slugs, episodes, loading, error, latest, now, onOpen }) {
+function EpisodesView({ follows, slugs, episodes, loading, error, latest, onOpen }) {
   if (follows === "unknown") return <h1 style={S.h1}>Episodes</h1>;
   if (follows === "failed" && !slugs.length) {
     return (
@@ -378,27 +363,14 @@ function EpisodesView({ follows, slugs, episodes, loading, error, latest, now, o
       </>
     );
   }
-  // Something due again comes first, under its own heading; the rest follow
-  // newest first with none.
-  const again = [];
-  const rest = [];
-  for (const e of episodes) (episodeProgress(e, latest, now).due > 0 ? again : rest).push(e);
   return (
     <>
       <h1 style={S.h1}>Episodes</h1>
       {!episodes.length && !loading && <p style={S.empty}>{error || "No episodes to show yet."}</p>}
       <div data-podcast-episodes>
-        {again.length > 0 && (
-          <section style={S.group} data-try-again>
-            <h2 style={S.groupHeading}>To try again</h2>
-            {again.map((e) => (
-              <EpisodeRow key={e.id} episode={e} latest={latest} now={now} withPodcast onOpen={onOpen} />
-            ))}
-          </section>
-        )}
-        <section style={again.length ? S.groupRest : undefined} data-episode-list>
-          {rest.map((e) => (
-            <EpisodeRow key={e.id} episode={e} latest={latest} now={now} withPodcast onOpen={onOpen} />
+        <section data-episode-list>
+          {episodes.map((e) => (
+            <EpisodeRow key={e.id} episode={e} latest={latest} withPodcast onOpen={onOpen} />
           ))}
         </section>
       </div>
@@ -406,7 +378,7 @@ function EpisodesView({ follows, slugs, episodes, loading, error, latest, now, o
   );
 }
 
-function PodcastView({ podcast, episodes, loading, latest, now, onOpen }) {
+function PodcastView({ podcast, episodes, loading, latest, onOpen }) {
   return (
     <>
       <h1 style={S.h1}>{podcast.name}</h1>
@@ -414,14 +386,14 @@ function PodcastView({ podcast, episodes, loading, latest, now, onOpen }) {
       {!episodes.length && !loading && <p style={S.empty}>No episodes to show yet.</p>}
       <div data-podcast-episodes={podcast.slug}>
         {episodes.map((e) => (
-          <EpisodeRow key={e.id} episode={e} latest={latest} now={now} onOpen={onOpen} />
+          <EpisodeRow key={e.id} episode={e} latest={latest} onOpen={onOpen} />
         ))}
       </div>
     </>
   );
 }
 
-function MineView({ user, slugs, episodes, latest, now, onOpen, onFollowed }) {
+function MineView({ user, slugs, episodes, latest, onOpen, onFollowed }) {
   return (
     <>
       <h1 style={S.h1}>My podcasts</h1>
@@ -429,7 +401,7 @@ function MineView({ user, slugs, episodes, latest, now, onOpen, onFollowed }) {
         <div style={S.pods}>
           {slugs.map((slug) => {
             const p = podcastBySlug(slug);
-            const { done, total } = podcastDone(episodes.filter((e) => e.podcast === slug), latest, now);
+            const { done, total } = podcastDone(episodes.filter((e) => e.podcast === slug), latest);
             return (
               <button key={slug} type="button" style={S.pod} data-pod-hover="row" data-podcast-card={slug} onClick={() => onOpen(slug)}>
                 <span style={S.podName}>{p.name}</span>
@@ -494,7 +466,7 @@ function PasteBox({ user, onFollowed }) {
 
 // ── One episode ────────────────────────────────────────────────────────────
 function EpisodeView({
-  user, episodeId, from, tab, listRow, latest, now, go, onPatchList, onAnswer,
+  user, episodeId, from, tab, listRow, latest, go, onPatchList, onAnswer,
   addState, onAdd, onTutorContext, openChat, onNeedKey,
 }) {
   // The episode as the server sends it (with its transcript). Questions are
@@ -581,7 +553,7 @@ function EpisodeView({
   const paragraphs = Array.isArray(detail.episode?.transcript)
     ? detail.episode.transcript
     : Array.isArray(early?.transcript) ? early.transcript : null;
-  const progress = useMemo(() => (ep ? episodeProgress(ep, latest, now) : null), [ep, latest, now]);
+  const progress = useMemo(() => (ep ? episodeProgress(ep, latest) : null), [ep, latest]);
 
   // ── The recording ──────────────────────────────────────────────────────
   const audioRef = useRef(null);
@@ -728,8 +700,7 @@ function EpisodeView({
     if (!ep) return null;
     const p = key ? passages.find((x) => x.key === key) || null : null;
     const answer = p ? latest.get(answerKey(ep.id, p.key)) || null : null;
-    const state = passageState(answer, now);
-    const answered = !!p && (state === "got" || state === "waiting");
+    const answered = !!p && isAnswered(passageState(answer));
     const transcript = (paragraphs || []).join("\n\n");
     // Every question, numbered as on the page, so "question 2" in the chat
     // means the second one whichever passage is on screen (owner,
@@ -737,8 +708,7 @@ function EpisodeView({
     // tutor mustn't give the gist of one that hasn't.
     const questions = passages.map((x, i) => {
       const a = latest.get(answerKey(ep.id, x.key)) || null;
-      const s = passageState(a, now);
-      const done = s === "got" || s === "waiting";
+      const done = isAnswered(passageState(a));
       return { number: i + 1, fr: x.fr, kind: x.kind, answered: done, typed: done ? a.typed || "" : "", verdict: done ? a.verdict : null };
     });
     return {
@@ -750,7 +720,7 @@ function EpisodeView({
       questions,
       transcript: transcript.length > TUTOR_TRANSCRIPT_CHARS ? transcript.slice(0, TUTOR_TRANSCRIPT_CHARS) : transcript,
     };
-  }, [ep, passages, latest, now, paragraphs, date, podcast]);
+  }, [ep, passages, latest, paragraphs, date, podcast]);
   const sentRef = useRef("");
   const tellTutor = useCallback((ctx) => {
     const sig = ctx ? JSON.stringify(ctx) : "";
@@ -825,7 +795,6 @@ function EpisodeView({
         stories={stories}
         progress={progress}
         latest={latest}
-        now={now}
         nowStory={started ? nowStory : -1}
         canPlay={!!ep?.audio_url}
         listenKey={listenKey}
@@ -1002,7 +971,7 @@ const TimeChip = ({ t, onSeek, disabled }) => (
 // each story a card headed by its start time and title. An episode with no
 // stories (a single short topic) is one card with no heading.
 function QuestionsTab({
-  user, ep, passages, stories, progress, latest, now, nowStory, canPlay, listenKey,
+  user, ep, passages, stories, progress, latest, nowStory, canPlay, listenKey,
   onListen, onSeek, onFocus, onAnswer, onAsk, addState, onAdd, onNeedKey, onWords,
 }) {
   const groups = [];
@@ -1012,7 +981,6 @@ function QuestionsTab({
     if (last && last.story === s) last.passages.push(p);
     else groups.push({ story: s, passages: [p] });
   }
-  const back = comeBackLine(progress, studentTimeZone());
   return (
     <>
       <div style={progress.done ? { ...S.count, ...S.countDone } : S.count} data-podcast-count>{countLine(progress)}</div>
@@ -1040,7 +1008,7 @@ function QuestionsTab({
                 episodeId={ep.id}
                 passage={p}
                 answer={latest.get(answerKey(ep.id, p.key)) || null}
-                state={progress.states[p.key] || passageState(null, now)}
+                state={progress.states[p.key] || passageState(null)}
                 canPlay={canPlay}
                 listening={listenKey === p.key}
                 onListen={onListen}
@@ -1059,7 +1027,6 @@ function QuestionsTab({
         <div style={S.result} data-podcast-result>
           <div>
             <div style={S.resultBig}>{`${progress.understood} of ${progress.total} passages understood`}</div>
-            {back && <div style={S.later} data-come-back>{back}</div>}
           </div>
           <button type="button" style={S.resultBtn} onClick={onWords}>Words to learn</button>
         </div>
@@ -1091,7 +1058,7 @@ function PassageBlock({
   const [draft, setDraft] = useState(() => readDraft(userId, episodeId, passage.key));
   const [checking, setChecking] = useState(false);
   const [problem, setProblem] = useState(null);
-  const answered = state === "got" || state === "waiting";
+  const answered = isAnswered(state);
   const kind = passage.kind === "translate" ? "translate" : "gist";
   const phrases = Array.isArray(passage.phrases) ? passage.phrases.filter((ph) => ph && ph.fr) : [];
 
@@ -1127,7 +1094,6 @@ function PassageBlock({
         verdict: a.verdict,
         feedback: a.feedback || {},
         answered_at: a.answered_at || new Date().toISOString(),
-        due_at: a.due_at ?? null,
         _unsaved: data?.saved === false,
       });
       writeDraft(userId, episodeId, passage.key, "");
@@ -1143,7 +1109,6 @@ function PassageBlock({
   const verdict = answered ? answer.verdict : null;
   return (
     <div style={first ? S.qb : { ...S.qb, ...S.qbNext }} data-passage={passage.key} data-passage-state={state} data-passage-kind={kind}>
-      {state === "due" && <div style={S.again} data-passage-again>Back for another try</div>}
       <div style={S.instr}>
         <span style={S.qnum} data-passage-number={number}>{`Question ${number}`}</span>
         <span data-passage-instruction>{INSTRUCTION[kind]}</span>
@@ -1399,7 +1364,6 @@ const PART_BG = "#fbe9d0";
 const TONE = {
   none: {},
   part: { color: T.color.secondary, fontWeight: 600 },
-  due: { color: T.color.secondary, fontWeight: 700 },
   done: { color: OK_INK, fontWeight: 700 },
 };
 
@@ -1438,9 +1402,6 @@ const S = {
   ghostBtn: { padding: "9px 16px", borderWidth: 1, borderStyle: "solid", borderColor: "rgba(3,22,50,0.15)", borderRadius: T.radius.md, background: "transparent", color: T.color.primary, fontFamily: T.font.sans, fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" },
 
   // Episode rows
-  group: { marginBottom: 8 },
-  groupHeading: { margin: "0 0 10px", fontFamily: T.font.sans, fontSize: 13, fontWeight: 700, color: T.color.secondary },
-  groupRest: { marginTop: 22 },
   ep: { display: "flex", gap: 16, width: "100%", padding: "16px 18px", background: T.color.surfaceLowest, borderWidth: 1, borderStyle: "solid", borderColor: LINE, borderRadius: T.radius.xl, marginBottom: 10, cursor: "pointer", textAlign: "left", fontFamily: T.font.sans, boxShadow: "none", transition: "border-color .15s, box-shadow .15s", boxSizing: "border-box" },
   epDate: { width: 76, flexShrink: 0, fontSize: 12, fontWeight: 700, color: T.color.primary, paddingTop: 2, whiteSpace: "nowrap" },
   epMain: { display: "block", flex: 1, minWidth: 0 },
@@ -1490,7 +1451,6 @@ const S = {
 
   qb: { marginTop: 0, paddingTop: 0, borderTopWidth: 0, borderTopStyle: "solid", borderTopColor: LINE },
   qbNext: { marginTop: 18, paddingTop: 16, borderTopWidth: 1 },
-  again: { marginBottom: 8, fontSize: 11.5, fontWeight: 700, letterSpacing: "0.04em", color: T.color.secondary },
   instr: { fontSize: 13.5, fontWeight: 700, color: T.color.onSurface, margin: "0 0 10px" },
   qnum: { color: T.color.secondary, marginRight: 8 },
   passage: { padding: "14px 16px", background: T.color.surfaceLow, borderRadius: T.radius.lg, fontFamily: T.font.serif, fontSize: 16, lineHeight: 1.65, color: T.color.primary },
@@ -1522,7 +1482,6 @@ const S = {
 
   result: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "20px 22px", background: T.color.primaryContainer, borderRadius: T.radius.xl, marginTop: 4 },
   resultBig: { fontFamily: T.font.serif, fontSize: 21, fontWeight: 600, color: T.color.background },
-  later: { marginTop: 6, fontSize: 12.5, color: "rgba(253,248,246,0.78)" },
   resultBtn: { padding: "10px 16px", border: "none", borderRadius: T.radius.md, background: T.color.background, color: T.color.primary, fontFamily: T.font.sans, fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" },
 
   problem: { padding: "18px 20px", background: T.color.surfaceLowest, border: `1px solid ${LINE}`, borderRadius: T.radius.xl },

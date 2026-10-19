@@ -7,17 +7,16 @@
 // for (episode_id, passage_key):
 //
 //   unanswered   no row yet
-//   got          the latest verdict is "got": done, it never comes back
-//   waiting      "partly" or "missed", and its due_at is still ahead
-//   due          "partly" or "missed", and its due_at has come: it shows
-//                again, unanswered, in its episode, with "Back for another
-//                try" above it, and the Episodes page lists the episode under
-//                "To try again"
+//   got          the latest verdict is "got"
+//   partly       the latest verdict is "partly"
+//   missed       the latest verdict is "missed"
 //
-// The owner, 2026-10-09: "Missed or partly-right passages come back after
-// three days." The server sets due_at when it saves the answer (RETRY_DAYS in
-// src/lib/podcastCatalogue.js); this file only reads it, so the client and the
-// server can never disagree about how long three days is.
+// An answered passage is done, whatever its verdict: nothing comes back for
+// another try (owner, 2026-10-19: "none of these passages will come back. i
+// will answer them and then that's it, i'll move on to another podcast.").
+// Every answer is still kept, so the app can learn the student's level from
+// them (owner, same day). Answers saved before then carry a come-back date
+// (due_at, three days on); nothing reads it any more.
 //
 // Keys are content-derived ("s1-3fa2c1d0", from the passage's own French), so
 // an answer only ever counts for the passage it was given to. If an episode's
@@ -71,15 +70,14 @@ export function latestAnswers(rows) {
 }
 
 // One passage's state from its latest answer (see the top of this file).
-// A row that wasn't got and has no due date (which the server never writes)
-// counts as answered and waiting, so it can't nag forever.
-export function passageState(answer, now = Date.now()) {
+// A verdict the server never writes counts as missed, so a passage with an
+// answer always shows as answered.
+export function passageState(answer) {
   if (!answer) return "unanswered";
-  if (answer.verdict === "got") return "got";
-  const due = Date.parse(answer.due_at || "");
-  if (!Number.isFinite(due)) return "waiting";
-  return due <= now ? "due" : "waiting";
+  return answer.verdict === "got" || answer.verdict === "partly" ? answer.verdict : "missed";
 }
+
+export const isAnswered = (state) => !!state && state !== "unanswered";
 
 // The passages of an episode's stored questions, in the episode's order.
 export const passagesOf = (episode) =>
@@ -89,54 +87,35 @@ export const passagesOf = (episode) =>
 
 // Everything the pages count for one episode.
 //   total        passages in the episode
-//   answered     answered and not due again (got + waiting)
+//   answered     passages with an answer, whatever its verdict
 //   understood   got
-//   waiting      not got, coming back later
-//   due          not got, back now: shown unanswered
-//   done         every passage answered and none due again
-//   backAt       the come-back times (ms) of the waiting passages
+//   done         every passage answered
 //   states       { [passage key]: state }
-export function episodeProgress(episode, latest, now = Date.now()) {
+export function episodeProgress(episode, latest) {
   const passages = passagesOf(episode);
   const states = {};
+  let answered = 0;
   let got = 0;
-  let waiting = 0;
-  let due = 0;
-  const backAt = [];
   for (const p of passages) {
-    const answer = latest?.get?.(answerKey(episode.id, p.key)) || null;
-    const state = passageState(answer, now);
+    const state = passageState(latest?.get?.(answerKey(episode.id, p.key)) || null);
     states[p.key] = state;
+    if (isAnswered(state)) answered++;
     if (state === "got") got++;
-    else if (state === "due") due++;
-    else if (state === "waiting") {
-      waiting++;
-      const t = Date.parse(answer.due_at || "");
-      if (Number.isFinite(t)) backAt.push(t);
-    }
   }
   const total = passages.length;
-  const answered = got + waiting;
   return {
     total,
     answered,
     understood: got,
-    waiting,
-    due,
     done: total > 0 && answered === total,
-    backAt: backAt.sort((a, b) => a - b),
     states,
   };
 }
 
-const plural = (n, one, many) => (n === 1 ? one : many);
-
-// The line under an episode's title in the lists. Something due again comes
-// first: it is the one thing on the row the student can act on today.
-//   tone: "none" | "part" | "done" | "due"
+// The line under an episode's title in the lists.
+//   tone: "none" | "part" | "done"
 export function episodeStatus(progress) {
   const p = progress || {};
-  if (p.due > 0) return { text: `${p.due} ${plural(p.due, "passage", "passages")} to try again`, tone: "due" };
   if (!p.total || !p.answered) return { text: "Not started", tone: "none" };
   if (p.answered < p.total) return { text: `${p.answered} of ${p.total} passages answered`, tone: "part" };
   return { text: `${p.understood} of ${p.total} passages understood`, tone: "done" };
@@ -158,8 +137,8 @@ const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Frida
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 // RFI dates its episodes in Paris: the Journal of Tuesday 6 October goes out
-// at 18:00 Paris time, which is already Wednesday in Tokyo. An episode's date
-// is read in Paris; a come-back date is read where the student is.
+// at 18:00 Paris time, which is already Wednesday in Tokyo. So an episode's
+// date is read in Paris.
 export const RFI_TIME_ZONE = "Europe/Paris";
 
 function dayIn(ms, timeZone) {
@@ -204,30 +183,12 @@ export function andList(items) {
   return `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
 }
 
-// The line in the result box once every passage is answered: when the ones
-// not fully got come back. Usually one day, because an episode is answered in
-// one sitting; when the answers were spread over days, each day is named
-// rather than claiming one date for all of them. Null when nothing comes back.
-export function comeBackLine(progress, timeZone) {
-  const p = progress || {};
-  if (!p.waiting) return null;
-  const days = [];
-  for (const t of p.backAt || []) {
-    const label = longDate(t, timeZone);
-    if (label && !days.includes(label)) days.push(label);
-  }
-  if (!days.length) return null;
-  return p.waiting === 1
-    ? `The passage you didn’t fully get comes back on ${andList(days)}.`
-    : `The ${p.waiting} passages you didn’t fully get come back on ${andList(days)}.`;
-}
-
-// An episode is done once every passage is answered and none is due again.
+// An episode is done once every passage is answered.
 // "N of M episodes done" on a podcast's card counts the episodes listed.
-export function podcastDone(episodes, latest, now = Date.now()) {
+export function podcastDone(episodes, latest) {
   const list = episodes || [];
   let done = 0;
-  for (const e of list) if (episodeProgress(e, latest, now).done) done++;
+  for (const e of list) if (episodeProgress(e, latest).done) done++;
   return { done, total: list.length };
 }
 

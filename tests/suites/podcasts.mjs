@@ -9,8 +9,10 @@
 //     progress). The rail round trip that broke on 2026-10-06 (11275a0) is
 //     walked both ways: nothing hides under the minimise button.
 //   • Episodes: the episodes of the podcasts you follow, the podcast's name
-//     above each title, and "To try again" at the top when a passage is due
-//     back.
+//     above each title.
+//   • An answered passage is done, whatever its verdict: nothing comes back
+//     for another try (owner, 2026-10-19), not even an answer saved before
+//     then with a come-back date that has passed.
 //   • An episode: the Journal headed by its long date, the others by their
 //     title; RFI's own recording in a play bar; Questions, Transcript and
 //     Words to learn.
@@ -39,8 +41,8 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { openApp, finish, checker, servedDeck, sessionCounter, cardBox, settled, APP } from "../harness.mjs";
-import { LISTEN_LEAD_S, LISTEN_TAIL_S, listenWindow, passageState, episodeStatus, episodeProgress, latestAnswers, transcriptSections } from "../../src/lib/podcastProgress.js";
-import { PODCASTS, podcastBySlug, RETRY_DAYS } from "../../src/lib/podcastCatalogue.js";
+import { LISTEN_LEAD_S, LISTEN_TAIL_S, listenWindow, passageState, isAnswered, episodeStatus, episodeProgress, latestAnswers, transcriptSections } from "../../src/lib/podcastProgress.js";
+import { PODCASTS, podcastBySlug } from "../../src/lib/podcastCatalogue.js";
 
 const ck = checker();
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -60,14 +62,21 @@ console.log("\n  the rules, without a browser");
   ck("Listen starts LISTEN_LEAD_S before the passage and stops LISTEN_TAIL_S after it", w.from === 40 - LISTEN_LEAD_S && w.to === 52 + LISTEN_TAIL_S, JSON.stringify(w));
   const edge = listenWindow({ start: 1, end: 598 }, 599);
   ck("and never before the start of the recording or past its end", edge.from === 0 && edge.to === 599, JSON.stringify(edge));
-  const now = Date.now();
-  ck("a missed passage is due once its come-back time has passed", passageState({ verdict: "missed", due_at: new Date(now - 1000).toISOString() }, now) === "due");
-  ck("and waits before then", passageState({ verdict: "partly", due_at: new Date(now + DAY).toISOString() }, now) === "waiting");
-  ck("a passage got never comes back", passageState({ verdict: "got", due_at: null }, now + 1000 * DAY) === "got");
-  const one = episodeStatus({ total: 3, answered: 1, understood: 0, due: 1 });
-  const two = episodeStatus({ total: 3, answered: 0, understood: 0, due: 2 });
-  ck("one passage due says “1 passage to try again”", one.text === "1 passage to try again", one.text);
-  ck("two say “2 passages to try again”", two.text === "2 passages to try again", two.text);
+  const past = new Date(Date.now() - DAY).toISOString();
+  ck("a passage with no answer is unanswered", passageState(null) === "unanswered" && !isAnswered(passageState(null)));
+  const states = ["got", "partly", "missed"].map((verdict) => passageState({ verdict, due_at: verdict === "got" ? null : past }));
+  ck("an answered passage stays answered whatever its verdict, even one saved with a come-back date that has passed",
+     states.join(",") === "got,partly,missed" && states.every(isAnswered), states.join(", "));
+  const ep = { id: "x", questions: { passages: [{ key: "a" }, { key: "b" }, { key: "c" }] } };
+  const answers = latestAnswers([
+    { episode_id: "x", passage_key: "a", verdict: "got", answered_at: past },
+    { episode_id: "x", passage_key: "b", verdict: "partly", answered_at: past, due_at: past },
+    { episode_id: "x", passage_key: "c", verdict: "missed", answered_at: past, due_at: past },
+  ]);
+  const prog = episodeProgress(ep, answers);
+  ck("an episode with every passage answered is done, whatever the verdicts", prog.done && prog.answered === 3 && prog.understood === 1, JSON.stringify(prog));
+  const status = episodeStatus(prog).text;
+  ck("and its line says how many were understood", status === "1 of 3 passages understood", status);
 
   // The Transcript tab before the stories' first paragraphs are known: the
   // server saves each story with p: null when it reads RFI's page, and keeps
@@ -189,23 +198,24 @@ const EP2_QUESTIONS = {
   })).slice(0, 3),
 };
 
-// The student's record: one passage of the Journal missed four days ago, so
-// back for another try now (RETRY_DAYS after the answer, as the server sets).
+// The student's record: one passage of the Journal missed four days ago,
+// saved before 2026-10-19 with a come-back date three days on, which has
+// passed. It stays answered: nothing comes back.
 const now = Date.now();
 const ANSWERS = [
   {
     id: "a-old", user_id: UID, episode_id: "e1", passage_key: "s2-cccc3333", kind: "gist",
     fr: EP1.questions.passages[2].fr, typed: "Something about Quebec", verdict: "missed",
     feedback: { caught: [], missed: EP1.questions.passages[2].ideas, note: "" },
-    answered_at: new Date(now - (RETRY_DAYS + 1) * DAY).toISOString(),
+    answered_at: new Date(now - 4 * DAY).toISOString(),
     due_at: new Date(now - DAY).toISOString(),
   },
 ];
 // Months of earlier answers, all got, to an episode no longer listed: more
 // rows than Supabase returns in one request (SUPABASE_MAX_ROWS), all older
 // than the answer above. Read oldest first in one request, they would push
-// that answer, the newest, off the end, and the Journal's passage due back
-// would show as never answered.
+// that answer, the newest, off the end, and the Journal's passage would show
+// as never answered.
 const SUPABASE_MAX_ROWS = 1000;
 const EARLIER = Array.from({ length: SUPABASE_MAX_ROWS + 200 }, (_, i) => ({
   id: `a-earlier-${String(i).padStart(4, "0")}`, user_id: UID, episode_id: "e0", passage_key: `s${i % 8}-${String(i).padStart(8, "0")}`,
@@ -345,7 +355,6 @@ function standIns({ migrated = true } = {}) {
         const answer = {
           id: `a-${log.api.length}`, passage_key: body.key, verdict, feedback,
           answered_at: new Date().toISOString(),
-          due_at: verdict === "got" ? null : new Date(Date.now() + RETRY_DAYS * DAY).toISOString(),
         };
         return json(r, 200, { answer, saved: true });
       }
@@ -502,23 +511,17 @@ await page.waitForSelector("[data-episode='e1']", { timeout: 8000 });
   ck("Episodes is the page marked in the sidebar, and only it", m.length === 1 && m[0] === "episodes", m.join(", "));
   const followed = await page.$$eval("[data-pod-follow]", (els) => els.map((e) => e.dataset.podFollow));
   ck("the podcasts followed are listed under My podcasts", followed.includes(JEFF) && followed.includes(MOTS), followed.join(", "));
-  const due = latestAnswers(ANSWERS);
-  const expect1 = episodeStatus(episodeProgress(EP1, due, Date.now())).text;
-  const group = await page.$$eval("[data-try-again] [data-episode]", (els) => els.map((e) => e.dataset.episode));
-  ck("(the student has more answers than Supabase returns in one request, the one due back the newest)",
+  const expect1 = episodeStatus(episodeProgress(EP1, latestAnswers(ANSWERS))).text;
+  ck("(the student has more answers than Supabase returns in one request, the Journal's the newest)",
      S.state.answers.length > SUPABASE_MAX_ROWS && S.state.answers.every((a) => a.answered_at <= ANSWERS[0].answered_at),
      `${S.state.answers.length} answers, ${SUPABASE_MAX_ROWS} a request`);
-  ck("an episode with a passage due back is listed under “To try again”", group.length === 1 && group[0] === "e1", group.join(", "));
+  ck("no episode is listed under “To try again”, though a passage was missed and its old come-back date has passed", !(await page.$("[data-try-again]")));
   const cols = S.log.listColumns;
   const extra = [...new Set(cols.flat().filter((c) => ["transcript", "questions_error", "questions_lease_until"].includes(c)))];
   ck("the lists never ask for the transcript or the server's notes on writing the questions (why it last failed, its lease)",
      cols.length > 0 && extra.length === 0, extra.join(", ") || `${cols.length} list read(s)`);
-  // textContent: the heading is set in capitals by its style, not its words.
-  const heading = await page.$eval("[data-try-again] h2", (e) => e.textContent.trim());
-  ck("“To try again” heads the group", heading === "To try again", heading);
   const s1 = await text(page, "[data-episode='e1'] [data-episode-status]");
-  const dueCount = ANSWERS.filter((a) => a.episode_id === "e1" && a.verdict !== "got" && Date.parse(a.due_at) <= Date.now()).length;
-  ck("its line says how many passages are back to try again", s1 === `${dueCount} ${dueCount === 1 ? "passage" : "passages"} to try again` && s1 === expect1, s1);
+  ck("the Journal's line counts the missed passage as answered", s1 === `1 of ${EP1.questions.passages.length} passages answered` && s1 === expect1, s1);
   const s2 = await text(page, "[data-episode='e2'] [data-episode-status]");
   ck("an episode never opened says “Not started”", s2 === "Not started", s2);
   const pods = await page.$$eval("[data-episode] [data-episode-podcast]", (els) => els.map((e) => e.textContent.trim()));
@@ -539,11 +542,14 @@ await page.waitForSelector("[data-episode-page='e1'] [data-passage]", { timeout:
   const tabs = await page.$$eval("[data-podcast-tab]", (els) => els.map((e) => e.textContent.trim()));
   ck("the tabs are Questions, Transcript and Words to learn", tabs.join("|") === "Questions|Transcript|Words to learn", tabs.join(", "));
   const total = EP1.questions.passages.length;
-  const answered = EP1.questions.passages.filter((p) => ["got", "waiting"].includes(passageState(latestAnswers(ANSWERS).get(`e1:${p.key}`), Date.now()))).length;
+  const answered = EP1.questions.passages.filter((p) => isAnswered(passageState(latestAnswers(ANSWERS).get(`e1:${p.key}`)))).length;
   ck("the count says how many passages are answered", (await text(page, "[data-podcast-count]")) === `${answered} of ${total} passages answered`, await text(page, "[data-podcast-count]"));
-  const again = await page.$$eval("[data-passage-again]", (els) => els.map((e) => e.closest("[data-passage]").dataset.passage));
-  ck("the passage due back shows again, with “Back for another try”", again.length === 1 && again[0] === "s2-cccc3333", again.join(", "));
-  ck("and with an empty answer box", !!(await page.$("[data-passage='s2-cccc3333'] [data-passage-answer]")));
+  const old = EP1.questions.passages[2];
+  const oldState = await page.$eval(`[data-passage='${old.key}']`, (e) => e.dataset.passageState);
+  ck("the passage missed four days ago stays answered, its come-back date ignored", oldState === "missed", oldState);
+  ck("with no answer box", !(await page.$(`[data-passage='${old.key}'] [data-passage-answer]`)));
+  const oldFb = await text(page, `[data-passage='${old.key}'] [data-passage-feedback]`);
+  ck("and its marking still shown: a gist missed says what the passage says", oldFb.startsWith("Missed") && oldFb.includes(`The passage says ${old.ideas.join(" and ")}.`), oldFb);
   const instr = await page.$$eval("[data-passage] [data-passage-instruction]", (els) => els.map((e) => e.innerText.trim()));
   ck("each passage says what to do", instr.every((t) => /^(What’s being said here\? Give the idea in English\.|Translate into English\.)$/.test(t)), instr.join(" / "));
   const nums = await page.$$eval("[data-passage] [data-passage-number]", (els) => els.map((e) => e.innerText.trim()));
@@ -573,7 +579,7 @@ console.log("\n  Listen");
 console.log("\n  over to Flashcards and back, mid-episode");
 {
   const DRAFT = "Nobody saw it coming";
-  await page.fill("[data-passage='s2-cccc3333'] [data-passage-answer]", DRAFT);
+  await page.fill("[data-passage='s1-bbbb2222'] [data-passage-answer]", DRAFT);
   await page.click("[data-audio-play]");
   const pausesBefore = (await page.evaluate(() => window.__pauses)).length;
   await toFlashcards(page);
@@ -586,7 +592,7 @@ console.log("\n  over to Flashcards and back, mid-episode");
   await toPodcasts(page);
   await page.waitForSelector("[data-episode-page='e1'] [data-passage]", { timeout: 8000 });
   ck("Podcasts opens on the episode left", true);
-  const kept = await page.$eval("[data-passage='s2-cccc3333'] [data-passage-answer]", (t) => t.value);
+  const kept = await page.$eval("[data-passage='s1-bbbb2222'] [data-passage-answer]", (t) => t.value);
   ck("an answer typed and not sent is still in its box", kept === DRAFT, JSON.stringify(kept));
 }
 
@@ -615,7 +621,8 @@ console.log("\n  answering");
   const kps = await page.$$eval(`[data-passage='${p.key}'] [data-key-phrase]`, (els) => els.map((e) => e.dataset.keyPhrase));
   ck("each phrase is listed with its own button", kps.length === p.phrases.length, kps.join(", "));
   const count = await text(page, "[data-podcast-count]");
-  ck("the count moves on by one", count === `1 of ${EP1.questions.passages.length} passages answered`, count);
+  const before = EP1.questions.passages.filter((x) => isAnswered(passageState(latestAnswers(ANSWERS).get(`e1:${x.key}`)))).length;
+  ck("the count moves on by one", count === `${before + 1} of ${EP1.questions.passages.length} passages answered`, count);
 }
 
 // ── Add to my cards ────────────────────────────────────────────────────────
@@ -639,11 +646,18 @@ console.log("\n  Add to my cards");
   ck("the button says “Added ✓”", (await text(page, `[data-passage='${p1.key}'] [data-key-phrase='${ph.fr}'] [data-add-to-cards]`)) === "Added ✓");
 }
 
-// The second passage: by Ctrl+Enter, and its phrases include one already in
-// the deck and one the student removed.
+// The second passage: a failed marking keeps what was typed; then Ctrl+Enter
+// marks it, and its phrases include one already in the deck and one the
+// student removed.
 {
   const p = EP1.questions.passages[1];
   await page.fill(`[data-passage='${p.key}'] [data-passage-answer]`, "In the beginning the march went through town calmly, but the strike goes on");
+  const typed = await page.$eval(`[data-passage='${p.key}'] [data-passage-answer]`, (t) => t.value);
+  S.state.failNextMark = true;
+  await page.click(`[data-passage='${p.key}'] [data-passage-check]`);
+  await page.waitForSelector(`[data-passage='${p.key}'] [data-passage-error]`, { timeout: 8000 });
+  ck("a failed marking says why, in the server's words", (await text(page, `[data-passage='${p.key}'] [data-passage-error]`)) === "Claude is busy. Try again in a minute.");
+  ck("and the answer stays in its box", (await page.$eval(`[data-passage='${p.key}'] [data-passage-answer]`, (t) => t.value)) === typed);
   const marks = S.log.api.filter((b) => b.action === "mark").length;
   await page.focus(`[data-passage='${p.key}'] [data-passage-answer]`);
   await page.keyboard.press("Control+Enter");
@@ -659,31 +673,18 @@ console.log("\n  Add to my cards");
   ck("neither can be pressed", disabled);
 }
 
-// The third: a failed marking keeps what was typed; then it goes through and
-// the episode is finished.
+// With the second passage marked, every passage is answered (the third four
+// days ago), and the episode is finished.
 {
-  const p = EP1.questions.passages[2];
-  const typed = await page.$eval(`[data-passage='${p.key}'] [data-passage-answer]`, (t) => t.value);
-  S.state.failNextMark = true;
-  await page.click(`[data-passage='${p.key}'] [data-passage-check]`);
-  await page.waitForSelector(`[data-passage='${p.key}'] [data-passage-error]`, { timeout: 8000 });
-  ck("a failed marking says why, in the server's words", (await text(page, `[data-passage='${p.key}'] [data-passage-error]`)) === "Claude is busy. Try again in a minute.");
-  ck("and the answer stays in its box", (await page.$eval(`[data-passage='${p.key}'] [data-passage-answer]`, (t) => t.value)) === typed);
-  await page.click(`[data-passage='${p.key}'] [data-passage-check]`);
-  await page.waitForSelector(`[data-passage='${p.key}'] [data-passage-verdict]`, { timeout: 8000 });
-  const fb = await text(page, `[data-passage='${p.key}'] [data-passage-feedback]`);
-  ck("a gist missed says what the passage says", fb.startsWith("Missed") && fb.includes(`The passage says ${p.ideas.join(" and ")}.`), fb);
-
   await page.waitForSelector("[data-podcast-result]", { timeout: 8000 });
   const verdicts = EP1.questions.passages.map((x) => VERDICTS[x.key]);
   const got = verdicts.filter((x) => x === "got").length;
-  const back = verdicts.length - got;
   const result = await text(page, "[data-podcast-result]");
   ck("once every passage is answered, the result says how many were understood", result.startsWith(`${got} of ${verdicts.length} passages understood`), result);
-  const day = new Date(Date.now() + RETRY_DAYS * DAY).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
-  const line = await text(page, "[data-come-back]");
-  ck(`and when the ones not fully got come back (${RETRY_DAYS} days on)`, line === `The ${back} passages you didn’t fully get come back on ${day}.`, line);
+  ck("and nothing about passages coming back", !/come(s)? back/i.test(result), result);
   ck("the count above says the same", (await text(page, "[data-podcast-count]")) === `${got} of ${verdicts.length} passages understood`);
+  const boxes = await page.$$eval("[data-passage-answer]", (els) => els.length);
+  ck("no passage is left with an answer box", boxes === 0, `${boxes} box(es)`);
 }
 
 // ── The other tabs ─────────────────────────────────────────────────────────
@@ -743,7 +744,6 @@ console.log("\n  back to Episodes");
   const got = EP1.questions.passages.filter((x) => VERDICTS[x.key] === "got").length;
   const s1 = await text(page, "[data-episode='e1'] [data-episode-status]");
   ck("the Journal's row now says how many passages were understood", s1 === `${got} of ${EP1.questions.passages.length} passages understood`, s1);
-  ck("and “To try again” has gone, nothing being due", !(await page.$("[data-try-again]")));
 }
 
 // ── An episode whose questions are still being written ─────────────────────
