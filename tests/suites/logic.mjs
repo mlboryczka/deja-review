@@ -852,6 +852,47 @@ console.log("\n  the tutor on Podcasts — the episode and the passage, instead 
      epText.slice(0, 200));
 }
 
+// A picture pasted into the tutor (owner, 2026-10-18). It goes to the tutor
+// as a picture before the words typed with it; the newest three go with the
+// history and an older one as a note that it was there.
+console.log("\n  the tutor — a pasted picture");
+{
+  const pic = (n) => ({ media_type: "image/jpeg", data: `/9j/${"A".repeat(40 + n)}` });
+  const out = buildRequestMessages({
+    messages: [{ role: "user", content: "what does this mean?", image: pic(0) }],
+    context: { currentCard: { prompt: "la colline", answer: "the hill", answered: true } },
+  });
+  const blocks = out[0].content;
+  ck("the picture goes first, then the words", Array.isArray(blocks) && blocks[0].type === "image" && blocks[0].source.media_type === "image/jpeg" && blocks[1].type === "text",
+     JSON.stringify(blocks).slice(0, 200));
+  ck("the [Context] block still rides with the latest question", /\[Context\]/.test(blocks[1].text) && /what does this mean\?$/.test(blocks[1].text), blocks[1].text.slice(0, 200));
+
+  const only = buildRequestMessages({ messages: [{ role: "user", content: "", image: pic(0) }] });
+  ck("a picture with nothing typed is still a question", only.length === 1 && only[0].content[0].type === "image" && only[0].content[1].text.length > 0,
+     JSON.stringify(only).slice(0, 200));
+
+  const bad = buildRequestMessages({ messages: [{ role: "user", content: "this?", image: { media_type: "text/html", data: "PGI+" } }] });
+  ck("something that isn't a picture is not passed on", typeof bad[0].content === "string" && !/PGI/.test(bad[0].content), JSON.stringify(bad));
+  const huge = buildRequestMessages({ messages: [{ role: "user", content: "this?", image: { media_type: "image/png", data: "A".repeat(1_300_000) } }] });
+  ck("nor a picture past the size limit", typeof huge[0].content === "string", typeof huge[0].content);
+
+  const turns = [];
+  for (let i = 0; i < 5; i++) {
+    turns.push({ role: "user", content: `picture ${i}`, image: pic(i) });
+    turns.push({ role: "assistant", content: `answer ${i}` });
+  }
+  turns.push({ role: "user", content: "and now?" });
+  const thread = buildRequestMessages({ messages: turns });
+  const pictured = thread.filter((m) => Array.isArray(m.content) && m.content.some((b) => b.type === "image"));
+  ck("only the latest three pictures go", pictured.length === 3, String(pictured.length));
+  const flat = (m) => (typeof m.content === "string" ? m.content : m.content.filter((b) => b.type === "text").map((b) => b.text).join(""));
+  ck("an older one goes as a note that it was there", /no longer attached/.test(flat(thread[0])) && /picture 0/.test(flat(thread[0])), flat(thread[0]));
+  const cached = thread.at(-2).content;
+  ck("the history before the latest question is still marked for caching", Array.isArray(cached) && !!cached.at(-1).cache_control, JSON.stringify(cached).slice(0, 200));
+  const picTurn = buildRequestMessages({ messages: [{ role: "user", content: "this?", image: pic(1) }, { role: "assistant", content: "yes" }, { role: "user", content: "why?", image: pic(2) }] });
+  ck("a picture turn marked for caching keeps its picture", picTurn.at(-2).content.at(-1).cache_control && picTurn[0].content[0].type === "image", JSON.stringify(picTurn[0].content).slice(0, 120));
+}
+
 const n = ck.fails();
 console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
 process.exit(n ? 1 : 0);

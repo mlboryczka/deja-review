@@ -8,6 +8,7 @@ import { keyHeaders, BYOK_REQUIRED, BAD_KEY } from "./lib/anthropicKey";
 import { cleanFrenchPrompt } from "./lib/cardText";
 import { buildTutorContext, cardPrompt, cardAnswer, podcastAbout, podcastLabel, questionNumber } from "./lib/deckContext";
 import { readThread, writeThread } from "./lib/tutorThreads";
+import { imageFromPaste, pasteHasText, shrinkImage } from "./lib/pastedImage";
 import { logCorrection, CORRECTION_CATEGORIES, CORRECTION_ACTIONS } from "./lib/parseCorrections";
 
 // "Ask the tutor" slide-over. Look a word or phrase up, get an explanation,
@@ -65,6 +66,9 @@ const CATEGORY_LABEL = {
 
 // How far the composer may grow before it scrolls instead.
 const COMPOSER_MAX_HEIGHT = 132;
+// Pasted pictures sent with the history, newest first; the server keeps the
+// same number (api/chat.js MAX_IMAGES).
+const MAX_SENT_IMAGES = 3;
 
 // Smoothing the stream out.
 //
@@ -342,6 +346,9 @@ export default function ChatPanel({
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
   const [input, setInput] = useState("");
+  // A picture pasted into the box, waiting to go with the next question
+  // ({ media_type, data, url }, see lib/pastedImage.js), or null.
+  const [image, setImage] = useState(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   // "byok_required" when the server refused for want of a key, "bad_key" when
@@ -633,11 +640,13 @@ export default function ChatPanel({
   const send = useCallback(
     async (text) => {
       const trimmed = (text ?? input).trim();
-      if (!trimmed || sending) return;
+      if ((!trimmed && !image) || sending) return;
+      const pasted = image;
 
       setError("");
       setErrorCode("");
       setInput("");
+      setImage(null);
       setAnnouncement("");
       // Sent with the button, focus went to it — and the button disables
       // while the answer streams, which drops focus to the page. The next
@@ -657,8 +666,14 @@ export default function ChatPanel({
           // fresh thread rather than turn nine of this one.
           about: currentCard?.f ? cardPrompt(currentCard) : podcast ? podcastAbout(podcast) : "",
           rowId: currentCard?.row_id ?? podcast?.key ?? null,
+          ...(pasted ? { image: pasted } : null),
         },
       ];
+      // Only the latest few pictures go back with the history; an older one
+      // goes as a note that there was one, so a long thread of screenshots
+      // stays under the 4.5 MB a request to Vercel may carry.
+      const withImage = nextMessages.filter((m) => m.image);
+      const keepImages = new Set(withImage.slice(-MAX_SENT_IMAGES));
       // The empty assistant bubble is what fills in as tokens arrive, so it
       // goes in before the request rather than after it.
       setMessages([
@@ -699,6 +714,11 @@ export default function ChatPanel({
               role: m.role,
               content: m.content,
               ...(m.about ? { about: m.about } : null),
+              ...(m.image
+                ? keepImages.has(m)
+                  ? { image: { media_type: m.image.media_type, data: m.image.data } }
+                  : { imageDropped: true }
+                : null),
               ...(m.cards?.length
                 ? { cards: m.cards.map((c) => ({ front: c.front, back: c.back })) }
                 : null),
@@ -823,6 +843,7 @@ export default function ChatPanel({
           // Nothing arrived: drop the empty bubble and put the question back
           // in the box so it isn't lost to a network blip.
           setInput(trimmed);
+          if (pasted) setImage(pasted);
           setMessages(messages);
         }
       } finally {
@@ -830,8 +851,23 @@ export default function ChatPanel({
         abortRef.current = null;
       }
     },
-    [input, sending, messages, cards, currentCard, podcast, user, updateLast, drain, drained, stopDrain, applyEdit]
+    [input, image, sending, messages, cards, currentCard, podcast, user, updateLast, drain, drained, stopDrain, applyEdit]
   );
+
+  // A pasted picture is shrunk and held above the box until the question
+  // goes. Text pasted with it still lands in the box.
+  const onPaste = async (e) => {
+    const file = imageFromPaste(e);
+    if (!file) return;
+    if (!pasteHasText(e)) e.preventDefault();
+    setError("");
+    setErrorCode("");
+    try {
+      setImage(await shrinkImage(file));
+    } catch (err) {
+      setError(err?.message || "That picture couldn't be read.");
+    }
+  };
 
   const addCard = useCallback(
     async (card) => {
@@ -1028,6 +1064,9 @@ export default function ChatPanel({
                   </span>
                 ) : (
                   <>
+                    {m.image?.url && (
+                      <img src={m.image.url} alt="Your picture" style={S.bubbleImage} data-tutor-image />
+                    )}
                     {m.role === "user" ? m.content : renderInline(m.content)}
                     {/* A caret while text is still arriving, so an answer
                         mid-generation doesn't read as one that has finished. */}
@@ -1073,20 +1112,30 @@ export default function ChatPanel({
           </div>
         )}
 
-        <div style={S.composer}>
+        {image && (
+          <div style={S.pasted} data-tutor-pasted>
+            <img src={image.url} alt="The picture you pasted" style={S.pastedImage} />
+            <span style={S.pastedNote}>This picture goes with your question.</span>
+            <button style={S.pastedRemove} onClick={() => setImage(null)} data-tutor-pasted-remove>
+              Remove
+            </button>
+          </div>
+        )}
+        <div style={image ? { ...S.composer, borderTop: "none", paddingTop: 10 } : S.composer}>
           <textarea
             ref={inputRef}
             style={S.input}
             value={input}
             onChange={(e) => { setInput(e.target.value); grow(e.target); }}
             onKeyDown={onKeyDown}
-            placeholder="Ask about a word or phrase…"
+            onPaste={onPaste}
+            placeholder="Ask about a word or phrase, or paste a screenshot…"
             rows={1}
           />
           <button
-            style={sending || !input.trim() ? S.sendDisabled : S.send}
+            style={sending || (!input.trim() && !image) ? S.sendDisabled : S.send}
             onClick={() => send()}
-            disabled={sending || !input.trim()}
+            disabled={sending || (!input.trim() && !image)}
           >
             Send
           </button>
@@ -1359,6 +1408,41 @@ const S = {
     color: T.color.onErrorContainer,
     borderRadius: T.radius.md,
     fontSize: 12,
+  },
+  // The pasted picture, waiting above the box.
+  pasted: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "10px 20px 0",
+    borderTop: "1px solid rgba(3,22,50,0.06)",
+  },
+  pastedImage: {
+    width: 56,
+    height: 56,
+    objectFit: "cover",
+    borderRadius: T.radius.sm,
+    border: "1px solid rgba(3,22,50,0.1)",
+    flexShrink: 0,
+  },
+  pastedNote: { flex: 1, fontSize: 12.5, color: T.color.onSurfaceVariant, fontFamily: T.font.sans },
+  pastedRemove: {
+    background: "none",
+    border: "none",
+    padding: 0,
+    fontSize: 12.5,
+    fontFamily: T.font.sans,
+    color: T.color.onSurfaceVariant,
+    textDecoration: "underline",
+    cursor: "pointer",
+  },
+  // A picture in your own message, above what you typed with it.
+  bubbleImage: {
+    display: "block",
+    maxWidth: "100%",
+    maxHeight: 220,
+    borderRadius: T.radius.sm,
+    marginBottom: 6,
   },
   composer: {
     display: "flex",
