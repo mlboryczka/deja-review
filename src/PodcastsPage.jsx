@@ -3,6 +3,7 @@ import { supabase } from "./supabase";
 import { T } from "./theme";
 import { podcastBySlug } from "./lib/podcastCatalogue";
 import { podcastCall, PodcastError } from "./lib/podcastApi";
+import { checkTiming, sentencesOf, sentenceAt, passageTimes } from "./lib/podcastSync";
 import { BYOK_REQUIRED, BAD_KEY } from "./lib/anthropicKey";
 import { cardIndex } from "./lib/sameCard";
 import { isArchived } from "./lib/archive";
@@ -43,6 +44,21 @@ export { clearPodcastDrafts } from "./usePodcasts";
 //     card they removed stays removed.
 //   • Owner only until the owner has tried it. Every server action refuses
 //     anyone else; the switch to reach this page is the owner's alone.
+//
+// Added 2026-10-21 (owner: "answer the questions as he goes through the
+// podcast", and sync the transcript "only if you can accurately sync"):
+//   • Stop at questions, on the play bar, on unless switched off: playing the
+//     episode pauses just after each passage with a question not yet
+//     answered, opens Questions at it with the answer box ready, and
+//     "Continue listening" plays on from where it paused. Each question stops
+//     it once while the page is open.
+//   • RFI's own word times (src/lib/podcastSync.js, checked against the
+//     recording before this was built) light the sentence being said in the
+//     Transcript, keep it in view, and let a click on a sentence play from it.
+//     They also time Listen and the stops exactly. A paragraph whose words
+//     don't match the transcript letter for letter has no times; with none
+//     matching there is no sync and everything works as before, on the
+//     estimates.
 //
 // Things that look odd and aren't:
 //   • The page scrolls itself (S.scroll) rather than the window: the app shell
@@ -90,6 +106,34 @@ const VERDICT_LABEL = { got: "Got it", partly: "Partly", missed: "Missed" };
 // Episodes already opened, with their transcripts: shared data (every student
 // reads the same episode), kept so going back to one is instant.
 const episodeDetails = new Map();
+// When each word of an opened episode is said (src/lib/podcastSync.js), or
+// null when RFI's times don't match its transcript: asked for once per
+// episode while the app is open.
+const episodeTimings = new Map();
+
+// Stop at questions: while the episode plays, it pauses after each passage
+// that has a question you haven't answered, and puts that question in front
+// of you (owner, 2026-10-21: "answer the questions as he goes through the
+// podcast"). On unless switched off; the choice is kept in this browser.
+const STOP_PREF = "podcasts:stopAtQuestions";
+const readStopPref = () => {
+  try {
+    return window.localStorage.getItem(STOP_PREF) !== "off";
+  } catch {
+    return true;
+  }
+};
+const writeStopPref = (on) => {
+  try {
+    window.localStorage.setItem(STOP_PREF, on ? "on" : "off");
+  } catch { /* private window: the choice lasts this visit */ }
+};
+// With exact times it stops this long after the passage's last word, so the
+// word isn't clipped.
+const STOP_AFTER_S = 0.3;
+// Clicking a sentence of the transcript plays it from a fraction early, so its
+// first sound isn't clipped.
+const SENTENCE_LEAD_S = 0.2;
 
 const studentTimeZone = () => {
   try {
@@ -555,6 +599,69 @@ function EpisodeView({
     : Array.isArray(early?.transcript) ? early.transcript : null;
   const progress = useMemo(() => (ep ? episodeProgress(ep, latest) : null), [ep, latest]);
 
+  // ── When each word is said ─────────────────────────────────────────────
+  // Asked for once the transcript is here. No answer, or one that doesn't
+  // fit the transcript, means no sync: the page works as it did without.
+  const [timing, setTiming] = useState(() => episodeTimings.get(episodeId) ?? null);
+  const paragraphsRef = useRef(paragraphs);
+  paragraphsRef.current = paragraphs;
+  const haveText = !!paragraphs;
+  useEffect(() => {
+    if (!haveText || episodeTimings.has(episodeId)) return undefined;
+    let cancelled = false;
+    podcastCall({ action: "timing", episodeId }, { supabase, user: userRef.current })
+      .then(({ data }) => {
+        if (cancelled) return;
+        const t = checkTiming(data?.timing, paragraphsRef.current);
+        // RFI out of reach: asked again next time the episode opens.
+        if (t || data?.code !== "rfi_unreachable") episodeTimings.set(episodeId, t);
+        setTiming(t);
+      })
+      .catch(() => { /* no sync this time */ });
+    return () => { cancelled = true; };
+  }, [episodeId, haveText]);
+  const sync = useMemo(() => {
+    const t = paragraphs ? checkTiming(timing, paragraphs) : null;
+    if (!t) return null;
+    const sentences = sentencesOf(paragraphs, t);
+    if (!sentences.length) return null;
+    const byParagraph = paragraphs.map(() => []);
+    for (const x of sentences) byParagraph[x.paragraph].push(x);
+    return { timing: t, sentences, byParagraph };
+  }, [timing, paragraphs]);
+  // Each question's passage, timed from its words: exact where the sync is.
+  const exact = useMemo(() => {
+    const m = new Map();
+    if (!sync) return m;
+    const starts = Array.isArray(ep?.questions?.storyStarts) ? ep.questions.storyStarts : [];
+    for (const p of passages) {
+      const from = Number.isInteger(p.story) ? starts[p.story] : null;
+      const to = Number.isInteger(p.story) ? starts[p.story + 1] : null;
+      const prefer = Number.isInteger(from) ? [from, Number.isInteger(to) ? to : paragraphs.length] : null;
+      const t = passageTimes(paragraphs, sync.timing, p, prefer);
+      if (t) m.set(p.key, t);
+    }
+    return m;
+  }, [sync, passages, paragraphs, ep?.questions?.storyStarts]);
+  // Where Stop at questions pauses: just after each unanswered passage when
+  // its words are timed; otherwise as its story ends (RFI's story times are
+  // right to a second or so), or at the end of the episode.
+  const stops = useMemo(() => {
+    if (!ep) return [];
+    const out = [];
+    passages.forEach((p, order) => {
+      if (isAnswered(passageState(latest.get(answerKey(ep.id, p.key)) || null))) return;
+      const x = exact.get(p.key);
+      let t = x ? x.end + STOP_AFTER_S : Infinity;
+      if (!x && Number.isInteger(p.story)) {
+        const next = stories.slice(p.story + 1).find((s) => Number.isFinite(Number(s?.t)));
+        if (next) t = Number(next.t);
+      }
+      out.push({ key: p.key, t, order });
+    });
+    return out.sort((a, b) => a.t - b.t || a.order - b.order);
+  }, [ep, passages, latest, exact, stories]);
+
   // ── The recording ──────────────────────────────────────────────────────
   const audioRef = useRef(null);
   const stopAt = useRef(null);
@@ -569,6 +676,22 @@ function EpisodeView({
   const duration = Number(ep?.duration_seconds) > 0 ? Number(ep.duration_seconds) : mediaDuration;
   const storiesRef = useRef(stories);
   storiesRef.current = stories;
+  const [nowSentence, setNowSentence] = useState(-1);
+  const syncRef = useRef(sync);
+  syncRef.current = sync;
+  const [stopOn, setStopOn] = useState(readStopPref);
+  const stopOnRef = useRef(stopOn);
+  stopOnRef.current = stopOn;
+  const stopsRef = useRef(stops);
+  stopsRef.current = stops;
+  // The question the episode is paused at, and where it was when it paused,
+  // so Continue listening picks up from there. Each question stops it once
+  // while the page is open.
+  const [waitKey, setWaitKey] = useState(null);
+  const waitAt = useRef(null);
+  const stoppedOnce = useRef(new Set());
+  const lastTime = useRef(null);
+  const stopHereRef = useRef(null);
 
   useEffect(() => {
     const a = audioRef.current;
@@ -578,15 +701,54 @@ function EpisodeView({
       setPlaying(false);
       setListenKey(null);
     };
-    const onTime = () => {
-      if (stopAt.current != null && a.currentTime >= stopAt.current) {
-        a.pause();
-        quiet();
-      }
+    const where = () => {
       const k = storyAt(storiesRef.current, a.currentTime);
       setNowStory((prev) => (prev === k ? prev : k));
+      const n = syncRef.current ? sentenceAt(syncRef.current.sentences, a.currentTime) : -1;
+      setNowSentence((prev) => (prev === n ? prev : n));
     };
-    const onPlay = () => { setPlaying(true); setStarted(true); setAudioError(""); };
+    // A question is due when the recording plays past its stop: a jump (the
+    // bar, a time chip, Listen) passes nothing.
+    const due = (from, to) => stopsRef.current.find((s) => s.t > from && s.t <= to && !stoppedOnce.current.has(s.key));
+    const onTime = () => {
+      const t = a.currentTime;
+      const prev = lastTime.current;
+      lastTime.current = t;
+      if (stopAt.current != null && t >= stopAt.current) {
+        a.pause();
+        quiet();
+      } else if (stopAt.current == null && stopOnRef.current && !a.paused && prev != null && t > prev && t - prev < 2) {
+        const hit = due(prev, t);
+        if (hit) {
+          a.pause();
+          quiet();
+          stopHereRef.current?.(hit.key, t);
+        }
+      }
+      where();
+    };
+    const onSeeked = () => {
+      lastTime.current = a.currentTime;
+      where();
+    };
+    const onEnded = () => {
+      quiet();
+      // Questions whose passages have no time: their turn is the end.
+      if (!stopOnRef.current) return;
+      const hit = due(-Infinity, Infinity);
+      if (hit && !Number.isFinite(hit.t)) stopHereRef.current?.(hit.key, a.currentTime);
+    };
+    const onPlay = () => {
+      setPlaying(true);
+      setStarted(true);
+      setAudioError("");
+      // Hearing the passage again with Listen keeps the question waiting;
+      // playing on is what ends the wait.
+      if (stopAt.current == null) {
+        setWaitKey(null);
+        waitAt.current = null;
+      }
+    };
     const onDuration = () => { if (Number.isFinite(a.duration) && a.duration > 0) setMediaDuration(a.duration); };
     const onError = () => {
       if (!a.getAttribute("src")) return;
@@ -594,18 +756,18 @@ function EpisodeView({
       setAudioError("Couldn’t load RFI’s recording.");
     };
     a.addEventListener("timeupdate", onTime);
-    a.addEventListener("seeked", onTime);
+    a.addEventListener("seeked", onSeeked);
     a.addEventListener("play", onPlay);
     a.addEventListener("pause", quiet);
-    a.addEventListener("ended", quiet);
+    a.addEventListener("ended", onEnded);
     a.addEventListener("durationchange", onDuration);
     a.addEventListener("error", onError);
     return () => {
       a.removeEventListener("timeupdate", onTime);
-      a.removeEventListener("seeked", onTime);
+      a.removeEventListener("seeked", onSeeked);
       a.removeEventListener("play", onPlay);
       a.removeEventListener("pause", quiet);
-      a.removeEventListener("ended", quiet);
+      a.removeEventListener("ended", onEnded);
       a.removeEventListener("durationchange", onDuration);
       a.removeEventListener("error", onError);
       // Leaving the episode (another page, or the switch to Flashcards)
@@ -640,10 +802,12 @@ function EpisodeView({
   const seekTo = (t, { play = true } = {}) => {
     const a = audioRef.current;
     if (!a || !ep?.audio_url) return;
+    lastTime.current = Math.max(0, t);
     try { a.currentTime = Math.max(0, t); } catch { /* not seekable yet: it starts there once loaded */ }
     stopAt.current = null;
     setListenKey(null);
     setNowStory(storyAt(stories, t));
+    setNowSentence(sync ? sentenceAt(sync.sentences, t) : -1);
     setSeekSeq((n) => n + 1);
     if (play) start(a);
   };
@@ -684,14 +848,66 @@ function EpisodeView({
       a.pause();
       return;
     }
-    const w = listenWindow(passage, duration);
+    const w = listenWindow(exact.get(passage.key) || passage, duration);
     if (!w) return;
+    lastTime.current = w.from;
     try { a.currentTime = w.from; } catch { /* starts there once loaded */ }
     stopAt.current = w.to;
     setListenKey(passage.key);
     setNowStory(storyAt(stories, w.from));
+    setNowSentence(sync ? sentenceAt(sync.sentences, w.from) : -1);
     setSeekSeq((n) => n + 1);
     start(a);
+  };
+
+  // Stop at questions: paused after a passage, the page shows its question,
+  // in the middle of the screen, ready to type in.
+  const tabRef = useRef(tab);
+  tabRef.current = tab;
+  const goRef = useRef(go);
+  goRef.current = go;
+  const scrollPending = useRef(null);
+  const [scrollSeq, setScrollSeq] = useState(0);
+  stopHereRef.current = (key, at) => {
+    stoppedOnce.current.add(key);
+    waitAt.current = at;
+    setWaitKey(key);
+    setFocusKey(key);
+    scrollPending.current = key;
+    setScrollSeq((n) => n + 1);
+    if (tabRef.current !== "questions") goRef.current({ tab: "questions" });
+  };
+  useEffect(() => {
+    const key = scrollPending.current;
+    if (!key || tab !== "questions") return undefined;
+    // After the page's own move to the top of a tab just opened.
+    const id = setTimeout(() => {
+      scrollPending.current = null;
+      const el = document.querySelector(`[data-passage="${CSS.escape(key)}"]`);
+      if (!el) return;
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+      el.querySelector("textarea")?.focus({ preventScroll: true });
+    }, 60);
+    return () => clearTimeout(id);
+  }, [scrollSeq, tab]);
+  const continueListening = () => {
+    const a = audioRef.current;
+    if (!a || !ep?.audio_url) return;
+    const at = waitAt.current;
+    if (at != null && Math.abs(a.currentTime - at) > 0.5) {
+      lastTime.current = at;
+      try { a.currentTime = at; } catch { /* plays from where it is */ }
+      setSeekSeq((n) => n + 1);
+    }
+    stopAt.current = null;
+    setListenKey(null);
+    start(a);
+  };
+  const toggleStops = () => {
+    setStopOn((on) => {
+      writeStopPref(!on);
+      return !on;
+    });
   };
 
   // ── What the tutor is told ─────────────────────────────────────────────
@@ -776,6 +992,9 @@ function EpisodeView({
         nowStory={started ? nowStory : -1}
         canPlay={!!ep?.audio_url}
         onSeek={(t) => seekTo(t)}
+        sync={sync}
+        nowSentence={started ? nowSentence : -1}
+        playing={playing}
       />
     ) : detail.status === "error" ? (
       <Problem text={detail.error} code={detail.code} onRetry={() => setTries((n) => n + 1)} onNeedKey={onNeedKey} />
@@ -799,6 +1018,8 @@ function EpisodeView({
         canPlay={!!ep?.audio_url}
         listenKey={listenKey}
         onListen={listen}
+        waitKey={waitKey}
+        onContinue={continueListening}
         onSeek={(t) => seekTo(t)}
         onFocus={setFocusKey}
         onAnswer={onAnswer}
@@ -845,6 +1066,8 @@ function EpisodeView({
           onToggle={togglePlay}
           onSeek={(t) => seekTo(t, { play: false })}
           onRate={cycleRate}
+          stopOn={passages.length > 0 ? stopOn : null}
+          onStops={toggleStops}
         />
       )}
 
@@ -895,7 +1118,7 @@ function Problem({ text, code, onRetry, onNeedKey }) {
 // ── The play bar ───────────────────────────────────────────────────────────
 // Sticky at the top of the page's own scroll. The ticks are where RFI's
 // stories start; the line above the track names the story playing.
-function PlayBar({ audioRef, seekSeq, duration, stories, nowTitle, playing, rate, error, onToggle, onSeek, onRate }) {
+function PlayBar({ audioRef, seekSeq, duration, stories, nowTitle, playing, rate, error, onToggle, onSeek, onRate, stopOn, onStops }) {
   const [time, setTime] = useState(0);
   useEffect(() => {
     const a = audioRef.current;
@@ -951,6 +1174,18 @@ function PlayBar({ audioRef, seekSeq, duration, stories, nowTitle, playing, rate
           {error && <div style={S.audioError} role="alert">{error}</div>}
         </div>
         <div style={S.ptime} data-audio-time>{`${clock(time)} / ${clock(duration)}`}</div>
+        {stopOn != null && (
+          <button
+            type="button"
+            style={stopOn ? { ...S.speed, ...S.stops, ...S.stopsOn } : { ...S.speed, ...S.stops }}
+            data-pod-hover={stopOn ? undefined : "chip"}
+            onClick={onStops}
+            aria-pressed={stopOn}
+            data-audio-stops={stopOn ? "on" : "off"}
+          >
+            Stop at questions
+          </button>
+        )}
         <button type="button" style={S.speed} data-pod-hover="chip" onClick={onRate} data-audio-speed={rate} aria-label="Playback speed">
           {`${rate}×`}
         </button>
@@ -972,7 +1207,7 @@ const TimeChip = ({ t, onSeek, disabled }) => (
 // stories (a single short topic) is one card with no heading.
 function QuestionsTab({
   user, ep, passages, stories, progress, latest, nowStory, canPlay, listenKey,
-  onListen, onSeek, onFocus, onAnswer, onAsk, addState, onAdd, onNeedKey, onWords,
+  onListen, waitKey, onContinue, onSeek, onFocus, onAnswer, onAsk, addState, onAdd, onNeedKey, onWords,
 }) {
   const groups = [];
   for (const p of passages) {
@@ -1012,6 +1247,8 @@ function QuestionsTab({
                 canPlay={canPlay}
                 listening={listenKey === p.key}
                 onListen={onListen}
+                waiting={waitKey === p.key}
+                onContinue={onContinue}
                 onFocus={onFocus}
                 onAnswer={onAnswer}
                 onAsk={onAsk}
@@ -1051,8 +1288,8 @@ function PassageText({ fr, phrases, lit }) {
 }
 
 function PassageBlock({
-  first, number, user, episodeId, passage, answer, state, canPlay, listening, onListen, onFocus,
-  onAnswer, onAsk, addState, onAdd, onNeedKey,
+  first, number, user, episodeId, passage, answer, state, canPlay, listening, onListen, waiting, onContinue,
+  onFocus, onAnswer, onAsk, addState, onAdd, onNeedKey,
 }) {
   const userId = user?.id ?? null;
   const [draft, setDraft] = useState(() => readDraft(userId, episodeId, passage.key));
@@ -1117,6 +1354,12 @@ function PassageBlock({
         <PassageText fr={String(passage.fr || "")} phrases={phrases} lit={answered} />
       </div>
       <div style={S.passageTools}>
+        {waiting && (
+          <button type="button" style={{ ...S.listen, ...S.listenOn }} onClick={onContinue} data-passage-continue>
+            {ICON.playSm}
+            <span>Continue listening</span>
+          </button>
+        )}
         {canPlay && listenWindowOk(passage) && (
           <button
             type="button"
@@ -1267,10 +1510,80 @@ function AddButton({ phrase, episodeId, addState, onAdd, onNeedKey, small }) {
 }
 
 // ── Transcript ─────────────────────────────────────────────────────────────
-function TranscriptTab({ sections, nowStory, canPlay, onSeek }) {
+// With RFI's word times (src/lib/podcastSync.js) the sentence being said is
+// lit, the page keeps it in view, and a click on any sentence plays from it.
+// Scrolling by hand stops the following until "Follow the audio" is pressed
+// (or a sentence is clicked), so reading ahead isn't pulled back. Without the
+// times the transcript is plain text, as before.
+function TranscriptTab({ sections, nowStory, canPlay, onSeek, sync = null, nowSentence = -1, playing = false }) {
+  const rootRef = useRef(null);
+  const [follow, setFollow] = useState(true);
+  const synced = !!sync;
+  // Pressing play follows the audio again.
+  useEffect(() => {
+    if (playing) setFollow(true);
+  }, [playing]);
+  useEffect(() => {
+    const scroller = scrollParent(rootRef.current);
+    if (!scroller || !synced) return undefined;
+    const away = () => setFollow(false);
+    scroller.addEventListener("wheel", away, { passive: true });
+    scroller.addEventListener("touchmove", away, { passive: true });
+    return () => {
+      scroller.removeEventListener("wheel", away);
+      scroller.removeEventListener("touchmove", away);
+    };
+  }, [synced]);
+  useEffect(() => {
+    if (!follow || nowSentence < 0) return undefined;
+    // After the page's own move to the top of a tab just opened.
+    const id = requestAnimationFrame(() => {
+      const el = rootRef.current?.querySelector(`[data-sentence="${nowSentence}"]`);
+      const scroller = scrollParent(rootRef.current);
+      if (!el || !scroller) return;
+      const r = el.getBoundingClientRect();
+      const box = scroller.getBoundingClientRect();
+      if (r.top < box.top + box.height * 0.25 || r.bottom > box.top + box.height * 0.75) {
+        el.scrollIntoView({ block: "center", behavior: "smooth" });
+      }
+    });
+    return () => cancelAnimationFrame(id);
+  }, [nowSentence, follow]);
+
   if (!sections.length) return <p style={S.empty}>RFI hasn’t published a transcript for this episode.</p>;
+  const playFrom = (x) => {
+    // Selecting words to copy them isn't a click to play.
+    if (String(window.getSelection?.() || "").trim()) return;
+    setFollow(true);
+    onSeek(Math.max(0, x.start - SENTENCE_LEAD_S));
+  };
+  const paragraph = (p) => {
+    const list = sync?.byParagraph[p.index];
+    if (!list || !list.length) return p.text;
+    const text = p.text.normalize("NFC");
+    const out = [];
+    let at = 0;
+    for (const x of list) {
+      if (x.from > at) out.push(text.slice(at, x.from));
+      const now = x.index === nowSentence;
+      out.push(
+        <span
+          key={x.index}
+          style={{ ...S.sent, ...(canPlay ? S.sentPlay : null), ...(now ? S.sentNow : null) }}
+          data-sentence={x.index}
+          data-sentence-now={now ? "true" : "false"}
+          onClick={canPlay ? () => playFrom(x) : undefined}
+        >
+          {text.slice(x.from, x.to)}
+        </span>
+      );
+      at = x.to;
+    }
+    if (at < text.length) out.push(text.slice(at));
+    return out;
+  };
   return (
-    <div data-transcript>
+    <div ref={rootRef} data-transcript data-transcript-sync={synced ? "on" : "off"}>
       {sections.map((sec, i) => (
         <div
           key={`${sec.story ?? "x"}-${i}`}
@@ -1281,13 +1594,30 @@ function TranscriptTab({ sections, nowStory, canPlay, onSeek }) {
           <div style={S.trBody}>
             {sec.title && <h4 style={S.trTitle}>{sec.title}</h4>}
             {sec.paragraphs.map((p) => (
-              <p key={p.index} style={S.trPara}>{p.text}</p>
+              <p key={p.index} style={S.trPara}>{paragraph(p)}</p>
             ))}
           </div>
         </div>
       ))}
+      {synced && playing && !follow && nowSentence >= 0 && (
+        <div style={S.followWrap}>
+          <button type="button" style={S.follow} onClick={() => setFollow(true)} data-transcript-follow>
+            Follow the audio
+          </button>
+        </div>
+      )}
     </div>
   );
+}
+
+// The element that scrolls the page (S.scroll), for the transcript's
+// following: the nearest ancestor that scrolls.
+function scrollParent(el) {
+  for (let n = el?.parentElement; n; n = n.parentElement) {
+    const y = window.getComputedStyle(n).overflowY;
+    if (y === "auto" || y === "scroll") return n;
+  }
+  return null;
 }
 
 // ── Words to learn ─────────────────────────────────────────────────────────
@@ -1382,6 +1712,7 @@ const HOVER_CSS = `
 [data-pod-hover="tab"][aria-selected="false"]:hover { color: ${T.color.primary} !important; }
 [data-pod-hover="back"]:hover { background: ${T.color.surfaceLowest} !important; }
 [data-pod-hover="link"]:hover { color: ${T.color.primary} !important; }
+[data-sentence][data-sentence-now="false"]:hover { background: rgba(3,22,50,0.05) !important; }
 [data-passage-answer]:focus { border-color: rgba(3,22,50,0.35) !important; }
 [data-spotify-link]::placeholder, [data-passage-answer]::placeholder { color: rgba(68,71,77,0.6); }
 `;
@@ -1430,6 +1761,8 @@ const S = {
   fill: { position: "absolute", left: 0, top: 0, bottom: 0, background: T.color.secondary, borderRadius: 3, pointerEvents: "none" },
   tick: { position: "absolute", top: -4, width: 2, height: 14, marginLeft: -1, background: "rgba(3,22,50,0.22)", borderRadius: 1, pointerEvents: "none" },
   ptime: { width: 78, flexShrink: 0, textAlign: "right", fontSize: 12, color: T.color.onSurfaceVariant, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" },
+  stops: { whiteSpace: "nowrap" },
+  stopsOn: { background: "rgba(156,66,52,0.1)", borderColor: "rgba(156,66,52,0.35)", color: T.color.secondary },
   speed: { flexShrink: 0, padding: "4px 9px", borderWidth: 1, borderStyle: "solid", borderColor: T.color.outlineGhost, borderRadius: T.radius.full, background: "transparent", fontFamily: T.font.sans, fontSize: 11, fontWeight: 700, color: T.color.onSurfaceVariant, cursor: "pointer", fontVariantNumeric: "tabular-nums" },
   audioError: { marginTop: 2, fontSize: 11.5, color: T.color.error },
 
@@ -1495,6 +1828,11 @@ const S = {
   trBody: { flex: 1, minWidth: 0 },
   trTitle: { fontFamily: T.font.serif, fontSize: 14.5, fontWeight: 600, color: T.color.primary, margin: "2px 0 6px" },
   trPara: { fontFamily: T.font.serif, fontSize: 15, lineHeight: 1.7, color: T.color.onSurface, margin: "0 0 10px" },
+  sent: { borderRadius: 3, padding: "1px 0", background: "transparent", boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone", transition: "background .15s" },
+  sentPlay: { cursor: "pointer" },
+  sentNow: { background: "rgba(156,66,52,0.16)" },
+  followWrap: { position: "sticky", bottom: 18, display: "flex", justifyContent: "center", pointerEvents: "none", marginTop: 8 },
+  follow: { pointerEvents: "auto", padding: "9px 16px", border: "none", borderRadius: T.radius.full, background: T.gradient.ink, color: T.color.onPrimary, fontFamily: T.font.sans, fontWeight: 700, fontSize: 12, cursor: "pointer", boxShadow: "0 6px 20px rgba(3,22,50,0.18)" },
 
   // Words to learn
   word: { display: "flex", alignItems: "center", gap: 16, padding: "14px 18px", background: T.color.surfaceLowest, border: `1px solid ${LINE}`, borderRadius: T.radius.xl, marginBottom: 8 },

@@ -19,6 +19,11 @@
 // une histoire) are one story: the whole transcript over the whole episode.
 // The result is clamped to the episode.
 //
+// (2026-10-21: RFI does publish each word's time, behind its player's
+// "Synchronisation" button; src/lib/podcastSync.js reads it, and the page uses
+// those exact times when they match the transcript. This estimate stays for
+// when they don't, and is what the server stores with each passage.)
+//
 // The estimate is good to a few seconds inside a story. A clip of an
 // interviewee, read faster or slower than the newsreader, moves it a little,
 // which is why Listen starts LISTEN_LEAD seconds early and runs LISTEN_TAIL

@@ -829,7 +829,7 @@ route means retiring or merging one. `api/_lib/` is shared code, not a route.
 | `admin-update-card.js` | Saves a card edit, for any student's own cards despite the name. Uses the service role: edits from the browser under RLS silently did nothing. A body with `action: "remove"` is a student removing a card: archived with the reason "removed", answers kept (`api/_lib/removeCard.js`) |
 | `admin-users.js` | Admin only: every account and its activity. `?view=status` is the latest status check on every student; with `&run=1` they are all checked now |
 | `parse-corrections.js` | Admin only: logs corrections that `cahier-parse` learns from |
-| `podcasts.js` | Podcasts, the owner's only for now, and anyone's signed in on the test app: every action in one route, named by `action` in the body, because of the 12-route limit. `follow` (a Spotify link, or a podcast's slug), `refresh` (the followed podcasts' feeds), `episode` (RFI's transcript, and the questions, written once), `mark` (Claude marks one answer) and `add-card` (a word from a passage to the caller's cards). Anyone else gets 403 "Admin only". The work is in `api/_lib/podcasts.js` (see *Podcasts*) |
+| `podcasts.js` | Podcasts, the owner's only for now, and anyone's signed in on the test app: every action in one route, named by `action` in the body, because of the 12-route limit. `follow` (a Spotify link, or a podcast's slug), `refresh` (the followed podcasts' feeds), `episode` (RFI's transcript, and the questions, written once), `timing` (RFI's time for each word of the transcript, or none when it doesn't match), `mark` (Claude marks one answer) and `add-card` (a word from a passage to the caller's cards). Anyone else gets 403 "Admin only". The work is in `api/_lib/podcasts.js` (see *Podcasts*) |
 
 - Every route checks the caller's Supabase session, except `cahier-daily`,
   which checks `CRON_SECRET`. The service role key bypasses RLS, so a route
@@ -2049,11 +2049,12 @@ keeps which page is showing)
 **Listen plays RFI's own recording**, not the browser's voice (owner,
 2026-10-09)
 
-- RFI publishes no time for each sentence, only each story's start. So the
-  passage's start and end are estimated from where it sits in its story's
-  text: the share of the story's characters before it, times the story's
-  length, from the story's start (`src/lib/podcastTiming.js`). A podcast with
-  no stories is one story.
+- The passage's start and end come from RFI's own word times when they
+  match the transcript (see the next section). Otherwise they are estimated
+  from where it sits in its story's text: the share of the story's
+  characters before it, times the story's length, from the story's start
+  (`src/lib/podcastTiming.js`). A podcast with no stories is one story. The
+  estimate is what the server stores with each passage.
 - **Listen starts 3 seconds before the estimate and stops 2 seconds after
   it** (owner, 2026-10-09; `LISTEN_LEAD`, `LISTEN_TAIL`). The button reads
   "Stop" while it plays.
@@ -2062,6 +2063,43 @@ keeps which page is showing)
   seconds. A clip of someone interviewed, faster or slower, can move it.
 - One recording per episode page, shared by the play bar and every Listen,
   so two never play at once. It stops when the page goes.
+
+**Stop at questions, and the transcript in step with the recording**
+(owner, 2026-10-21: "answer the questions as he goes through the podcast",
+and sync the transcript "only if you can accurately sync")
+
+- RFI's player has a "Synchronisation" button, and the word times behind it
+  are public: `https://francaisfacile.rfi.fr/fr/_ws/media/editions/<guid>/0`,
+  where the guid is the episode's in the feed. Each paragraph lists its
+  words with a start and a length in 25ths of a second
+  (`src/lib/podcastSync.js`). The server's `timing` action reads them each
+  time an episode opens (nothing is saved) and sends them only when RFI's
+  words are the kept transcript letter for letter, spaces and apostrophes
+  aside, so it can never drift. RFI sometimes rewords a transcript after
+  the app has saved its copy (9 October: "Analyse et témoignages" became
+  "Analyses, invités, témoignages"); then each paragraph is matched on its
+  own, the changed one is left without times, and the rest keep RFI's exact
+  ones. Of the six episodes stored on 2026-10-21, five matched whole and 9
+  October matched in all but that paragraph.
+- Checked on 2026-10-21 before it was built: on 18 episodes of all three
+  podcasts the words matched exactly, and the last word ended a few seconds
+  before the recording did. A speech recogniser run on the Mac over the 20
+  October Journal agreed with RFI to 0.06 s on the typical word, 9 words in
+  10 within 0.2 s, with no drift from the first minute to the last.
+- **Transcript tab:** the sentence being said is lit, and the page keeps it
+  in the middle of the screen; 2 s after the last timed word with nothing
+  new begun, the light goes out. Clicking a sentence plays from 0.2 s before
+  it. Scrolling by hand stops the following, and a "Follow the audio" button
+  brings it back; pressing play does too.
+- **Stop at questions**, a switch on the play bar, on unless turned off (the
+  choice is kept in the browser): while the episode plays, it pauses 0.3 s
+  after the last word of each passage whose question isn't answered, opens
+  the Questions tab at that question in the middle of the screen with its
+  answer box ready, and shows "Continue listening", which plays on from
+  where it paused (even after Listen). Each question stops it once while the
+  page is open; one already answered never does. Without word times it
+  pauses as the passage's story ends instead (or at the end of an episode
+  with no stories).
 
 **Claude marks each answer**
 

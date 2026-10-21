@@ -14,6 +14,8 @@
 //             -> { podcast, episodeId? }
 //   refresh   {} -> { ok, count }: the followed podcasts' feeds read again
 //   episode   { episodeId } -> { episode }, or 202 { status: "preparing" }
+//   timing    { episodeId } -> { timing }: when each word of the transcript
+//             is said, from RFI, or timing: null (src/lib/podcastSync.js)
 //   mark      { episodeId, key, typed, timeZone } -> { answer, saved }
 //   add-card  { episodeId, front, back } -> { added, have, removed, waiting }
 //
@@ -78,6 +80,7 @@ import { isArchived } from "../../src/lib/archive.js";
 import { matchNewCards, plannedWrites } from "../../src/lib/cardMatch.js";
 import { PODCASTS, podcastBySlug, MAX_PASSAGES } from "../../src/lib/podcastCatalogue.js";
 import { estimatePassageTimes, findPassage, normalizePassage } from "../../src/lib/podcastTiming.js";
+import { rfiTimingUrl, readRfiTiming, alignTiming } from "../../src/lib/podcastSync.js";
 import {
   fetchText as fetchFromWeb, parseFeed, parseEpisodePage, parseSpotifyLink, spotifyTitle, matchTitle,
 } from "./podcastSource.js";
@@ -376,6 +379,7 @@ export async function handlePodcastRequest({
   if (action === "follow") return follow(deps);
   if (action === "refresh") return refresh(deps);
   if (action === "episode") return openEpisode(deps);
+  if (action === "timing") return episodeTiming(deps);
   if (action === "mark") return mark(deps);
   if (action === "add-card") return addCard(deps);
   return reply(400, { error: MESSAGES.unknownAction, code: "bad_action" });
@@ -556,6 +560,34 @@ async function openEpisode({ body, store, apiKey, now, fetchText }) {
     }
   }
   return reply(200, { episode: episodeJson(row) });
+}
+
+// timing { episodeId }
+//
+// When each word of the episode's transcript is said, read from RFI each time
+// (nothing is saved: the page keeps it while the episode is open) and given
+// only when RFI's words are the kept transcript letter for letter
+// (src/lib/podcastSync.js). Anything else, RFI unreachable included, is
+// timing: null with a 200, and the page shows the transcript without sync, as
+// before: a missing sync must never stop an episode opening.
+async function episodeTiming({ body, store, fetchText }) {
+  if (!uuidish(body.episodeId)) return reply(400, { error: MESSAGES.noEpisode, code: "no_episode" });
+  const got = await store.episode(body.episodeId);
+  if (got.missing) return notSetUp();
+  const row = got.row;
+  if (!row) return reply(404, { error: MESSAGES.noEpisode, code: "no_episode" });
+  const url = rfiTimingUrl(row.guid);
+  if (!url || !Array.isArray(row.transcript) || !row.transcript.length) return reply(200, { timing: null });
+  let words;
+  try {
+    words = readRfiTiming(JSON.parse(await fetchText(url)));
+  } catch (e) {
+    console.warn(`[podcasts] timing of ${row.id} unreadable:`, e?.message || e);
+    return reply(200, { timing: null, code: "rfi_unreachable" });
+  }
+  const timing = words ? alignTiming(row.transcript, words, { duration: row.duration_seconds }) : null;
+  if (!timing) console.log(`[podcasts] ${row.id}: RFI's timing doesn't match the transcript; no sync`);
+  return reply(200, { timing });
 }
 
 // mark { episodeId, key, typed, timeZone }

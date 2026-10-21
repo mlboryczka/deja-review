@@ -600,6 +600,60 @@ console.log("\n  The database update (migration_017)");
   }
 }
 
+console.log("\n  the transcript in step with the recording (RFI's word times)");
+{
+  const sync = await import("../../src/lib/podcastSync.js");
+  // Two paragraphs of synthetic French, the kept transcript with a curly
+  // apostrophe, a double space and a closing quote; RFI's words written with a
+  // straight apostrophe and single spaces.
+  const kept = [
+    "Bonsoir. Le maire  d’Annecy a parlé ce matin.",
+    "« Nous allons construire un pont », a-t-il dit. Les travaux commencent lundi !",
+  ];
+  const said = kept.map((p, i) => p.replace(/’/g, "'").split(/\s+/).map((word, k) => ({ word: `${word} `, start: i * 10 + k, end: i * 10 + k + 0.8 })));
+  const timing = sync.alignTiming(kept, said, { duration: 30 });
+  ck("RFI's words line up with the kept transcript, letter for letter", Array.isArray(timing) && timing.every((l, i) => l.length === said[i].length));
+  ck("each word points at its own letters", timing[0][3][0] === kept[0].indexOf("d’Annecy") && kept[0].slice(timing[0][3][0], timing[0][3][1]) === "d’Annecy",
+     JSON.stringify(timing[0][3]));
+  const swapped = said.map((l) => l.map((w) => ({ ...w })));
+  swapped[1][3].word = "bâtir ";
+  const partly = sync.alignTiming(kept, swapped, { duration: 30 });
+  ck("one word different: that paragraph has no times, the other keeps its own", partly && partly[1].length === 0 && JSON.stringify(partly[0]) === JSON.stringify(timing[0]));
+  ck("and nothing matching at all: no timing", sync.alignTiming(["Tout autre chose."], said.slice(0, 1), { duration: 30 }) === null);
+  ck("words said past the end of the recording: no timing", sync.alignTiming(kept, said, { duration: 5 }) === null);
+  const backwards = said.map((l) => l.map((w) => ({ ...w })));
+  backwards[1][0] = { ...backwards[1][0], start: 1, end: 1.5 };
+  ck("times going back by more than a second: no timing", sync.alignTiming(kept, backwards, { duration: 30 }) === null);
+  ck("a paragraph split differently by RFI still lines up", Array.isArray(sync.alignTiming(kept, [[...said[0], ...said[1]]], { duration: 30 })));
+
+  const sentences = sync.sentencesOf(kept, timing);
+  const texts = sentences.map((x) => kept[x.paragraph].normalize("NFC").slice(x.from, x.to));
+  ck("the sentences, in the order said, the quote kept with its sentence",
+     JSON.stringify(texts) === JSON.stringify(["Bonsoir.", "Le maire  d’Annecy a parlé ce matin.", "« Nous allons construire un pont », a-t-il dit.", "Les travaux commencent lundi !"]),
+     JSON.stringify(texts));
+  ck("a sentence runs from its first word's start to its last word's end", sentences[1].start === 1 && sentences[1].end === 7.8, `${sentences[1].start}–${sentences[1].end}`);
+  ck("before anything is said, no sentence is lit", sync.sentenceAt(sentences, 0.5 - 1) === -1);
+  ck("while a sentence is said, it is the one lit", sync.sentenceAt(sentences, 3.2) === 1 && sync.sentenceAt(sentences, 10) === 2);
+  ck("in a pause after it, it stays lit until the next begins", sync.sentenceAt(sentences, 9.5) === 1);
+  ck(`but not more than ${sync.SENTENCE_LINGER_S} s after its last word`, sync.sentenceAt(sentences, sentences[3].end + sync.SENTENCE_LINGER_S - 0.1) === 3 &&
+     sync.sentenceAt(sentences, sentences[3].end + sync.SENTENCE_LINGER_S + 0.1) === -1);
+
+  const fr = "Le maire d'Annecy a parlé ce matin.";
+  const at = sync.passageTimes(kept, timing, { fr });
+  ck("a question's passage is timed from its first word to its last, whatever its spaces and apostrophes", at && at.start === 1 && at.end === 7.8, JSON.stringify(at));
+  ck("a passage that isn't in the transcript has no times", sync.passageTimes(kept, timing, { fr: "Il pleut à Lyon." }) === null);
+
+  ck("the page takes the timing as sent", sync.checkTiming(timing, kept) === timing);
+  ck("but not for another transcript", sync.checkTiming(timing, [kept[0]]) === null);
+  ck("nor with a word outside its paragraph", sync.checkTiming([[[0, 999, 0, 1]], []], kept) === null);
+  ck("nor with nothing timed", sync.checkTiming([[], []], kept) === null);
+  ck("RFI's address is built only from its own kind of id", sync.rfiTimingUrl("11EA5886-cca1-11f1-babb-8df9e13b02e0") === "https://francaisfacile.rfi.fr/fr/_ws/media/editions/11ea5886-cca1-11f1-babb-8df9e13b02e0/0" &&
+     sync.rfiTimingUrl("../../etc") === null && sync.rfiTimingUrl(null) === null);
+  const read = sync.readRfiTiming({ content: { sound: { transcriptions: [{ description: { parts: [{ start: "50", duration: "10", word: "Oui. " }, { start: "61", duration: "4", word: " " }] } }] } } });
+  ck("RFI's reply is read in its own unit, 25ths of a second, blank words dropped", JSON.stringify(read) === JSON.stringify([[{ word: "Oui. ", start: 2, end: 2.4 }]]), JSON.stringify(read));
+  ck("a reply of another shape gives nothing", sync.readRfiTiming({ content: {} }) === null && sync.readRfiTiming(null) === null);
+}
+
 console.log("\n  Nothing left the machine");
 ck("no request reached the network, and none went to a site the stand-ins don't answer for",
    leaks.length === 0 && strays.length === 0, [...leaks, ...strays].join(", ") || "none");

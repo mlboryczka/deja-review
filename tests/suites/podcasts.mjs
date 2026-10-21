@@ -170,6 +170,30 @@ EP1.questions = {
   ],
 };
 
+// When each word of the Journal is said, as the server sends it
+// (src/lib/podcastSync.js): each paragraph's words half a second apart from
+// its start here, the second paragraph starting where its passage's stored
+// time says (72 s), so Listen starts at the same place either way.
+const PARA_AT = [9, 72, 86, 214, 590];
+const WORD_S = 0.5;
+const EP1_TIMING = EP1.transcript.map((p, i) =>
+  [...p.normalize("NFC").matchAll(/\S+/g)].map((m, k) => [m.index, m.index + m[0].length, PARA_AT[i] + k * WORD_S, PARA_AT[i] + k * WORD_S + 0.4]));
+// The sentences, counted here: a word ending in . ! ? or … (and perhaps a
+// closing quote) ends one, and so does a paragraph's last word.
+const EP1_SENTENCES = EP1.transcript.flatMap((p, i) => {
+  const out = [];
+  let first = null;
+  const words = EP1_TIMING[i];
+  words.forEach((w, k) => {
+    if (!first) first = w;
+    if (/[.!?…]\s*[»”"')\]]*$/.test(p.normalize("NFC").slice(w[0], w[1])) || k === words.length - 1) {
+      out.push({ text: p.normalize("NFC").slice(first[0], w[1]), start: first[2], end: w[3] });
+      first = null;
+    }
+  });
+  return out;
+});
+
 const EP2 = {
   id: "e2",
   podcast: MOTS,
@@ -328,6 +352,7 @@ function standIns({ migrated = true } = {}) {
       const body = JSON.parse(req.postData() || "{}");
       log.api.push({ ...body, _auth: req.headers().authorization || "" });
       if (body.action === "refresh") return json(r, 200, { ok: true, count: 0 });
+      if (body.action === "timing") return json(r, 200, { timing: body.episodeId === EP1.id ? EP1_TIMING : null });
       if (body.action === "episode") {
         if (body.episodeId === EP1.id) return json(r, 200, { episode: EP1 });
         if (body.episodeId === EP2.id) {
@@ -573,6 +598,124 @@ console.log("\n  Listen");
   await page.click(`[data-passage='${p.key}'] [data-passage-listen]`);
   const off = await page.$eval(`[data-passage='${p.key}'] [data-passage-listen]`, (b) => [b.dataset.passageListen, b.innerText.trim()]);
   ck("pressed again, it stops and says Listen", off[0] === "off" && off[1] === "Listen", off.join(" "));
+}
+
+// ── In step with the recording ─────────────────────────────────────────────
+// The recording never plays here, so its clock is the test's: the audio
+// element's time and paused state are stood in, and "timeupdate" is sent by
+// hand, as a playing recording sends it a few times a second.
+console.log("\n  the transcript in step with the recording");
+const clockOn = () => page.evaluate(() => {
+  const a = document.querySelector("[data-podcast-audio]");
+  window.__t = a.currentTime || 0;
+  window.__paused = true;
+  Object.defineProperty(a, "currentTime", { configurable: true, get: () => window.__t, set: (v) => { window.__t = v; } });
+  Object.defineProperty(a, "paused", { configurable: true, get: () => window.__paused });
+  a.play = function play() {
+    window.__plays.push({ src: this.getAttribute("src") || "", t: window.__t });
+    window.__paused = false;
+    this.dispatchEvent(new Event("play"));
+    return Promise.resolve();
+  };
+  a.pause = function pause() {
+    window.__pauses.push({ src: this.getAttribute("src") || "", connected: this.isConnected });
+    if (!window.__paused) {
+      window.__paused = true;
+      this.dispatchEvent(new Event("pause"));
+    }
+  };
+  window.__tick = (t) => { window.__t = t; a.dispatchEvent(new Event("timeupdate")); };
+});
+// Each tick waits a moment for the page to redraw.
+const tick = (t) => page.evaluate((x) => { window.__tick(x); return new Promise((r) => setTimeout(r, 40)); }, t);
+const lastPlay = async () => (await page.evaluate(() => window.__plays)).slice(-1)[0] || {};
+const PASSAGE_1 = EP1.questions.passages[0];
+const PASSAGE_2 = EP1.questions.passages[1];
+// Where Stop at questions pauses for each: its passage's last word, plus a
+// fraction (the page's STOP_AFTER_S, 0.3 s).
+const stopFor = (i) => Math.max(...EP1_TIMING[i].map((w) => w[3])) + 0.3;
+{
+  await clockOn();
+  await page.click("[data-podcast-tab='transcript']");
+  await page.waitForSelector("[data-transcript-sync='on']", { timeout: 8000 });
+  const n = await page.$$eval("[data-sentence]", (els) => els.length);
+  ck("with RFI's word times, the transcript is laid out sentence by sentence", n === EP1_SENTENCES.length, `${n} of ${EP1_SENTENCES.length}`);
+  await page.click("[data-audio-play]");
+  const second = EP1_SENTENCES.findIndex((x) => x.start >= PARA_AT[1]);
+  await tick(EP1_SENTENCES[second].start + 0.6);
+  ck("while a sentence is said, it is the one lit", (await text(page, "[data-sentence-now='true']")) === EP1_SENTENCES[second].text, await text(page, "[data-sentence-now='true']"));
+  await tick(EP1_SENTENCES[second].end + 0.05);
+  ck("between two sentences, the one just said stays lit", (await text(page, "[data-sentence-now='true']")) === EP1_SENTENCES[second].text);
+  await tick(EP1_SENTENCES[second + 1].start + 0.1);
+  ck("and the next takes over as it begins", (await text(page, "[data-sentence-now='true']")) === EP1_SENTENCES[second + 1].text, await text(page, "[data-sentence-now='true']"));
+  await page.evaluate(() => document.querySelector("[data-podcasts-page]").dispatchEvent(new WheelEvent("wheel", { deltaY: 120 })));
+  await page.waitForSelector("[data-transcript-follow]", { timeout: 4000 });
+  ck("scrolling by hand stops the page following, and offers “Follow the audio”", (await text(page, "[data-transcript-follow]")) === "Follow the audio");
+  await page.click("[data-transcript-follow]");
+  ck("which, pressed, follows it again", !(await page.$("[data-transcript-follow]")));
+  const quebec = EP1_SENTENCES.findIndex((x) => x.start >= PARA_AT[3]);
+  await page.click(`[data-sentence='${quebec}']`);
+  const p = await lastPlay();
+  ck("a click on a sentence plays the recording from just before it", Math.abs(p.t - (EP1_SENTENCES[quebec].start - 0.2)) < 0.01, `${p.t} s for a sentence at ${EP1_SENTENCES[quebec].start} s`);
+  await tick(EP1_SENTENCES[quebec].start + 0.1);
+  ck("and lights it as it begins", (await text(page, "[data-sentence-now='true']")) === EP1_SENTENCES[quebec].text);
+}
+
+console.log("\n  stop at questions");
+{
+  const sw = await page.$eval("[data-audio-stops]", (b) => [b.dataset.audioStops, b.innerText.trim(), b.getAttribute("aria-pressed")]);
+  ck("the play bar has “Stop at questions”, on to begin with", sw[0] === "on" && sw[1] === "Stop at questions" && sw[2] === "true", sw.join(" "));
+  // Back to the first story, by the bar (a jump passes no question), then
+  // played through the end of the first question's passage.
+  await page.click("[data-podcast-tab='transcript']");
+  await page.click(`[data-sentence='${EP1_SENTENCES.findIndex((x) => x.start >= PARA_AT[1])}']`);
+  const pausesBefore = (await page.evaluate(() => window.__pauses)).length;
+  const s1 = stopFor(1);
+  await tick(s1 - 0.25);
+  ck("playing up to the end of a question's passage doesn't stop it yet", (await page.evaluate(() => window.__pauses)).length === pausesBefore);
+  await tick(s1 + 0.05);
+  await page.waitForSelector(`[data-passage='${PASSAGE_1.key}'] [data-passage-continue]`, { timeout: 4000 });
+  ck("just after it, the recording pauses", (await page.evaluate(() => window.__pauses)).length > pausesBefore && await page.evaluate(() => window.__paused));
+  ck("and the page goes to the Questions tab", (await page.$eval("[data-tab-panel]", (e) => e.dataset.tabPanel)) === "questions");
+  await page.waitForFunction((k) => document.activeElement?.matches?.(`[data-passage='${k}'] [data-passage-answer]`), PASSAGE_1.key, { timeout: 4000 }).catch(() => {});
+  ck("with that question's answer box ready to type in", await page.evaluate((k) => !!document.activeElement?.matches?.(`[data-passage='${k}'] [data-passage-answer]`), PASSAGE_1.key));
+  const box = await page.$eval(`[data-passage='${PASSAGE_1.key}']`, (e) => { const r = e.getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight + 1; });
+  ck("in view", box);
+  ck("and “Continue listening” beside it", (await text(page, `[data-passage='${PASSAGE_1.key}'] [data-passage-continue]`)) === "Continue listening");
+  await page.click(`[data-passage='${PASSAGE_1.key}'] [data-passage-listen]`);
+  await page.click(`[data-passage='${PASSAGE_1.key}'] [data-passage-listen]`);
+  ck("hearing the passage again with Listen keeps “Continue listening”", !!(await page.$(`[data-passage='${PASSAGE_1.key}'] [data-passage-continue]`)));
+  await page.click(`[data-passage='${PASSAGE_1.key}'] [data-passage-continue]`);
+  const c = await lastPlay();
+  ck("Continue listening picks up where it stopped, even after hearing the passage again", Math.abs(c.t - (s1 + 0.05)) < 0.01, `${c.t} s, stopped at ${s1 + 0.05} s`);
+  ck("and goes", !(await page.$("[data-passage-continue]")));
+  await tick(s1 + 0.4);
+  const s2 = stopFor(2);
+  await tick(s2 - 0.2);
+  await tick(s2 + 0.1);
+  await page.waitForSelector(`[data-passage='${PASSAGE_2.key}'] [data-passage-continue]`, { timeout: 4000 });
+  ck("the next unanswered question stops it in turn", true);
+  await page.click(`[data-passage='${PASSAGE_2.key}'] [data-passage-continue]`);
+  const pausesAt = (await page.evaluate(() => window.__pauses)).length;
+  const s3 = stopFor(3);
+  await tick(s3 - 0.2);
+  await tick(s3 + 0.1);
+  ck("a question already answered doesn't stop it", (await page.evaluate(() => window.__pauses)).length === pausesAt && !(await page.$("[data-passage-continue]")));
+  await page.click("[data-podcast-tab='transcript']");
+  await page.click(`[data-sentence='${EP1_SENTENCES.findIndex((x) => x.start >= PARA_AT[1])}']`);
+  const again = (await page.evaluate(() => window.__pauses)).length;
+  await tick(s1 - 0.25);
+  await tick(s1 + 0.05);
+  ck("each question stops it once while the episode is open", (await page.evaluate(() => window.__pauses)).length === again && !(await page.$("[data-passage-continue]")));
+  await page.click("[data-audio-stops]");
+  const off = await page.$eval("[data-audio-stops]", (b) => [b.dataset.audioStops, b.getAttribute("aria-pressed")]);
+  const kept = await page.evaluate(() => window.localStorage.getItem("podcasts:stopAtQuestions"));
+  ck("switched off, it says so, and the browser remembers", off[0] === "off" && off[1] === "false" && kept === "off", `${off.join(" ")} ${kept}`);
+  await page.click("[data-audio-stops]");
+  ck("and on again", (await page.$eval("[data-audio-stops]", (b) => b.dataset.audioStops)) === "on" && (await page.evaluate(() => window.localStorage.getItem("podcasts:stopAtQuestions"))) === "on");
+  await page.click("[data-audio-play]");
+  ck("the play button pauses it", await page.evaluate(() => window.__paused));
+  await page.click("[data-podcast-tab='questions']");
 }
 
 // ── Over to Flashcards and back, mid-episode ───────────────────────────────

@@ -538,6 +538,90 @@ console.log("\n  the transcript is read once from RFI's page");
   pageFor = () => fixture("episode-journal.html");
 }
 
+// ── When each word is said ─────────────────────────────────────────────
+// RFI's timing service, stood in by synthetic words: each paragraph's words
+// one after another, a third of a second each, in RFI's 25ths of a second,
+// written with straight apostrophes where the kept transcript has curly ones
+// (as a copy can be).
+const rfiTiming = (paras, { at = 250 } = {}) => {
+  let t = at;
+  return JSON.stringify({
+    content: {
+      sound: {
+        transcriptions: paras.map((p) => ({
+          content: p,
+          description: {
+            confidence: 0.98,
+            parts: straight(p).split(" ").map((word, i, all) => {
+              const part = { start: String(t), duration: "8", confidence: "1", type: "LEX", word: i < all.length - 1 ? `${word} ` : word };
+              t += 9;
+              return part;
+            }),
+          },
+        })),
+        chapters: [],
+      },
+    },
+  });
+};
+console.log("\n  when each word is said, from RFI");
+{
+  const store = memoryStore();
+  const ep = episodeRow();
+  store.db.episodes.push(ep);
+  let timingJson = rfiTiming(PARAGRAPHS);
+  pageFor = (url) => (url.includes("/_ws/media/") ? timingJson : fixture("episode-journal.html"));
+  reads.length = 0;
+  calls = [];
+  const r = await run(store, OWNER, { action: "timing", episodeId: ep.id });
+  const timing = r.json.timing;
+  ck("RFI's times are read from its timing address for the episode's guid",
+     reads.length === 1 && reads[0] === `https://francaisfacile.rfi.fr/fr/_ws/media/editions/${ep.guid}/0`, reads.join(" "));
+  ck("one list of words per paragraph of the transcript", r.status === 200 && Array.isArray(timing) && timing.length === PARAGRAPHS.length,
+     `HTTP ${r.status} ${JSON.stringify(r.json).slice(0, 80)}`);
+  const words = PARAGRAPHS.map((p) => p.split(" "));
+  const spelled = timing.every((list, i) => list.length === words[i].length && list.every((w, k) => PARAGRAPHS[i].slice(w[0], w[1]) === words[i][k]));
+  ck("each word points at itself in the kept transcript, curly apostrophes and all", spelled);
+  ck("its times in seconds: RFI's 250 is 10 s", timing[0][0][2] === 10 && timing[0][0][3] === 10.32, JSON.stringify(timing[0][0]));
+  ck("no call to Claude, and nothing saved", calls.length === 0 && store.log.every(([what]) => what === "episode"), store.log.map(([w]) => w).join(","));
+
+  const off = clone(PARAGRAPHS);
+  off[4] = off[4].replace("vendredi", "samedi");
+  timingJson = rfiTiming(off);
+  const wrong = await run(store, OWNER, { action: "timing", episodeId: ep.id });
+  ck("RFI having changed a word since the transcript was kept: that paragraph has no times, every other keeps RFI's own",
+     wrong.status === 200 && wrong.json.timing?.[4]?.length === 0 && JSON.stringify(wrong.json.timing.filter((_, i) => i !== 4)) === JSON.stringify(timing.filter((_, i) => i !== 4)),
+     JSON.stringify(wrong.json).slice(0, 80));
+  timingJson = rfiTiming(PARAGRAPHS.slice(0, -1));
+  const short = await run(store, OWNER, { action: "timing", episodeId: ep.id });
+  ck("RFI missing the last paragraph: no timing", short.status === 200 && short.json.timing === null);
+  timingJson = rfiTiming(PARAGRAPHS, { at: 600 * 25 });
+  const late = await run(store, OWNER, { action: "timing", episodeId: ep.id });
+  ck("times past the end of the recording: no timing", late.status === 200 && late.json.timing === null);
+  timingJson = "<html>Access denied</html>";
+  const junk = await run(store, OWNER, { action: "timing", episodeId: ep.id });
+  ck("a reply that isn't RFI's JSON: no timing, and no error for the page", junk.status === 200 && junk.json.timing === null);
+  pageFor = (url) => (url.includes("/_ws/media/") ? { status: 503 } : fixture("episode-journal.html"));
+  const down = await run(store, OWNER, { action: "timing", episodeId: ep.id });
+  ck("RFI not answering: no timing, said so the page asks again next time", down.status === 200 && down.json.timing === null && down.json.code === "rfi_unreachable",
+     JSON.stringify(down.json));
+
+  const odd = episodeRow({ guid: "jff-not-a-uuid" });
+  store.db.episodes.push(odd);
+  reads.length = 0;
+  const noGuid = await run(store, OWNER, { action: "timing", episodeId: odd.id });
+  ck("a guid that isn't RFI's kind of id: no timing, and nothing read", noGuid.status === 200 && noGuid.json.timing === null && reads.length === 0);
+  const unread = episodeRow({ transcript: null });
+  store.db.episodes.push(unread);
+  const noText = await run(store, OWNER, { action: "timing", episodeId: unread.id });
+  ck("no transcript yet: no timing, and nothing read", noText.status === 200 && noText.json.timing === null && reads.length === 0);
+  const stranger = await run(store, STUDENT, { action: "timing", episodeId: ep.id });
+  ck("anyone but the owner: refused like every other action", stranger.status === 403);
+  const missing = await run(store, OWNER, { action: "timing", episodeId: randomUUID() });
+  ck("an episode that isn't there: 404", missing.status === 404);
+  pageFor = () => fixture("episode-journal.html");
+}
+
 // ── Marking ────────────────────────────────────────────────────────────
 const marked = (verdict, caught, missed, note = "") => ({ verdict, caught, missed, note });
 console.log("\n  marking an answer");
