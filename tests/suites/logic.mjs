@@ -460,6 +460,16 @@ console.log("\n  marking — Spanish articles and ¿ ¡, French unchanged");
      matchAnswer("Les hablé", "Le hablé", [], { articles: "none" }).wrongArticle !== true &&
      matchAnswer("Les hablé", "Le hablé").wrongArticle === true);
   ck("an English answer still drops its the", ok("hand", "the hand", { articles: "en" }));
+  // Spanish answers have their accents checked (owner, 2026-10-22).
+  const es = { articles: "none", accents: true };
+  ck("a Spanish drill right with its accent is right", ok("habló", "habló", { exact: true, accents: true }));
+  ck("and without it is a wrong accent", matchAnswer("hablo", "habló", [], { exact: true, accents: true }).wrongAccent === true);
+  ck("a Spanish question needs its accents, ¿ or not",
+     ok("Cómo estás?", "¿Cómo estás?", es) && matchAnswer("como estas", "¿Cómo estás?", [], es).wrongAccent === true);
+  ck("año is not ano", matchAnswer("Tengo diez anos", "Tengo diez años", [], es).wrongAccent === true);
+  ck("a typo elsewhere is still forgiven, with the accents right", ok("Tengo diez añoss", "Tengo diez años", es));
+  ck("the accents the RAE still allows are right: sólo for solo", ok("Sólo tengo uno", "Solo tengo uno", es));
+  ck("French answers are still marked accents aside", ok("tres bien", "très bien") && ok("evidemment", "évidemment"));
   ck("French still forgives a left-off article", ok("chemin de fer", "le chemin de fer"));
   ck("and still checks its gender", matchAnswer("la vélo", "le vélo").wrongArticle === true);
 }

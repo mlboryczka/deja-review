@@ -2258,8 +2258,16 @@ Flashcards / Podcasts switch is French only; Spanish has no Podcasts (owner,
   before. The phrase-card tolerance still lets a slightly shorter answer
   through as close enough, as in French ("Conozco" for "La conozco", "Hablé
   por teléfono" for "Le hablé por teléfono"), so the lessons test pronouns on
-  exact cards. Accents are ignored, as in French, so no card's point is an
-  accent (tú / tu, está / esta), and a preterite "habló" accepts "hablo".
+  exact cards. **Accents are checked on Spanish answers** (owner,
+  2026-10-22: "accents must be checked"; `accentsRight` in
+  `FlashcardApp.jsx`, `accents` in `matchAnswer`): the match is made with
+  accents set aside, as before, then any typed word that is a word of the
+  answer but for its accents makes it a miss, shown "✗ Check the accents".
+  "hablo" is not "habló", "ano" not "año", "tu" not "tú". A word with a typo
+  isn't judged for accents, and "sólo" and "éste" (accents the Real Academia
+  still allows) are right where the answer has "solo" and "este". French is
+  marked accents aside, as always. "My answer should be accepted" tells
+  Claude that Spanish accents must be right.
 - **Drills** read "tener (presente) → yo" with the bare form as the answer,
   "tengo"; "yo tengo" is accepted too, "él fue" and "ella fue" for an
   él/ella drill, and the line says "Present tense, yo form"
@@ -2272,8 +2280,9 @@ Flashcards / Podcasts switch is French only; Spanish has no Podcasts (owner,
   built on the building-lessons skill like Laura's French lessons, with
   `source: "Adapted from the LFL METHOD by Laura Caufour"`. Lesson 8 includes
   its time-and-date annex. `es/index.js` is written by
-  `node scripts/es-lessons-index.mjs`, in course order, in three folding
-  groups (Lessons 1 to 8, 9 to 16, 17 to 23). Lessons 1 to 6, the ones the
+  `node scripts/es-lessons-index.mjs`, in course order, all under one
+  folding heading, "Basic Lessons", as the French beginner lessons are
+  (owner, 2026-10-22). Lessons 1 to 6, the ones the
   owner has covered with Laura, are on Cards without a choice
   (`ON_BY_DEFAULT`); the Spanish choices sit beside the French ones in
   `user_metadata.lessons_in_cards`, since the ids never meet.

@@ -158,8 +158,10 @@ async function tryOne(file, front, typed, shown = "fr") {
   // matchAnswer's `articles`).
   const spanish = /\/lessons\/es\//.test(path.resolve(file));
   const articles = !spanish ? "fr" : shown === "fr" ? "en" : card[2] === "V" ? "es" : "none";
-  const r = matchAnswer(typed, correct, extra, { exact, articles });
-  console.log(JSON.stringify({ front, shown, typed, exact, result: r.match ? (r.close ? "close enough (right)" : "right") : r.wrongArticle ? "wrong article" : "wrong" }));
+  // Spanish answers have their accents checked (owner, 2026-10-22).
+  const accents = spanish && (shown === "en" || exact);
+  const r = matchAnswer(typed, correct, extra, { exact, articles, accents });
+  console.log(JSON.stringify({ front, shown, typed, exact, result: r.match ? (r.close ? "close enough (right)" : "right") : r.wrongArticle ? "wrong article" : r.wrongAccent ? "wrong accent" : "wrong" }));
 }
 
 async function all() {

@@ -284,6 +284,45 @@ function stripParens(s) {
   do { prev = out; out = out.replace(/\([^()]*\)/g, " "); } while (out !== prev);
   return out.replace(/\(.*$/, " ").replace(/\)/g, " ").replace(/\s+/g, " ").trim();
 }
+// Spanish answers are marked with their accents (owner, 2026-10-22:
+// "accents must be checked"): "habló" is not "hablo", "año" not "ano", "tú"
+// not "tu". The match itself is made with accents set aside, as before, so
+// a typo elsewhere is still forgiven; then every typed word that is a word of
+// the answer but for its accents is a wrong answer. A word with a typo in it
+// isn't judged for its accents: the tolerance has already judged it.
+// French answers are marked as they always were, accents aside.
+function keepAccents(s) {
+  return String(s || "").toLowerCase().normalize("NFC")
+    .replace(/\([^)]*\)/g, "")
+    .replace(/[.,!?;:""''«»’‘“”…¿¡]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+const withoutAccents = (w) => w.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+// Accents the Real Academia no longer asks for but still allows, on solo and
+// the demonstratives: "sólo" and "éste" are right where the answer has "solo"
+// and "este".
+const OLD_ACCENTS = new Map([
+  ["sólo", "solo"], ["éste", "este"], ["ésta", "esta"], ["éstos", "estos"], ["éstas", "estas"],
+  ["ése", "ese"], ["ésa", "esa"], ["ésos", "esos"], ["ésas", "esas"],
+  ["aquél", "aquel"], ["aquélla", "aquella"], ["aquéllos", "aquellos"], ["aquéllas", "aquellas"],
+]);
+function accentsRight(typed, answer) {
+  const forms = new Map();
+  for (const w of keepAccents(answer).split(" ")) {
+    const k = withoutAccents(w);
+    if (!forms.has(k)) forms.set(k, new Set());
+    forms.get(k).add(w);
+  }
+  for (const w of keepAccents(typed).split(" ")) {
+    const fs = forms.get(withoutAccents(w));
+    if (!fs || fs.has(w)) continue;
+    if (OLD_ACCENTS.has(w) && fs.has(OLD_ACCENTS.get(w))) continue;
+    return false;
+  }
+  return true;
+}
+
 // Match typed answer against correct answer, handling alternatives and fuzz.
 //
 // `exact` turns the fuzz off: the typed answer must equal one of the
@@ -308,7 +347,11 @@ function stripParens(s) {
 // or lo is a pronoun, so a wrong one isn't called a wrong article. (The
 // tolerance below still lets a slightly shorter answer through, as on French
 // phrase cards; the lessons test pronouns on exact cards.)
-function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings = false, articles = "fr" } = {}) {
+//
+// `accents`: the answer is Spanish, and its accents are checked (see
+// accentsRight). A match that is right but for an accent is
+// { match: false, wrongAccent: true }.
+function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings = false, articles = "fr", accents = false } = {}) {
   const t = normalize(typed);
   if (!t) return { match: false };
 
@@ -348,8 +391,15 @@ function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings =
     // split into "Oui" and "j'y vais" would accept "oui" and refuse the whole.
     const squash = (x) => normalize(x).replace(/\s+/g, " ").trim();
     const pool = sources.flatMap((src) => { const x = stripParens(src) || src; return [x, ...x.split("/")]; });
-    return { match: pool.some((alt) => squash(alt) && squash(alt) === squash(t)) };
+    const hits = pool.filter((alt) => squash(alt) && squash(alt) === squash(t));
+    if (!hits.length) return { match: false };
+    if (!accents || hits.some((alt) => accentsRight(typed, alt))) return { match: true };
+    return { match: false, wrongAccent: true };
   }
+
+  // An answer right but for its accents, kept while the other answers are
+  // tried: one of them may be right with them.
+  let accentMiss = false;
 
   for (const alt of alternatives) {
     const a = normalize(alt);
@@ -369,12 +419,14 @@ function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings =
     const tRest = typedSplit.rest;
     const aRest = answerSplit.rest;
     // Exact match
-    if (tRest === aRest) return { match: true };
-    // Substring match (user typed part of a longer answer)
-    if (aRest.includes(tRest) && tRest.length >= Math.max(4, aRest.length - 3)) {
-      return { match: true, close: true };
+    if (tRest === aRest) {
+      if (accents && !accentsRight(typed, alt)) { accentMiss = true; continue; }
+      return { match: true };
     }
-    if (tRest.includes(aRest) && aRest.length >= 4) {
+    // Substring match (user typed part of a longer answer)
+    if ((aRest.includes(tRest) && tRest.length >= Math.max(4, aRest.length - 3)) ||
+        (tRest.includes(aRest) && aRest.length >= 4)) {
+      if (accents && !accentsRight(typed, alt)) { accentMiss = true; continue; }
       return { match: true, close: true };
     }
     // Token-set overlap: only accepts word-order changes, not wrong/missing words.
@@ -385,6 +437,7 @@ function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings =
       let shared = 0;
       for (const tok of tTokens) if (aTokens.has(tok)) shared++;
       if (shared === tTokens.size && shared === aTokens.size) {
+        if (accents && !accentsRight(typed, alt)) { accentMiss = true; continue; }
         return { match: true, close: true };
       }
     }
@@ -392,9 +445,12 @@ function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings =
     const dist = editDistance(tRest, aRest);
     const longest = Math.max(tRest.length, aRest.length);
     const threshold = longest <= 4 ? 0 : longest <= 8 ? 1 : longest <= 14 ? 2 : 3;
-    if (dist <= threshold) return { match: true, close: dist > 0 };
+    if (dist <= threshold) {
+      if (accents && !accentsRight(typed, alt)) { accentMiss = true; continue; }
+      return { match: true, close: dist > 0 };
+    }
   }
-  return { match: false };
+  return accentMiss ? { match: false, wrongAccent: true } : { match: false };
 }
 
 // The columns an answer changes, as they stood before it — so a corrected
@@ -2139,9 +2195,15 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
     const articles = !spanish ? "fr"
       : card.shownDir === "fr" ? "en"
       : card.cat === "vocab" ? "es" : "none";
-    const result = matchAnswer(typedAnswer, correctText, extraAlts, { exact: drill, meanings, articles });
+    // Spanish answers have their accents checked: a drill's and any card's
+    // asked English side up (owner, 2026-10-22).
+    const accents = spanish && (card.shownDir === "en" || drill);
+    const result = matchAnswer(typedAnswer, correctText, extraAlts, { exact: drill, meanings, articles, accents });
     if (result.match) {
       setTypeResult(result.close ? "close" : "correct");
+      setFlipped(true);
+    } else if (result.wrongAccent) {
+      setTypeResult("wrongAccent");
       setFlipped(true);
     } else if (result.wrongArticle) {
       setTypeResult("wrongArticle");
@@ -4294,6 +4356,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
                           {typeResult==="correct" && "✓ Correct!"}
                           {typeResult==="close" && (typedAnswer.trim() ? `✓ Close enough — you wrote: ${typedAnswer.trim()}` : "✓ Close enough")}
                           {typeResult==="wrongArticle" && (typedAnswer.trim() ? `✗ Wrong article — you wrote: ${typedAnswer.trim()}` : `✗ Wrong article — answer: ${back}`)}
+                          {typeResult==="wrongAccent" && `✗ Check the accents — you wrote: ${typedAnswer.trim()}`}
                           {typeResult==="wrong" && (typedAnswer.trim() ? `✗ You wrote: ${typedAnswer.trim()}` : `✗ Answer: ${back}`)}
                           {typeResult==="revealed" && `Answer: ${back}`}
                         </>
@@ -4301,7 +4364,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
                     </div>
                     {(() => {
                       const gotIt = typedRecalled;
-                      const missed = typeResult === "wrong" || typeResult === "close" || typeResult === "wrongArticle";
+                      const missed = typeResult === "wrong" || typeResult === "close" || typeResult === "wrongArticle" || typeResult === "wrongAccent";
                       return (
                         <>
                           {/* Beside the result, at its own size. Stacked under

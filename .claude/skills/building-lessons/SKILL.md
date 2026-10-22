@@ -69,8 +69,13 @@ model for structure.
 5. **Every French-answered grammar front has an arrow (→).** The app reads it
    to ask for French and to mark exactly, accents aside. Typo tolerance would
    pass the very mistakes a lesson tests (*chères* for *cher*, *évidamment*).
-6. **Accents are never checked**, so don't build cards whose point is an
-   accent. That's why the adverb lesson has only three -ément cards.
+6. **Accents are never checked in French**, so don't build French cards
+   whose point is an accent. That's why the adverb lesson has only three
+   -ément cards. **Spanish answers are checked with their accents** (owner,
+   2026-10-22: "accents must be checked"): "hablo" for "habló", "ano" for
+   "año" and "tu" for "tú" are marked "Check the accents", a miss. Write
+   every accent on a Spanish answer, and a Spanish card may now turn on an
+   accent.
 7. **Exact marking ignores case, accents, brackets and the punctuation
    . , ! ? ; : and quotes, but not hyphens, apostrophes or spaces**: *dix sept*
    is wrong for *dix-sept*, and *je ai* for *j'ai*.

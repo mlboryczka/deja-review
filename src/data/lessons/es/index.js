@@ -1,7 +1,8 @@
 // The Spanish module's lessons (test app, owner 2026-10-22): the 23-lesson
 // Latin American Spanish course adapted from Laura Caufour's LFL METHOD, in
-// Google Drive under Español / "New Lessons to Review". Written by
-// scripts/es-lessons-index.mjs; run it again after adding a lesson file.
+// Google Drive under Español / "New Lessons to Review", all under the folding
+// heading "Basic Lessons". Written by scripts/es-lessons-index.mjs; run it
+// again after adding a lesson file.
 //
 // Every lesson starts in every Spanish deck, as the French ones do in the
 // French deck. Lessons 1 to 6 come up on Cards without a choice
@@ -38,7 +39,7 @@ import { makeCatalogue } from "../catalogue.js";
 export const SPANISH = makeCatalogue({
   lessons: [leccion1, leccion2, leccion3, leccion4, leccion5, leccion6, leccion7_1, leccion7_2, leccion7_3, leccion8, leccion9, leccion10, leccion11, leccion12_1, leccion12_2, leccion13, leccion14, leccion15, leccion16, leccion17, leccion18, leccion19, leccion20, leccion21, leccion22, leccion23],
   meetingOrder: ["leccion1","leccion2","leccion3","leccion4","leccion5","leccion6","leccion7-1","leccion7-2","leccion7-3","leccion8","leccion9","leccion10","leccion11","leccion12-1","leccion12-2","leccion13","leccion14","leccion15","leccion16","leccion17","leccion18","leccion19","leccion20","leccion21","leccion22","leccion23"],
-  groups: [{"title":"Lessons 1 to 8","folds":true,"ids":["leccion1","leccion2","leccion3","leccion4","leccion5","leccion6","leccion7-1","leccion7-2","leccion7-3","leccion8"]},{"title":"Lessons 9 to 16","folds":true,"ids":["leccion9","leccion10","leccion11","leccion12-1","leccion12-2","leccion13","leccion14","leccion15","leccion16"]},{"title":"Lessons 17 to 23","folds":true,"ids":["leccion17","leccion18","leccion19","leccion20","leccion21","leccion22","leccion23"]}],
+  groups: [{"title":"Basic Lessons","folds":true,"ids":["leccion1","leccion2","leccion3","leccion4","leccion5","leccion6","leccion7-1","leccion7-2","leccion7-3","leccion8","leccion9","leccion10","leccion11","leccion12-1","leccion12-2","leccion13","leccion14","leccion15","leccion16","leccion17","leccion18","leccion19","leccion20","leccion21","leccion22","leccion23"]}],
 });
 
 export default SPANISH;

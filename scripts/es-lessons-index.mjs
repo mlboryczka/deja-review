@@ -19,17 +19,16 @@ const ORDER = [
 const only = (process.env.ONLY || "").split(",").filter(Boolean);
 const have = ORDER.filter((id) => fs.existsSync(path.join(dir, `${id}.js`)) && (!only.length || only.includes(id)));
 const name = (id) => id.replace("-", "_");
-const groups = [
-  ["Lessons 1 to 8", (n) => n <= 8],
-  ["Lessons 9 to 16", (n) => n >= 9 && n <= 16],
-  ["Lessons 17 to 23", (n) => n >= 17],
-].map(([title, test]) => ({ title, ids: have.filter((id) => test(Number(id.match(/\d+/)[0]))) }))
-  .filter((g) => g.ids.length);
+// One folding heading over every lesson, "Basic Lessons", as the French
+// beginner lessons have (owner, 2026-10-22: "all the spanish lessons should
+// be under Basic Lessons, just as in French module").
+const groups = have.length ? [{ title: "Basic Lessons", ids: have }] : [];
 
 const out = `// The Spanish module's lessons (test app, owner 2026-10-22): the 23-lesson
 // Latin American Spanish course adapted from Laura Caufour's LFL METHOD, in
-// Google Drive under Español / "New Lessons to Review". Written by
-// scripts/es-lessons-index.mjs; run it again after adding a lesson file.
+// Google Drive under Español / "New Lessons to Review", all under the folding
+// heading "Basic Lessons". Written by scripts/es-lessons-index.mjs; run it
+// again after adding a lesson file.
 //
 // Every lesson starts in every Spanish deck, as the French ones do in the
 // French deck. Lessons 1 to 6 come up on Cards without a choice
