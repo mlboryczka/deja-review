@@ -2765,6 +2765,8 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
           original_front: ctx.originalFront || null,
           front: trimmedFront,
           back: trimmedBack,
+          // A Spanish card is edited in the Spanish deck (2026-10-22).
+          ...(spanish ? { course: "es" } : {}),
         }),
       });
       if (!res.ok) {
@@ -2809,6 +2811,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
       original_back: ctx.originalBack ?? null,
       corrected_front: trimmedFront,
       corrected_back: trimmedBack,
+      ...(spanish ? { course: "es" } : {}),
     });
 
     reloadDeck();
@@ -2825,7 +2828,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
       const res = await fetch("/api/admin-update-card", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token || ""}` },
-        body: JSON.stringify({ action: "remove", row_id: rowId }),
+        body: JSON.stringify({ action: "remove", row_id: rowId, ...(spanish ? { course: "es" } : {}) }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok || !body.ok) {
@@ -3410,8 +3413,9 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
               // Which Podcasts page feedback came from (podcasts/episode,
               // podcasts/mine…), not just "podcasts": the review reads it as
               // "from the <page> page".
-              currentPage={podcastsOn ? `podcasts/${podView.view}` : mode}
+              currentPage={podcastsOn ? `podcasts/${podView.view}` : spanish ? `Spanish ${mode}` : mode}
               currentCard={mode === "study" ? card : null}
+              course={course.id}
               open={showFeedback}
               onOpen={openFeedback}
               onClose={() => setShowFeedback(false)}
@@ -3522,6 +3526,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
       {editingCard && (
         <EditCardModal
           card={editingCard}
+          language={course.language}
           onClose={() => setEditingCard(null)}
           onSave={async (newFront, newBack) => {
             // Pass originals + batch_id through from the modal itself, so
@@ -3582,6 +3587,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
                 batch_id: editingCard.batch_id || null,
                 original_front: editingCard.f,
                 original_back: editingCard.b,
+                ...(spanish ? { course: "es" } : {}),
               });
             }
 
@@ -4301,9 +4307,9 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
                         </button>
                       </div>
                     )}
-                    {/* Editing goes through the server, which edits French
-                        cards only. */}
-                    {!spanish && <div style={S.cardActionsFloat}>
+                    {/* Spanish cards are edited in the Spanish deck, and the
+                        edit logged as Spanish (2026-10-22). */}
+                    {<div style={S.cardActionsFloat}>
                       <button
                         style={S.cardActionBtn}
                         onClick={(e) => { e.stopPropagation(); setEditingCard(card); }}
@@ -4584,9 +4590,11 @@ function FeedbackEntry({ item, number, last, children }) {
           {ctx && (
             <div data-feedback-card style={S.fbEntryCard}>
               <div style={S.fbEntryCardLabel}>
+                {/* A Spanish card says so (sent from the Spanish module). */}
+                {ctx.course === "es" && <span>Spanish · </span>}
                 <span style={{ color: TYPE_COLOR[type] }}>{TYPE_LABEL[type]}</span>
                 {ctx.shown_dir && (
-                  <span> · shown {ctx.shown_dir === "fr" ? "French" : "English"} first</span>
+                  <span> · shown {ctx.shown_dir === "fr" ? (ctx.course === "es" ? "Spanish" : "French") : "English"} first</span>
                 )}
               </div>
               <div style={S.fbEntryCardText} title={ctx.back ? `${ctx.front} · ${ctx.back}` : ctx.front}>
@@ -5034,7 +5042,7 @@ function UsersModal({ onClose }) {
   );
 }
 
-function EditCardModal({ card, onClose, onSave, onDelete }) {
+function EditCardModal({ card, onClose, onSave, onDelete, language = "French" }) {
   const [front, setFront] = useState(card.f);
   const [back, setBack] = useState(card.b);
   const [saving, setSaving] = useState(false);
@@ -5043,7 +5051,7 @@ function EditCardModal({ card, onClose, onSave, onDelete }) {
   // the other, whichever way round it was asked. Any other card (a
   // conjugation drill, a lesson exercise) is a question and its answer, often
   // both in French, so "French / English" mislabelled it.
-  const [frontLabel, backLabel] = isTwoWay(card) ? ["French", "English"] : ["Question", "Answer"];
+  const [frontLabel, backLabel] = isTwoWay(card) ? [language, "English"] : ["Question", "Answer"];
 
   const handleSave = async () => {
     if (!front.trim() || !back.trim()) {

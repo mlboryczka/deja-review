@@ -159,6 +159,25 @@ if (args.includes("--test-app")) {
       for (const d of c.details.length ? c.details : [c.summary]) problems.push(`Test app: ${r.user_email}: ${c.title}: ${d}`);
     }
   }
+  // The Spanish deck, judged the same way (the Spanish module, test app only,
+  // 2026-10-22: "logged in the spanish module just as they are for the
+  // french module"). Before migration_020 there is nothing to read; that
+  // isn't a problem with the owner's record.
+  const [es] = await checkEveryone(db, { examples: Infinity, only: new Set([owner]), rulesFrom: RULES_FROM, course: "es" });
+  console.log(`\nThe same, on ${owner}'s Spanish deck:`);
+  if (!es) {
+    console.log(`  ${owner} hasn't answered a Spanish card yet.`);
+  } else if (es.error && /es_card_reviews|es_user_cards|schema cache|does not exist/i.test(es.error)) {
+    console.log("  waiting for the Spanish tables (migration_020).");
+  } else if (es.error) {
+    unreadable = true;
+    console.log(`  couldn't be checked: ${es.error}`);
+  } else {
+    console.log(statusText(es.report).split("\n").map((l) => `  ${l}`).join("\n"));
+    for (const c of es.report.results.filter((x) => x.status === "fail")) {
+      for (const d of c.details.length ? c.details : [c.summary]) problems.push(`Test app (Spanish): ${es.user_email}: ${c.title}: ${d}`);
+    }
+  }
   finish({ problems, detail: new Map(), raised, raisedFile: RAISED_FILE, unreadable });
 }
 

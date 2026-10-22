@@ -68,11 +68,17 @@ export async function updateCard(admin, req, res) {
   }
   console.log("[admin-update-card] body keys:", Object.keys(body));
 
+  // The Spanish module's cards are in es_user_cards (migration_020,
+  // 2026-10-22), numbered apart from the French ones: a Spanish row id looked
+  // up among French cards could find a French card.
+  const spanish = body.course === "es";
+  const table = spanish ? "es_user_cards" : "user_cards";
+
   // A student removing a card: taken out of study and remembered, never
   // erased (api/_lib/removeCard.js). Here because the Hobby plan deploys at
   // most 12 routes and there are 12.
   if (body.action === "remove") {
-    const { status, json } = await removeCard({ admin, userId, rowId: body.row_id });
+    const { status, json } = await removeCard({ admin, userId, rowId: body.row_id, table });
     return res.status(status).json(json);
   }
 
@@ -97,7 +103,7 @@ export async function updateCard(admin, req, res) {
   let existing = null;
   if (rowIdValue !== null && rowIdValue !== "") {
     const { data, error } = await admin
-      .from("user_cards")
+      .from(table)
       .select("id, user_id, front")
       .eq("id", rowIdValue)
       .maybeSingle();
@@ -110,7 +116,7 @@ export async function updateCard(admin, req, res) {
   if (!existing && typeof original_front === "string" && original_front.trim()) {
     const key = original_front.trim().toLowerCase();
     const { data, error } = await admin
-      .from("user_cards")
+      .from(table)
       .select("id, user_id, front")
       .eq("user_id", userId)
       .ilike("front", original_front.trim())
@@ -133,7 +139,7 @@ export async function updateCard(admin, req, res) {
   }
 
   const { data: updated, error: updErr } = await admin
-    .from("user_cards")
+    .from(table)
     .update({
       front: front.trim(),
       back: back.trim(),
@@ -151,7 +157,7 @@ export async function updateCard(admin, req, res) {
     if (updErr.code === "23505") {
       return res.status(409).json({
         // A card the student removed keeps its French too, out of study.
-        error: `You already have a card with the French side "${front.trim()}", in your deck or among the cards you removed. Edit that one instead, or remove this card.`,
+        error: `You already have a card with the ${spanish ? "Spanish" : "French"} side "${front.trim()}", in your deck or among the cards you removed. Edit that one instead, or remove this card.`,
         code: "duplicate_front",
       });
     }

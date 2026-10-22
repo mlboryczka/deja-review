@@ -83,10 +83,11 @@ export default async function handler(req, res) {
     force,
     course,
   } = req.body || {};
-  // A Spanish card (the Spanish module, 2026-10-22): judged as Spanish, and
-  // an accepted answer kept with the Spanish deck. Its verdicts aren't added
-  // to answer_reviews, the record of Claude's marking of French answers that
-  // the owner's checks read.
+  // A Spanish card (the Spanish module, 2026-10-22): judged as Spanish, an
+  // accepted answer kept with the Spanish deck, and its verdict kept in
+  // answer_reviews marked "es" (migration_021), to be tested like a French
+  // one (owner: "logged in the spanish module just as they are for the french
+  // module").
   const spanish = course === "es";
   const language = spanish ? "Spanish" : "French";
   const alternatesTable = spanish ? "es_card_alternates" : "card_alternates";
@@ -104,7 +105,7 @@ export default async function handler(req, res) {
   // remembered". It wasn't. It is now.
   if (force === true) {
     await recordAlternate({ userId: user.id, card_id, direction, user_answer, table: alternatesTable });
-    if (!spanish) await answerStore()?.overridden({ user_id: user.id, card_id, direction, typed: user_answer });
+    await answerStore()?.overridden({ user_id: user.id, card_id, direction, typed: user_answer, course: spanish ? "es" : "fr" });
     return res.status(200).json({
       ok: true,
       verdict: "accept",
@@ -123,8 +124,9 @@ export default async function handler(req, res) {
 
     // Kept whatever it says. Never holds up the answer: a failed save (or no
     // table before migration_015) is logged and the verdict still returned.
-    const saved = spanish ? null : await answerStore()?.save(verdictRow({
+    const saved = await answerStore()?.save(verdictRow({
       user, card_id, direction, french, english, expected: expected_answer, typed: user_answer, verdict, reasoning,
+      course: spanish ? "es" : "fr",
     }));
     if (saved?.error) console.error("answer_reviews write failed:", saved.error);
 

@@ -34,6 +34,18 @@
 
 import { runStatusChecks, lookalikes, LOOKALIKES_PER_DAY } from "../../src/lib/statusChecks.js";
 import { lessonRank } from "../../src/data/lessons/index.js";
+import { SPANISH } from "../../src/data/lessons/es/index.js";
+
+// The Spanish module's deck (migration_020, 2026-10-22): the same checks on
+// es_card_reviews, es_user_cards and es_dealt_sets, so Spanish is checked as
+// French is (owner: "logged in the spanish module just as they are for the
+// french module"). Claude's verdicts on look-alikes (card_pairs) are French
+// cards' only; the owner's corrections are each language's own
+// (es_parse_corrections, migration_021).
+const TABLES = {
+  fr: { answers: "card_reviews", cards: "user_cards", deals: "dealt_sets", corrections: "parse_corrections" },
+  es: { answers: "es_card_reviews", cards: "es_user_cards", deals: "es_dealt_sets", corrections: "es_parse_corrections" },
+};
 import { missingTable } from "../../src/lib/dealLog.js";
 import { archivedSource, isArchived } from "../../src/lib/archive.js";
 import { DIRECTIONS, sideOf } from "../../src/lib/directions.js";
@@ -76,14 +88,15 @@ export async function listStudents(db) {
 // owner's corrections are read too; either one unreadable leaves the check
 // that needs it waiting rather than failing the student's whole report, and
 // card_pairs missing is the database before migration_016.
-export async function loadStudent(db, student) {
+export async function loadStudent(db, student, { course = "fr" } = {}) {
+  const t = TABLES[course] || TABLES.fr;
   const [answers, cards, deals, settings, pairs, corrections] = await Promise.all([
-    readAll(db, "card_reviews", student.id),
-    readAll(db, "user_cards", student.id),
-    readAll(db, "dealt_sets", student.id),
+    readAll(db, t.answers, student.id),
+    readAll(db, t.cards, student.id),
+    readAll(db, t.deals, student.id),
     db.from("fsrs_settings").select("*").eq("user_id", student.id).maybeSingle(),
-    readAll(db, "card_pairs", student.id),
-    readAll(db, "parse_corrections", student.id),
+    course === "es" ? Promise.resolve({ data: [] }) : readAll(db, "card_pairs", student.id),
+    readAll(db, t.corrections, student.id),
   ]);
   const failed = answers.error || cards.error || (deals.error && !missingTable(deals.error) ? deals.error : null);
   if (failed) return { student, error: failed.message || String(failed) };
@@ -99,6 +112,7 @@ export async function loadStudent(db, student) {
     pairsTable: !missingTable(pairs.error),
     corrections: corrections.error ? null : corrections.data,
     judging: null,
+    course,
   };
 }
 
@@ -121,7 +135,8 @@ export function reportFor(rec, { now = Date.now(), examples, rulesFrom } = {}) {
     corrections: rec.corrections,
     timeZone: latestZone,
     rulesFrom,
-    lessonRank,
+    lessonRank: rec.course === "es" ? SPANISH.lessonRank : lessonRank,
+    course: rec.course || "fr",
     now,
     ...(examples != null ? { examples } : {}),
   });
@@ -161,12 +176,16 @@ export async function checkStudent(db, student, { now = Date.now(), judge = null
 // reportFor.
 // `only`: a Set of emails to check and no one else (the morning check of the
 // test app, scripts/status-check.mjs --test-app).
-export async function checkEveryone(db, { now = Date.now(), judge = null, examples, only = null, rulesFrom } = {}) {
+//
+// `course` "es" checks the Spanish decks instead (2026-10-22). Look-alikes
+// are put to Claude for French cards only, so `judge` is for French.
+export async function checkEveryone(db, { now = Date.now(), judge = null, examples, only = null, rulesFrom, course = "fr" } = {}) {
   const loaded = [];
+  if (course !== "fr") judge = null;
   for (const student of await listStudents(db)) {
     if (only && !only.has(student.email)) continue;
     try {
-      const rec = await loadStudent(db, student);
+      const rec = await loadStudent(db, student, { course });
       if (rec) loaded.push(rec);
     } catch (e) {
       loaded.push({ student, error: e.message || String(e) });

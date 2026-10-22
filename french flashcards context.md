@@ -1010,10 +1010,15 @@ The files:
   question. Additive and re-runnable; the app works before it, knowing
   classes by date only, and the two checks of the deck wait for it.
 - `017_podcasts`: the three tables of Podcasts (see *Podcasts*).
-- `020_spanish` (on `testing`, written 2026-10-22, waits on the owner): the
+- `020_spanish` (on `testing`, run by the owner 2026-10-22): the
   Spanish deck's six tables, `es_user_cards` and the rest, made LIKE the
   French ones (see *Spanish*). Only adds tables, so `main` is unaffected.
   Tried on a throwaway Postgres: it runs, and runs again harmlessly.
+- `021_spanish_logs` (on `testing`, written 2026-10-22, waits on the owner):
+  `es_answer_reviews` and `es_parse_corrections`, LIKE the French logs, for
+  the Spanish module's verdicts and corrections (see *Spanish*). Service role
+  only, as the French ones. Only adds tables. Until it is run, Spanish
+  verdicts and corrections aren't kept (the app works the same).
   `podcast_episodes` is shared: written only by the server, and the first
   table any signed-in user may read. `podcast_follows` is each student's own
   to read, add and remove. `podcast_answers` is a record like `card_reviews`:
@@ -2236,11 +2241,35 @@ Flashcards / Podcasts switch is French only; Spanish has no Podcasts (owner,
   `src/data/lessons/byCourse.js`: both catalogues are built by
   `src/data/lessons/catalogue.js`, so a Spanish lesson works exactly as a
   French one (sync, rank, instruction lines, notes, switches).
-- **Not in Spanish**: the tutor, uploading notes, the linked cahier, editing
-  a card (the server edits French cards only), the first-visit tour, Podcasts
-  and the "Include lessons" switch (every Spanish card is a lesson card). The
-  daily FSRS check runs from the French app only; Spanish is scheduled with
-  the settings it gives.
+- **Not in Spanish**: the tutor, uploading notes, the linked cahier, the
+  first-visit tour, Podcasts and the "Include lessons" switch (every Spanish
+  card is a lesson card). The daily FSRS check runs from the French app only;
+  Spanish is scheduled with the settings it gives.
+- **Logged and checked as French is** (owner, 2026-10-22: "make sure that the
+  evaluation harness, all the saved feedback and changes, etc are logged in
+  the spanish module just as they are for the french module"). Spanish has
+  its own two logs (migration_021), because the students' app reads the
+  French ones every day as French and a Spanish card's id is numbered apart:
+  - Claude's verdict on "My answer should be accepted" is kept in
+    `es_answer_reviews` (`course: "es"` through `verdictRow`; Accept anyway
+    marks it overridden there). The store's `list` reads both logs, each row
+    saying its course, and the re-test of Claude's marking asks a Spanish
+    verdict again as Spanish (`runAnswerTest`). It runs from the students'
+    app's daily job, so it reaches Spanish verdicts at release.
+  - Feedback sent from Spanish says so: `card_context.course: "es"`, the page
+    "Spanish study". Claude's review is told the cards are Spanish (a note in
+    the message; the French system prompt is unchanged), and Apply, Remove
+    and Revert act on `es_user_cards` (`courseOfFeedback`). The owner's
+    feedback list labels the card "Spanish".
+  - Editing a card (✏️) works in Spanish: `api/admin-update-card.js` and
+    Remove take `course: "es"` and use `es_user_cards`; the edit is logged in
+    `es_parse_corrections`.
+  - The morning check's test-app run (`status-check.mjs --test-app`) checks
+    the owner's Spanish deck too, with the same checks on the Spanish tables
+    (`checkEveryone(..., { course: "es" })` in `api/_lib/statusDaily.js`),
+    each problem raised as "Test app (Spanish):". Look-alikes aren't put to
+    Claude in Spanish (card_pairs holds French cards); the sure rule is the
+    whole check.
 - **"My answer should be accepted" works**: the request says `course: "es"`,
   Claude is asked about a Spanish learner (`answerPrompt`'s `language`; the
   French question is unchanged, version a691631), an accepted answer goes to

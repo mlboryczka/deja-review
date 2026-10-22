@@ -1072,7 +1072,7 @@ function checkNoRepeats(cards, ctx) {
   const bad = [];
   for (const g of rep.groups) {
     const list = g.some((x) => g.some((y) => x !== y && isListPart(x, y)));
-    const why = list ? `a list card and ${g.length === 2 ? "an item" : "items"} on it, with English that agrees` : "the same French, and English that agrees";
+    const why = list ? `a list card and ${g.length === 2 ? "an item" : "items"} on it, with English that agrees` : `the same ${ctx.course === "es" ? "Spanish" : "French"}, and English that agrees`;
     bad.push(`${listed(g.map(quoted))} are one card ${TIMES[g.length] || `${g.length} times`}: ${why}.`);
   }
   for (const p of rep.same) {
@@ -1085,6 +1085,9 @@ function checkNoRepeats(cards, ctx) {
   }
   const n = rep.inStudy.length;
   const sure = `No two of your ${plural(n, "card")} in study are surely the same card`;
+  // Spanish look-alikes aren't put to Claude (card_pairs holds French
+  // cards), so the sure rule is the whole check there.
+  if (ctx.course === "es") return { ...out, status: "pass", summary: `${sure}.`, details: [] };
   if (!ctx.pairsTable) {
     return { ...out, status: "wait", summary: `${sure}. Look-alikes wait for the database update (migration_016), which keeps Claude's verdicts on them.`, details: [] };
   }
@@ -1212,10 +1215,12 @@ function checkNothingBack(cards, ctx) {
 //   pairsTable  false when the database hasn't migration_016 yet: no
 //             card_pairs, and no record of why a card was taken out
 //   corrections  parse_corrections rows for this student; null when unread
+//   course    "es" for the Spanish module's deck (2026-10-22): its wording
+//             says Spanish, and look-alikes aren't put to Claude
 export function runStatusChecks({
   answers = [], deals = [], cards = [], settings = null, timeZone = null,
   now = Date.now(), dealsTable = true, lessonRank = null, from = CHECKS_START, examples = EXAMPLES,
-  pairs = null, pairsTable = true, corrections = null, rulesFrom = null,
+  pairs = null, pairsTable = true, corrections = null, rulesFrom = null, course = "fr",
 } = {}) {
   const idx = indexRecord({ answers, cards, deals, timeZone });
   const startDay = labelNo(from);
@@ -1231,7 +1236,7 @@ export function runStatusChecks({
   // from their first day, so their tests pass that day instead.
   const rules = { repeatsCount: REPEATS_COUNT_FROM, oneWayADay: ONE_WAY_A_DAY_FROM, ...(rulesFrom || {}) };
   const ctx = {
-    now, settings, lessonRank, inWindow, dealsOn, timeZone, pairs, pairsTable, corrections, rulesFrom: rules,
+    now, settings, lessonRank, inWindow, dealsOn, timeZone, pairs, pairsTable, corrections, rulesFrom: rules, course,
     dealsWaiting: !dealsTable
       ? "Waiting for the database update."
       : "Starts the day after the first set is recorded.",

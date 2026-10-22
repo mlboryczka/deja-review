@@ -53,6 +53,9 @@ export function BetaFeedback({
   user,
   currentPage,
   currentCard,
+  // "es" when it is sent from the Spanish module: the card it attaches is in
+  // the Spanish deck, and Claude's review and Apply look for it there.
+  course = "fr",
   // Controlled by FlashcardApp so this and the tutor panel can never be open
   // together.
   open,
@@ -292,6 +295,7 @@ export function BetaFeedback({
       back: currentCard.b,
       category: currentCard.cat,
       shown_dir: currentCard.shownDir,
+      ...(course === "es" ? { course: "es" } : {}),
     } : null;
 
     const full = { ...base };

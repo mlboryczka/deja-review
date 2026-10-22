@@ -58,8 +58,11 @@ async function handlePost(req, res, admin, adminUser) {
 
   const user_id = body.user_id || adminUser.id;
 
+  // A Spanish card's correction goes to the Spanish log (migration_021,
+  // 2026-10-22): its card_id is an es_user_cards id, which the French log's
+  // readers would take for a French card's.
   const { data, error } = await admin
-    .from("parse_corrections")
+    .from(body.course === "es" ? "es_parse_corrections" : "parse_corrections")
     .insert({
       category,
       action,

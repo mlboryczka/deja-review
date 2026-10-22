@@ -135,8 +135,13 @@ export function ownerCall(row, adminEmail) {
 
 // The row saved for one verdict: both sides of the card and what Claude was
 // given as the expected answer, so a test can ask it exactly as the app did.
-export function verdictRow({ user, card_id, direction, french, english, expected, typed, verdict, reasoning }) {
+//
+// `course` "es" marks a Spanish card's verdict (2026-10-22): the store keeps
+// it in es_answer_reviews (migration_021), apart from the French ones that
+// the students' app re-tests as French.
+export function verdictRow({ user, card_id, direction, french, english, expected, typed, verdict, reasoning, course }) {
   return {
+    ...(course === "es" ? { course: "es" } : {}),
     user_id: user.id,
     user_email: user.email || null,
     card_id: String(card_id ?? ""),
@@ -207,7 +212,7 @@ function cases(rows, adminEmail) {
   for (const r of rows) {
     const call = ownerCall(r, adminEmail);
     if (!call) continue;
-    const key = [r.user_id, r.card_id, r.direction, String(r.typed).trim().toLowerCase()].join("|");
+    const key = [r.course || "fr", r.user_id, r.card_id, r.direction, String(r.typed).trim().toLowerCase()].join("|");
     const g = groups.get(key);
     const newer = !g || Date.parse(r.created_at) >= Date.parse(g.latest);
     if (!g) groups.set(key, { r, call, first: r, latest: r.created_at });
@@ -234,7 +239,8 @@ export async function runAnswerTest({ store, apiKey, adminEmail, deadline = Infi
   if (!chosen.length) return { skipped: "No answers to test yet." };
   const asks = await pooled(
     chosen.flatMap(({ r }) => Array.from({ length: ASKS_PER_CASE }, () => () =>
-      askClaude({ apiKey, direction: r.direction, french: r.front, expected: r.expected, typed: r.typed }).then((v) => v.verdict))),
+      // A Spanish verdict is asked again as Spanish.
+      askClaude({ apiKey, direction: r.direction, french: r.front, expected: r.expected, typed: r.typed, language: r.course === "es" ? "Spanish" : "French" }).then((v) => v.verdict))),
     AT_ONCE,
     deadline,
   );
@@ -258,31 +264,46 @@ export async function runAnswerTest({ store, apiKey, adminEmail, deadline = Infi
   return { run: saved.row, summary };
 }
 
+const reviewsTable = (course) => (course === "es" ? "es_answer_reviews" : "answer_reviews");
+
 // The store on Supabase, with the service role. Each call says `missing` when
 // migration_015 hasn't been run, rather than failing.
 export function supabaseAnswerStore(db) {
   const out = ({ data, error }) => (missingTable(error) ? { missing: true } : error ? { error: error.message } : { rows: data });
   return {
-    async save(row) {
-      const { error } = await db.from("answer_reviews").insert(row);
+    async save({ course, ...row }) {
+      const { error } = await db.from(reviewsTable(course)).insert(row);
       return missingTable(error) ? { missing: true } : error ? { error: error.message } : { ok: true };
     },
-    async overridden({ user_id, card_id, direction, typed }) {
-      const { error } = await db.from("answer_reviews").update({ overridden: true })
+    async overridden({ user_id, card_id, direction, typed, course }) {
+      const { error } = await db.from(reviewsTable(course)).update({ overridden: true })
         .eq("user_id", user_id).eq("card_id", String(card_id)).eq("direction", direction === "en" ? "en" : "fr").eq("typed", typed);
       return missingTable(error) ? { missing: true } : error ? { error: error.message } : { ok: true };
     },
+    // Both languages' verdicts, newest first, each saying which it is. The
+    // Spanish table missing (before migration_021) leaves the French ones.
     async list() {
-      return out(await db.from("answer_reviews").select("*").order("created_at", { ascending: false }).limit(1000));
+      const fr = out(await db.from("answer_reviews").select("*").order("created_at", { ascending: false }).limit(1000));
+      if (!fr.rows) return fr;
+      const es = out(await db.from("es_answer_reviews").select("*").order("created_at", { ascending: false }).limit(1000));
+      const rows = [...fr.rows.map((r) => ({ ...r, course: "fr" })), ...(es.rows || []).map((r) => ({ ...r, course: "es" }))]
+        .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).slice(0, 1000);
+      return { rows };
     },
     async get(ids) {
-      return out(await db.from("answer_reviews").select("*").in("id", ids));
+      const fr = out(await db.from("answer_reviews").select("*").in("id", ids));
+      if (!fr.rows) return fr;
+      const es = out(await db.from("es_answer_reviews").select("*").in("id", ids));
+      return { rows: [...fr.rows.map((r) => ({ ...r, course: "fr" })), ...(es.rows || []).map((r) => ({ ...r, course: "es" }))] };
     },
+    // A verdict is in one table or the other; marking it in both finds it.
     async mark(id, says) {
-      const r = await db.from("answer_reviews")
-        .update({ owner_says: says, marked_at: says ? new Date().toISOString() : null })
-        .eq("id", id);
-      return missingTable(r.error) ? { missing: true } : r.error ? { error: r.error.message } : { ok: true };
+      const fields = { owner_says: says, marked_at: says ? new Date().toISOString() : null };
+      const r = await db.from("answer_reviews").update(fields).eq("id", id);
+      if (missingTable(r.error)) return { missing: true };
+      if (r.error) return { error: r.error.message };
+      const e = await db.from("es_answer_reviews").update(fields).eq("id", id);
+      return e.error && !missingTable(e.error) ? { error: e.error.message } : { ok: true };
     },
     async runs() {
       return out(await db.from("eval_runs").select("id, kind, ran_at, version, model, cases, passed, summary, results").eq("kind", "answers").order("ran_at", { ascending: false }).limit(10));

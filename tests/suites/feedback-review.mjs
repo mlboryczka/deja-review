@@ -284,6 +284,19 @@ console.log("\n  a review that suggests nothing usable");
      r.status === 503 && calls.length === 0 && store.entries[0].review === null, `HTTP ${r.status}`);
 }
 
+// A feedback sent from the Spanish module (2026-10-22): its card is looked
+// for in the Spanish deck, and Claude is told the cards are Spanish.
+console.log("\n  Spanish feedback");
+{
+  const { describeFeedback, courseOfFeedback } = await import("../../api/_lib/feedbackReview.js");
+  const row = { created_at: "2026-10-22T10:00:00Z", page: "Spanish study", message: "habló should accept hablo",
+    card_context: { front: "hablar (pretérito) → él/ella", back: "habló", shown_dir: "fr", category: "gram", course: "es" } };
+  const text = describeFeedback(row, { front: row.card_context.front, back: "habló" });
+  ck("a Spanish card's feedback is Spanish", courseOfFeedback(row) === "es" && courseOfFeedback({ card_context: { front: "x" } }) === "fr");
+  ck("Claude is told it is about Spanish, with accents marked", /Spanish part of the app/.test(text) && /accents/.test(text) && /shown Spanish side first/.test(text), text.slice(0, 160));
+  ck("a French one is described as before", !/Spanish/.test(describeFeedback({ ...row, page: "study", card_context: { ...row.card_context, course: undefined } }, null)));
+}
+
 anthropic.close();
 const n = ck.fails();
 console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
