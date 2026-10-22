@@ -47,6 +47,39 @@ const PERSONS = {
   "qu'ils/elles": ["third person plural", "qu'ils or qu'elles"],
 };
 
+// The Spanish module's drills (test app, 2026-10-22): "tener (presente) →
+// yo". Spanish leaves the subject out, so the answer is the bare form, "tengo",
+// and the line names the form rather than a pronoun to type: "Present tense,
+// yo form". Each person lists the subjects the answer may also start with
+// (drillAlternates), so "yo tengo" is right too.
+const ES_PERSONS = {
+  "yo": ["yo"],
+  "tú": ["tú"],
+  "él": ["él"],
+  "ella": ["ella"],
+  "usted": ["usted"],
+  "él/ella": ["él", "ella"],
+  "él/ella/usted": ["él", "ella", "usted"],
+  "nosotros": ["nosotros", "nosotras"],
+  "nosotros/nosotras": ["nosotros", "nosotras"],
+  "ustedes": ["ustedes"],
+  "ellos": ["ellos"],
+  "ellas": ["ellas"],
+  "ellos/ellas": ["ellos", "ellas"],
+  "ellos/ellas/ustedes": ["ellos", "ellas", "ustedes"],
+};
+const ES_LABEL = {
+  "él/ella": "él or ella",
+  "él/ella/usted": "él, ella or usted",
+  "nosotros/nosotras": "nosotros",
+  "ellos/ellas": "ellos or ellas",
+  "ellos/ellas/ustedes": "ellos, ellas or ustedes",
+};
+for (const [k, subjects] of Object.entries(ES_PERSONS)) {
+  PERSONS[k] = ["", ES_LABEL[k] || subjects[0]];
+}
+const isSpanishPerson = (person) => Object.prototype.hasOwnProperty.call(ES_PERSONS, person);
+
 const TENSES = {
   "présent": "Present tense",
   "present": "Present tense",
@@ -67,9 +100,25 @@ const TENSES = {
   "passé simple": "Passé simple",
   "passé récent": "Recent past (venir de)",
   "subjonctif passé": "Past subjunctive",
+  // Spanish (the Spanish module).
+  "presente": "Present tense",
+  "pretérito": "Preterite (simple past)",
+  "imperfecto": "Imperfect",
+  "pretérito perfecto": "Present perfect (haber + participle)",
+  "condicional": "Conditional",
+  "imperativo": "Command",
+  "imperativo negativo": "Negative command",
+  "ir a": "Near future (ir a + infinitive)",
+  "estar + gerundio": "Present progressive (estar + -ando / -iendo)",
 };
+const ES_TENSES = new Set([
+  "presente", "pretérito", "imperfecto", "pretérito perfecto", "condicional",
+  "imperativo", "imperativo negativo", "ir a", "estar + gerundio",
+]);
+const isCommand = (tense) => tense === "impératif" || tense === "imperativo" || tense === "imperativo negativo";
 
-const PARTICIPLE = /^(?:pp|p\.p\.|participe passé|participe)$/i;
+const PARTICIPLE = /^(?:pp|p\.p\.|participe passé|participe|participio)$/i;
+const GERUND = /^gerundio$/i;
 
 const norm = (s) => String(s || "").trim().toLowerCase().replace(/’/g, "'").replace(/\s+/g, " ");
 
@@ -96,6 +145,7 @@ export function parseDrill(front) {
   if (!left || /\s{2,}|[.?!]/.test(left)) return null;
 
   if (PARTICIPLE.test(right)) return { verb: left, tense: "participle", person: null };
+  if (GERUND.test(right)) return { verb: left, tense: "gerund", person: null };
 
   let person = right;
   const rt = right.match(/^(.+?)\s*\(([^)]+)\)$/);
@@ -105,7 +155,11 @@ export function parseDrill(front) {
     person = rt[2].trim();
   }
   if (!PERSONS[person]) return null;
-  return { verb: left, tense: tense || "présent", person };
+  // A Spanish person takes a Spanish tense, and a French one a French tense:
+  // "tener (présent) → yo" is a slip, not a drill to name.
+  const spanish = isSpanishPerson(person);
+  if (tense && spanish !== ES_TENSES.has(tense)) return null;
+  return { verb: left, tense: tense || (spanish ? "presente" : "présent"), person };
 }
 
 export const isConjugationDrill = (front) => parseDrill(front) !== null;
@@ -115,7 +169,10 @@ export function drillInstruction(front) {
   const d = parseDrill(front);
   if (!d) return null;
   if (d.tense === "participle") return "Past participle";
+  if (d.tense === "gerund") return "Gerund (-ando / -iendo form)";
   const pronoun = PERSONS[d.person][1];
+  // Spanish: the form is named, since the subject is usually left out.
+  if (isSpanishPerson(d.person)) return `${TENSES[d.tense]}, ${pronoun} form`;
   // The imperative has no subject pronoun, so the form is named, not typed.
   if (d.tense === "impératif") return `Imperative, ${pronoun} form`;
   // A subjunctive is written with its que: a cahier table expands to
@@ -145,6 +202,7 @@ const queForm = (pronoun) =>
 export function drillAlternates(front, back) {
   const d = parseDrill(front);
   if (!d) return [];
+  if (isSpanishPerson(d.person)) return spanishAlternates(d, back);
   const out = personAlternates(front, back);
   if (d.person && d.tense !== "impératif") {
     const subjects = PERSONS[d.person][1].split(" or ");
@@ -184,4 +242,20 @@ export function personAlternates(front, back) {
     }
   }
   return out;
+}
+
+// A Spanish drill's answer is the bare form, "tengo", and is right with its
+// subject too, "yo tengo"; an "él/ella" drill takes either, and an answer
+// stored with its subject is right without it. A command has no subject.
+const ES_SUBJECT = /^(?:yo|tú|tu|él|ella|usted|nosotros|nosotras|ustedes|ellos|ellas)\s+/i;
+function spanishAlternates(d, back) {
+  const out = [];
+  if (isCommand(d.tense)) return out;
+  const answers = String(back || "").replace(/\([^)]*\)/g, " ").split("/").map((x) => x.trim()).filter(Boolean);
+  for (const a of answers) {
+    const bare = a.replace(ES_SUBJECT, "");
+    if (bare !== a) out.push(bare);
+    for (const s of ES_PERSONS[d.person]) out.push(`${s} ${bare}`);
+  }
+  return out.filter((x) => !answers.includes(x));
 }

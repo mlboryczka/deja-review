@@ -55,12 +55,15 @@ export function clearProgressCache(userId) {
   }
 }
 
-export function useProgress(user) {
+// `table` and `store` are the Spanish module's (src/lib/course.js); French is
+// card_progress under the user id, as it always was.
+export function useProgress(user, { table = "card_progress", store = user?.id } = {}) {
   // The ID, not the object — see the note in useUserDeck. A token refresh
   // hands back a new object and used to re-run this whole fetch.
   const userId = user?.id ?? null;
-  const [progress, setProgress] = useState(() => readCache(user?.id) || {});
-  const [loaded, setLoaded] = useState(() => readCache(user?.id) !== null);
+  const storeId = userId ? store : null;
+  const [progress, setProgress] = useState(() => readCache(storeId) || {});
+  const [loaded, setLoaded] = useState(() => readCache(storeId) !== null);
   // Whose progress is already on screen.
   //
   // This effect re-runs whenever the `user` OBJECT changes, and supabase hands
@@ -88,7 +91,7 @@ export function useProgress(user) {
     }
     // A cached copy counts as loaded, so the fetch below is a background
     // refresh rather than something the first paint waits on.
-    const cached = readCache(userId);
+    const cached = readCache(storeId);
     if (cached) {
       setProgress(cached);
       setLoaded(true);
@@ -103,7 +106,7 @@ export function useProgress(user) {
       let from = 0;
       while (true) {
         const { data, error } = await supabase
-          .from("card_progress")
+          .from(table)
           .select("card_id, score, seen, got")
           .eq("user_id", userId)
           // A stable order across pages — see useUserDeck for why.
@@ -136,12 +139,12 @@ export function useProgress(user) {
       setProgress(merged);
       setLoaded(true);
       loadedForUser.current = userId;
-      writeCache(userId, merged);
+      writeCache(storeId, merged);
     })();
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, storeId, table]);
 
   // Update a single card's progress (optimistic local update + async upsert)
   const updateCard = useCallback(
@@ -149,7 +152,7 @@ export function useProgress(user) {
       localWrites.current.set(cardId, update);
       setProgress((prev) => ({ ...prev, [cardId]: update }));
       if (!userId) return;
-      const { error } = await supabase.from("card_progress").upsert(
+      const { error } = await supabase.from(table).upsert(
         {
           user_id: userId,
           card_id: cardId,
@@ -162,7 +165,7 @@ export function useProgress(user) {
       );
       if (error) console.error("Failed to save progress:", error);
     },
-    [userId]
+    [userId, table]
   );
 
   const resetAll = useCallback(async () => {
@@ -170,14 +173,14 @@ export function useProgress(user) {
     // Both of these, or a reload undoes the reset: the cache would repaint the
     // old scores and the in-flight writes would be merged back over them.
     localWrites.current.clear();
-    if (userId) clearProgressCache(userId);
+    if (storeId) clearProgressCache(storeId);
     if (!userId) return;
     const { error } = await supabase
-      .from("card_progress")
+      .from(table)
       .delete()
       .eq("user_id", userId);
     if (error) console.error("Failed to reset progress:", error);
-  }, [userId]);
+  }, [userId, storeId, table]);
 
   return { progress, loaded, updateCard, resetAll };
 }

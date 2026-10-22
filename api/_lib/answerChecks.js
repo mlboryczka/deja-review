@@ -48,10 +48,14 @@ const AT_ONCE = 12;
 // The question Claude is asked, word for word as /api/review-answer has asked
 // it since before verdicts were kept. Changing a word changes the version
 // below, so a test run says which question it tested.
-export function answerPrompt({ direction, french, expected, typed }) {
-  const shownSide = direction === "fr" ? "French" : "English";
-  const expectedSide = direction === "fr" ? "English" : "French";
-  return `You are reviewing a French learner's flashcard answer. Decide whether their answer should be accepted as equivalent to the expected answer.
+//
+// `language` is the language being learned: French, or Spanish for the
+// Spanish module (2026-10-22). Left out, the question is French, word for
+// word as before, so the version below is unchanged.
+export function answerPrompt({ direction, french, expected, typed, language = "French" }) {
+  const shownSide = direction === "fr" ? language : "English";
+  const expectedSide = direction === "fr" ? "English" : language;
+  return `You are reviewing a ${language} learner's flashcard answer. Decide whether their answer should be accepted as equivalent to the expected answer.
 
 The card showed the ${shownSide} side: "${french || ""}"
 The expected ${expectedSide} answer was: "${expected}"
@@ -61,12 +65,12 @@ Consider:
 - Synonyms and near-synonyms (e.g., "instead of" vs "in place of", "salesperson" vs "salesman")
 - Minor phrasing variations that preserve meaning
 - Whether the user's answer demonstrates correct understanding
-- For French answers, grammatical gender must be correct (un vs une, le vs la)
+- For ${language} answers, grammatical gender must be correct (${language === "Spanish" ? "un vs una, el vs la" : "un vs une, le vs la"})
 - For English answers, articles (a/an/the) are interchangeable
 
 Do NOT accept:
 - Answers in the wrong language
-- Answers with wrong grammatical gender in French
+- Answers with wrong grammatical gender in ${language}
 - Answers that mean something different
 - Answers that are partially correct but miss the core meaning
 
@@ -96,12 +100,12 @@ export function readVerdict(text) {
   return { verdict, reasoning: typeof parsed.reasoning === "string" ? parsed.reasoning : "", readable: true };
 }
 
-export async function askClaude({ apiKey, direction, french, expected, typed }) {
+export async function askClaude({ apiKey, direction, french, expected, typed, language }) {
   const anthropic = new Anthropic({ apiKey });
   const response = await anthropic.messages.create({
     model: ANSWER_MODEL,
     max_tokens: 1000,
-    messages: [{ role: "user", content: answerPrompt({ direction, french, expected, typed }) }],
+    messages: [{ role: "user", content: answerPrompt({ direction, french, expected, typed, language }) }],
   });
   const text = (response.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
   return readVerdict(text);

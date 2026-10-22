@@ -147,16 +147,22 @@ function shapeRow(row) {
   };
 }
 
-export function useUserDeck(user) {
+// `table` and `store` are the Spanish module's (src/lib/course.js): its deck
+// is es_user_cards, kept in this browser under "es:<user id>". The French
+// deck is user_cards under the user id, as it always was.
+export function useUserDeck(user, { table = "user_cards", store = user?.id } = {}) {
   // Depend on the ID, not the object. supabase-js hands back a NEW user object
   // every time it refreshes the token — roughly hourly — and keying the effect
   // on the object meant every refresh re-downloaded the whole deck. The id is
   // what actually identifies whose deck this is.
   const userId = user?.id ?? null;
+  const storeId = userId ? store : null;
   // Seeded from the cache so the very first render already has a deck. Lazy
   // initialisers, so the read happens once rather than on every render.
-  const [cards, setCards] = useState(() => readCache(user?.id) || []);
-  const [loaded, setLoaded] = useState(() => readCache(user?.id) !== null);
+  const [cards, setCards] = useState(() => readCache(storeId) || []);
+  const [loaded, setLoaded] = useState(() => readCache(storeId) !== null);
+  // The table isn't there: the Spanish deck before migration_020 is run.
+  const [missing, setMissing] = useState(false);
   const [reloadCounter, setReloadCounter] = useState(0);
   // The user whose deck is currently on screen. A refetch for that same user
   // (reload() after an edit, a delete, an upload, a card added from the tutor
@@ -190,7 +196,7 @@ export function useUserDeck(user) {
     }
     // A cached deck counts as loaded: the refetch below is then a background
     // refresh, exactly like a reload after an edit.
-    const cached = readCache(userId);
+    const cached = readCache(storeId);
     if (cached) {
       setCards(cached);
       setLoaded(true);
@@ -207,7 +213,7 @@ export function useUserDeck(user) {
       let from = 0;
       while (true) {
         const { data, error } = await supabase
-          .from("user_cards")
+          .from(table)
           .select(
             "id, front, back, category, dates, flagged_for_review, batch_id, source, " +
               "next_due_at, lapses, stability, difficulty, fsrs_state, reps, " +
@@ -241,6 +247,7 @@ export function useUserDeck(user) {
           from = 0;
           continue;
         }
+        if (error && (error.code === "42P01" || error.code === "PGRST205")) setMissing(true);
         if (error) {
           console.error("Failed to load user deck:", error);
           // Keep whatever is already on screen. Blanking a cached deck over a
@@ -277,13 +284,14 @@ export function useUserDeck(user) {
       setFetched((f) => ({ seq: f.seq + 1, at: startedAt }));
       setLoaded(true);
       loadedForUser.current = userId;
-      writeCache(userId, shaped);
+      setMissing(false);
+      writeCache(storeId, shaped);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [userId, reloadCounter]);
+  }, [userId, storeId, table, reloadCounter]);
 
   const reload = useCallback(() => setReloadCounter((n) => n + 1), []);
 
@@ -323,8 +331,8 @@ export function useUserDeck(user) {
     // A reset: no answer from before it may be laid back over the next fetch.
     localAnswers.current.clear();
     setCards((prev) => prev.map((c) => ({ ...c, ...fields })));
-    try { if (userId) localStorage.removeItem(CACHE_PREFIX + userId); } catch {}
-  }, [userId]);
+    try { if (storeId) localStorage.removeItem(CACHE_PREFIX + storeId); } catch {}
+  }, [storeId]);
 
-  return { cards, archived, loaded, reload, patch, patchAll, add, freshSeq: fetched.seq, fetchedAt: fetched.at };
+  return { cards, archived, loaded, missing, reload, patch, patchAll, add, freshSeq: fetched.seq, fetchedAt: fetched.at };
 }

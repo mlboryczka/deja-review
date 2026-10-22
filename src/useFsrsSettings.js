@@ -31,7 +31,7 @@ export function choiceOf(row) {
   return hit ? hit[0] : "standard";
 }
 
-export function useFsrsSettings(user, { cards, freshSeq, dir, onEstimatesChanged }) {
+export function useFsrsSettings(user, { cards, freshSeq, dir, onEstimatesChanged, daily = true }) {
   const userId = user?.id ?? null;
   const [row, setRow] = useState(null);
   const [setUp, setSetUp] = useState(false);
@@ -87,7 +87,7 @@ export function useFsrsSettings(user, { cards, freshSeq, dir, onEstimatesChanged
   // Once a study day, once the deck has come fresh from the server — a copy
   // saved in the browser can be a day old and show yesterday's work as undone.
   useEffect(() => {
-    if (!userId || !setUp || !readSeq || !freshSeq) return;
+    if (!daily || !userId || !setUp || !readSeq || !freshSeq) return;
     const today = localISODate();
     let stored = null;
     try { stored = localStorage.getItem(DAILY_KEY + userId); } catch {}
@@ -141,7 +141,7 @@ export function useFsrsSettings(user, { cards, freshSeq, dir, onEstimatesChanged
       }
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, setUp, readSeq, freshSeq]);
+  }, [userId, setUp, readSeq, freshSeq, daily]);
 
   // The student's own choice. Automatic starts again from 90%.
   const setChoice = useCallback((choice) => {

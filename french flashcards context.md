@@ -2185,6 +2185,104 @@ Spotify, or calls Claude.
 
 ---
 
+## Spanish
+
+A second language beside French, on the `testing` branch only (owner,
+2026-10-22: "use the spanish lessons we have created in the google drive to
+create a spanish module for the dejareview app"). Its lessons are the
+23-lesson Latin American Spanish course adapted from Laura Caufour's LFL
+METHOD, written and checked on 2026-10-21 and kept in Google Drive under
+Matt <> Laura Language Lessons / Español / "New Lessons to Review" (the HTML
+sources are in `.claude/spanish-lessons/source/` on the owner's Mac).
+
+**French and Spanish are separate** (owner, 2026-10-22: "the spanish module
+and the french modules should be separate"). A round flag in the top-right
+corner of every page switches between them (owner, 2026-10-22: option 2 of
+`.claude/mockups/language-switch.html`, "and use the colombian flag"): beside
+the gear on Cards, beside the heading on Lessons and Stats, in the corner on
+Podcasts. A press opens French and Spanish, each with its flag; the French
+tricolour and the Colombian flag, drawn in SVG (`LanguageFlag` in
+`FlashcardApp.jsx`). The app opens on the language used last in this browser
+(`readCourse` in `src/lib/course.js`), as Duolingo and Babbel open on the
+course you were in. A screen asking French or Spanish every time the app
+opened was built first and dropped the same day ("no i don't like this").
+Each language is the app mounted afresh (`App.jsx`, keyed by course), so
+nothing of one language's set, deck or place carries into the other. The
+Flashcards / Podcasts switch is French only; Spanish has no Podcasts (owner,
+2026-10-22).
+
+- **Who has it**: the same people as Podcasts (`podcastsOpenTo`): the owner,
+  and anyone signed in on the test app. A student's app has no flag and
+  opens on French as always.
+- **Its own deck, in its own tables** (migration_020): `es_user_cards`,
+  `es_card_reviews`, `es_dealt_sets`, `es_user_review_dates`,
+  `es_card_progress`, `es_card_alternates`, made LIKE the French ones. The
+  students' app, the morning check, the cahier sync, the repeat clean-up and
+  the daily FSRS fit read only the French tables, so no Spanish card reaches
+  any of them. `src/lib/course.js` names each course's tables and the key
+  its things are kept under in the browser ("es:<user id>").
+- **Inside the app the Spanish side is the "fr" side**: columns, directions
+  (`shownDir === "fr"`) and code keep that name; only what the student reads
+  says "Spanish" (the direction setting, the answer box, the speaker button,
+  the Stats footnote).
+- **The study code is the same.** FlashcardApp takes `course`; the deck
+  (`useUserDeck`), the old tally (`useProgress`), the set kept in the browser
+  (`lib/studyPlace.js`), the answers, the streak and the dealt sets all use
+  the course's tables and keys. The lessons come from
+  `src/data/lessons/byCourse.js`: both catalogues are built by
+  `src/data/lessons/catalogue.js`, so a Spanish lesson works exactly as a
+  French one (sync, rank, instruction lines, notes, switches).
+- **Not in Spanish**: the tutor, uploading notes, the linked cahier, editing
+  a card (the server edits French cards only), the first-visit tour, Podcasts
+  and the "Include lessons" switch (every Spanish card is a lesson card). The
+  daily FSRS check runs from the French app only; Spanish is scheduled with
+  the settings it gives.
+- **"My answer should be accepted" works**: the request says `course: "es"`,
+  Claude is asked about a Spanish learner (`answerPrompt`'s `language`; the
+  French question is unchanged, version a691631), an accepted answer goes to
+  `es_card_alternates`, and Spanish verdicts are not added to
+  `answer_reviews`, which the owner's checks read as French.
+- **The voice** is the browser's Spanish one, Mexican first (es-MX, then
+  es-US, es-419, any es; `setSpeechLanguage` in `src/audio.js`).
+- **Marking**: the same matcher. ¿ and ¡ are ignored like other punctuation.
+  Which leading words are articles (left off without penalty, and checked
+  for gender) depends on the answer (`articles` in `matchAnswer`): an
+  English answer has to, the, a and an; a Spanish word card el, la, los,
+  las, un, una, unos and unas; a Spanish phrase or grammar answer none, since
+  a leading le, la or lo there is a pronoun, and a wrong one is a wrong
+  answer, not "Wrong article". French keeps both languages' together, as
+  before. The phrase-card tolerance still lets a slightly shorter answer
+  through as close enough, as in French ("Conozco" for "La conozco", "Hablé
+  por teléfono" for "Le hablé por teléfono"), so the lessons test pronouns on
+  exact cards. Accents are ignored, as in French, so no card's point is an
+  accent (tú / tu, está / esta), and a preterite "habló" accepts "hablo".
+- **Drills** read "tener (presente) → yo" with the bare form as the answer,
+  "tengo"; "yo tengo" is accepted too, "él fue" and "ella fue" for an
+  él/ella drill, and the line says "Present tense, yo form"
+  (`src/lib/cardInstruction.js`: Spanish tenses presente, pretérito,
+  imperfecto, pretérito perfecto, condicional, imperativo, imperativo
+  negativo, ir a, estar + gerundio; gerundio and participio). A French tense
+  on a Spanish person is not read as a drill.
+- **The lessons** are `src/data/lessons/es/*.js`, one per lesson and one per
+  part of Lessons 7 and 12 (ids `leccion1` to `leccion23`, `leccion7-1` …),
+  built on the building-lessons skill like Laura's French lessons, with
+  `source: "Adapted from the LFL METHOD by Laura Caufour"`. Lesson 8 includes
+  its time-and-date annex. `es/index.js` is written by
+  `node scripts/es-lessons-index.mjs`, in course order, in three folding
+  groups (Lessons 1 to 8, 9 to 16, 17 to 23). Lessons 1 to 6, the ones the
+  owner has covered with Laura, are on Cards without a choice
+  (`ON_BY_DEFAULT`); the Spanish choices sit beside the French ones in
+  `user_metadata.lessons_in_cards`, since the ids never meet.
+- **Released cards**: `scripts/release-lesson-cards.mjs` and the `logic`
+  suite cover the Spanish lessons too, and `logic` fails if two Spanish
+  lessons share a front (es_user_cards is unique on user and front).
+- **Before the migration** the Spanish deck can't load: the app says
+  "Spanish needs one update to the database before it can open: run
+  migration_020_spanish.sql in Supabase, then reload", with "Back to
+  French".
+
+---
+
 ## The status check and the simulations
 
 The status check answers the owner's three questions (2026-09-27): are cards
@@ -3066,6 +3164,21 @@ fall back to the server's key as the owner's do. She is named by account id,
 since the repo is public, and only she is: any account can sign in on the
 test app (sign-up is open), so "anyone signed in there" would have let a
 stranger spend the owner's account.
+
+### 2026-10-22 — Spanish
+
+The owner asked for a Spanish module from the 23 Spanish lessons in Google
+Drive, then, while it was being built, that French and Spanish be separate
+and chosen at the beginning, that Spanish have no Podcasts, and that it go to
+the test app. A choice screen was built, and the owner turned it down and
+asked how other apps switch language: Duolingo, Babbel and Busuu use a
+round flag in a corner. Of three mockups the owner chose the flag in the
+top-right corner, with the Colombian flag for Spanish. Built on `testing`:
+that flag switch, the Spanish
+deck in tables of its own (migration_020, to be run by the owner), the study
+code made to take a course, and the 23 lessons (26 lesson files) as cards and
+notes, built from the HTML sources by parallel helpers following the
+building-lessons skill and then checked. See *Spanish*.
 
 ---
 

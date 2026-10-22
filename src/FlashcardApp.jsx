@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from "react";
 import { createPortal } from "react-dom";
 import { RAW } from "./data/cards"; // only used for the admin "seed demo deck" action
-import { LESSONS, LESSON_GROUPS, LESSONS_SHOWN, lessonIdOf, lessonRank, cardInstructionFor, lessonBackFor } from "./data/lessons";
+import { lessonIdOf } from "./data/lessons";
+import { catalogueFor } from "./data/lessons/byCourse";
+import { courseOf } from "./lib/course";
 import { reconcileLessons, ADOPTED_SOURCE } from "./lib/lessonSync";
 import { archivedSource, ARCHIVE_PREFIX } from "./lib/archive";
 import { readPlace, writePlace, dropSets, packSet, unpackEntries } from "./lib/studyPlace";
@@ -59,6 +61,7 @@ import ChatPanel, { CHAT_PANEL_WIDTH } from "./ChatPanel";
 import { T } from "./theme";
 import {
   speakFrench,
+  setSpeechLanguage,
   stopSpeaking,
   WavRecorder,
   assessPronunciation,
@@ -101,6 +104,9 @@ const podcastsUser = (user) => podcastsOpenTo({
   signedIn: !!user?.id,
   host: typeof window !== "undefined" ? window.location.hostname : "",
 });
+// The Spanish module (2026-10-22): the same people, who switch between French
+// and Spanish with the flag in the top-right corner (LanguageFlag, below).
+export const hasLanguageChoice = (user) => podcastsUser(user);
 
 // ─── PODCASTS: WHERE THE OWNER WAS ───────────────────────────────────────
 // The sidebar's switch has two halves, Flashcards and Podcasts (owner,
@@ -206,16 +212,30 @@ function normalize(s) {
     .replace(/\([^)]*\)/g, "")
     // Curly quotes too: smart punctuation types ’, so "d’un air" and "d'un air" differ
     // by a character the reader can't see.
-    .replace(/[.,!?;:""''«»’‘“”…]/g, "")
+    // ¿ and ¡ open a Spanish question or exclamation (the Spanish module):
+    // "Cómo estás?" typed without them is the same answer.
+    .replace(/[.,!?;:""''«»’‘“”…¿¡]/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }
 // English particles are interchangeable / optional, but French articles carry gender
 const EN_PARTICLES = new Set(["to", "the", "a", "an"]);
-const FR_ARTICLES = new Set(["le", "la", "les", "un", "une", "des", "du", "de", "l'", "d'"]);
+// French, and the Spanish module's el, los, las, una, unos and unas, which
+// carry gender just the same: "la mano" is not "el mano".
+const FR_ARTICLES = new Set(["le", "la", "les", "un", "une", "des", "du", "de", "l'", "d'", "el", "los", "las", "una", "unos", "unas"]);
+// Which leading words count as an article, by `articles` (see matchAnswer):
+// both languages' for French, as always; in the Spanish module only the
+// answer's own language, so a Spanish "le" (him, her) or "a" (to) is never
+// set aside as a French or English article.
+const ARTICLES = {
+  fr: /^(to |the |a |an |le |la |les |un |une |des |du |de |l'|d'|el |los |las |una |unos |unas )/i,
+  es: /^(el |la |los |las |un |una |unos |unas )/i,
+  en: /^(to |the |a |an )/i,
+};
 // Separate leading article from content
-function splitArticle(s) {
-  const m = s.match(/^(to |the |a |an |le |la |les |un |une |des |du |de |l'|d')/i);
+function splitArticle(s, articles = "fr") {
+  const re = ARTICLES[articles];
+  const m = re ? s.match(re) : null;
   if (m) {
     const article = m[0].trim().toLowerCase();
     return { article, rest: s.slice(m[0].length).trim() };
@@ -280,7 +300,15 @@ function stripParens(s) {
 // words. Only when the side shown has no comma: "Quand il pleut, je reste à
 // la maison" = "When it rains, I stay at home" is one sentence, and "I stay
 // at home" isn't the answer.
-function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings = false } = {}) {
+//
+// `articles` says which leading words are articles, which may be left off
+// and must have the right gender: "fr", the French app's (French and English
+// together); in the Spanish module "en" for an English answer, "es" for a
+// Spanish word card, and "none" for a Spanish phrase, where a leading le, la
+// or lo is a pronoun, so a wrong one isn't called a wrong article. (The
+// tolerance below still lets a slightly shorter answer through, as on French
+// phrase cards; the lessons test pronouns on exact cards.)
+function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings = false, articles = "fr" } = {}) {
   const t = normalize(typed);
   if (!t) return { match: false };
 
@@ -327,8 +355,8 @@ function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings =
     const a = normalize(alt);
     if (!a) continue;
     // Split article off both sides
-    const typedSplit = splitArticle(t);
-    const answerSplit = splitArticle(a);
+    const typedSplit = splitArticle(t, articles);
+    const answerSplit = splitArticle(a, articles);
     // Enforce French gender on articles
     if (!articlesCompatible(typedSplit.article, answerSplit.article)) {
       // Record that the article was wrong specifically, so we can feedback
@@ -430,12 +458,30 @@ function typedGotIt(typeResult) {
   return typeResult === "correct" || typeResult === "close";
 }
 
-export default function FlashcardApp({ user, onSignOut }) {
-  const { progress, loaded: progressLoaded, updateCard, resetAll: resetAllProgress } = useProgress(user);
-  const { cards: userCards, archived: archivedCards, loaded: deckLoaded, reload: reloadDeck, patch: patchDeckCard, patchAll: patchAllDeckCards, add: addDeckCard, freshSeq: deckFreshSeq, fetchedAt: deckFetchedAt } = useUserDeck(user);
+// `course` is which language's cards to show: "fr", the app as it always
+// was, or "es", the Spanish module (test app, 2026-10-22; src/lib/course.js).
+// App.jsx mounts the app afresh for each, so nothing of one course's set,
+// deck or place carries over to the other. `onCourse("fr" | "es")` switches;
+// it is only passed to someone who has both, and draws the flag that does it.
+export default function FlashcardApp({ user, onSignOut, course: courseId = "fr", onCourse }) {
+  const course = courseOf(courseId);
+  // The Spanish module: its own deck, lessons and voice. No cahier, uploads,
+  // tutor, card editing or tour, all of which are about French cards.
+  const spanish = course.id === "es";
+  // Which table each thing is in, and what this browser keeps it under.
+  const tbl = course.table;
+  const storeId = course.store(user?.id);
+  // The course's lessons. The same object on every render, so it never
+  // changes a hook's dependencies.
+  const { LESSONS, LESSON_GROUPS, LESSONS_SHOWN, lessonRank, cardInstructionFor, lessonBackFor } = catalogueFor(course.id);
+  // The browser voice reads this course's language.
+  setSpeechLanguage(course.speech);
+  const { progress, loaded: progressLoaded, updateCard, resetAll: resetAllProgress } = useProgress(user, { table: tbl("card_progress"), store: storeId });
+  const { cards: userCards, archived: archivedCards, loaded: deckLoaded, missing: deckMissing, reload: reloadDeck, patch: patchDeckCard, patchAll: patchAllDeckCards, add: addDeckCard, freshSeq: deckFreshSeq, fetchedAt: deckFetchedAt } = useUserDeck(user, { table: tbl("user_cards"), store: storeId });
   // The linked cahier, read again when the app opens: a class taught after
-  // the last visit is already cards by the time the student studies.
-  const cahier = useCahierSync(user);
+  // the last visit is already cards by the time the student studies. French
+  // only: the cahier is French notes.
+  const cahier = useCahierSync(spanish ? null : user);
   // Cards that arrived from it are only in the database until the deck is
   // read again. They then reach the student the way any new card does — the
   // scheduler deals them once due work runs out, most recent class first.
@@ -478,7 +524,7 @@ export default function FlashcardApp({ user, onSignOut }) {
   // a new page, so that is dropped here.
   const placeRef = useRef(null);
   if (placeRef.current === null) {
-    const stored = readPlace(user?.id);
+    const stored = readPlace(storeId);
     const today = localISODate();
     const sets = {};
     for (const [k, v] of Object.entries(stored?.sets || {})) if (v?.day === today) sets[k] = { ...v, seq: null };
@@ -496,7 +542,7 @@ export default function FlashcardApp({ user, onSignOut }) {
   // always has.
   const podPlaceRef = useRef(undefined);
   if (podPlaceRef.current === undefined) {
-    podPlaceRef.current = podcastsUser(user) ? readPodcastsPlace(user?.id) : null;
+    podPlaceRef.current = podcastsUser(user) && !spanish ? readPodcastsPlace(user?.id) : null;
   }
   // The page: study | lessons | stats | podcasts. "study" is Cards and also
   // the inside of a lesson (lessonFilter). "podcasts" is the whole Podcasts
@@ -709,7 +755,10 @@ export default function FlashcardApp({ user, onSignOut }) {
   // "How much to remember", and the student's own FSRS settings behind it:
   // applied to the scheduler, checked once a day (useFsrsSettings).
   const [showFsrsSettings, setShowFsrsSettings] = useState(false);
-  const fsrs = useFsrsSettings(user, { cards: userCards, freshSeq: deckFreshSeq, dir, onEstimatesChanged: reloadDeck });
+  // The daily check is the French deck's: it fits the settings from French
+  // answers and writes their estimates to French cards. The Spanish deck uses
+  // the settings it gives.
+  const fsrs = useFsrsSettings(user, { cards: userCards, freshSeq: deckFreshSeq, dir, onEstimatesChanged: reloadDeck, daily: !spanish });
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const profileRef = useRef(null);
 
@@ -773,7 +822,7 @@ export default function FlashcardApp({ user, onSignOut }) {
     if (!user?.id) return;
     (async () => {
       const { data, error } = await supabase
-        .from("user_review_dates")
+        .from(tbl("user_review_dates"))
         .select("review_date")
         .eq("user_id", user.id)
         .order("review_date", { ascending: false })
@@ -807,7 +856,11 @@ export default function FlashcardApp({ user, onSignOut }) {
   //
   // Who has it: the owner, and anyone signed in on the test app (owner,
   // 2026-10-19; lib/testApp.js).
-  const hasPodcasts = podcastsUser(user);
+  //
+  // The same people have the Spanish module (2026-10-22), switched to with
+  // the flag in the top-right corner. Podcasts is French: not in Spanish.
+  const hasModules = podcastsUser(user);
+  const hasPodcasts = hasModules && !spanish;
   // Whether Podcasts is showing. Owner only: `mode` can only become
   // "podcasts" through goPodcasts or the owner's saved place, both of which
   // check, and this checks again so nothing a student could reach depends on
@@ -882,7 +935,7 @@ export default function FlashcardApp({ user, onSignOut }) {
       // one person's accepted answer loosened everyone's grading. See
       // migration_008.
       const { data, error } = await supabase
-        .from("card_alternates")
+        .from(tbl("card_alternates"))
         .select("card_id, direction, alternate_text")
         .eq("user_id", user.id);
       if (error) { console.error("Failed to load alternates:", error); return; }
@@ -1035,7 +1088,7 @@ export default function FlashcardApp({ user, onSignOut }) {
   const recordDeal = (fields) => {
     if (!user?.id || dealLogOffRef.current === localISODate()) return;
     const row = dealRow({ id: newReviewId(), userId: user.id, timeZone: browserTimeZone(), ...fields });
-    supabase.from("dealt_sets").insert(row).then(({ error }) => {
+    supabase.from(tbl("dealt_sets")).insert(row).then(({ error }) => {
       if (!error) return;
       if (missingTable(error) || missingColumn(error)) dealLogOffRef.current = localISODate();
       else console.warn("Recording a dealt set failed:", error.message || error);
@@ -1294,7 +1347,7 @@ export default function FlashcardApp({ user, onSignOut }) {
       const PAGE = 1000;
       for (let from = 0; ; from += PAGE) {
         const { data, error } = await supabase
-          .from("card_reviews")
+          .from(tbl("card_reviews"))
           .select(HISTORY_COLUMNS)
           .eq("user_id", user.id)
           .order("answered_at", { ascending: true })
@@ -1323,7 +1376,7 @@ export default function FlashcardApp({ user, onSignOut }) {
     // Ten minutes' margin for a device whose clock runs behind.
     const since = new Date(deckFetchedAt - 10 * 60 * 1000).toISOString();
     const { data, error } = await supabase
-      .from("card_reviews")
+      .from(tbl("card_reviews"))
       .select("id")
       .eq("user_id", user.id)
       .gte("answered_at", since)
@@ -1541,7 +1594,7 @@ export default function FlashcardApp({ user, onSignOut }) {
     });
     placeRef.current.sets[deckSig] = set;
     placeRef.current.current = { lessonFilter, typeFilter, scope, dir };
-    pendingPlaceRef.current = { userId: user.id, write: { key: deckSig, set, current: placeRef.current.current, today: localISODate() } };
+    pendingPlaceRef.current = { userId: storeId, write: { key: deckSig, set, current: placeRef.current.current, today: localISODate() } };
     clearTimeout(placeTimerRef.current);
     placeTimerRef.current = setTimeout(flushPlace, 400);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1818,11 +1871,11 @@ export default function FlashcardApp({ user, onSignOut }) {
   const reviewExtrasOffRef = useRef(null);
   const saveReviewRow = async (row) => {
     if (reviewExtrasOffRef.current !== localISODate()) {
-      const res = await supabase.from("card_reviews").upsert(row, { onConflict: "id" });
+      const res = await supabase.from(tbl("card_reviews")).upsert(row, { onConflict: "id" });
       if (!missingColumn(res.error)) return res;
       reviewExtrasOffRef.current = localISODate();
     }
-    return supabase.from("card_reviews").upsert(withoutExtras(row), { onConflict: "id" });
+    return supabase.from(tbl("card_reviews")).upsert(withoutExtras(row), { onConflict: "id" });
   };
   // `send` makes a fresh request each time: a retry sends it again.
   const save = (key, answer, send) => {
@@ -1924,7 +1977,7 @@ export default function FlashcardApp({ user, onSignOut }) {
       // And the deck the next block is built from — see patch() in useUserDeck.
       patchDeckCard(card.row_id, sr);
       if (card.row_id != null) {
-        save(`card:${itemKey(card)}`, reviewId, () => supabase.from("user_cards").update(sr).eq("id", card.row_id));
+        save(`card:${itemKey(card)}`, reviewId, () => supabase.from(tbl("user_cards")).update(sr).eq("id", card.row_id));
       }
     }
     // The first answer inside a lesson switches it on for Cards: the class has
@@ -1961,7 +2014,7 @@ export default function FlashcardApp({ user, onSignOut }) {
       // the (user_id, review_date) primary key, so repeated reviews on the
       // same day are no-ops server-side.
       supabase
-        .from("user_review_dates")
+        .from(tbl("user_review_dates"))
         .upsert(
           { user_id: user.id, review_date: todayISO },
           { onConflict: "user_id,review_date", ignoreDuplicates: true }
@@ -2081,7 +2134,12 @@ export default function FlashcardApp({ user, onSignOut }) {
     const meaningList = isTwoWay(card) ||
       (/;/.test(String(card.b || "")) && frShown.trim().split(/\s+/).length <= 4);
     const meanings = card.shownDir === "fr" && !drill && meaningList && !/[,;→]/.test(frShown);
-    const result = matchAnswer(typedAnswer, correctText, extraAlts, { exact: drill, meanings });
+    // In Spanish, which leading words are articles depends on the answer's
+    // language and the kind of card (see matchAnswer).
+    const articles = !spanish ? "fr"
+      : card.shownDir === "fr" ? "en"
+      : card.cat === "vocab" ? "es" : "none";
+    const result = matchAnswer(typedAnswer, correctText, extraAlts, { exact: drill, meanings, articles });
     if (result.match) {
       setTypeResult(result.close ? "close" : "correct");
       setFlipped(true);
@@ -2328,6 +2386,9 @@ export default function FlashcardApp({ user, onSignOut }) {
           english: card.b,
           user_answer: typedAnswer,
           expected_answer: correctText,
+          // Spanish cards are judged as Spanish, and an accepted answer is
+          // kept with the Spanish deck (api/review-answer.js).
+          ...(spanish ? { course: "es" } : {}),
         }),
       });
       const responseText = await res.text();
@@ -2384,6 +2445,7 @@ export default function FlashcardApp({ user, onSignOut }) {
           // The server honours this now: it records the alternate without a
           // model call instead of re-running the review it just lost.
           force: true,
+          ...(spanish ? { course: "es" } : {}),
         }),
       });
       if (!res.ok) {
@@ -2415,7 +2477,7 @@ export default function FlashcardApp({ user, onSignOut }) {
   const resetAll = async () => {
     if (!confirm("Reset all of your progress? Every card goes back to not yet seen, and your streak starts again. This can't be undone.")) return;
     const reset = resetColumns();
-    const { error } = await supabase.from("user_cards").update(reset).eq("user_id", user.id);
+    const { error } = await supabase.from(tbl("user_cards")).update(reset).eq("user_id", user.id);
     if (error) {
       console.error("Reset failed:", error);
       alert("Your progress couldn't be reset, and nothing was changed. Please try again.");
@@ -2429,14 +2491,14 @@ export default function FlashcardApp({ user, onSignOut }) {
     clearTimeout(placeTimerRef.current);
     pendingPlaceRef.current = null;
     placeRef.current.sets = {};
-    dropSets(user.id);
+    dropSets(storeId);
     await resetAllProgress();
     // The streak. Asked to return what it deleted: a delete that row security
     // refuses reports success and removes nothing, and the streak would
     // quietly survive the reset.
     const hadDays = reviewDates.size > 0;
     const { data: cleared, error: streakError } = await supabase
-      .from("user_review_dates").delete().eq("user_id", user.id).select("review_date");
+      .from(tbl("user_review_dates")).delete().eq("user_id", user.id).select("review_date");
     if (streakError || (hadDays && !(cleared || []).length)) {
       console.error("Clearing the streak failed:", streakError || "no rows deleted");
       alert("Your cards were reset, but your streak couldn't be cleared.");
@@ -2497,19 +2559,19 @@ export default function FlashcardApp({ user, onSignOut }) {
       try {
         if (missing.length) {
           const { error } = await supabase
-            .from("user_cards")
+            .from(tbl("user_cards"))
             .upsert(owned(missing), { onConflict: "user_id,front" });
           if (error) throw error;
         }
         if (rekey.length) {
           const { error } = await supabase
-            .from("user_cards")
+            .from(tbl("user_cards"))
             .upsert(owned(rekey), { onConflict: "user_id,front" });
           if (error) throw error;
         }
         for (const r of retext) {
           const { error } = await supabase
-            .from("user_cards")
+            .from(tbl("user_cards"))
             .update({ front: r.front, back: r.back })
             .eq("id", r.row_id)
             .eq("user_id", user.id);
@@ -2520,7 +2582,7 @@ export default function FlashcardApp({ user, onSignOut }) {
         // was read is left, and archived on the next visit.
         if (stale.length) {
           const { error } = await supabase
-            .from("user_cards")
+            .from(tbl("user_cards"))
             .delete()
             .in("id", stale)
             .eq("user_id", user.id)
@@ -2533,7 +2595,7 @@ export default function FlashcardApp({ user, onSignOut }) {
         for (const rowId of archive) {
           const row = userCards.find((c) => c.row_id === rowId);
           const { error } = await supabase
-            .from("user_cards")
+            .from(tbl("user_cards"))
             .update({ source: archivedSource(row?.source) })
             .eq("id", rowId)
             .eq("user_id", user.id);
@@ -2543,7 +2605,7 @@ export default function FlashcardApp({ user, onSignOut }) {
         // landed on: it stays, as one of their own cards. See reconcileLessons.
         if (adopt.length) {
           const { error } = await supabase
-            .from("user_cards")
+            .from(tbl("user_cards"))
             .update({ source: ADOPTED_SOURCE })
             .in("id", adopt)
             .eq("user_id", user.id);
@@ -2596,7 +2658,7 @@ export default function FlashcardApp({ user, onSignOut }) {
       for (let i = 0; i < rows.length; i += 500) {
         const chunk = rows.slice(i, i + 500);
         const { error } = await supabase
-          .from("user_cards")
+          .from(tbl("user_cards"))
           .upsert(chunk, { onConflict: "user_id,front" });
         if (error) throw error;
       }
@@ -2729,7 +2791,7 @@ export default function FlashcardApp({ user, onSignOut }) {
 
   const flagCard = async (rowId) => {
     const { error } = await supabase
-      .from("user_cards")
+      .from(tbl("user_cards"))
       .update({
         flagged_for_review: true,
         flagged_at: new Date().toISOString(),
@@ -2743,6 +2805,27 @@ export default function FlashcardApp({ user, onSignOut }) {
   };
 
   if (!loaded) return <div style={S.loading}>Loading…</div>;
+
+  // An empty Spanish deck is never a new student to welcome: the lesson sync
+  // is adding the lessons' cards, or the database hasn't the Spanish tables
+  // yet (migration_020), which only the owner can fix. Either way, a way
+  // back to French.
+  if (spanish && userCards.length === 0) {
+    return (
+      <div style={S.onbPage}>
+        <div style={{ ...S.onboarding, marginTop: 120 }} data-spanish-empty>
+          <p style={{ margin: "0 0 18px", fontSize: 17, color: T.color.onSurface }}>
+            {deckMissing
+              ? "Spanish needs one update to the database before it can open: run migration_020_spanish.sql in Supabase, then reload."
+              : LESSONS.length
+                ? "Adding the Spanish lessons to your cards…"
+                : "There are no Spanish lessons yet."}
+          </p>
+          <button style={S.onbTopSignOut} onClick={() => onCourse?.("fr")}>Back to French</button>
+        </div>
+      </div>
+    );
+  }
 
   // ── ONBOARDING (empty deck) ─────────────────────────────────────────
   if (userCards.length === 0) {
@@ -2999,6 +3082,9 @@ export default function FlashcardApp({ user, onSignOut }) {
             white. On the rail they stack as two icons, named on hover. Owner
             only until the owner has tried it, except on the test app: a
             student's sidebar has no switch and is exactly what it was. */}
+        {/* Not in Spanish, which is a part of the app of its own, switched
+            to with the flag in the top-right corner (owner, 2026-10-22: "the
+            spanish module and the french modules should be separate"). */}
         {hasPodcasts && (
           <div
             data-module-switch
@@ -3152,6 +3238,9 @@ export default function FlashcardApp({ user, onSignOut }) {
             nav items but never takes the active state. It lives here rather
             than in the profile menu because looking a word up mid-session is
             a primary action, and nobody finds it behind an avatar. */}
+        {/* Not in Spanish: the tutor is a French tutor, and the cards it
+            adds and changes are French cards. */}
+        {!spanish && (
         <button
           data-tutor-toggle
           data-tour="nav-tutor"
@@ -3164,6 +3253,7 @@ export default function FlashcardApp({ user, onSignOut }) {
           <span style={S.sideIcon}>{NAV_ICONS.tutor}</span>
           {!sidebarMin && "Tutor"}
         </button>
+        )}
       </nav>
 
       {/* Bottom: account, then feedback beneath it */}
@@ -3193,6 +3283,9 @@ export default function FlashcardApp({ user, onSignOut }) {
               </button>
               {showProfileMenu && (
                 <div style={S.profileMenuBottom} data-tour="profile-menu">
+                  {/* The tutor and uploads are French only (see the tutor's
+                      button above). */}
+                  {!spanish && (<>
                   <button
                     data-tutor-toggle
                     style={S.profileMenuItem}
@@ -3207,6 +3300,7 @@ export default function FlashcardApp({ user, onSignOut }) {
                   >
                     Upload document
                   </button>
+                  </>)}
                   <button
                     style={S.profileMenuItem}
                     onClick={() => { setShowKeyModal(true); setShowProfileMenu(false); }}
@@ -3220,7 +3314,7 @@ export default function FlashcardApp({ user, onSignOut }) {
                   >
                     How much to remember
                   </button>
-                  {tourStepList.length > 0 && (
+                  {tourStepList.length > 0 && !spanish && (
                     <button data-tour-again style={S.profileMenuItem} onClick={startTour}>
                       Take the tour again
                     </button>
@@ -3311,7 +3405,7 @@ export default function FlashcardApp({ user, onSignOut }) {
         </button>,
         document.body
       )}
-      <ChatPanel
+      {!spanish && <ChatPanel
         open={showChat}
         onClose={() => setShowChat(false)}
         user={user}
@@ -3332,7 +3426,7 @@ export default function FlashcardApp({ user, onSignOut }) {
         onNeedKey={() => { setShowChat(false); setShowKeyModal(true); }}
         reflow={chatReflow}
         sidebarWidth={sidebarWidth}
-      />
+      />}
       <ApiKeyModal
         open={showKeyModal}
         onClose={() => setShowKeyModal(false)}
@@ -3343,7 +3437,7 @@ export default function FlashcardApp({ user, onSignOut }) {
         onClose={() => setShowFsrsSettings(false)}
         settings={fsrs}
       />
-      <CahierUpload
+      {!spanish && <CahierUpload
         open={showUpload}
         user={user}
         cahier={cahier}
@@ -3356,7 +3450,7 @@ export default function FlashcardApp({ user, onSignOut }) {
           if (result.linked) return alert(uploadDoneText(result));
           alert(uploadResultText(result));
         }}
-      />
+      />}
       {showFeedbackModal && (
         <FeedbackReviewModal user={user} onClose={() => setShowFeedbackModal(false)} onOwnCardChanged={reloadDeck} />
       )}
@@ -3455,7 +3549,14 @@ export default function FlashcardApp({ user, onSignOut }) {
     return (
       <div style={shellStyle}>
         {sidebar}
-        <main style={mainStyle}>
+        <main style={{ ...mainStyle, position: "relative" }}>
+          {/* The French / Spanish flag, in the corner it has on every page. */}
+          {onCourse && (
+            // Clear of the tutor or notes panel, which main makes room for.
+            <div style={{ ...S.cornerFlag, right: (mainStyle.paddingRight || 0) + 24 }}>
+              <LanguageFlag course={course.id} onCourse={onCourse} />
+            </div>
+          )}
           <PodcastsPage
             user={user}
             view={podView}
@@ -3486,7 +3587,10 @@ export default function FlashcardApp({ user, onSignOut }) {
         {sidebar}
         <main style={mainStyle}>
           <div style={S.mainInnerScroll}>
-            <h1 style={S.statsHeading}>Lessons</h1>
+            <div style={S.pageHead}>
+              <h1 style={S.statsHeading}>Lessons</h1>
+              {onCourse && <LanguageFlag course={course.id} onCourse={onCourse} style={S.pageHeadFlag} />}
+            </div>
             {LESSON_GROUPS.map((group) => (
               <Fragment key={group.title || "lessons"}>
               {group.title && (group.folds ? (
@@ -3697,7 +3801,10 @@ export default function FlashcardApp({ user, onSignOut }) {
         {sidebar}
         <main style={mainStyle}>
           <div style={S.mainInnerScroll}>
-            <h1 style={S.statsHeading}>Progress</h1>
+            <div style={S.pageHead}>
+              <h1 style={S.statsHeading}>Progress</h1>
+              {onCourse && <LanguageFlag course={course.id} onCourse={onCourse} style={S.pageHeadFlag} />}
+            </div>
 
             {/* Row 1: Today · Right first time today · Streak */}
             <div style={S.statsRow3}>
@@ -3744,7 +3851,7 @@ export default function FlashcardApp({ user, onSignOut }) {
                 <div style={S.pipeLegItem}><div style={{...S.pipeDot, background:T.color.primary, opacity:0.3}} />{Math.max(0, areas.all.seen - aboutRemembered(areas.all)).toLocaleString()} seen, not currently remembered</div>
                 <div style={S.pipeLegItem}><div style={{...S.pipeDot, background:T.color.surfaceHigh}} />{areas.all.notSeen.toLocaleString()} not yet seen</div>
               </div>
-              <p style={S.statsFootnote}>A word or phrase counts as remembered once you'd get it right from French and from English. It's an estimate: it rises when you study and falls when you don't.</p>
+              <p style={S.statsFootnote}>A word or phrase counts as remembered once you'd get it right from {course.language} and from English. It's an estimate: it rises when you study and falls when you don't.</p>
               {allSeenDate && (
                 <div style={S.finishLine} data-stats-finish>
                   At your current pace, all seen by <b>{allSeenDate.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</b>.
@@ -3827,8 +3934,8 @@ export default function FlashcardApp({ user, onSignOut }) {
 
   const answerLang = (c) =>
     !c ? "English"
-      : c.shownDir === "en" ? "French"
-      : String(c.f || "").includes("→") ? "French"
+      : c.shownDir === "en" ? course.language
+      : String(c.f || "").includes("→") ? course.language
       : "English";
 
   const onCardClick = () => {
@@ -3913,6 +4020,7 @@ export default function FlashcardApp({ user, onSignOut }) {
             </button>
           )}
           </div>
+          {onCourse && <LanguageFlag course={course.id} onCourse={onCourse} />}
           <div style={S.settingsWrap} ref={settingsRef}>
             <button
               data-settings-toggle
@@ -3930,7 +4038,7 @@ export default function FlashcardApp({ user, onSignOut }) {
               <div style={showSettings ? S.settingsMenu : {...S.settingsMenu, display:"none"}} data-settings-menu role="dialog" aria-label="Settings" aria-hidden={!showSettings}>
                 <div style={S.settingsSec}>
                   <div style={S.settingsSeg}>
-                    {[["fr", "French → English"], ["en", "English → French"], ["mix", "Mixed"]].map(([k, label]) => (
+                    {[["fr", `${course.language} → English`], ["en", `English → ${course.language}`], ["mix", "Mixed"]].map(([k, label]) => (
                       <button key={k} data-dir-choice={k} style={dir === k ? {...S.dirBtn, ...S.dirBtnA, ...S.settingsSegBtn} : {...S.dirBtn, ...S.settingsSegBtn}} onClick={() => setDir(k)}>{label}</button>
                     ))}
                   </div>
@@ -3945,7 +4053,7 @@ export default function FlashcardApp({ user, onSignOut }) {
                   )}
                   {/* Everything (on) or only the student's own cards (off):
                       lib/lessonChoice.js. Inside a lesson it means nothing. */}
-                  {lessonFilter === "all" && (
+                  {lessonFilter === "all" && !spanish && (
                     <SettingsSwitch label="Include lessons" on={scope === "all"} onClick={() => setScope(scope === "all" ? "cahier" : "all")} data-scope />
                   )}
                 </div>
@@ -4096,7 +4204,7 @@ export default function FlashcardApp({ user, onSignOut }) {
                         <button
                           style={S.cardAudioBtn}
                           onClick={(e) => { e.stopPropagation(); speakCard(); }}
-                          title="Play French pronunciation"
+                          title={`Play ${course.language} pronunciation`}
                         >
                           🔊
                         </button>
@@ -4125,13 +4233,15 @@ export default function FlashcardApp({ user, onSignOut }) {
                         <button
                           style={S.cardAudioBtn}
                           onClick={(e) => { e.stopPropagation(); speakCard(); }}
-                          title="Play French pronunciation"
+                          title={`Play ${course.language} pronunciation`}
                         >
                           🔊
                         </button>
                       </div>
                     )}
-                    <div style={S.cardActionsFloat}>
+                    {/* Editing goes through the server, which edits French
+                        cards only. */}
+                    {!spanish && <div style={S.cardActionsFloat}>
                       <button
                         style={S.cardActionBtn}
                         onClick={(e) => { e.stopPropagation(); setEditingCard(card); }}
@@ -4139,7 +4249,7 @@ export default function FlashcardApp({ user, onSignOut }) {
                       >
                         ✏️
                       </button>
-                    </div>
+                    </div>}
                     {!showFeedback && <ReportCardButton onReport={reportCard} />}
                     {answerSeen && <TurnCardButton onTurn={flip} />}
                   </div>
@@ -4224,7 +4334,7 @@ export default function FlashcardApp({ user, onSignOut }) {
                                     Mark for review
                                   </button>
                                 )}
-                                {missed && (
+                                {missed && !spanish && (
                                   <button
                                     data-tutor-toggle
                                     style={S.typeLink}
@@ -5146,6 +5256,77 @@ function FeedbackAdminView({ user, setMode, resetSession }) {
 // the sidebar. Opens the feedback panel with this card attached. Stops the
 // click so it never flips, continues or grades the card underneath it.
 // One on/off row in the settings menu.
+// The French / Spanish switch (owner, 2026-10-22: option 2 of the mockup,
+// ".claude/mockups/language-switch.html", "and use the colombian flag"): a
+// round flag in the top-right corner of every page, as Duolingo and Babbel
+// have it; a press opens the two languages, and picking the other one opens
+// the app in it, where it was left. Drawn, not an emoji, so it looks the
+// same on every computer.
+const FLAGS = {
+  fr: { name: "French", stripes: "v", colours: ["#0055A4", "#FFFFFF", "#EF4135"] },
+  es: { name: "Spanish", stripes: "h", colours: ["#FCD116", "#FCD116", "#003893", "#CE1126"] },
+};
+function FlagIcon({ id, size = 22 }) {
+  const f = FLAGS[id];
+  const n = f.colours.length;
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" style={{ display: "block", borderRadius: "50%", boxShadow: "0 0 0 1px rgba(3,22,50,0.12)" }}>
+      <defs><clipPath id={`flag-${id}`}><circle cx="12" cy="12" r="12" /></clipPath></defs>
+      <g clipPath={`url(#flag-${id})`}>
+        {f.colours.map((c, i) => f.stripes === "v"
+          ? <rect key={i} x={(24 / n) * i} y="0" width={24 / n + 0.2} height="24" fill={c} />
+          : <rect key={i} x="0" y={(24 / n) * i} width="24" height={24 / n + 0.2} fill={c} />)}
+      </g>
+    </svg>
+  );
+}
+function LanguageFlag({ course, onCourse, style }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  return (
+    <div style={style ? { ...S.flagWrap, ...style } : S.flagWrap} ref={ref}>
+      <button
+        data-language-flag={course}
+        style={open ? { ...S.flagBtn, ...S.flagBtnA } : S.flagBtn}
+        onClick={() => setOpen((v) => !v)}
+        aria-label={`Learning ${FLAGS[course].name}`}
+        aria-expanded={open}
+        title={FLAGS[course].name}
+      >
+        <FlagIcon id={course} />
+      </button>
+      {open && (
+        <div style={S.flagMenu} data-language-menu role="menu">
+          {["fr", "es"].map((id) => (
+            <button
+              key={id}
+              data-language={id}
+              role="menuitem"
+              style={S.flagItem}
+              onClick={() => { setOpen(false); if (id !== course) onCourse(id); }}
+            >
+              <FlagIcon id={id} size={20} />
+              <span>{FLAGS[id].name}</span>
+              {id === course && <span style={S.flagTick} aria-hidden="true">✓</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SettingsSwitch({ label, on, onClick, ...rest }) {
   return (
     <button {...rest} role="switch" aria-checked={on} onClick={onClick} style={S.settingsRow}>
@@ -5623,6 +5804,18 @@ const S = {
   // Sits inside the scrolling chip row, so it must not wrap on its own either.
   typeGroup: { display:"flex", gap:2, padding:3, background:T.color.surfaceLow, borderRadius:T.radius.md, flexShrink:0 },
   settingsWrap: { position:"relative", flexShrink:0 },
+  // The French / Spanish flag (LanguageFlag): the gear's size and ring.
+  flagWrap: { position:"relative", flexShrink:0 },
+  flagBtn: { width:34, height:34, display:"flex", alignItems:"center", justifyContent:"center", padding:0, border:"1px solid rgba(3,22,50,0.08)", borderRadius:T.radius.full, background:T.color.surfaceLowest, cursor:"pointer", transition:"box-shadow 0.15s" },
+  flagBtnA: { boxShadow:"0 0 0 3px rgba(3,22,50,0.1)" },
+  flagMenu: { position:"absolute", top:"calc(100% + 8px)", right:0, minWidth:170, background:T.color.surfaceLowest, borderRadius:T.radius.lg, border:"1px solid rgba(3,22,50,0.08)", boxShadow:"0 12px 36px rgba(3,22,50,0.15)", padding:6, zIndex:45 },
+  flagItem: { display:"flex", alignItems:"center", gap:10, width:"100%", padding:"9px 10px", border:"none", borderRadius:T.radius.md, background:"transparent", cursor:"pointer", fontFamily:T.font.sans, fontSize:13, fontWeight:600, color:T.color.primary, textAlign:"left" },
+  flagTick: { marginLeft:"auto", color:T.color.secondary },
+  // Lessons and Stats: the heading, and the flag in the corner beside it.
+  pageHead: { display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:16 },
+  pageHeadFlag: { marginTop:12 },
+  // Podcasts: the flag in the page's top-right corner.
+  cornerFlag: { position:"absolute", top:14, right:24, zIndex:25 },
   gearBtn: { width:34, height:34, display:"flex", alignItems:"center", justifyContent:"center", padding:0, border:"1px solid rgba(3,22,50,0.08)", borderRadius:T.radius.full, background:"transparent", color:T.color.onSurfaceVariant, cursor:"pointer", transition:"all 0.15s" },
   gearBtnA: { background:T.color.surfaceLowest, color:T.color.primary, borderColor:"rgba(3,22,50,0.22)", boxShadow:T.shadow.focus },
   settingsMenu: { position:"absolute", top:"calc(100% + 10px)", right:0, width:344, background:T.color.surfaceLowest, borderRadius:T.radius.xl, border:"1px solid rgba(3,22,50,0.08)", boxShadow:"0 20px 60px rgba(3,22,50,0.15)", padding:"6px 0", zIndex:40, fontFamily:T.font.sans },

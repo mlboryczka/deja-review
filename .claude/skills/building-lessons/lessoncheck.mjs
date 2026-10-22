@@ -154,7 +154,11 @@ async function tryOne(file, front, typed, shown = "fr") {
   const card = L.cards.find((c) => c[0] === front);
   if (!card) { console.log(`No card with front ${JSON.stringify(front)}`); process.exit(1); }
   const { correct, extra, exact } = marking(L, card, shown);
-  const r = matchAnswer(typed, correct, extra, { exact });
+  // The Spanish module's lessons are marked with Spanish articles (see
+  // matchAnswer's `articles`).
+  const spanish = /\/lessons\/es\//.test(path.resolve(file));
+  const articles = !spanish ? "fr" : shown === "fr" ? "en" : card[2] === "V" ? "es" : "none";
+  const r = matchAnswer(typed, correct, extra, { exact, articles });
   console.log(JSON.stringify({ front, shown, typed, exact, result: r.match ? (r.close ? "close enough (right)" : "right") : r.wrongArticle ? "wrong article" : "wrong" }));
 }
 

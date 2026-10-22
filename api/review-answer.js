@@ -41,13 +41,15 @@ export const config = { maxDuration: 60 };
 // read by every client with no filter. One person's accepted answer silently
 // became everyone's. migration_008 adds the column; the write and the read
 // are both scoped to the owner now.
-async function recordAlternate({ userId, card_id, direction, user_answer }) {
+// `table` is es_card_alternates for a Spanish card (the Spanish module,
+// migration_020): the answer is kept with the Spanish deck.
+async function recordAlternate({ userId, card_id, direction, user_answer, table = "card_alternates" }) {
   const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
   if (!card_id || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return;
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const { error } = await admin.from("card_alternates").upsert(
+  const { error } = await admin.from(table).upsert(
     {
       user_id: userId,
       card_id,
@@ -79,7 +81,15 @@ export default async function handler(req, res) {
     user_answer,
     expected_answer,
     force,
+    course,
   } = req.body || {};
+  // A Spanish card (the Spanish module, 2026-10-22): judged as Spanish, and
+  // an accepted answer kept with the Spanish deck. Its verdicts aren't added
+  // to answer_reviews, the record of Claude's marking of French answers that
+  // the owner's checks read.
+  const spanish = course === "es";
+  const language = spanish ? "Spanish" : "French";
+  const alternatesTable = spanish ? "es_card_alternates" : "card_alternates";
 
   if (!user_answer || !expected_answer) {
     return res.status(400).json({ error: "Missing required fields" });
@@ -93,8 +103,8 @@ export default async function handler(req, res) {
   // nothing was written — while the UI said "this answer will be
   // remembered". It wasn't. It is now.
   if (force === true) {
-    await recordAlternate({ userId: user.id, card_id, direction, user_answer });
-    await answerStore()?.overridden({ user_id: user.id, card_id, direction, typed: user_answer });
+    await recordAlternate({ userId: user.id, card_id, direction, user_answer, table: alternatesTable });
+    if (!spanish) await answerStore()?.overridden({ user_id: user.id, card_id, direction, typed: user_answer });
     return res.status(200).json({
       ok: true,
       verdict: "accept",
@@ -108,12 +118,12 @@ export default async function handler(req, res) {
 
   try {
     const { verdict, reasoning, readable } = await askClaude({
-      apiKey, direction, french, expected: expected_answer, typed: user_answer,
+      apiKey, direction, french, expected: expected_answer, typed: user_answer, language,
     });
 
     // Kept whatever it says. Never holds up the answer: a failed save (or no
     // table before migration_015) is logged and the verdict still returned.
-    const saved = await answerStore()?.save(verdictRow({
+    const saved = spanish ? null : await answerStore()?.save(verdictRow({
       user, card_id, direction, french, english, expected: expected_answer, typed: user_answer, verdict, reasoning,
     }));
     if (saved?.error) console.error("answer_reviews write failed:", saved.error);
@@ -129,7 +139,7 @@ export default async function handler(req, res) {
     }
 
     if (verdict === "accept") {
-      await recordAlternate({ userId: user.id, card_id, direction, user_answer });
+      await recordAlternate({ userId: user.id, card_id, direction, user_answer, table: alternatesTable });
     }
 
     return res.status(200).json({ ok: true, verdict, reasoning });

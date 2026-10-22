@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabase";
 import Auth from "./Auth";
-import FlashcardApp, { clearPodcastsPlace } from "./FlashcardApp";
+import FlashcardApp, { clearPodcastsPlace, hasLanguageChoice } from "./FlashcardApp";
+import { COURSES, readCourse, writeCourse, clearCourse } from "./lib/course";
 import { clearDeckCache } from "./useUserDeck";
 import { clearProgressCache } from "./useProgress";
 import { clearTutorThread } from "./lib/tutorThreads";
@@ -29,6 +30,10 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState("");
   const [retry, setRetry] = useState(0);
+  // French or Spanish, for someone who has the Spanish module, chosen with the
+  // flag in the top-right corner (owner, 2026-10-22). Null until chosen on
+  // this page: the app then opens on the one used last in this browser.
+  const [course, setCourse] = useState(null);
   // Whether the wait has gone on long enough to be worth saying so.
   //
   // getSession() reads local storage first, so on the normal path it settles
@@ -124,6 +129,11 @@ export default function App() {
     // kept in this browser, and the unsent answers and lists kept in memory.
     clearPodcastsPlace(session?.user?.id);
     clearPodcastDrafts(session?.user?.id);
+    // The Spanish deck's copies, kept under their own name (lib/course.js).
+    const es = COURSES.es.store(session?.user?.id);
+    if (es) { clearDeckCache(es); clearProgressCache(es); clearStudyPlace(es); }
+    clearCourse(session?.user?.id);
+    setCourse(null);
     await supabase.auth.signOut();
   };
 
@@ -174,6 +184,16 @@ export default function App() {
   }
 
   if (!session) return <Auth />;
+
+  // Someone with the Spanish module has French and Spanish, switched with the
+  // flag in the top-right corner. Each is the app mounted afresh (the key),
+  // with its own deck, lessons and place.
+  if (hasLanguageChoice(session.user)) {
+    const userId = session.user.id;
+    const current = course || readCourse(userId);
+    const choose = (c) => { writeCourse(userId, c); setCourse(c); };
+    return <FlashcardApp key={current} course={current} onCourse={choose} user={session.user} onSignOut={handleSignOut} />;
+  }
 
   return <FlashcardApp user={session.user} onSignOut={handleSignOut} />;
 }

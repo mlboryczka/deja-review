@@ -23,6 +23,31 @@ function cleanForTts(text) {
     .trim();
 }
 
+// The language the browser voice speaks: French, or Spanish in the Spanish
+// module (2026-10-22), which sets it when it opens (src/lib/course.js).
+// Mexican Spanish first, the course's own; then any Latin American voice;
+// then any Spanish one, which still reads Spanish with a Spanish mouth.
+const VOICES = {
+  fr: { lang: "fr-FR", prefer: ["fr"], name: "French" },
+  es: { lang: "es-MX", prefer: ["es-mx", "es-us", "es-419", "es"], name: "Spanish" },
+};
+let speechLanguage = "fr";
+export function setSpeechLanguage(code) {
+  speechLanguage = VOICES[code] ? code : "fr";
+}
+// For Spanish, a full voice before the novelty ones macOS lists first:
+// "Eddy (Spanish (Mexico))", "Grandma (Spanish (Mexico))" and the rest are
+// named with brackets, Paulina isn't. French keeps the first it finds, as it
+// always has.
+function pickVoice(voices, v, code) {
+  for (const p of v.prefer) {
+    const all = voices.filter((x) => x.lang && x.lang.toLowerCase().replace("_", "-").startsWith(p));
+    const hit = (code === "es" && all.find((x) => !/\(/.test(x.name || ""))) || all[0];
+    if (hit) return hit;
+  }
+  return null;
+}
+
 export function stopSpeaking() {
   try {
     if (typeof window !== "undefined" && window.speechSynthesis) {
@@ -52,18 +77,17 @@ function speakWithBrowser(text) {
       try {
         synth.cancel();
         const utter = new SpeechSynthesisUtterance(text);
-        utter.lang = "fr-FR";
+        const want = VOICES[speechLanguage];
+        utter.lang = want.lang;
         utter.rate = 0.95;
-        const fr = (synth.getVoices() || []).find(
-          (v) => v.lang && v.lang.toLowerCase().startsWith("fr")
-        );
+        const voice = pickVoice(synth.getVoices() || [], want, speechLanguage);
         // Without a French voice the platform reads French with an English
         // mouth, which is worse than useless for pronunciation practice.
-        if (!fr) {
-          console.warn("No French voice installed for browser speech.");
+        if (!voice) {
+          console.warn(`No ${want.name} voice installed for browser speech.`);
           return resolve(false);
         }
-        utter.voice = fr;
+        utter.voice = voice;
         utter.onend = () => resolve(true);
         utter.onerror = () => resolve(false);
         synth.speak(utter);

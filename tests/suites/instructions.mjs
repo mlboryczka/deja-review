@@ -71,6 +71,36 @@ for (const [front, back, want] of [
   ck(`${front} / ${back} → also ${JSON.stringify(want)}`, ok, `got ${JSON.stringify(got)}`);
 }
 
+// The Spanish module (2026-10-22): the answer is the bare form, "tengo", the
+// line names the form, and the form with its subject is right too.
+console.log("\n  Spanish drills — the form named, the subject optional");
+for (const [front, want] of [
+  ["tener (presente) → yo", "Present tense, yo form"],
+  ["ser (pretérito) → él/ella", "Preterite (simple past), él or ella form"],
+  ["hablar (imperativo) → tú", "Command, tú form"],
+  ["hablar (imperativo negativo) → usted", "Negative command, usted form"],
+  ["comer (imperfecto) → nosotros", "Imperfect, nosotros form"],
+  ["hablar → gerundio", "Gerund (-ando / -iendo form)"],
+  ["comer → participio", "Past participle"],
+  // A French tense on a Spanish person is a slip, not a drill to name.
+  ["tener (présent) → yo", null],
+]) {
+  const got = drillInstruction(front);
+  ck(`${front} → ${want}`, got === want, got === want ? "" : `got ${got}`);
+}
+for (const [front, back, want, not] of [
+  ["tener (presente) → yo", "tengo", ["yo tengo"], []],
+  ["ser (pretérito) → él/ella", "fue", ["él fue", "ella fue"], []],
+  ["levantarse (presente) → nosotros", "nos levantamos", ["nosotros nos levantamos", "nosotras nos levantamos"], []],
+  ["tener (presente) → yo", "yo tengo", ["tengo"], []],
+  // A command has no subject to add.
+  ["hablar (imperativo) → tú", "habla", [], ["tú habla"]],
+]) {
+  const got = drillAlternates(front, back);
+  const ok = want.every((w) => got.includes(w)) && not.every((w) => !got.includes(w));
+  ck(`${front} / ${back} → also ${JSON.stringify(want)}`, ok, `got ${JSON.stringify(got)}`);
+}
+
 console.log("\n  every lesson grammar card says what to type");
 for (const lesson of LESSONS) {
   const missing = [];
@@ -81,6 +111,18 @@ for (const lesson of LESSONS) {
     if (c !== "G" && line) missing.push(`${f} (a ${CAT[c]} card has a line)`);
   }
   ck(`${lesson.id}: ${lesson.cards.length} cards, every grammar card has a line and no other card does`, missing.length === 0, missing.join(" | "));
+}
+{
+  const { SPANISH } = await import("../../src/data/lessons/es/index.js");
+  for (const lesson of SPANISH.LESSONS) {
+    const missing = [];
+    for (const [f, b, c] of lesson.cards) {
+      const line = SPANISH.cardInstructionFor({ f, b, cat: CAT[c], source: lessonSource(lesson.id, lessonCardKey(f)) });
+      if (c === "G" && !line) missing.push(f);
+      if (c !== "G" && line) missing.push(`${f} (a ${CAT[c]} card has a line)`);
+    }
+    ck(`${lesson.id}: ${lesson.cards.length} cards, every grammar card has a line and no other card does`, missing.length === 0, missing.join(" | "));
+  }
 }
 // The two gap sections share one cue per word ("cher → … coûtent ___" wants
 // cher, "cher → … ___ acquise" wants chèrement), so their lines must not

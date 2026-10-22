@@ -9,7 +9,10 @@ import { reconcileLessons } from "../../src/lib/lessonSync.js";
 import { planReplace } from "../../src/lib/replaceDeck.js";
 import { lessonSource, lessonCardKey } from "../../src/lib/lessonSource.js";
 import { isArchived, archivedSource } from "../../src/lib/archive.js";
-import { LESSONS } from "../../src/data/lessons/index.js";
+import { LESSONS as FRENCH_LESSONS } from "../../src/data/lessons/index.js";
+import { SPANISH } from "../../src/data/lessons/es/index.js";
+// Every lesson, the Spanish module's included (2026-10-22).
+const LESSONS = [...FRENCH_LESSONS, ...SPANISH.LESSONS];
 import { choicesOf, startedLessons, lessonsInCards, onCards, setKeyOf, dealScopeOf } from "../../src/lib/lessonChoice.js";
 import { readFileSync } from "node:fs";
 import { checker } from "../check.mjs";
@@ -431,6 +434,52 @@ console.log("\n  lessons — every released card still matches its lesson");
   }
 }
 
+// The typed-answer matcher, lifted from FlashcardApp.jsx as the lesson
+// checker lifts it: the Spanish module's articles and punctuation, and French
+// marked as before (2026-10-22).
+console.log("\n  marking — Spanish articles and ¿ ¡, French unchanged");
+{
+  const { default: fs } = await import("node:fs");
+  const { default: os } = await import("node:os");
+  const { default: path } = await import("node:path");
+  const app = fs.readFileSync(new URL("../../src/FlashcardApp.jsx", import.meta.url), "utf8");
+  const start = app.indexOf("function normalize(s)");
+  const mStart = app.indexOf("function matchAnswer(");
+  const end = app.indexOf("\n}\n", mStart) + 3;
+  const file = path.join(os.tmpdir(), `logic-matcher-${process.pid}.mjs`);
+  fs.writeFileSync(file, app.slice(start, end) + "\nexport { matchAnswer };\n");
+  const { matchAnswer } = await import(`file://${file}?t=${Date.now()}`);
+  fs.unlinkSync(file);
+  const ok = (typed, answer, opts) => matchAnswer(typed, answer, [], opts).match === true;
+  ck("a Spanish question typed without ¿ is right", ok("Como estas?", "¿Cómo estás?", { articles: "none" }));
+  ck("a Spanish word card's article may be left off", ok("mano", "la mano", { articles: "es" }));
+  ck("but not given the wrong gender", matchAnswer("el mano", "la mano", [], { articles: "es" }).wrongArticle === true);
+  // A leading le or les in a Spanish phrase is a pronoun: a wrong one is a
+  // wrong answer to mark as such, not "Wrong article" (French rules said that).
+  ck("a Spanish pronoun is never called a wrong article",
+     matchAnswer("Les hablé", "Le hablé", [], { articles: "none" }).wrongArticle !== true &&
+     matchAnswer("Les hablé", "Le hablé").wrongArticle === true);
+  ck("an English answer still drops its the", ok("hand", "the hand", { articles: "en" }));
+  ck("French still forgives a left-off article", ok("chemin de fer", "le chemin de fer"));
+  ck("and still checks its gender", matchAnswer("la vélo", "le vélo").wrongArticle === true);
+}
+
+// A Spanish card's row is found by its front (es_user_cards is unique on
+// user and front, as user_cards is), so two Spanish lessons with one front
+// would write over each other's row.
+console.log("\n  Spanish lessons — no front in two of them");
+{
+  const seen = new Map();
+  const twice = [];
+  for (const lesson of SPANISH.LESSONS) {
+    for (const [front] of lesson.cards) {
+      if (seen.has(front) && seen.get(front) !== lesson.id) twice.push(`${front} (${seen.get(front)}, ${lesson.id})`);
+      seen.set(front, lesson.id);
+    }
+  }
+  ck("every Spanish front belongs to one lesson", twice.length === 0, twice.join(" | "));
+}
+
 // "Replace my existing deck" deleted the whole deck before adding the upload,
 // and every answer with it: one tick wiped a student's history. Then it
 // matched cards by their exact French and deleted those never answered. Since
@@ -725,12 +774,15 @@ console.log("\n  archive — out of circulation, recoverable");
   const chosen = lessonsInCards(ids, started, { imperatif: false, adverbes: true });
   ck("the student's choice overrides that, either way", !chosen.has("imperatif") && chosen.has("adverbes"),
      JSON.stringify([...chosen]));
-  const catalogue = LESSONS.map((l) => l.id);
+  const catalogue = FRENCH_LESSONS.map((l) => l.id);
   const fresh = lessonsInCards(catalogue, new Set(), {});
   ck("without a choice, the five basic lessons are on and L'impératif and the adverbs are off",
      ["lecon1", "lecon2", "lecon3", "lecon4", "lecon5"].every((id) => fresh.has(id)) &&
      !fresh.has("imperatif") && !fresh.has("adverbes"), JSON.stringify([...fresh]));
   ck("a basic lesson switched off by hand stays off", !lessonsInCards(catalogue, new Set(), { lecon1: false }).has("lecon1"));
+  const spanishFresh = lessonsInCards(SPANISH.LESSONS.map((l) => l.id), new Set(), {});
+  ck("in Spanish, Lessons 1 to 6 are on without a choice and the later ones off",
+     SPANISH.LESSONS.every((l) => spanishFresh.has(l.id) === /^leccion[1-6]$/.test(l.id)), JSON.stringify([...spanishFresh]));
 
   const all = { scope: "all", lessonsOn: byDefault, lessonIds: ids };
   const cahier = { scope: "cahier", lessonsOn: byDefault, lessonIds: ids };

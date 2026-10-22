@@ -2041,6 +2041,7286 @@
         "key": "grcfn4",
         "front": "Je suis ici pour apprendre le français"
       }
+    ],
+    "leccion1": [
+      {
+        "key": "3hop9",
+        "front": "yo"
+      },
+      {
+        "key": "3hooj",
+        "front": "tú"
+      },
+      {
+        "key": "4l0nt6",
+        "front": "usted"
+      },
+      {
+        "key": "3hrju",
+        "front": "él"
+      },
+      {
+        "key": "ykgrk3",
+        "front": "ella"
+      },
+      {
+        "key": "wf52do",
+        "front": "nosotros"
+      },
+      {
+        "key": "wf520u",
+        "front": "nosotras"
+      },
+      {
+        "key": "jn4hoi",
+        "front": "ustedes"
+      },
+      {
+        "key": "49ke90",
+        "front": "ellos"
+      },
+      {
+        "key": "49kdw6",
+        "front": "ellas"
+      },
+      {
+        "key": "1w80f4",
+        "front": "ser (presente) → yo"
+      },
+      {
+        "key": "1w80ee",
+        "front": "ser (presente) → tú"
+      },
+      {
+        "key": "ktljdm",
+        "front": "ser (presente) → él/ella"
+      },
+      {
+        "key": "1cl66an",
+        "front": "ser (presente) → nosotros"
+      },
+      {
+        "key": "z76h4l",
+        "front": "ser (presente) → ustedes"
+      },
+      {
+        "key": "14g4y6v",
+        "front": "ser (presente) → ellos/ellas"
+      },
+      {
+        "key": "qc4cbb",
+        "front": "ser → Lucía ___ mi profesora"
+      },
+      {
+        "key": "lqdwzb",
+        "front": "ser → Jessica y James ___ estadounidenses"
+      },
+      {
+        "key": "1v54wgn",
+        "front": "ser → Mi esposa y yo ___ de Chicago"
+      },
+      {
+        "key": "1xe779v",
+        "front": "ser → ¿Usted ___ de México?"
+      },
+      {
+        "key": "j754uo",
+        "front": "ser → ¿De dónde ___ ustedes?"
+      },
+      {
+        "key": "1t4u2m8",
+        "front": "estadounidense"
+      },
+      {
+        "key": "ikmpqm",
+        "front": "mexicano / mexicana"
+      },
+      {
+        "key": "jqzxkl",
+        "front": "profesor / profesora"
+      },
+      {
+        "key": "1xvm0pq",
+        "front": "esposo"
+      },
+      {
+        "key": "1xvm0pc",
+        "front": "esposa"
+      },
+      {
+        "key": "1w8cui8",
+        "front": "casado"
+      },
+      {
+        "key": "1vm4qff",
+        "front": "clase de español"
+      },
+      {
+        "key": "3776di",
+        "front": "año"
+      },
+      {
+        "key": "1k482mg",
+        "front": "dos meses"
+      },
+      {
+        "key": "1m3dp1",
+        "front": "desde hace dos años"
+      },
+      {
+        "key": "1h440d2",
+        "front": "aprender"
+      },
+      {
+        "key": "1g8qi1x",
+        "front": "por qué"
+      },
+      {
+        "key": "ykdt6h",
+        "front": "aquí"
+      },
+      {
+        "key": "3774qt",
+        "front": "con"
+      },
+      {
+        "key": "ykp2uz",
+        "front": "pero"
+      },
+      {
+        "key": "377db4",
+        "front": "muy"
+      },
+      {
+        "key": "qb6wzi",
+        "front": "muy bien"
+      },
+      {
+        "key": "24detk",
+        "front": "juntos"
+      },
+      {
+        "key": "ykj59l",
+        "front": "hola"
+      },
+      {
+        "key": "1inigss",
+        "front": "me llamo"
+      },
+      {
+        "key": "ykm0e4",
+        "front": "vivo en"
+      },
+      {
+        "key": "1kjgc0a",
+        "front": "¿Y tú?"
+      },
+      {
+        "key": "1jxkhde",
+        "front": "mexicano → Lucía es ___"
+      },
+      {
+        "key": "15afkhi",
+        "front": "español → Marta es ___"
+      },
+      {
+        "key": "pluvqh",
+        "front": "estadounidense → Jessica es ___"
+      },
+      {
+        "key": "ih2rna",
+        "front": "mexicano → Marta y Ana son ___"
+      },
+      {
+        "key": "1y0pv6g",
+        "front": "español → Ellos son ___"
+      },
+      {
+        "key": "bqhstq",
+        "front": "ellos o ellas → Marta y Ana son de Guadalajara. ___ son mexicanas"
+      },
+      {
+        "key": "l1f87b",
+        "front": "ellos o ellas → Jessica y James son de Nueva York. ___ son estadounidenses"
+      },
+      {
+        "key": "fxlvv1",
+        "front": "nosotros o nosotras → ___ somos mexicanas"
+      },
+      {
+        "key": "ctaa70",
+        "front": "nosotros o nosotras → ___ somos profesores"
+      },
+      {
+        "key": "1ppiqs1",
+        "front": "¿Eres estadounidense? → Sí, …"
+      },
+      {
+        "key": "ku2j92",
+        "front": "¿Usted es de México? → Sí, …"
+      },
+      {
+        "key": "3o5zhd",
+        "front": "¿Ustedes son de Nueva York? → Sí, …"
+      },
+      {
+        "key": "wqx3bb",
+        "front": "¿Lucía es de Guadalajara? → Sí, …"
+      },
+      {
+        "key": "155aaeo",
+        "front": "¿James y Jessica son estadounidenses? → Sí, …"
+      },
+      {
+        "key": "1d6ws17",
+        "front": "¿Lucía es tu profesora? → Sí, …"
+      },
+      {
+        "key": "muxix4",
+        "front": "¿Cómo te llamas?"
+      },
+      {
+        "key": "13agjm1",
+        "front": "¿De dónde eres?"
+      },
+      {
+        "key": "xw3my4",
+        "front": "Somos de Guadalajara"
+      },
+      {
+        "key": "2md6wc",
+        "front": "Soy mexicana, pero vivo en Los Ángeles"
+      },
+      {
+        "key": "14cnmgd",
+        "front": "Mi esposa se llama Linda"
+      },
+      {
+        "key": "4fmddg",
+        "front": "Lucía es mi profesora de español"
+      },
+      {
+        "key": "5s8bnh",
+        "front": "Son profesores"
+      },
+      {
+        "key": "1heqfp8",
+        "front": "Estoy aquí con mi esposo"
+      },
+      {
+        "key": "e134mb",
+        "front": "¿Por qué estás en Los Ángeles?"
+      },
+      {
+        "key": "bo5wni",
+        "front": "¿Estás casado?"
+      },
+      {
+        "key": "1qujl10",
+        "front": "Estamos juntos desde hace dos años"
+      }
+    ],
+    "leccion2": [
+      {
+        "key": "1oradg5",
+        "front": "estar (presente) → yo"
+      },
+      {
+        "key": "1oradff",
+        "front": "estar (presente) → tú"
+      },
+      {
+        "key": "1natyb3",
+        "front": "estar (presente) → él/ella"
+      },
+      {
+        "key": "13tuvf8",
+        "front": "estar (presente) → nosotros"
+      },
+      {
+        "key": "2nau2y",
+        "front": "estar (presente) → ustedes"
+      },
+      {
+        "key": "g8zf3g",
+        "front": "estar (presente) → ellos/ellas"
+      },
+      {
+        "key": "xc5ej5",
+        "front": "ir (presente) → yo"
+      },
+      {
+        "key": "xc5eif",
+        "front": "ir (presente) → tú"
+      },
+      {
+        "key": "lxfwyz",
+        "front": "ir (presente) → él/ella"
+      },
+      {
+        "key": "e2wkwg",
+        "front": "ir (presente) → nosotros"
+      },
+      {
+        "key": "10b0upy",
+        "front": "ir (presente) → ustedes"
+      },
+      {
+        "key": "5h10iw",
+        "front": "ir (presente) → ellos/ellas"
+      },
+      {
+        "key": "1uae4s7",
+        "front": "estar → Mi esposa ___ muy cansada, trabaja mucho"
+      },
+      {
+        "key": "499lpa",
+        "front": "estar → James y Jessica ___ en Los Ángeles"
+      },
+      {
+        "key": "1il2lnk",
+        "front": "estar → ¿Cómo ___ ustedes?"
+      },
+      {
+        "key": "1zwqcc",
+        "front": "ir → Sabrina ___ a vivir en México"
+      },
+      {
+        "key": "18817a0",
+        "front": "ir → ¿Por qué ___ ustedes a Guadalajara?"
+      },
+      {
+        "key": "3778yd",
+        "front": "hoy"
+      },
+      {
+        "key": "ykfcz2",
+        "front": "creo"
+      },
+      {
+        "key": "4807ce",
+        "front": "cenar"
+      },
+      {
+        "key": "4bfylk",
+        "front": "hacer"
+      },
+      {
+        "key": "erdqmq",
+        "front": "un hijo"
+      },
+      {
+        "key": "ugp840",
+        "front": "los hijos"
+      },
+      {
+        "key": "1jqtcoo",
+        "front": "cansado / cansada"
+      },
+      {
+        "key": "3q4k3j",
+        "front": "gracias"
+      },
+      {
+        "key": "46kl09",
+        "front": "adiós"
+      },
+      {
+        "key": "n3nstq",
+        "front": "en realidad"
+      },
+      {
+        "key": "19t11rd",
+        "front": "la playa"
+      },
+      {
+        "key": "4fegkh",
+        "front": "mucho"
+      },
+      {
+        "key": "erk1bt",
+        "front": "un poco"
+      },
+      {
+        "key": "1vtmas1",
+        "front": "yo también"
+      },
+      {
+        "key": "1cpy9sb",
+        "front": "después de"
+      },
+      {
+        "key": "o5dzyy",
+        "front": "¡Hasta pronto!"
+      },
+      {
+        "key": "1tj3sqb",
+        "front": "¿Qué tal?"
+      },
+      {
+        "key": "1wmnok4",
+        "front": "¡Qué bien!"
+      },
+      {
+        "key": "fmdjp1",
+        "front": "¿Cómo estás?"
+      },
+      {
+        "key": "2nduuq",
+        "front": "Estoy muy bien"
+      },
+      {
+        "key": "wzizti",
+        "front": "¿Cómo está tu esposa?"
+      },
+      {
+        "key": "13kpt7r",
+        "front": "¿Cómo está usted?"
+      },
+      {
+        "key": "121idej",
+        "front": "Creo que están muy cansados"
+      },
+      {
+        "key": "18g5cx0",
+        "front": "ser o estar → Lucía ___ mexicana"
+      },
+      {
+        "key": "1gqu42m",
+        "front": "ser o estar → Lucía ___ en Los Ángeles"
+      },
+      {
+        "key": "1eforzn",
+        "front": "ser o estar → Yo ___ muy bien, gracias"
+      },
+      {
+        "key": "1lblnvf",
+        "front": "ser o estar → La esposa de Diego ___ muy cansada"
+      },
+      {
+        "key": "1v5nqhn",
+        "front": "ser o estar → Nosotros ___ profesores"
+      },
+      {
+        "key": "1ymqm34",
+        "front": "ser o estar → ¡Hola! ¿Cómo ___ tú?"
+      },
+      {
+        "key": "1chcl5b",
+        "front": "ser o estar → ¿De dónde ___ tú?"
+      },
+      {
+        "key": "fgr1i7",
+        "front": "ser o estar → Ellos ___ aquí en Guadalajara"
+      },
+      {
+        "key": "ug7vk8",
+        "front": "Voy a la playa"
+      },
+      {
+        "key": "s2dw7w",
+        "front": "¿Adónde vas?"
+      },
+      {
+        "key": "gbthu",
+        "front": "al o a la → Vamos ___ restaurante"
+      },
+      {
+        "key": "1dlj7d9",
+        "front": "al o a la → ¿Vas ___ playa hoy?"
+      },
+      {
+        "key": "mkd16",
+        "front": "estar o ir → Mis hijos ___ en la playa"
+      },
+      {
+        "key": "t9pa54",
+        "front": "estar o ir → Mis hijos ___ a la playa hoy"
+      },
+      {
+        "key": "i32fnz",
+        "front": "hacer (ir a) → yo"
+      },
+      {
+        "key": "t6dses",
+        "front": "cenar (ir a) → nosotros"
+      },
+      {
+        "key": "1a0lr9w",
+        "front": "aprender (ir a) → ellos/ellas"
+      },
+      {
+        "key": "10vsg05",
+        "front": "estar (ir a) → él/ella"
+      },
+      {
+        "key": "t2ege8",
+        "front": "Estoy cansado → con ir a"
+      },
+      {
+        "key": "45vgeu",
+        "front": "Voy a la playa → con ir a"
+      },
+      {
+        "key": "9emixc",
+        "front": "¿Qué vas a hacer hoy?"
+      },
+      {
+        "key": "1pzt067",
+        "front": "Voy a cenar en el restaurante"
+      },
+      {
+        "key": "yb7wmk",
+        "front": "¿Vas al restaurante? → Sí, …"
+      },
+      {
+        "key": "1fm0062",
+        "front": "¿Ustedes van a Guadalajara juntos? → Sí, …"
+      },
+      {
+        "key": "1slfw2o",
+        "front": "¿Estás cansado? → Sí, …"
+      },
+      {
+        "key": "128poja",
+        "front": "¿Jessica está en Los Ángeles? → Sí, …"
+      },
+      {
+        "key": "13adzwr",
+        "front": "¿Vas a ir a la playa con tus hijos? → Sí, …"
+      },
+      {
+        "key": "ur7ea4",
+        "front": "¿Tus hijos van a aprender español? → Sí, …"
+      },
+      {
+        "key": "pkbf9i",
+        "front": "1 → en letras"
+      },
+      {
+        "key": "1bl4ubr",
+        "front": "2 → en letras"
+      },
+      {
+        "key": "1xly9e0",
+        "front": "3 → en letras"
+      },
+      {
+        "key": "klnmh5",
+        "front": "4 → en letras"
+      },
+      {
+        "key": "16mh1je",
+        "front": "5 → en letras"
+      },
+      {
+        "key": "1d2onm2",
+        "front": "un hijo → dos"
+      },
+      {
+        "key": "bts648",
+        "front": "una amiga → tres"
+      },
+      {
+        "key": "197q3g9",
+        "front": "el restaurante → en plural"
+      },
+      {
+        "key": "1tw2spd",
+        "front": "la ciudad → en plural"
+      },
+      {
+        "key": "15r093f",
+        "front": "el lápiz → en plural"
+      },
+      {
+        "key": "1f234lx",
+        "front": "por qué o porque → ¿___ está cansada?"
+      },
+      {
+        "key": "kx88bs",
+        "front": "por qué o porque → Está cansada ___ trabaja mucho"
+      }
+    ],
+    "leccion3": [
+      {
+        "key": "125vis",
+        "front": "tener (presente) → yo"
+      },
+      {
+        "key": "125vi2",
+        "front": "tener (presente) → tú"
+      },
+      {
+        "key": "wylbim",
+        "front": "tener (presente) → él/ella"
+      },
+      {
+        "key": "mzan0z",
+        "front": "tener (presente) → nosotros"
+      },
+      {
+        "key": "1bc699l",
+        "front": "tener (presente) → ustedes"
+      },
+      {
+        "key": "1i6e1jf",
+        "front": "tener (presente) → ellos/ellas"
+      },
+      {
+        "key": "6vu3us",
+        "front": "tener → Lucía ___ una hermana"
+      },
+      {
+        "key": "w4ttts",
+        "front": "tener → James y Jessica ___ dos hijos"
+      },
+      {
+        "key": "1ysg066",
+        "front": "Tengo 17 años"
+      },
+      {
+        "key": "1bkod3x",
+        "front": "Tengo 17 años → la pregunta, con tú"
+      },
+      {
+        "key": "rpa16q",
+        "front": "un regalo"
+      },
+      {
+        "key": "1ozqko0",
+        "front": "un libro"
+      },
+      {
+        "key": "1sf0pbp",
+        "front": "la historia"
+      },
+      {
+        "key": "ujh8cc",
+        "front": "una idea"
+      },
+      {
+        "key": "zl5e79",
+        "front": "una hermana"
+      },
+      {
+        "key": "16czzf2",
+        "front": "mi papá / mi padre"
+      },
+      {
+        "key": "bhzmm4",
+        "front": "la ciudad"
+      },
+      {
+        "key": "ujkcgf",
+        "front": "una mesa"
+      },
+      {
+        "key": "1a6ypio",
+        "front": "los descuentos"
+      },
+      {
+        "key": "vggwg0",
+        "front": "la librería"
+      },
+      {
+        "key": "779t2l",
+        "front": "el vendedor"
+      },
+      {
+        "key": "1tfsi4f",
+        "front": "los audífonos"
+      },
+      {
+        "key": "ykdoiw",
+        "front": "algo"
+      },
+      {
+        "key": "4g3xo2",
+        "front": "nuevo"
+      },
+      {
+        "key": "1vuu8sw",
+        "front": "bonito"
+      },
+      {
+        "key": "1nqbq1y",
+        "front": "inalámbrico"
+      },
+      {
+        "key": "4jibz4",
+        "front": "sobre"
+      },
+      {
+        "key": "1lixceh",
+        "front": "también"
+      },
+      {
+        "key": "485aye",
+        "front": "claro"
+      },
+      {
+        "key": "38fd57",
+        "front": "llevar"
+      },
+      {
+        "key": "o80w2h",
+        "front": "en el segundo piso"
+      },
+      {
+        "key": "43kyra",
+        "front": "Buenos días"
+      },
+      {
+        "key": "1chfrls",
+        "front": "Muchas gracias"
+      },
+      {
+        "key": "1vbalqs",
+        "front": "por favor"
+      },
+      {
+        "key": "oocmg0",
+        "front": "¡Que tenga un buen día!"
+      },
+      {
+        "key": "o7yicf",
+        "front": "ser, estar o tener → Mi hermana ___ nueve años"
+      },
+      {
+        "key": "mzz6on",
+        "front": "ser, estar o tener → Ellos ___ ocho y diez años"
+      },
+      {
+        "key": "1aw34lc",
+        "front": "ser, estar o tener → ¿Por qué ___ cansados?"
+      },
+      {
+        "key": "uojnt0",
+        "front": "ser, estar o tener → Los audífonos ___ en el segundo piso"
+      },
+      {
+        "key": "xf1nr9",
+        "front": "ser, estar o tener → Este libro ___ muy bonito"
+      },
+      {
+        "key": "917ox2",
+        "front": "¿Tienes una idea? → Sí, …"
+      },
+      {
+        "key": "17l4cjn",
+        "front": "¿Usted tiene un mapa? → Sí, …"
+      },
+      {
+        "key": "s0x92c",
+        "front": "¿Ustedes tienen hijos? → Sí, …"
+      },
+      {
+        "key": "f7ez4x",
+        "front": "¿Tu hermana tiene diez años? → Sí, …"
+      },
+      {
+        "key": "1evr2im",
+        "front": "¿Los vendedores tienen una idea? → Sí, …"
+      },
+      {
+        "key": "xmzle2",
+        "front": "¿Eres mexicano? → Sí, …"
+      },
+      {
+        "key": "18clcw1",
+        "front": "¿Los libros están en la mesa? → Sí, …"
+      },
+      {
+        "key": "cb0os9",
+        "front": "el, la, los o las → ___ día"
+      },
+      {
+        "key": "1ey64cy",
+        "front": "el, la, los o las → ___ mano"
+      },
+      {
+        "key": "w8dp64",
+        "front": "el, la, los o las → ___ problemas"
+      },
+      {
+        "key": "jxad2t",
+        "front": "el, la, los o las → ___ restaurante"
+      },
+      {
+        "key": "1ge93gd",
+        "front": "un, una, unos o unas → ___ mapa"
+      },
+      {
+        "key": "f0gpc8",
+        "front": "un, una, unos o unas → ___ ciudad"
+      },
+      {
+        "key": "1nxudu2",
+        "front": "un, una, unos o unas → ___ audífonos"
+      },
+      {
+        "key": "o8v8dg",
+        "front": "un, una, unos o unas → ___ ideas"
+      },
+      {
+        "key": "fxw2va",
+        "front": "del o de la → Es el libro ___ vendedor"
+      },
+      {
+        "key": "19cmfjq",
+        "front": "del o de la → Es un libro sobre la historia ___ ciudad"
+      },
+      {
+        "key": "873w4r",
+        "front": "cerca de mí → ___ libro es muy bonito"
+      },
+      {
+        "key": "wnenyr",
+        "front": "cerca de mí → ___ librería es muy bonita"
+      },
+      {
+        "key": "wl8z3f",
+        "front": "cerca de mí → Voy a llevar ___ dos libros"
+      },
+      {
+        "key": "n5fcre",
+        "front": "cerca de ti → ¿___ mapa es nuevo?"
+      },
+      {
+        "key": "1tbujea",
+        "front": "cerca de ti → ¿___ audífonos son nuevos?"
+      },
+      {
+        "key": "wa64ta",
+        "front": "lejos → Los libros están en ___ mesa"
+      },
+      {
+        "key": "1cg9y15",
+        "front": "lejos → ___ restaurantes son muy buenos"
+      },
+      {
+        "key": "2zlrn2",
+        "front": "¿Tienen libros sobre la historia de México?"
+      },
+      {
+        "key": "18ngg6x",
+        "front": "¿Qué tienen sobre México?"
+      },
+      {
+        "key": "18e477i",
+        "front": "También busco un regalo para mi papá"
+      },
+      {
+        "key": "1hgbniq",
+        "front": "Tienen descuentos en los audífonos"
+      },
+      {
+        "key": "1i83js6",
+        "front": "Voy a llevar el libro y los audífonos"
+      },
+      {
+        "key": "1agtqkw",
+        "front": "Está en aquella mesa"
+      },
+      {
+        "key": "1snagln",
+        "front": "6 → en letras"
+      },
+      {
+        "key": "fmztos",
+        "front": "7 → en letras"
+      },
+      {
+        "key": "11nt8r1",
+        "front": "8 → en letras"
+      },
+      {
+        "key": "1nomnta",
+        "front": "9 → en letras"
+      },
+      {
+        "key": "yp986",
+        "front": "10 → en letras"
+      }
+    ],
+    "leccion4": [
+      {
+        "key": "1fpmqjw",
+        "front": "trabajar"
+      },
+      {
+        "key": "487vwb",
+        "front": "comer"
+      },
+      {
+        "key": "4lifdh",
+        "front": "vivir"
+      },
+      {
+        "key": "1dl8528",
+        "front": "caminar"
+      },
+      {
+        "key": "1d7mtzx",
+        "front": "surfear"
+      },
+      {
+        "key": "tt2ck4",
+        "front": "enseñar"
+      },
+      {
+        "key": "1yo9ev2",
+        "front": "andar en bicicleta"
+      },
+      {
+        "key": "1hwxj3d",
+        "front": "ver la tele"
+      },
+      {
+        "key": "1y9z3i5",
+        "front": "trabajar (presente) → yo"
+      },
+      {
+        "key": "1y9z3hf",
+        "front": "trabajar (presente) → tú"
+      },
+      {
+        "key": "1tolujb",
+        "front": "trabajar (presente) → él/ella"
+      },
+      {
+        "key": "11d3918",
+        "front": "trabajar (presente) → nosotros"
+      },
+      {
+        "key": "912qb6",
+        "front": "trabajar (presente) → ustedes"
+      },
+      {
+        "key": "1evz6s4",
+        "front": "trabajar (presente) → ellos/ellas"
+      },
+      {
+        "key": "1t3pqz0",
+        "front": "comer (presente) → yo"
+      },
+      {
+        "key": "1t3pqya",
+        "front": "comer (presente) → tú"
+      },
+      {
+        "key": "hmjyx2",
+        "front": "comer (presente) → él/ella"
+      },
+      {
+        "key": "e5uh3f",
+        "front": "comer (presente) → nosotros"
+      },
+      {
+        "key": "w04wo1",
+        "front": "comer (presente) → ustedes"
+      },
+      {
+        "key": "tkd3k3",
+        "front": "comer (presente) → ellos/ellas"
+      },
+      {
+        "key": "60t04m",
+        "front": "vivir (presente) → yo"
+      },
+      {
+        "key": "60t03w",
+        "front": "vivir (presente) → tú"
+      },
+      {
+        "key": "87g1r4",
+        "front": "vivir (presente) → él/ella"
+      },
+      {
+        "key": "1mgtcit",
+        "front": "vivir (presente) → nosotros"
+      },
+      {
+        "key": "ml0zi3",
+        "front": "vivir (presente) → ustedes"
+      },
+      {
+        "key": "1dalnz1",
+        "front": "vivir (presente) → ellos/ellas"
+      },
+      {
+        "key": "71lujn",
+        "front": "ver (presente) → yo"
+      },
+      {
+        "key": "kv83vg",
+        "front": "caminar → Yo ___ mucho con mis amigos"
+      },
+      {
+        "key": "6rvd5j",
+        "front": "leer → ¿Qué ___ tú?"
+      },
+      {
+        "key": "tu2jo6",
+        "front": "enseñar → James le ___ una foto a su amigo"
+      },
+      {
+        "key": "1yf92s8",
+        "front": "cenar → Nosotros ___ en un restaurante hoy"
+      },
+      {
+        "key": "10j87bx",
+        "front": "escribir → Nosotros ___ libros sobre México"
+      },
+      {
+        "key": "1nbgqz9",
+        "front": "aprender → ¿Ustedes ___ español?"
+      },
+      {
+        "key": "d0he0d",
+        "front": "vivir → Mis papás ___ cerca de Nueva York"
+      },
+      {
+        "key": "taw2qv",
+        "front": "¿Hablas español? → Sí, …"
+      },
+      {
+        "key": "9o8h3v",
+        "front": "¿Ustedes surfean juntos? → Sí, …"
+      },
+      {
+        "key": "ghf0qo",
+        "front": "¿Ellas viven en Guadalajara? → Sí, …"
+      },
+      {
+        "key": "yyko05",
+        "front": "¿James y Jessica caminan mucho? → Sí, …"
+      },
+      {
+        "key": "1p7n0os",
+        "front": "una familia"
+      },
+      {
+        "key": "1t7ti4h",
+        "front": "una mamá / una madre"
+      },
+      {
+        "key": "1pj4s0i",
+        "front": "un hermano"
+      },
+      {
+        "key": "erigfz",
+        "front": "un niño"
+      },
+      {
+        "key": "ujlar6",
+        "front": "una niña"
+      },
+      {
+        "key": "8ezdvr",
+        "front": "un amigo / una amiga"
+      },
+      {
+        "key": "1043zk4",
+        "front": "los papás / los padres"
+      },
+      {
+        "key": "wgzfbh",
+        "front": "toda la familia"
+      },
+      {
+        "key": "9vxq58",
+        "front": "mi o mis → ¡Esta es ___ familia!"
+      },
+      {
+        "key": "n71635",
+        "front": "mi o mis → ___ papás viven en Montauk"
+      },
+      {
+        "key": "fkkcep",
+        "front": "tu o tus → ¿Dónde viven ___ papás?"
+      },
+      {
+        "key": "31rr36",
+        "front": "tu o tus → ¿Cómo se llama la esposa de ___ hermano?"
+      },
+      {
+        "key": "1rtacxk",
+        "front": "su o sus → Es mi hermano John con ___ esposa"
+      },
+      {
+        "key": "110f700",
+        "front": "su o sus → Es mi hermano John con ___ dos hijos"
+      },
+      {
+        "key": "1saxp45",
+        "front": "nuestro, nuestra, nuestros o nuestras → ___ hermana tiene doce años"
+      },
+      {
+        "key": "8bwxf4",
+        "front": "nuestro, nuestra, nuestros o nuestras → ___ hijos van a comer en el restaurante"
+      },
+      {
+        "key": "1df76bv",
+        "front": "¿Tu hermano vive en Nueva York? → Sí, …"
+      },
+      {
+        "key": "18flf3l",
+        "front": "¿Tu mamá camina mucho? → Sí, …"
+      },
+      {
+        "key": "rtjbio",
+        "front": "¿Tus papás están jubilados? → Sí, …"
+      },
+      {
+        "key": "16lrvwz",
+        "front": "¿Invitas mucho a tus papás? → Sí, …"
+      },
+      {
+        "key": "mzioaf",
+        "front": "11 → en letras"
+      },
+      {
+        "key": "190c3co",
+        "front": "12 → en letras"
+      },
+      {
+        "key": "1v15iex",
+        "front": "13 → en letras"
+      },
+      {
+        "key": "i0uvi2",
+        "front": "14 → en letras"
+      },
+      {
+        "key": "141oakb",
+        "front": "15 → en letras"
+      },
+      {
+        "key": "ujf6sh",
+        "front": "una foto"
+      },
+      {
+        "key": "1ppomf2",
+        "front": "una enfermera"
+      },
+      {
+        "key": "44eecs",
+        "front": "una carne asada"
+      },
+      {
+        "key": "5fwcew",
+        "front": "simpático / simpática"
+      },
+      {
+        "key": "1u5dh8a",
+        "front": "jubilado / jubilada"
+      },
+      {
+        "key": "1w89avz",
+        "front": "a la derecha"
+      },
+      {
+        "key": "1362u75",
+        "front": "a la izquierda"
+      },
+      {
+        "key": "1l18hwb",
+        "front": "al lado de"
+      },
+      {
+        "key": "k9bvfw",
+        "front": "cerca de"
+      },
+      {
+        "key": "46npo0",
+        "front": "ahora"
+      },
+      {
+        "key": "10xj60g",
+        "front": "¡Mira!"
+      },
+      {
+        "key": "tdi0ny",
+        "front": "¿Dónde vives?"
+      },
+      {
+        "key": "9g7kbt",
+        "front": "Vemos la tele juntos"
+      },
+      {
+        "key": "8dkmp4",
+        "front": "Le encanta surfear"
+      },
+      {
+        "key": "3nnmr6",
+        "front": "Es enfermera"
+      },
+      {
+        "key": "8d5pk5",
+        "front": "su libro"
+      },
+      {
+        "key": "aqyhzx",
+        "front": "sus hijos"
+      }
+    ],
+    "leccion5": [
+      {
+        "key": "6na2rd",
+        "front": "querer"
+      },
+      {
+        "key": "4he45b",
+        "front": "poder"
+      },
+      {
+        "key": "59ghok",
+        "front": "preferir"
+      },
+      {
+        "key": "12wdi5m",
+        "front": "intentar"
+      },
+      {
+        "key": "1veqvsb",
+        "front": "ayudar"
+      },
+      {
+        "key": "wkerlp",
+        "front": "preguntar"
+      },
+      {
+        "key": "hgi0w0",
+        "front": "repetir"
+      },
+      {
+        "key": "1vz6gat",
+        "front": "buscar"
+      },
+      {
+        "key": "fdzm7",
+        "front": "hablar"
+      },
+      {
+        "key": "19t6lrg",
+        "front": "perdido"
+      },
+      {
+        "key": "10l6u8e",
+        "front": "más despacio"
+      },
+      {
+        "key": "3778lj",
+        "front": "hay"
+      },
+      {
+        "key": "nc9f5g",
+        "front": "una señora"
+      },
+      {
+        "key": "182ai7o",
+        "front": "un turista"
+      },
+      {
+        "key": "erhep3",
+        "front": "un mapa"
+      },
+      {
+        "key": "dk9vh2",
+        "front": "una línea"
+      },
+      {
+        "key": "surgur",
+        "front": "una estación de metro"
+      },
+      {
+        "key": "3tcbby",
+        "front": "No sé"
+      },
+      {
+        "key": "1bdvaeq",
+        "front": "Lo siento"
+      },
+      {
+        "key": "1nuxpm2",
+        "front": "¡Buena suerte!"
+      },
+      {
+        "key": "1r2rwzi",
+        "front": "Disculpe"
+      },
+      {
+        "key": "1a1awwa",
+        "front": "querer (presente) → yo"
+      },
+      {
+        "key": "1a1awvk",
+        "front": "querer (presente) → tú"
+      },
+      {
+        "key": "10a0yv8",
+        "front": "querer (presente) → él/ella"
+      },
+      {
+        "key": "1pfizm1",
+        "front": "querer (presente) → nosotros"
+      },
+      {
+        "key": "1enlwm7",
+        "front": "querer (presente) → ustedes"
+      },
+      {
+        "key": "sg5gld",
+        "front": "querer (presente) → ellos/ellas"
+      },
+      {
+        "key": "1lvtgk0",
+        "front": "poder (presente) → yo"
+      },
+      {
+        "key": "1lvtgja",
+        "front": "poder (presente) → tú"
+      },
+      {
+        "key": "q3r4ui",
+        "front": "poder (presente) → él/ella"
+      },
+      {
+        "key": "9syoun",
+        "front": "poder (presente) → nosotros"
+      },
+      {
+        "key": "14hc2lh",
+        "front": "poder (presente) → ustedes"
+      },
+      {
+        "key": "18csop3",
+        "front": "poder (presente) → ellos/ellas"
+      },
+      {
+        "key": "fx9oyz",
+        "front": "¿Adónde quieres ir?"
+      },
+      {
+        "key": "h654tk",
+        "front": "¿Puedes repetir más despacio, por favor?"
+      },
+      {
+        "key": "bjeluo",
+        "front": "¿Puedo intentarlo?"
+      },
+      {
+        "key": "1brjdh5",
+        "front": "Voy a preguntarle a la señora del puesto de periódicos"
+      },
+      {
+        "key": "1wzs9p1",
+        "front": "preferir (presente) → yo"
+      },
+      {
+        "key": "1wzs9ob",
+        "front": "preferir (presente) → tú"
+      },
+      {
+        "key": "28ohgv",
+        "front": "preferir (presente) → él/ella"
+      },
+      {
+        "key": "3nrv2s",
+        "front": "preferir (presente) → nosotros"
+      },
+      {
+        "key": "gm9f7u",
+        "front": "preferir (presente) → ustedes"
+      },
+      {
+        "key": "5urelo",
+        "front": "preferir (presente) → ellos/ellas"
+      },
+      {
+        "key": "1dywzhq",
+        "front": "pensar → ¿Tú ___ que es una buena idea?"
+      },
+      {
+        "key": "1g87m2w",
+        "front": "entender → Ella no ___ bien el español"
+      },
+      {
+        "key": "3uhne3",
+        "front": "empezar → La clase de español ___ hoy"
+      },
+      {
+        "key": "h1qcn7",
+        "front": "dormir → Mis hijos ___ mucho"
+      },
+      {
+        "key": "1dwfo0l",
+        "front": "encontrar → Yo no ___ el mapa"
+      },
+      {
+        "key": "1amw6kp",
+        "front": "volver → ¿Ustedes ___ a México este año?"
+      },
+      {
+        "key": "12885zp",
+        "front": "volver → Nosotros ___ a México este año"
+      },
+      {
+        "key": "1fqu213",
+        "front": "poder → ¿Usted ___ repetir, por favor?"
+      },
+      {
+        "key": "1n99mkw",
+        "front": "¿Quieres caminar hoy? → Sí, …"
+      },
+      {
+        "key": "4fkzmg",
+        "front": "¿Los niños quieren ir a la playa? → Sí, …"
+      },
+      {
+        "key": "fuzc5w",
+        "front": "Me gusta caminar en la Ciudad de México → en negativo"
+      },
+      {
+        "key": "1apyqo5",
+        "front": "Quiero ir a la catedral → en negativo"
+      },
+      {
+        "key": "1gwfln6",
+        "front": "Marta vive en la Ciudad de México → en negativo"
+      },
+      {
+        "key": "17s7yc3",
+        "front": "Es aquí → en negativo"
+      },
+      {
+        "key": "16s5xdv",
+        "front": "Hay audífonos en la librería → en negativo"
+      },
+      {
+        "key": "1dr1jr1",
+        "front": "¿Hablas muy bien español? → No, …"
+      },
+      {
+        "key": "18jegci",
+        "front": "¿Ustedes quieren ir a la Ciudad de México juntos? → No, …"
+      },
+      {
+        "key": "1s3i208",
+        "front": "¿Natalie está perdida? → No, …"
+      },
+      {
+        "key": "1jujto",
+        "front": "¿Te gusta tomar el metro? → No, …"
+      },
+      {
+        "key": "17ew7cw",
+        "front": "¿Usted tiene un mapa? → No, …"
+      },
+      {
+        "key": "fv9vq6",
+        "front": "¿Es una buena idea? → No, …"
+      },
+      {
+        "key": "ky1hsi",
+        "front": "hay, está o están → ¿Dónde ___ la catedral?"
+      },
+      {
+        "key": "14760g1",
+        "front": "hay, está o están → Allá ___ una estación de metro"
+      },
+      {
+        "key": "1skip1s",
+        "front": "hay, está o están → Los libros ___ en aquella mesa"
+      },
+      {
+        "key": "9tkkbr",
+        "front": "hay, está o están → En la librería ___ audífonos inalámbricos"
+      },
+      {
+        "key": "qcomi2",
+        "front": "hay, está o están → Mi hotel ___ cerca del Zócalo"
+      },
+      {
+        "key": "ine3ki",
+        "front": "hay, está o están → La estación Hidalgo ___ allá"
+      },
+      {
+        "key": "8zigt4",
+        "front": "¿Me puedes ayudar? → con usted"
+      },
+      {
+        "key": "1o4jvfm",
+        "front": "¿Adónde quieres ir? → con usted"
+      },
+      {
+        "key": "4s50ai",
+        "front": "¿Hablas español? → con usted"
+      },
+      {
+        "key": "oluoq8",
+        "front": "¿Sabes dónde está la catedral? → con usted"
+      },
+      {
+        "key": "9o8goh",
+        "front": "Disculpa → con usted"
+      },
+      {
+        "key": "1q2hpmk",
+        "front": "16 → en letras"
+      },
+      {
+        "key": "d272pp",
+        "front": "17 → en letras"
+      },
+      {
+        "key": "z30hry",
+        "front": "18 → en letras"
+      },
+      {
+        "key": "1l3twu7",
+        "front": "19 → en letras"
+      },
+      {
+        "key": "hejijb",
+        "front": "20 → en letras"
+      }
+    ],
+    "leccion6": [
+      {
+        "key": "6ktx7",
+        "front": "gustar"
+      },
+      {
+        "key": "1dq9qlt",
+        "front": "encantar"
+      },
+      {
+        "key": "qvqatx",
+        "front": "el cine"
+      },
+      {
+        "key": "hdjmis",
+        "front": "el parque"
+      },
+      {
+        "key": "epdbht",
+        "front": "el mercado"
+      },
+      {
+        "key": "bm23fj",
+        "front": "la comida"
+      },
+      {
+        "key": "1c3qdhl",
+        "front": "picante"
+      },
+      {
+        "key": "4lb4ti",
+        "front": "mucha gente"
+      },
+      {
+        "key": "1oae61f",
+        "front": "¡Hasta el sábado!"
+      },
+      {
+        "key": "1m6behk",
+        "front": "gusta o gustan → ¿Te ___ los tacos?"
+      },
+      {
+        "key": "c0i4g2",
+        "front": "gusta o gustan → Nos ___ andar en bicicleta"
+      },
+      {
+        "key": "1yx90ed",
+        "front": "gusta o gustan → A Mateo le ___ caminar y comer tacos"
+      },
+      {
+        "key": "1fdjl7c",
+        "front": "gusta o gustan → A mis papás les ___ los mercados"
+      },
+      {
+        "key": "1xd42o3",
+        "front": "gusta o gustan → Me ___ mucho las playas de México"
+      },
+      {
+        "key": "1ps8sjk",
+        "front": "gusta o gustan → A Jessica no le ___ el chile"
+      },
+      {
+        "key": "2bofca",
+        "front": "me, te, le, nos o les → A mi esposa y a mí ___ encanta ir al mercado"
+      },
+      {
+        "key": "s1s6nw",
+        "front": "me, te, le, nos o les → A mis hijos ___ encanta la playa"
+      },
+      {
+        "key": "10snm3e",
+        "front": "me, te, le, nos o les → ¿A usted ___ gusta caminar?"
+      },
+      {
+        "key": "1ysnpr9",
+        "front": "me, te, le, nos o les → A James ___ gusta andar en bicicleta"
+      },
+      {
+        "key": "symiet",
+        "front": "me, te, le, nos o les → ¿A ustedes ___ gusta la comida picante?"
+      },
+      {
+        "key": "1lrf2gg",
+        "front": "yo + el cine → gustar"
+      },
+      {
+        "key": "a7nt7c",
+        "front": "nosotros + ir al mercado → encantar"
+      },
+      {
+        "key": "ty4hos",
+        "front": "mis papás + la comida mexicana → encantar"
+      },
+      {
+        "key": "1wx23sl",
+        "front": "él + leer → gustar"
+      },
+      {
+        "key": "cmx3x6",
+        "front": "¿Te gustan los tacos? → Sí, …"
+      },
+      {
+        "key": "l579ba",
+        "front": "¿A ustedes les gusta andar en bicicleta? → Sí, …"
+      },
+      {
+        "key": "ewdruk",
+        "front": "¿A tus papás les gusta caminar? → Sí, …"
+      },
+      {
+        "key": "42vy54",
+        "front": "¿A usted le gusta el chile? → Sí, …"
+      },
+      {
+        "key": "1daj1ki",
+        "front": "¿A Jessica le gusta el chile? → No, …"
+      },
+      {
+        "key": "1op1jm3",
+        "front": "¿Te gustan los mercados? → No, …"
+      },
+      {
+        "key": "qbn62i",
+        "front": "¿A ustedes les gusta el cine? → No, …"
+      },
+      {
+        "key": "759879",
+        "front": "¿A tu hermano le gusta surfear? → No, …"
+      },
+      {
+        "key": "zvzja2",
+        "front": "Me gusta el chile → no … nada"
+      },
+      {
+        "key": "1kww9wv",
+        "front": "Me gustan los tacos → encantar"
+      },
+      {
+        "key": "bfc9le",
+        "front": "Me gusta la playa → más"
+      },
+      {
+        "key": "13szzj1",
+        "front": "Me gusta el cine → estoy de acuerdo"
+      },
+      {
+        "key": "qexpl4",
+        "front": "No me gusta la comida picante → estoy de acuerdo"
+      },
+      {
+        "key": "rziwye",
+        "front": "Me encantan los tacos → no estoy de acuerdo"
+      },
+      {
+        "key": "dxi4ne",
+        "front": "No me gustan los lunes → no estoy de acuerdo"
+      },
+      {
+        "key": "4epaoc",
+        "front": "lunes"
+      },
+      {
+        "key": "3o8jf5",
+        "front": "martes"
+      },
+      {
+        "key": "14sipak",
+        "front": "miércoles"
+      },
+      {
+        "key": "246ion",
+        "front": "jueves"
+      },
+      {
+        "key": "y8q129",
+        "front": "viernes"
+      },
+      {
+        "key": "a2264v",
+        "front": "sábado"
+      },
+      {
+        "key": "8z816a",
+        "front": "domingo"
+      },
+      {
+        "key": "ltgw68",
+        "front": "el sábado"
+      },
+      {
+        "key": "w321f4",
+        "front": "los sábados"
+      },
+      {
+        "key": "1iqebgx",
+        "front": "el fin de semana"
+      },
+      {
+        "key": "9z0b3a",
+        "front": "los fines de semana"
+      },
+      {
+        "key": "vlavgn",
+        "front": "domingo → ___ voy a ir al cine"
+      },
+      {
+        "key": "pj5o7i",
+        "front": "miércoles → el día siguiente"
+      },
+      {
+        "key": "1mqvn90",
+        "front": "domingo → el día siguiente"
+      },
+      {
+        "key": "dwezxv",
+        "front": "¿Qué te gusta hacer los fines de semana?"
+      },
+      {
+        "key": "jvlyc1",
+        "front": "Los sábados vamos al parque"
+      }
+    ],
+    "leccion7-1": [
+      {
+        "key": "4j7jg2",
+        "front": "saber"
+      },
+      {
+        "key": "4k7zuw",
+        "front": "tomar"
+      },
+      {
+        "key": "ykqpgb",
+        "front": "reír"
+      },
+      {
+        "key": "9n7tky",
+        "front": "viajar"
+      },
+      {
+        "key": "bn5hhm",
+        "front": "pasar tiempo"
+      },
+      {
+        "key": "1lpfcfv",
+        "front": "hacer deporte"
+      },
+      {
+        "key": "2uzuto",
+        "front": "hacer bromas"
+      },
+      {
+        "key": "1570d7e",
+        "front": "siempre"
+      },
+      {
+        "key": "qvswtm",
+        "front": "el frío"
+      },
+      {
+        "key": "ykdout",
+        "front": "alto"
+      },
+      {
+        "key": "yke0n5",
+        "front": "azul"
+      },
+      {
+        "key": "1uu8up3",
+        "front": "generoso"
+      },
+      {
+        "key": "p9yumt",
+        "front": "egoísta"
+      },
+      {
+        "key": "19mj6w5",
+        "front": "la gente"
+      },
+      {
+        "key": "erjt2x",
+        "front": "un país"
+      },
+      {
+        "key": "h7uipd",
+        "front": "las verduras"
+      },
+      {
+        "key": "1vjza1o",
+        "front": "un periodista"
+      },
+      {
+        "key": "ctt0mv",
+        "front": "una camisa"
+      },
+      {
+        "key": "1716pzq",
+        "front": "un canal de televisión"
+      },
+      {
+        "key": "1vwe5ze",
+        "front": "por el mundo"
+      },
+      {
+        "key": "s50hxu",
+        "front": "el pelo castaño"
+      },
+      {
+        "key": "vi2e7o",
+        "front": "los ojos cafés"
+      },
+      {
+        "key": "16424ua",
+        "front": "estar de buen humor"
+      },
+      {
+        "key": "1k8j6ih",
+        "front": "¿Cómo es físicamente?"
+      },
+      {
+        "key": "10kl84l",
+        "front": "¿A qué se dedica?"
+      },
+      {
+        "key": "16rchon",
+        "front": "Lleva una camisa azul"
+      },
+      {
+        "key": "kf7az0",
+        "front": "Quiero conocer nuevos países"
+      },
+      {
+        "key": "fikl37",
+        "front": "saber (presente) → yo"
+      },
+      {
+        "key": "fikl2h",
+        "front": "saber (presente) → tú"
+      },
+      {
+        "key": "1rcrie5",
+        "front": "saber (presente) → él/ella"
+      },
+      {
+        "key": "vje69u",
+        "front": "saber (presente) → nosotros"
+      },
+      {
+        "key": "6p8e60",
+        "front": "saber (presente) → ustedes"
+      },
+      {
+        "key": "1dd3x22",
+        "front": "saber (presente) → ellos/ellas"
+      },
+      {
+        "key": "1exyyes",
+        "front": "¿Sabes cocinar? → Sí, …"
+      },
+      {
+        "key": "sg2bx",
+        "front": "¿Sabes dónde está el Zócalo? → Sí, …"
+      },
+      {
+        "key": "pz1iqn",
+        "front": "¿Tomas mucho el metro? → Sí, …"
+      },
+      {
+        "key": "141nvx1",
+        "front": "¿Estás de buen humor hoy? → Sí, …"
+      },
+      {
+        "key": "s7yfc5",
+        "front": "azul → una camisa"
+      },
+      {
+        "key": "6vu5te",
+        "front": "cultural → un documental"
+      },
+      {
+        "key": "1139wg",
+        "front": "bueno → un amigo"
+      },
+      {
+        "key": "15tmcpz",
+        "front": "bueno → una idea"
+      },
+      {
+        "key": "1duotzs",
+        "front": "primero → el día"
+      },
+      {
+        "key": "2c8yj3",
+        "front": "otro → un país"
+      },
+      {
+        "key": "jeey5n",
+        "front": "próximo → la vez"
+      },
+      {
+        "key": "18ccpxr",
+        "front": "mismo → la cosa"
+      },
+      {
+        "key": "1gbhpdf",
+        "front": "mucho → amigos"
+      },
+      {
+        "key": "1rzceyg",
+        "front": "grande → un amigo"
+      },
+      {
+        "key": "xqmr9g",
+        "front": "grande → una casa"
+      },
+      {
+        "key": "s60igu",
+        "front": "¡Es una gran idea!"
+      }
+    ],
+    "leccion7-2": [
+      {
+        "key": "9ytay3",
+        "front": "entender (presente) → yo"
+      },
+      {
+        "key": "9ytaxd",
+        "front": "entender (presente) → tú"
+      },
+      {
+        "key": "p5gyit",
+        "front": "entender (presente) → él/ella"
+      },
+      {
+        "key": "1deqy3u",
+        "front": "entender (presente) → nosotros"
+      },
+      {
+        "key": "13j1w9s",
+        "front": "entender (presente) → ustedes"
+      },
+      {
+        "key": "gugete",
+        "front": "entender (presente) → ellos/ellas"
+      },
+      {
+        "key": "14vt27b",
+        "front": "aprender (presente) → yo"
+      },
+      {
+        "key": "14vt26l",
+        "front": "aprender (presente) → tú"
+      },
+      {
+        "key": "1vc1uxy",
+        "front": "aprender (presente) → nosotros"
+      },
+      {
+        "key": "bdzr5q",
+        "front": "aprender (presente) → ellos/ellas"
+      },
+      {
+        "key": "ay2nov",
+        "front": "tímido"
+      },
+      {
+        "key": "4ixj2e",
+        "front": "rubio"
+      },
+      {
+        "key": "1lj2aql",
+        "front": "inteligente"
+      },
+      {
+        "key": "1v5uf1j",
+        "front": "amable"
+      },
+      {
+        "key": "491wfm",
+        "front": "dulce"
+      },
+      {
+        "key": "1lvlicf",
+        "front": "trabajador"
+      },
+      {
+        "key": "1vsg2wk",
+        "front": "blanco"
+      },
+      {
+        "key": "1mgd9b8",
+        "front": "cocinar"
+      },
+      {
+        "key": "yklzm5",
+        "front": "leer"
+      },
+      {
+        "key": "1hr3yve",
+        "front": "quedarse en casa"
+      },
+      {
+        "key": "d3ov4m",
+        "front": "una comida"
+      },
+      {
+        "key": "gtu7iy",
+        "front": "el hospital"
+      },
+      {
+        "key": "4824bt",
+        "front": "un consultorio"
+      },
+      {
+        "key": "18oxq9d",
+        "front": "un paciente"
+      },
+      {
+        "key": "15s85hn",
+        "front": "un trabajo"
+      },
+      {
+        "key": "1wm3njz",
+        "front": "cuando"
+      },
+      {
+        "key": "l4lpin",
+        "front": "los otros días"
+      },
+      {
+        "key": "l41wwb",
+        "front": "No entiendo la pregunta"
+      },
+      {
+        "key": "lulti3",
+        "front": "Es rubia y tiene los ojos azules"
+      },
+      {
+        "key": "1j5tia3",
+        "front": "aprender → Nosotros ___ cocinar"
+      },
+      {
+        "key": "1uzy4p3",
+        "front": "¿Entiendes la pregunta? → sí"
+      },
+      {
+        "key": "1yrf6fk",
+        "front": "¿Ustedes cocinan juntos? → sí"
+      },
+      {
+        "key": "1qkg3va",
+        "front": "¿Aprendes bien tus lecciones? → sí"
+      },
+      {
+        "key": "1uzy4h0",
+        "front": "¿Entiendes la pregunta? → no"
+      },
+      {
+        "key": "o3dv61",
+        "front": "¿Valeria es estadounidense? → no"
+      },
+      {
+        "key": "efigo5",
+        "front": "¿Su hermana es muy tímida? → no"
+      },
+      {
+        "key": "1nc6l4h",
+        "front": "rubio → Valeria es ___"
+      },
+      {
+        "key": "f90sz7",
+        "front": "blanco → Lleva una bata ___"
+      },
+      {
+        "key": "1ru4gy7",
+        "front": "inteligente → Sus hijos son muy ___"
+      },
+      {
+        "key": "1pxbevk",
+        "front": "amable → Es una mujer muy ___"
+      },
+      {
+        "key": "16g432",
+        "front": "azul → Tiene los ojos ___"
+      },
+      {
+        "key": "uw2qyp",
+        "front": "feliz → Los niños están ___"
+      },
+      {
+        "key": "1jbv0jc",
+        "front": "trabajador → Las médicas son ___"
+      },
+      {
+        "key": "cc8wk",
+        "front": "español → Mis amigas son ___"
+      },
+      {
+        "key": "1tx2lj8",
+        "front": "generoso → Valeria y su esposo son ___"
+      },
+      {
+        "key": "n266xx",
+        "front": "médico → Valeria es ___"
+      },
+      {
+        "key": "efx8a6",
+        "front": "profesor → Mi hermana es ___"
+      },
+      {
+        "key": "1sxsts1",
+        "front": "periodista → Mi esposa es ___"
+      },
+      {
+        "key": "1igkvag",
+        "front": "Su hija es médica"
+      },
+      {
+        "key": "4ow8zm",
+        "front": "Valeria es una médica amable y trabajadora"
+      }
+    ],
+    "leccion7-3": [
+      {
+        "key": "1jrig4v",
+        "front": "divertido"
+      },
+      {
+        "key": "zm1jtf",
+        "front": "de mal humor"
+      },
+      {
+        "key": "ykrmaq",
+        "front": "solo"
+      },
+      {
+        "key": "4eg6i8",
+        "front": "listo"
+      },
+      {
+        "key": "1009vcs",
+        "front": "a veces"
+      },
+      {
+        "key": "zep01m",
+        "front": "casi siempre"
+      },
+      {
+        "key": "xr5eu5",
+        "front": "ser o estar → Don Rafael ___ muy divertido"
+      },
+      {
+        "key": "11d7a1i",
+        "front": "ser o estar → Hoy don Rafael ___ de mal humor"
+      },
+      {
+        "key": "vonqc",
+        "front": "ser o estar → Mi abuelo ___ jubilado"
+      },
+      {
+        "key": "b8kxuf",
+        "front": "ser o estar → Después del trabajo, Valeria ___ muy cansada"
+      },
+      {
+        "key": "63bp1y",
+        "front": "ser o estar → Hacer deporte ___ muy cansado"
+      },
+      {
+        "key": "1hzrc80",
+        "front": "ser o estar → Andrés siempre ___ de buen humor"
+      },
+      {
+        "key": "ioca57",
+        "front": "ser o estar → Mis nietos ___ muy activos"
+      },
+      {
+        "key": "rgsubh",
+        "front": "ser o estar → ¿Por qué ___ solo, Rafael? (tú)"
+      },
+      {
+        "key": "fvtte6",
+        "front": "ser o estar → El profesor ___ aburrido: siempre habla de política"
+      },
+      {
+        "key": "18ikqii",
+        "front": "ser o estar → Los niños ___ aburridos en casa"
+      },
+      {
+        "key": "o32qb5",
+        "front": "ser o estar → Nosotros ___ listos"
+      },
+      {
+        "key": "ht4nmy",
+        "front": "Él es aburrido"
+      },
+      {
+        "key": "12xnonz",
+        "front": "Él está aburrido"
+      },
+      {
+        "key": "de0ev2",
+        "front": "los lentes"
+      },
+      {
+        "key": "nx4nqg",
+        "front": "los pantalones"
+      },
+      {
+        "key": "rzrd79",
+        "front": "los zapatos"
+      },
+      {
+        "key": "4lf8yj",
+        "front": "verde"
+      },
+      {
+        "key": "4jzea9",
+        "front": "rosa / rosado"
+      },
+      {
+        "key": "4vh15e",
+        "front": "el tiempo libre"
+      },
+      {
+        "key": "gncxi8",
+        "front": "un abuelo"
+      },
+      {
+        "key": "er8rxh",
+        "front": "los nietos"
+      },
+      {
+        "key": "a9sf8u",
+        "front": "arreglar cosas"
+      },
+      {
+        "key": "dhqkaa",
+        "front": "el jardín"
+      },
+      {
+        "key": "1wm9kwt",
+        "front": "cuidar"
+      },
+      {
+        "key": "4j0sa3",
+        "front": "la política"
+      },
+      {
+        "key": "10fzppj",
+        "front": "los quehaceres de la casa"
+      },
+      {
+        "key": "1p08xd0",
+        "front": "entonces"
+      },
+      {
+        "key": "v5qb9s",
+        "front": "Mi abuelo tiene el pelo blanco y lleva lentes"
+      },
+      {
+        "key": "13fcxlk",
+        "front": "21 → en letras"
+      },
+      {
+        "key": "1pg6cnt",
+        "front": "22 → en letras"
+      },
+      {
+        "key": "cfvpqy",
+        "front": "23 → en letras"
+      },
+      {
+        "key": "7h7wyl",
+        "front": "26 → en letras"
+      },
+      {
+        "key": "ti1c0u",
+        "front": "27 → en letras"
+      },
+      {
+        "key": "2ik468",
+        "front": "29 → en letras"
+      },
+      {
+        "key": "6tjq3w",
+        "front": "21 años → en letras"
+      }
+    ],
+    "leccion8": [
+      {
+        "key": "15qf2f0",
+        "front": "hablar (pretérito) → yo"
+      },
+      {
+        "key": "15qf2ea",
+        "front": "hablar (pretérito) → tú"
+      },
+      {
+        "key": "1s0depi",
+        "front": "hablar (pretérito) → él/ella"
+      },
+      {
+        "key": "1h6gsor",
+        "front": "hablar (pretérito) → nosotros"
+      },
+      {
+        "key": "7cuahd",
+        "front": "hablar (pretérito) → ustedes"
+      },
+      {
+        "key": "15fw9yr",
+        "front": "hablar (pretérito) → ellos/ellas"
+      },
+      {
+        "key": "1uuutd4",
+        "front": "comer (pretérito) → yo"
+      },
+      {
+        "key": "1uuutce",
+        "front": "comer (pretérito) → tú"
+      },
+      {
+        "key": "bwkuw2",
+        "front": "comer (pretérito) → él/ella"
+      },
+      {
+        "key": "12fzy3r",
+        "front": "comer (pretérito) → nosotros"
+      },
+      {
+        "key": "qa5sn1",
+        "front": "comer (pretérito) → ustedes"
+      },
+      {
+        "key": "114jin3",
+        "front": "comer (pretérito) → ellos/ellas"
+      },
+      {
+        "key": "46to36",
+        "front": "buscar (pretérito) → yo"
+      },
+      {
+        "key": "170n72h",
+        "front": "llegar (pretérito) → yo"
+      },
+      {
+        "key": "94xh7q",
+        "front": "empezar (pretérito) → yo"
+      },
+      {
+        "key": "ykdzee",
+        "front": "ayer"
+      },
+      {
+        "key": "1izfyj8",
+        "front": "en la mañana"
+      },
+      {
+        "key": "186milu",
+        "front": "al mediodía"
+      },
+      {
+        "key": "1yogu45",
+        "front": "en la tarde"
+      },
+      {
+        "key": "1ykirg2",
+        "front": "en la noche"
+      },
+      {
+        "key": "sb14u8",
+        "front": "anoche / ayer en la noche"
+      },
+      {
+        "key": "15dfa73",
+        "front": "la medianoche"
+      },
+      {
+        "key": "os6ayb",
+        "front": "anoche o en la noche → Siempre leo ___"
+      },
+      {
+        "key": "b5dqr5",
+        "front": "desayunar"
+      },
+      {
+        "key": "1gvfv7z",
+        "front": "escuchar la radio"
+      },
+      {
+        "key": "utco84",
+        "front": "bañarse"
+      },
+      {
+        "key": "2as7wg",
+        "front": "regresar"
+      },
+      {
+        "key": "1050xxp",
+        "front": "una reunión"
+      },
+      {
+        "key": "1hr06qd",
+        "front": "mi jefe"
+      },
+      {
+        "key": "wag0tp",
+        "front": "el gimnasio"
+      },
+      {
+        "key": "1scb7fu",
+        "front": "acostarse"
+      },
+      {
+        "key": "e5q9cr",
+        "front": "cerca del trabajo"
+      },
+      {
+        "key": "1djkmw",
+        "front": "salir del trabajo"
+      },
+      {
+        "key": "53wozq",
+        "front": "escuchar → ¿Tú ___ la radio esta mañana?"
+      },
+      {
+        "key": "1ipbaul",
+        "front": "vivir → Mis abuelos ___ en Montauk muchos años"
+      },
+      {
+        "key": "3x7rve",
+        "front": "salir → Ella ___ del trabajo a las seis"
+      },
+      {
+        "key": "r6ruvs",
+        "front": "cocinar → Mi esposa y yo ___ juntos"
+      },
+      {
+        "key": "1dpwy12",
+        "front": "empezar → La reunión ___ a las diez"
+      },
+      {
+        "key": "1u7a43c",
+        "front": "escribir → Mis amigos ___ en español"
+      },
+      {
+        "key": "1me913",
+        "front": "¿Desayunaste esta mañana? → sí"
+      },
+      {
+        "key": "g105ay",
+        "front": "¿Llegaste al trabajo a las nueve? → sí"
+      },
+      {
+        "key": "fqgmww",
+        "front": "¿Te levantaste a las siete? → sí"
+      },
+      {
+        "key": "1ll9cq9",
+        "front": "¿Ustedes cocinaron juntos? → sí"
+      },
+      {
+        "key": "mya93t",
+        "front": "¿Tus compañeros comieron en el restaurante? → sí"
+      },
+      {
+        "key": "1o5rzsi",
+        "front": "¿A tu amigo le gustó el restaurante? → sí"
+      },
+      {
+        "key": "ak013n",
+        "front": "¿Pasaste un buen día?"
+      },
+      {
+        "key": "shixsg",
+        "front": "Comí con unos compañeros"
+      },
+      {
+        "key": "u7xpjt",
+        "front": "Fui al trabajo"
+      },
+      {
+        "key": "1owzg5d",
+        "front": "Tuve una reunión con mi jefe"
+      },
+      {
+        "key": "6co7f5",
+        "front": "¿Ya comiste?"
+      },
+      {
+        "key": "4m8sur",
+        "front": "Regresamos en julio"
+      },
+      {
+        "key": "1gv6lpw",
+        "front": "¿Qué hora es?"
+      },
+      {
+        "key": "101pxv5",
+        "front": "¿Qué hora es? → 1:00"
+      },
+      {
+        "key": "101s92t",
+        "front": "¿Qué hora es? → 4:10"
+      },
+      {
+        "key": "101vbzy",
+        "front": "¿Qué hora es? → 8:15"
+      },
+      {
+        "key": "101vc1n",
+        "front": "¿Qué hora es? → 8:30"
+      },
+      {
+        "key": "101vc2p",
+        "front": "¿Qué hora es? → 8:45"
+      },
+      {
+        "key": "98zfrj",
+        "front": "¿Qué hora es? → 2:00 PM"
+      },
+      {
+        "key": "1auvrzb",
+        "front": "¿A qué hora es la clase? → 1:00"
+      },
+      {
+        "key": "18d8dl8",
+        "front": "¿A qué hora saliste del trabajo? → 6:00"
+      },
+      {
+        "key": "xudrug",
+        "front": "30 → en letras"
+      },
+      {
+        "key": "1jv76wp",
+        "front": "31 → en letras"
+      },
+      {
+        "key": "1ea815l",
+        "front": "40 → en letras"
+      },
+      {
+        "key": "1qdpun4",
+        "front": "47 → en letras"
+      },
+      {
+        "key": "1uq2agq",
+        "front": "50 → en letras"
+      },
+      {
+        "key": "1b3pjgm",
+        "front": "1/1 → en letras"
+      },
+      {
+        "key": "q0vghn",
+        "front": "14/2 → en letras"
+      },
+      {
+        "key": "13p0kei",
+        "front": "3/3 → en letras"
+      },
+      {
+        "key": "1hvntzw",
+        "front": "22/4 → en letras"
+      },
+      {
+        "key": "wablce",
+        "front": "5/5 → en letras"
+      },
+      {
+        "key": "apc5j1",
+        "front": "30/6 → en letras"
+      },
+      {
+        "key": "v10a33",
+        "front": "4/7 → en letras"
+      },
+      {
+        "key": "1pei0aq",
+        "front": "15/8 → en letras"
+      },
+      {
+        "key": "1lp5iro",
+        "front": "16/9 → en letras"
+      },
+      {
+        "key": "9e1",
+        "front": "31/10 → en letras"
+      },
+      {
+        "key": "qu9r88",
+        "front": "2/11 → en letras"
+      },
+      {
+        "key": "gujgge",
+        "front": "25/12 → en letras"
+      }
+    ],
+    "leccion9": [
+      {
+        "key": "4hecjt",
+        "front": "poner"
+      },
+      {
+        "key": "4ka12b",
+        "front": "traer"
+      },
+      {
+        "key": "uaxb3t",
+        "front": "hacer (presente) → yo"
+      },
+      {
+        "key": "uaxb33",
+        "front": "hacer (presente) → tú"
+      },
+      {
+        "key": "1bxlmj7",
+        "front": "hacer (presente) → él/ella"
+      },
+      {
+        "key": "juscqg",
+        "front": "hacer (presente) → nosotros"
+      },
+      {
+        "key": "1qb6ka6",
+        "front": "hacer (presente) → ustedes"
+      },
+      {
+        "key": "16zkd5c",
+        "front": "hacer (presente) → ellos/ellas"
+      },
+      {
+        "key": "1fde8be",
+        "front": "poner (presente) → yo"
+      },
+      {
+        "key": "1o5j07l",
+        "front": "salir (presente) → yo"
+      },
+      {
+        "key": "si1dv8",
+        "front": "traer (presente) → yo"
+      },
+      {
+        "key": "1fde8ao",
+        "front": "poner (presente) → tú"
+      },
+      {
+        "key": "1iyl5dh",
+        "front": "hacer (pretérito) → yo"
+      },
+      {
+        "key": "1iyl5cr",
+        "front": "hacer (pretérito) → tú"
+      },
+      {
+        "key": "hliqj3",
+        "front": "hacer (pretérito) → él/ella"
+      },
+      {
+        "key": "d7psac",
+        "front": "hacer (pretérito) → nosotros"
+      },
+      {
+        "key": "vz3oa2",
+        "front": "hacer (pretérito) → ustedes"
+      },
+      {
+        "key": "1hviz9o",
+        "front": "hacer (pretérito) → ellos/ellas"
+      },
+      {
+        "key": "dbwks0",
+        "front": "tener (pretérito) → yo"
+      },
+      {
+        "key": "19bd5yn",
+        "front": "tener (pretérito) → nosotros"
+      },
+      {
+        "key": "1tizj0x",
+        "front": "estar (pretérito) → yo"
+      },
+      {
+        "key": "11kl97v",
+        "front": "estar (pretérito) → él/ella"
+      },
+      {
+        "key": "15plfiq",
+        "front": "poder (pretérito) → tú"
+      },
+      {
+        "key": "10p360b",
+        "front": "poder (pretérito) → nosotros"
+      },
+      {
+        "key": "5w5oo6",
+        "front": "querer (pretérito) → yo"
+      },
+      {
+        "key": "1n69deo",
+        "front": "querer (pretérito) → él/ella"
+      },
+      {
+        "key": "1s6pon3",
+        "front": "saber (pretérito) → yo"
+      },
+      {
+        "key": "1f742c6",
+        "front": "saber (pretérito) → ellos/ellas"
+      },
+      {
+        "key": "d0s6h9",
+        "front": "ir (pretérito) → yo"
+      },
+      {
+        "key": "zqxfpo",
+        "front": "ir (pretérito) → nosotros"
+      },
+      {
+        "key": "nepc9w",
+        "front": "ir (pretérito) → ellos/ellas"
+      },
+      {
+        "key": "14vv2ea",
+        "front": "ser (pretérito) → tú"
+      },
+      {
+        "key": "mmmvcg",
+        "front": "ser → Al principio, ___ un poco difícil"
+      },
+      {
+        "key": "1cc091z",
+        "front": "tener → Andrés ___ una reunión con unos clientes"
+      },
+      {
+        "key": "1tkqjjf",
+        "front": "venir → Mis papás ___ a Oaxaca con nosotros"
+      },
+      {
+        "key": "10s0hki",
+        "front": "poder → Yo no ___ ir al gimnasio"
+      },
+      {
+        "key": "1fwweta",
+        "front": "estar → Ustedes ___ dos semanas en Oaxaca"
+      },
+      {
+        "key": "4dieko",
+        "front": "querer → Ellos no ___ venir"
+      },
+      {
+        "key": "ymaar7",
+        "front": "saber → Ayer ella ___ la verdad"
+      },
+      {
+        "key": "uxpsrj",
+        "front": "al principio"
+      },
+      {
+        "key": "mhmmbp",
+        "front": "ir de vacaciones"
+      },
+      {
+        "key": "pf0ixz",
+        "front": "esta vez"
+      },
+      {
+        "key": "1p15v9i",
+        "front": "un nivel"
+      },
+      {
+        "key": "1dw1xys",
+        "front": "¡Felicidades!"
+      },
+      {
+        "key": "10tajiw",
+        "front": "con fluidez"
+      },
+      {
+        "key": "l1kg9h",
+        "front": "dos veces por semana / dos veces a la semana"
+      },
+      {
+        "key": "51aof1",
+        "front": "difícil"
+      },
+      {
+        "key": "4crpwk",
+        "front": "fácil"
+      },
+      {
+        "key": "djv1w7",
+        "front": "la primera vez"
+      },
+      {
+        "key": "vv0mqk",
+        "front": "muchas veces"
+      },
+      {
+        "key": "1x4jvyb",
+        "front": "tomar clases"
+      },
+      {
+        "key": "1fmagjs",
+        "front": "trabajar mucho"
+      },
+      {
+        "key": "12mbqib",
+        "front": "un profesor particular / un maestro particular"
+      },
+      {
+        "key": "cwd8tl",
+        "front": "el idioma"
+      },
+      {
+        "key": "t3kibd",
+        "front": "empezar"
+      },
+      {
+        "key": "ywip8k",
+        "front": "con el tiempo"
+      },
+      {
+        "key": "gfjtdd",
+        "front": "encontrar"
+      },
+      {
+        "key": "9rp35v",
+        "front": "volver"
+      },
+      {
+        "key": "wv84cb",
+        "front": "Acabo de llegar"
+      },
+      {
+        "key": "3cwsql",
+        "front": "¿Ustedes fueron a México? → Sí, …"
+      },
+      {
+        "key": "otkjmu",
+        "front": "¿Ustedes vinieron con sus hijos? → Sí, …"
+      },
+      {
+        "key": "l18d07",
+        "front": "¿A ustedes les encantó el país? → Sí, …"
+      },
+      {
+        "key": "1vuj6so",
+        "front": "¿Haces algo esta noche? → Sí, …"
+      },
+      {
+        "key": "898rvh",
+        "front": "¿Estuviste en Oaxaca el año pasado? → Sí, …"
+      },
+      {
+        "key": "vbodbd",
+        "front": "¿Te gustó la cultura mexicana? → Sí, …"
+      },
+      {
+        "key": "1wo1aie",
+        "front": "a, de o nada → Empecé ___ tomar clases en 2012"
+      },
+      {
+        "key": "c5s56b",
+        "front": "a, de o nada → Decidimos ___ aprender el idioma"
+      },
+      {
+        "key": "1t3fr5e",
+        "front": "a, de o nada → Trato ___ hablar español todos los días"
+      },
+      {
+        "key": "d99kai",
+        "front": "a, de o nada → Acabo ___ llegar"
+      },
+      {
+        "key": "mui12r",
+        "front": "a, de o nada → Aprendí ___ cocinar con mi abuela"
+      },
+      {
+        "key": "o7b63o",
+        "front": "a, de o nada → Prefiero ___ caminar"
+      },
+      {
+        "key": "h8txrx",
+        "front": "a, de o nada → Necesito ___ trabajar mañana"
+      },
+      {
+        "key": "1asrycz",
+        "front": "Decidimos aprender español cuando fuimos a México"
+      },
+      {
+        "key": "2f203d",
+        "front": "¿Cómo lo hiciste?"
+      },
+      {
+        "key": "4e297x",
+        "front": "Ella no pudo venir ayer"
+      },
+      {
+        "key": "c4shsr",
+        "front": "60 → en letras"
+      },
+      {
+        "key": "skmr3w",
+        "front": "70 → en letras"
+      },
+      {
+        "key": "190h0f1",
+        "front": "80 → en letras"
+      },
+      {
+        "key": "1pgb9q6",
+        "front": "90 → en letras"
+      },
+      {
+        "key": "15iqdpi",
+        "front": "100 → en letras"
+      },
+      {
+        "key": "inb5j6",
+        "front": "76 → en letras"
+      },
+      {
+        "key": "1akbvd3",
+        "front": "99 → en letras"
+      }
+    ],
+    "leccion10": [
+      {
+        "key": "71luix",
+        "front": "ver (presente) → tú"
+      },
+      {
+        "key": "1ezqbct",
+        "front": "ver (presente) → él/ella"
+      },
+      {
+        "key": "1drz1wi",
+        "front": "ver (presente) → nosotros"
+      },
+      {
+        "key": "1tdb93s",
+        "front": "ver (presente) → ustedes"
+      },
+      {
+        "key": "73ruwq",
+        "front": "ver (presente) → ellos/ellas"
+      },
+      {
+        "key": "1wrbkm7",
+        "front": "ver (pretérito) → yo"
+      },
+      {
+        "key": "1wrbklh",
+        "front": "ver (pretérito) → tú"
+      },
+      {
+        "key": "1bipfp5",
+        "front": "ver (pretérito) → él/ella"
+      },
+      {
+        "key": "67a36m",
+        "front": "ver (pretérito) → nosotros"
+      },
+      {
+        "key": "6874za",
+        "front": "ver (pretérito) → ellos/ellas"
+      },
+      {
+        "key": "q5m5i2",
+        "front": "venir (presente) → yo"
+      },
+      {
+        "key": "q5m5hc",
+        "front": "venir (presente) → tú"
+      },
+      {
+        "key": "1w88wyc",
+        "front": "venir (presente) → él/ella"
+      },
+      {
+        "key": "1ec4eu1",
+        "front": "venir (presente) → nosotros"
+      },
+      {
+        "key": "bkpsq7",
+        "front": "venir (presente) → ustedes"
+      },
+      {
+        "key": "iyq101",
+        "front": "venir (presente) → ellos/ellas"
+      },
+      {
+        "key": "1o5l4dy",
+        "front": "venir (pretérito) → yo"
+      },
+      {
+        "key": "1o5l4d8",
+        "front": "venir (pretérito) → tú"
+      },
+      {
+        "key": "1c2usmo",
+        "front": "venir (pretérito) → él/ella"
+      },
+      {
+        "key": "oo6xx1",
+        "front": "venir (pretérito) → nosotros"
+      },
+      {
+        "key": "16fyg4t",
+        "front": "venir (pretérito) → ellos/ellas"
+      },
+      {
+        "key": "phtt3r",
+        "front": "este año"
+      },
+      {
+        "key": "1yhyh0j",
+        "front": "en el sur"
+      },
+      {
+        "key": "1i1o5pw",
+        "front": "unas playas maravillosas"
+      },
+      {
+        "key": "to4yf6",
+        "front": "¿De verdad?"
+      },
+      {
+        "key": "1ozzx6r",
+        "front": "un lugar"
+      },
+      {
+        "key": "18dnyef",
+        "front": "normalmente"
+      },
+      {
+        "key": "adqy5f",
+        "front": "en verano"
+      },
+      {
+        "key": "1h4ilsr",
+        "front": "tener suerte"
+      },
+      {
+        "key": "ypl3eu",
+        "front": "el campo"
+      },
+      {
+        "key": "qpxlfz",
+        "front": "un pueblo"
+      },
+      {
+        "key": "1e3kmjn",
+        "front": "manejar"
+      },
+      {
+        "key": "6eaftb",
+        "front": "en carro"
+      },
+      {
+        "key": "1cs30k9",
+        "front": "los días libres"
+      },
+      {
+        "key": "yif3bb",
+        "front": "visitar"
+      },
+      {
+        "key": "1wv8b97",
+        "front": "¿Trabajaste en julio? → No, …"
+      },
+      {
+        "key": "1crvwrb",
+        "front": "¿Ustedes visitaron la ciudad? → No, …"
+      },
+      {
+        "key": "1ifxo5y",
+        "front": "¿Hizo buen tiempo? → No, …"
+      },
+      {
+        "key": "10cuxos",
+        "front": "¿Viste a tus amigos? → No, …"
+      },
+      {
+        "key": "1sqr1s0",
+        "front": "¿Te gustó Oaxaca? → No, …"
+      },
+      {
+        "key": "ffsyp3",
+        "front": "¿Pudiste tomar tus días libres? → No, …"
+      },
+      {
+        "key": "1e49svp",
+        "front": "a, al o nada → Visitamos ___ unos amigos"
+      },
+      {
+        "key": "xo67zb",
+        "front": "a, al o nada → Visitamos ___ la ciudad"
+      },
+      {
+        "key": "m0a1fe",
+        "front": "a, al o nada → Vi ___ Hugo en la playa"
+      },
+      {
+        "key": "b2bqck",
+        "front": "a, al o nada → Busco ___ la estación de metro"
+      },
+      {
+        "key": "1mtbmcp",
+        "front": "a, al o nada → Tengo ___ tres hermanos"
+      },
+      {
+        "key": "1omwbep",
+        "front": "a, al o nada → Vimos ___ profesor en el restaurante"
+      },
+      {
+        "key": "1gdrrn4",
+        "front": "Fuimos a Oaxaca en carro"
+      },
+      {
+        "key": "1jzcugf",
+        "front": "¿Viniste en carro?"
+      },
+      {
+        "key": "14t7071",
+        "front": "Voy al trabajo en carro"
+      },
+      {
+        "key": "13zco58",
+        "front": "No sé manejar"
+      },
+      {
+        "key": "xie4r2",
+        "front": "Hace buen tiempo"
+      },
+      {
+        "key": "128wc93",
+        "front": "Hace calor"
+      },
+      {
+        "key": "1tqg6x6",
+        "front": "Hace frío"
+      },
+      {
+        "key": "1hk9j0y",
+        "front": "Llueve"
+      },
+      {
+        "key": "prp9xz",
+        "front": "Está nublado"
+      },
+      {
+        "key": "5myl03",
+        "front": "Tengo calor"
+      },
+      {
+        "key": "1y8wd64",
+        "front": "hacer, estar o tener → Hoy ___ mucho calor"
+      },
+      {
+        "key": "1kmpg3o",
+        "front": "hacer, estar o tener → Hoy ___ nublado"
+      },
+      {
+        "key": "1mu4jyn",
+        "front": "hacer, estar o tener → ¿Tú ___ frío?"
+      },
+      {
+        "key": "65kzeh",
+        "front": "hacer, estar o tener → ¡___ 35 grados!"
+      },
+      {
+        "key": "nv61lh",
+        "front": "Hace buen tiempo → en pretérito"
+      },
+      {
+        "key": "10fbbt",
+        "front": "Llueve → en pretérito"
+      },
+      {
+        "key": "1aidwc5",
+        "front": "Hace calor → con ir a"
+      },
+      {
+        "key": "1i4grs0",
+        "front": "Llueve → con ir a"
+      },
+      {
+        "key": "33a3q5",
+        "front": "¿Vienes mañana? → No, …"
+      },
+      {
+        "key": "1osqusl",
+        "front": "¿Ves bien sin lentes? → No, …"
+      },
+      {
+        "key": "siox7b",
+        "front": "¿Ustedes ven mucho a sus papás? → No, …"
+      },
+      {
+        "key": "1q3sv8b",
+        "front": "Tuvimos suerte: hizo muy buen tiempo"
+      },
+      {
+        "key": "1qiqloq",
+        "front": "Ella no quiso visitar la ciudad"
+      },
+      {
+        "key": "1gqjbsi",
+        "front": "Voy a visitar a mis abuelos en diciembre"
+      },
+      {
+        "key": "1rjjsrr",
+        "front": "101 → en letras"
+      },
+      {
+        "key": "fskh47",
+        "front": "200 → en letras"
+      },
+      {
+        "key": "1krb3qr",
+        "front": "365 → en letras"
+      },
+      {
+        "key": "9n6tbe",
+        "front": "500 → en letras"
+      },
+      {
+        "key": "t7z23w",
+        "front": "700 → en letras"
+      },
+      {
+        "key": "1csrawe",
+        "front": "900 → en letras"
+      },
+      {
+        "key": "13t44dc",
+        "front": "999 → en letras"
+      },
+      {
+        "key": "mxdpw2",
+        "front": "200 personas → en letras"
+      }
+    ],
+    "leccion11": [
+      {
+        "key": "48pdd8",
+        "front": "decir"
+      },
+      {
+        "key": "48pcfb",
+        "front": "deber"
+      },
+      {
+        "key": "1wqhclq",
+        "front": "tener que"
+      },
+      {
+        "key": "37758c",
+        "front": "dar"
+      },
+      {
+        "key": "3o52yg",
+        "front": "mandar"
+      },
+      {
+        "key": "1694hug",
+        "front": "contestar"
+      },
+      {
+        "key": "1yougbb",
+        "front": "recordar"
+      },
+      {
+        "key": "t2b0ra",
+        "front": "olvidar"
+      },
+      {
+        "key": "1umnyph",
+        "front": "actualizar"
+      },
+      {
+        "key": "4zi8vx",
+        "front": "decir (presente) → yo"
+      },
+      {
+        "key": "4zi8v7",
+        "front": "decir (presente) → tú"
+      },
+      {
+        "key": "1ho4hcn",
+        "front": "decir (presente) → él/ella"
+      },
+      {
+        "key": "1v3uhrw",
+        "front": "decir (presente) → nosotros"
+      },
+      {
+        "key": "1w1pf3m",
+        "front": "decir (presente) → ustedes"
+      },
+      {
+        "key": "1oq5yc4",
+        "front": "decir (presente) → ellos/ellas"
+      },
+      {
+        "key": "u0pvd",
+        "front": "decir (pretérito) → yo"
+      },
+      {
+        "key": "u0pun",
+        "front": "decir (pretérito) → tú"
+      },
+      {
+        "key": "1sukvkj",
+        "front": "decir (pretérito) → él/ella"
+      },
+      {
+        "key": "1z0eyog",
+        "front": "decir (pretérito) → ellos/ellas"
+      },
+      {
+        "key": "1atte48",
+        "front": "deber (presente) → yo"
+      },
+      {
+        "key": "1atte3i",
+        "front": "deber (presente) → tú"
+      },
+      {
+        "key": "1m6fylu",
+        "front": "deber (presente) → él/ella"
+      },
+      {
+        "key": "2t159z",
+        "front": "deber (presente) → nosotros"
+      },
+      {
+        "key": "1iwudp",
+        "front": "deber (presente) → ustedes"
+      },
+      {
+        "key": "2vi3sf",
+        "front": "deber (presente) → ellos/ellas"
+      },
+      {
+        "key": "130it2o",
+        "front": "deber → Los pacientes ___ traer su credencial"
+      },
+      {
+        "key": "g5tuzr",
+        "front": "tener que → Yo ___ trabajar el sábado"
+      },
+      {
+        "key": "1w115y3",
+        "front": "tener que (pretérito) → yo"
+      },
+      {
+        "key": "1kz5al6",
+        "front": "tener que (pretérito) → nosotros"
+      },
+      {
+        "key": "1v25adp",
+        "front": "dar (presente) → yo"
+      },
+      {
+        "key": "1odzjux",
+        "front": "dar (pretérito) → yo"
+      },
+      {
+        "key": "nu35er",
+        "front": "dar (pretérito) → él/ella"
+      },
+      {
+        "key": "i72z02",
+        "front": "un correo"
+      },
+      {
+        "key": "lop509",
+        "front": "¿Ya terminaste?"
+      },
+      {
+        "key": "1yr3z7",
+        "front": "Es cierto"
+      },
+      {
+        "key": "jkcytv",
+        "front": "un expediente"
+      },
+      {
+        "key": "zui1oo",
+        "front": "Tiene razón"
+      },
+      {
+        "key": "abas3y",
+        "front": "todavía no"
+      },
+      {
+        "key": "111ldm4",
+        "front": "¡Sale!"
+      },
+      {
+        "key": "bg46bx",
+        "front": "ahorita"
+      },
+      {
+        "key": "fcpny3",
+        "front": "¡Ánimo!"
+      },
+      {
+        "key": "1czk6y9",
+        "front": "la semana pasada"
+      },
+      {
+        "key": "1hkxd6t",
+        "front": "le o les → Martín ___ mandó un correo a la señora Duarte"
+      },
+      {
+        "key": "nblj86",
+        "front": "le o les → ___ voy a explicar la lección a los niños"
+      },
+      {
+        "key": "123356m",
+        "front": "le o les → ¿___ diste el expediente a Lucía?"
+      },
+      {
+        "key": "ybcjd3",
+        "front": "le o les → Creo que ___ tienes que escribir a los papás de Diego"
+      },
+      {
+        "key": "io6xpb",
+        "front": "a o al → La doctora le explicó el problema ___ paciente"
+      },
+      {
+        "key": "ks5xx8",
+        "front": "a o al → Ayer le contesté ___ mi hermano"
+      },
+      {
+        "key": "oidgvg",
+        "front": "La doctora dio los expedientes a Martín → con le o les"
+      },
+      {
+        "key": "1ve4hm5",
+        "front": "Ella contestó al periodista → con le o les"
+      },
+      {
+        "key": "1nu1tte",
+        "front": "Martín mandó un mensaje a los señores Ramírez → con le o les"
+      },
+      {
+        "key": "1npfz66",
+        "front": "¿Me diste el expediente? → Sí, …"
+      },
+      {
+        "key": "3wz5un",
+        "front": "¿Te dije la verdad? → Sí, …"
+      },
+      {
+        "key": "7av4lb",
+        "front": "¿Le mandaste un correo a tu secretaria? → Sí, …"
+      },
+      {
+        "key": "1baebh9",
+        "front": "¿Les explicaste eso a los niños? → Sí, …"
+      },
+      {
+        "key": "1sycrqc",
+        "front": "¿Nos contestaste? → Sí, …"
+      },
+      {
+        "key": "17eesjp",
+        "front": "¿Tienes que decirle algo a Martín? → Sí, …"
+      },
+      {
+        "key": "ggpoh1",
+        "front": "Le tengo que decir la verdad → pronombre al final"
+      },
+      {
+        "key": "1gpe7fx",
+        "front": "Te voy a escribir → pronombre al final"
+      },
+      {
+        "key": "jeyb2u",
+        "front": "¿Puedes explicarme el problema? → pronombre al principio"
+      },
+      {
+        "key": "1zty14",
+        "front": "Le dije la verdad a mi hermana"
+      },
+      {
+        "key": "1jyisqr",
+        "front": "¿Hablaste con el doctor?"
+      },
+      {
+        "key": "1u70duv",
+        "front": "Le hablé por teléfono"
+      },
+      {
+        "key": "q32huk",
+        "front": "leer → gerundio"
+      },
+      {
+        "key": "160tsd7",
+        "front": "decir → gerundio"
+      },
+      {
+        "key": "1ljv9nl",
+        "front": "dormir → gerundio"
+      },
+      {
+        "key": "cg3ycv",
+        "front": "ir → gerundio"
+      },
+      {
+        "key": "jbo4u6",
+        "front": "trabajar (estar + gerundio) → yo"
+      },
+      {
+        "key": "mdnff0",
+        "front": "comer (estar + gerundio) → nosotros"
+      },
+      {
+        "key": "1o9bjl0",
+        "front": "escribir (estar + gerundio) → él/ella"
+      },
+      {
+        "key": "9he5x5",
+        "front": "ver (estar + gerundio) → ustedes"
+      },
+      {
+        "key": "1vmo99p",
+        "front": "¿Qué estás haciendo?"
+      },
+      {
+        "key": "srdrii",
+        "front": "Salgo mañana"
+      },
+      {
+        "key": "1gtr2a",
+        "front": "1,000 → en letras"
+      },
+      {
+        "key": "167oitf",
+        "front": "2,000 → en letras"
+      },
+      {
+        "key": "1slxrzj",
+        "front": "300,000 personas → en letras"
+      },
+      {
+        "key": "1htx4zi",
+        "front": "1,000,000 → en letras"
+      },
+      {
+        "key": "wqkyyx",
+        "front": "2,000,000 pesos → en letras"
+      },
+      {
+        "key": "qwrlbu",
+        "front": "1,000,000,000 → en letras"
+      },
+      {
+        "key": "hqtoi0",
+        "front": "1990 → en letras"
+      },
+      {
+        "key": "1kmx5a7",
+        "front": "2026 → en letras"
+      }
+    ],
+    "leccion12-1": [
+      {
+        "key": "1glhlk7",
+        "front": "despertarse"
+      },
+      {
+        "key": "1x76x2y",
+        "front": "levantarse"
+      },
+      {
+        "key": "1n868ii",
+        "front": "vestirse"
+      },
+      {
+        "key": "fckddx",
+        "front": "maquillarse"
+      },
+      {
+        "key": "1z4du5",
+        "front": "lavarse los dientes"
+      },
+      {
+        "key": "fh4z6y",
+        "front": "dormirse"
+      },
+      {
+        "key": "1j86v78",
+        "front": "aburrirse"
+      },
+      {
+        "key": "1e6daq",
+        "front": "sentirse"
+      },
+      {
+        "key": "byw1h5",
+        "front": "descansar"
+      },
+      {
+        "key": "13nq70j",
+        "front": "dormir (presente) → yo"
+      },
+      {
+        "key": "13nq6zt",
+        "front": "dormir (presente) → tú"
+      },
+      {
+        "key": "hab199",
+        "front": "dormir (presente) → él/ella"
+      },
+      {
+        "key": "2xnm9u",
+        "front": "dormir (presente) → nosotros"
+      },
+      {
+        "key": "vnvz08",
+        "front": "dormir (presente) → ustedes"
+      },
+      {
+        "key": "1zyxqy",
+        "front": "dormir (presente) → ellos/ellas"
+      },
+      {
+        "key": "8ji4hr",
+        "front": "dormir (pretérito) → yo"
+      },
+      {
+        "key": "oe02h",
+        "front": "dormir (pretérito) → él/ella"
+      },
+      {
+        "key": "1eu0wly",
+        "front": "dormir (pretérito) → ellos/ellas"
+      },
+      {
+        "key": "14b5syh",
+        "front": "dormir o dormirse → Me acuesto a las once y ___ rápido"
+      },
+      {
+        "key": "xogxmr",
+        "front": "dormir o dormirse → Yo ___ ocho horas"
+      },
+      {
+        "key": "6lq5ff",
+        "front": "acostarse (presente) → yo"
+      },
+      {
+        "key": "6lq5ep",
+        "front": "acostarse (presente) → tú"
+      },
+      {
+        "key": "od01sl",
+        "front": "acostarse (presente) → él/ella"
+      },
+      {
+        "key": "nb8y2i",
+        "front": "acostarse (presente) → nosotros"
+      },
+      {
+        "key": "12qkzjk",
+        "front": "acostarse (presente) → ustedes"
+      },
+      {
+        "key": "1h15xsi",
+        "front": "acostarse (presente) → ellos/ellas"
+      },
+      {
+        "key": "rqe8mj",
+        "front": "vestirse (presente) → yo"
+      },
+      {
+        "key": "rqe8lt",
+        "front": "vestirse (presente) → tú"
+      },
+      {
+        "key": "1h0e7np",
+        "front": "vestirse (presente) → él/ella"
+      },
+      {
+        "key": "19crlwq",
+        "front": "vestirse (presente) → nosotros"
+      },
+      {
+        "key": "1vdz5eo",
+        "front": "vestirse (presente) → ustedes"
+      },
+      {
+        "key": "1a3lthe",
+        "front": "vestirse (presente) → ellos/ellas"
+      },
+      {
+        "key": "me17n3",
+        "front": "¿Te duermes rápido en la noche? → sí"
+      },
+      {
+        "key": "13waz4p",
+        "front": "¿Te vuelves a dormir rápido cuando te despiertas en la noche? → sí"
+      },
+      {
+        "key": "1pcgxy4",
+        "front": "¿Ustedes se acuestan antes que los niños? → sí"
+      },
+      {
+        "key": "jb07jp",
+        "front": "¿Tus hijos se duermen rápido? → sí"
+      },
+      {
+        "key": "1usc3t6",
+        "front": "mis o los → Me lavo ___ dientes"
+      },
+      {
+        "key": "1dlxpkw",
+        "front": "acostarse → Vamos a ___ temprano esta noche"
+      },
+      {
+        "key": "cmgwgg",
+        "front": "vestirse → Tengo que ___ rápido"
+      },
+      {
+        "key": "11pz7kt",
+        "front": "Me estoy vistiendo → pronombre al final"
+      },
+      {
+        "key": "1uzizt3",
+        "front": "despertar → Yo ___ a las seis y después despierto a mis hijos"
+      },
+      {
+        "key": "mr7vw1",
+        "front": "despertar → Me despierto a las seis y después ___ a mis hijos"
+      },
+      {
+        "key": "h72m81",
+        "front": "maquillar → Mi hermana ___ a mi mamá"
+      },
+      {
+        "key": "16x4qn8",
+        "front": "bañar → Los niños ___ antes de dormir"
+      },
+      {
+        "key": "zcirtm",
+        "front": "descansar → Los domingos, yo ___ en la tarde"
+      },
+      {
+        "key": "ftremn",
+        "front": "me, te, se o nos → Aquí ___ habla español"
+      },
+      {
+        "key": "c92grp",
+        "front": "un despertador"
+      },
+      {
+        "key": "4jilmw",
+        "front": "sonar"
+      },
+      {
+        "key": "1hz48vp",
+        "front": "prender"
+      },
+      {
+        "key": "1u852ff",
+        "front": "temprano"
+      },
+      {
+        "key": "1lgtasb",
+        "front": "tal vez"
+      },
+      {
+        "key": "14j6qvt",
+        "front": "lo que pasa es que…"
+      },
+      {
+        "key": "1n5tk0j",
+        "front": "con razón"
+      },
+      {
+        "key": "1ulpfw9",
+        "front": "Duermo muy mal estos días"
+      },
+      {
+        "key": "7bdz2k",
+        "front": "Se aburren"
+      },
+      {
+        "key": "pr6ttz",
+        "front": "Volví a ver la película"
+      }
+    ],
+    "leccion12-2": [
+      {
+        "key": "17z79tu",
+        "front": "acordarse de"
+      },
+      {
+        "key": "12ywsyu",
+        "front": "conocerse"
+      },
+      {
+        "key": "uxl6lm",
+        "front": "besarse"
+      },
+      {
+        "key": "g8fjh2",
+        "front": "pelearse"
+      },
+      {
+        "key": "1e07gq",
+        "front": "sentarse"
+      },
+      {
+        "key": "ihwx8k",
+        "front": "contarse"
+      },
+      {
+        "key": "1i13or4",
+        "front": "escribirse"
+      },
+      {
+        "key": "rle2kp",
+        "front": "volver a verse"
+      },
+      {
+        "key": "1xo2s1",
+        "front": "llevar a alguien"
+      },
+      {
+        "key": "k8fcya",
+        "front": "pasar por alguien"
+      },
+      {
+        "key": "155hah6",
+        "front": "acordarse (presente) → yo"
+      },
+      {
+        "key": "155hagg",
+        "front": "acordarse (presente) → tú"
+      },
+      {
+        "key": "msnb9g",
+        "front": "acordarse (presente) → él/ella"
+      },
+      {
+        "key": "16oooi1",
+        "front": "acordarse (presente) → nosotros"
+      },
+      {
+        "key": "116890f",
+        "front": "acordarse (presente) → ustedes"
+      },
+      {
+        "key": "oms6f5",
+        "front": "acordarse (presente) → ellos/ellas"
+      },
+      {
+        "key": "1ltcaqu",
+        "front": "acordarse (pretérito) → yo"
+      },
+      {
+        "key": "1k2r6e2",
+        "front": "acordarse → ¿Te acuerdas ___ nuestra primera cita?"
+      },
+      {
+        "key": "ujl7vl",
+        "front": "acordarse → Me acordé ___ hoy tengo clase"
+      },
+      {
+        "key": "2h7o37",
+        "front": "Me acuerdo de tu nombre → con recordar"
+      },
+      {
+        "key": "rz8aru",
+        "front": "Recuerdo a tu hermana → con acordarse"
+      },
+      {
+        "key": "m916oq",
+        "front": "verse (presente) → nosotros"
+      },
+      {
+        "key": "1bxllv6",
+        "front": "verse (presente) → ellos/ellas"
+      },
+      {
+        "key": "1po89de",
+        "front": "conocerse (pretérito) → nosotros"
+      },
+      {
+        "key": "1dfapu2",
+        "front": "conocerse (pretérito) → ellos/ellas"
+      },
+      {
+        "key": "gsjlxb",
+        "front": "pelearse → Ayer yo ___ con mi novio"
+      },
+      {
+        "key": "1i79jqv",
+        "front": "acostarse (pretérito) → yo"
+      },
+      {
+        "key": "1i79jq5",
+        "front": "acostarse (pretérito) → tú"
+      },
+      {
+        "key": "l1zbv5",
+        "front": "acostarse (pretérito) → él/ella"
+      },
+      {
+        "key": "u6qmmm",
+        "front": "acostarse (pretérito) → ellos/ellas"
+      },
+      {
+        "key": "92r635",
+        "front": "dormirse (pretérito) → él/ella"
+      },
+      {
+        "key": "eimuda",
+        "front": "vestirse (pretérito) → ellos/ellas"
+      },
+      {
+        "key": "1acopsv",
+        "front": "sentirse (pretérito) → yo"
+      },
+      {
+        "key": "8i63dj",
+        "front": "sentarse (pretérito) → yo"
+      },
+      {
+        "key": "ba1km9",
+        "front": "¿Ustedes se conocieron en el hospital? → sí"
+      },
+      {
+        "key": "foj4t4",
+        "front": "¿Te despertaste temprano? → sí"
+      },
+      {
+        "key": "kbeym8",
+        "front": "¿Él se peleó con su novia? → sí"
+      },
+      {
+        "key": "15629gx",
+        "front": "¿Te acuerdas de mi madrina? → sí"
+      },
+      {
+        "key": "1fjpdhm",
+        "front": "¿Ustedes se sentaron en la primera mesa? → sí"
+      },
+      {
+        "key": "w7ujit",
+        "front": "hace o desde hace → Nos conocimos ___ seis meses"
+      },
+      {
+        "key": "1dh3t2g",
+        "front": "hace o desde hace → Vivo en Los Ángeles ___ dos años"
+      },
+      {
+        "key": "69kxbr",
+        "front": "hace o desde hace → Mis papás llegaron ___ diez minutos"
+      },
+      {
+        "key": "dmwuyh",
+        "front": "hace o desde hace → Aprendo español ___ seis meses"
+      },
+      {
+        "key": "1k8ol22",
+        "front": "hace o desde hace → ___ una semana, vi a Andrés en la tele"
+      },
+      {
+        "key": "1p1ahqr",
+        "front": "un novio"
+      },
+      {
+        "key": "1whlhs5",
+        "front": "una madrina"
+      },
+      {
+        "key": "kvdbiy",
+        "front": "una primera cita"
+      },
+      {
+        "key": "m8apf5",
+        "front": "al día siguiente"
+      },
+      {
+        "key": "nk91jg",
+        "front": "amor a primera vista"
+      },
+      {
+        "key": "1ujcbru",
+        "front": "casi nunca"
+      },
+      {
+        "key": "on2zm",
+        "front": "¡Qué padre!"
+      },
+      {
+        "key": "wua28l",
+        "front": "de hecho"
+      },
+      {
+        "key": "7097cs",
+        "front": "¿Cómo se conocieron?"
+      },
+      {
+        "key": "1h34ud0",
+        "front": "Nos conocimos hace un año"
+      },
+      {
+        "key": "1m2tjq3",
+        "front": "Nos vemos mucho"
+      },
+      {
+        "key": "x6oc9d",
+        "front": "Se besaron la primera noche"
+      }
+    ],
+    "leccion13": [
+      {
+        "key": "wfyhz3",
+        "front": "conocer (presente) → yo"
+      },
+      {
+        "key": "wfyhyd",
+        "front": "conocer (presente) → tú"
+      },
+      {
+        "key": "lgc8wp",
+        "front": "conocer (presente) → él/ella"
+      },
+      {
+        "key": "1xfnkse",
+        "front": "conocer (presente) → nosotros"
+      },
+      {
+        "key": "ztx6no",
+        "front": "conocer (presente) → ustedes"
+      },
+      {
+        "key": "1bjaxjq",
+        "front": "conocer (presente) → ellos/ellas"
+      },
+      {
+        "key": "1ijke2j",
+        "front": "conocer (pretérito) → yo"
+      },
+      {
+        "key": "13wz1km",
+        "front": "poner (pretérito) → yo"
+      },
+      {
+        "key": "13wz1jw",
+        "front": "poner (pretérito) → tú"
+      },
+      {
+        "key": "1mv41bk",
+        "front": "poner (pretérito) → él/ella"
+      },
+      {
+        "key": "pf3mut",
+        "front": "poner (pretérito) → nosotros"
+      },
+      {
+        "key": "27kx3f",
+        "front": "poner (pretérito) → ustedes"
+      },
+      {
+        "key": "1hswc4t",
+        "front": "poner (pretérito) → ellos/ellas"
+      },
+      {
+        "key": "1acjhgu",
+        "front": "ponerse (pretérito) → yo"
+      },
+      {
+        "key": "19vol4a",
+        "front": "un departamento de dos recámaras"
+      },
+      {
+        "key": "1apuhr9",
+        "front": "una recámara"
+      },
+      {
+        "key": "r7vxir",
+        "front": "la sala"
+      },
+      {
+        "key": "d3h63a",
+        "front": "una cocina"
+      },
+      {
+        "key": "qvpfq1",
+        "front": "el baño"
+      },
+      {
+        "key": "i7q3py",
+        "front": "un clóset"
+      },
+      {
+        "key": "1b6odls",
+        "front": "los muebles"
+      },
+      {
+        "key": "8gwepe",
+        "front": "un metro cuadrado"
+      },
+      {
+        "key": "91dsht",
+        "front": "el centro"
+      },
+      {
+        "key": "yymkte",
+        "front": "la inmobiliaria"
+      },
+      {
+        "key": "1x1kz5m",
+        "front": "un agente inmobiliario"
+      },
+      {
+        "key": "6oypci",
+        "front": "en renta"
+      },
+      {
+        "key": "935sxp",
+        "front": "saber o conocer → ¿Tú ___ dónde está la inmobiliaria?"
+      },
+      {
+        "key": "3jnx85",
+        "front": "saber o conocer → Yo no ___ cuánto mide la sala"
+      },
+      {
+        "key": "11mrsso",
+        "front": "saber o conocer → Ellos no ___ que estoy aquí"
+      },
+      {
+        "key": "1sitaon",
+        "front": "saber o conocer → Mi hijo ___ manejar"
+      },
+      {
+        "key": "34h5b7",
+        "front": "saber o conocer → Yo no ___ Monterrey"
+      },
+      {
+        "key": "1ijsbc2",
+        "front": "saber o conocer → Nosotros ___ Lucía desde hace dos años"
+      },
+      {
+        "key": "172067i",
+        "front": "saber o conocer → ¿Tú ___ la profesora de Jessica?"
+      },
+      {
+        "key": "27c5qx",
+        "front": "¿Conoces a la madrina de Camila? → sí"
+      },
+      {
+        "key": "l9ilqk",
+        "front": "¿Normalmente pones tus zapatos en el clóset? → sí"
+      },
+      {
+        "key": "31vfmz",
+        "front": "¿Te pusiste el vestido rojo para la boda? → sí"
+      },
+      {
+        "key": "1uro4fo",
+        "front": "¿Te equivocaste? → no"
+      },
+      {
+        "key": "1kfdrte",
+        "front": "¿Ellos saben dónde está la inmobiliaria? → no"
+      },
+      {
+        "key": "1jl48cg",
+        "front": "que o de → Este departamento es menos caro ___ el otro"
+      },
+      {
+        "key": "1xkqi6l",
+        "front": "que o de → La sala tiene más ___ 20 metros cuadrados"
+      },
+      {
+        "key": "5ak82n",
+        "front": "que o como → La recámara es tan grande ___ la sala"
+      },
+      {
+        "key": "1kdaux",
+        "front": "yo o mí → Mi hermano es más alto que ___"
+      },
+      {
+        "key": "1l15b4a",
+        "front": "de o en → Es el mejor restaurante ___ la ciudad"
+      },
+      {
+        "key": "10zy74o",
+        "front": "bueno → ¡Es mucho ___ que todo lo que vimos!"
+      },
+      {
+        "key": "7iyanx",
+        "front": "malo → Esta cocina es ___ que la otra"
+      },
+      {
+        "key": "mxiwt",
+        "front": "joven → Emilia es ___ que Hugo"
+      },
+      {
+        "key": "73i7jj",
+        "front": "pequeño → Esta es la más grande y esa es la ___"
+      },
+      {
+        "key": "1c5gx7w",
+        "front": "tener que o hay que → Para aprender español, ___ estudiar todos los días"
+      },
+      {
+        "key": "1o6jcxj",
+        "front": "tener que o hay que → Mañana yo ___ trabajar"
+      },
+      {
+        "key": "y3zm3m",
+        "front": "1 → Enero es el ___ mes del año"
+      },
+      {
+        "key": "1q12j08",
+        "front": "2 → Es la ___ vez que vengo a Guadalajara"
+      },
+      {
+        "key": "14fqeo8",
+        "front": "3 → El departamento está en el ___ piso"
+      },
+      {
+        "key": "11aosmq",
+        "front": "3 → Es nuestra ___ semana en México"
+      },
+      {
+        "key": "1l3hh4w",
+        "front": "4 → Este es el ___ departamento que visitamos hoy"
+      },
+      {
+        "key": "5opq1w",
+        "front": "5 → Mi oficina está en el ___ piso"
+      },
+      {
+        "key": "1toraur",
+        "front": "6 → Junio es el ___ mes del año"
+      },
+      {
+        "key": "r049ki",
+        "front": "7 → Julio es el ___ mes del año"
+      },
+      {
+        "key": "52y399",
+        "front": "8 → Agosto es el ___ mes del año"
+      },
+      {
+        "key": "uuuktd",
+        "front": "9 → Septiembre es el ___ mes del año"
+      },
+      {
+        "key": "1j7tx40",
+        "front": "10 → Lucía vive en el ___ piso"
+      },
+      {
+        "key": "1k3h8hd",
+        "front": "la computadora"
+      },
+      {
+        "key": "1mnkxeh",
+        "front": "comprar"
+      },
+      {
+        "key": "1xn9o4s",
+        "front": "equivocarse"
+      },
+      {
+        "key": "48pj1n",
+        "front": "dejar"
+      },
+      {
+        "key": "1nyh5ak",
+        "front": "llegar tarde"
+      },
+      {
+        "key": "6rzvo6",
+        "front": "más tarde"
+      },
+      {
+        "key": "zc5l35",
+        "front": "hasta ahora"
+      },
+      {
+        "key": "dbtxtl",
+        "front": "¿verdad?"
+      },
+      {
+        "key": "1tnxmhl",
+        "front": "a ver…"
+      },
+      {
+        "key": "12ek06s",
+        "front": "Necesito un agente inmobiliario"
+      },
+      {
+        "key": "bpca4z",
+        "front": "Tengo que salir ahora"
+      },
+      {
+        "key": "6dgir7",
+        "front": "Me pongo los lentes"
+      },
+      {
+        "key": "h5rszd",
+        "front": "Le marco más tarde"
+      },
+      {
+        "key": "7mv9if",
+        "front": "No sé cuánto mide"
+      },
+      {
+        "key": "5p53qy",
+        "front": "¿Conoces Guadalajara?"
+      }
+    ],
+    "leccion14": [
+      {
+        "key": "t38mp4",
+        "front": "hablar (imperfecto) → yo"
+      },
+      {
+        "key": "t38moe",
+        "front": "hablar (imperfecto) → tú"
+      },
+      {
+        "key": "1plno6a",
+        "front": "hablar (imperfecto) → él/ella"
+      },
+      {
+        "key": "18pzj1j",
+        "front": "hablar (imperfecto) → nosotros"
+      },
+      {
+        "key": "4y4jy5",
+        "front": "hablar (imperfecto) → ustedes"
+      },
+      {
+        "key": "zv5vq7",
+        "front": "hablar (imperfecto) → ellos/ellas"
+      },
+      {
+        "key": "krtcmm",
+        "front": "vivir (imperfecto) → yo"
+      },
+      {
+        "key": "krtclw",
+        "front": "vivir (imperfecto) → tú"
+      },
+      {
+        "key": "h9sh7s",
+        "front": "vivir (imperfecto) → él/ella"
+      },
+      {
+        "key": "2gn8x9",
+        "front": "vivir (imperfecto) → nosotros"
+      },
+      {
+        "key": "vndeyr",
+        "front": "vivir (imperfecto) → ustedes"
+      },
+      {
+        "key": "1wvtxid",
+        "front": "vivir (imperfecto) → ellos/ellas"
+      },
+      {
+        "key": "12wmp4",
+        "front": "ser (imperfecto) → yo"
+      },
+      {
+        "key": "12wmoe",
+        "front": "ser (imperfecto) → tú"
+      },
+      {
+        "key": "1af41lu",
+        "front": "ser (imperfecto) → él/ella"
+      },
+      {
+        "key": "14xs84n",
+        "front": "ser (imperfecto) → nosotros"
+      },
+      {
+        "key": "1osozct",
+        "front": "ser (imperfecto) → ustedes"
+      },
+      {
+        "key": "oidf4v",
+        "front": "ser (imperfecto) → ellos/ellas"
+      },
+      {
+        "key": "4zq2ft",
+        "front": "ir (imperfecto) → yo"
+      },
+      {
+        "key": "4zq2f3",
+        "front": "ir (imperfecto) → tú"
+      },
+      {
+        "key": "1864b77",
+        "front": "ir (imperfecto) → él/ella"
+      },
+      {
+        "key": "11q52oo",
+        "front": "ir (imperfecto) → nosotros"
+      },
+      {
+        "key": "1mjp8y6",
+        "front": "ir (imperfecto) → ustedes"
+      },
+      {
+        "key": "90pfqo",
+        "front": "ir (imperfecto) → ellos/ellas"
+      },
+      {
+        "key": "1wjonl7",
+        "front": "ver (imperfecto) → yo"
+      },
+      {
+        "key": "1wjonkh",
+        "front": "ver (imperfecto) → tú"
+      },
+      {
+        "key": "emgyo5",
+        "front": "ver (imperfecto) → él/ella"
+      },
+      {
+        "key": "1l5bcve",
+        "front": "ver (imperfecto) → nosotros"
+      },
+      {
+        "key": "t01wf4",
+        "front": "ver (imperfecto) → ustedes"
+      },
+      {
+        "key": "aax6te",
+        "front": "ver (imperfecto) → ellos/ellas"
+      },
+      {
+        "key": "ib1dx2",
+        "front": "un cuento"
+      },
+      {
+        "key": "e9e8zl",
+        "front": "llevarse bien con"
+      },
+      {
+        "key": "1k9qqqr",
+        "front": "un maestro / una maestra"
+      },
+      {
+        "key": "5qb8ot",
+        "front": "en esa época"
+      },
+      {
+        "key": "15240m8",
+        "front": "todas las noches"
+      },
+      {
+        "key": "4daake",
+        "front": "jugar"
+      },
+      {
+        "key": "1s52b53",
+        "front": "la primaria"
+      },
+      {
+        "key": "1v1byux",
+        "front": "afuera"
+      },
+      {
+        "key": "1p4inyh",
+        "front": "un salón"
+      },
+      {
+        "key": "4bgceu",
+        "front": "hasta"
+      },
+      {
+        "key": "1lg5mq9",
+        "front": "tener miedo"
+      },
+      {
+        "key": "4549s4",
+        "front": "a pie"
+      },
+      {
+        "key": "1sg3r0m",
+        "front": "divertirse"
+      },
+      {
+        "key": "wqe6b1",
+        "front": "escoger"
+      },
+      {
+        "key": "evrtnv",
+        "front": "la infancia"
+      },
+      {
+        "key": "1rk6wmu",
+        "front": "antes de dormir"
+      },
+      {
+        "key": "kbldaz",
+        "front": "como a las cuatro y media"
+      },
+      {
+        "key": "h87ry4",
+        "front": "¡Qué locura!"
+      },
+      {
+        "key": "1ngqra0",
+        "front": "¿En serio?"
+      },
+      {
+        "key": "6ox5so",
+        "front": "tener → Los niños ___ miedo"
+      },
+      {
+        "key": "15jr1fm",
+        "front": "hacer → ¿Qué ___ ustedes los fines de semana?"
+      },
+      {
+        "key": "a9lv5e",
+        "front": "saber → Yo no ___ manejar cuando tenía veinte años"
+      },
+      {
+        "key": "1e3xh30",
+        "front": "poder → Yo no ___ jugar porque tenía mucho trabajo"
+      },
+      {
+        "key": "1wh7kp0",
+        "front": "jugar → Los niños ___ afuera hasta la noche"
+      },
+      {
+        "key": "1imqwye",
+        "front": "leer → Todas las noches, mi mamá nos ___ un cuento"
+      },
+      {
+        "key": "7izmqg",
+        "front": "divertirse → Mis hermanos y yo ___ mucho"
+      },
+      {
+        "key": "1x02821",
+        "front": "levantarse → Antes, yo ___ a las seis todos los días"
+      },
+      {
+        "key": "dpnjcp",
+        "front": "hay → En esa época, no ___ tele en la casa"
+      },
+      {
+        "key": "1vyige7",
+        "front": "hay → ___ cinco niños en la familia"
+      },
+      {
+        "key": "1w5rhtn",
+        "front": "¿Vivías en el campo cuando eras niño? → sí"
+      },
+      {
+        "key": "15jzpy7",
+        "front": "En esa época, ¿ustedes iban a la escuela a pie? → sí"
+      },
+      {
+        "key": "1da46zz",
+        "front": "¿Te llevabas bien con tus hermanos? → sí"
+      },
+      {
+        "key": "ac0h01",
+        "front": "¿Había una tele en la casa? → no"
+      },
+      {
+        "key": "lqt0fl",
+        "front": "¿Tu mamá te leía un cuento antes de dormir? → no"
+      },
+      {
+        "key": "5vso20",
+        "front": "leer → ___ un libro cuando llegó mi hermano"
+      },
+      {
+        "key": "u1133",
+        "front": "llegar → Leía un libro cuando ___ mi hermano"
+      },
+      {
+        "key": "uqpb6a",
+        "front": "jugar → Cuando era niño, ___ afuera todos los días"
+      },
+      {
+        "key": "10w3l5m",
+        "front": "jugar → Ayer yo ___ afuera"
+      },
+      {
+        "key": "hihd27",
+        "front": "Solo había un salón"
+      },
+      {
+        "key": "xhym8f",
+        "front": "Solo hablo español con mi mamá"
+      },
+      {
+        "key": "ioiatv",
+        "front": "Íbamos a la escuela a pie"
+      },
+      {
+        "key": "q04lpo",
+        "front": "Cenábamos juntos todas las noches"
+      },
+      {
+        "key": "498uou",
+        "front": "Quería ser maestro cuando era niño"
+      },
+      {
+        "key": "r0wx7s",
+        "front": "¡No sabía!"
+      },
+      {
+        "key": "3vbkcn",
+        "front": "¿A qué se dedicaban tus papás?"
+      }
+    ],
+    "leccion15": [
+      {
+        "key": "1p0m7ib",
+        "front": "¿Hablas inglés? → con ustedes"
+      },
+      {
+        "key": "e2i2jf",
+        "front": "¿Te gusta el café? → con usted"
+      },
+      {
+        "key": "1fdei1t",
+        "front": "¿Por qué sales mañana? → con usted"
+      },
+      {
+        "key": "1j170nk",
+        "front": "¿Me puedes ayudar? → con ustedes"
+      },
+      {
+        "key": "1ksefl4",
+        "front": "¿cuál?"
+      },
+      {
+        "key": "1br6bcr",
+        "front": "¿cuánto tiempo?"
+      },
+      {
+        "key": "vqmu76",
+        "front": "¿desde cuándo?"
+      },
+      {
+        "key": "dfk37y",
+        "front": "la fiesta"
+      },
+      {
+        "key": "19q20nn",
+        "front": "la leche"
+      },
+      {
+        "key": "8x7oms",
+        "front": "Tus papás viven en Monterrey → ¿dónde?"
+      },
+      {
+        "key": "43ovwm",
+        "front": "Andrés quiere un café → ¿qué?"
+      },
+      {
+        "key": "tffdcg",
+        "front": "Lucía llega a las ocho → ¿a qué hora?"
+      },
+      {
+        "key": "skx7sw",
+        "front": "El regalo es para Natalia → ¿para quién?"
+      },
+      {
+        "key": "vcwa3f",
+        "front": "Vino con su hermana → ¿con quién?"
+      },
+      {
+        "key": "jzug6u",
+        "front": "¿Cómo te gusta el café?"
+      },
+      {
+        "key": "hufj65",
+        "front": "¿Cuál prefieres?"
+      },
+      {
+        "key": "fxicmw",
+        "front": "¿Adónde fueron de vacaciones este año?"
+      },
+      {
+        "key": "l1qyrs",
+        "front": "¿Qué tiene en la mano, señor?"
+      },
+      {
+        "key": "j0mwsj",
+        "front": "¿Y eso?"
+      },
+      {
+        "key": "i3igt4",
+        "front": "¿Cuánto tiempo hace que vives aquí?"
+      },
+      {
+        "key": "wfqf3q",
+        "front": "¿Desde cuándo estás aquí?"
+      },
+      {
+        "key": "1tvy7pc",
+        "front": "¿Cuánto tiempo estuviste en Colombia?"
+      },
+      {
+        "key": "rpcgmx",
+        "front": "¿Cuánto tiempo vas a estar aquí?"
+      },
+      {
+        "key": "irn4yw",
+        "front": "qué o cuál → ¿___ es esto?"
+      },
+      {
+        "key": "4ncdhe",
+        "front": "qué o cuál → ¿___ es tu número de celular?"
+      },
+      {
+        "key": "14vinh3",
+        "front": "qué o cuál → ¿___ hora es?"
+      },
+      {
+        "key": "sn3p61",
+        "front": "qué o cuál → ¿___ haces hoy?"
+      },
+      {
+        "key": "i5qa4r",
+        "front": "cuál o cuáles → ¿___ son tus lentes, los azules o los cafés?"
+      },
+      {
+        "key": "kakye9",
+        "front": "cuánto → ¿___ hermanos tienes?"
+      },
+      {
+        "key": "jza31f",
+        "front": "cuánto → ¿___ gente hay en el restaurante?"
+      },
+      {
+        "key": "3u0byt",
+        "front": "cuánto → ¿___ recámaras tiene el departamento?"
+      },
+      {
+        "key": "c7d9hl",
+        "front": "cuánto → ¿___ cuesta el carro?"
+      },
+      {
+        "key": "8l5pa7",
+        "front": "quién → ¿___ son esas personas?"
+      },
+      {
+        "key": "1u2or1p",
+        "front": "quién → ¿___ es el señor de la derecha?"
+      },
+      {
+        "key": "1up5fco",
+        "front": "qué o lo que → Sí, eso es ___ quiero"
+      },
+      {
+        "key": "1wh1weo",
+        "front": "qué o lo que → ¿___ hiciste ayer?"
+      },
+      {
+        "key": "ovhx8o",
+        "front": "qué o lo que → ___ me encanta de México es la comida"
+      },
+      {
+        "key": "ws2cnz",
+        "front": "No entendí lo que dijiste"
+      },
+      {
+        "key": "eqs521",
+        "front": "No sé dónde está"
+      },
+      {
+        "key": "k855to",
+        "front": "¿No conoces a Emilia?"
+      },
+      {
+        "key": "gim0t6",
+        "front": "¿Por qué no fuiste a la fiesta?"
+      },
+      {
+        "key": "1m2nws2",
+        "front": "¿Por qué no vamos al cine?"
+      },
+      {
+        "key": "k7u6aw",
+        "front": "Vienes mañana a la fiesta, ¿verdad?"
+      },
+      {
+        "key": "1e1rs2h",
+        "front": "Creo que sí"
+      },
+      {
+        "key": "p1asu6",
+        "front": "¿No te levantas a las seis? → sí"
+      },
+      {
+        "key": "xrfw8c",
+        "front": "¿Ustedes no se ven mucho? → sí"
+      },
+      {
+        "key": "1t7x7bg",
+        "front": "¿La gente no entendió por qué? → sí"
+      },
+      {
+        "key": "sj7exj",
+        "front": "¿No vas a volver a hablarle? → sí"
+      },
+      {
+        "key": "13cijy8",
+        "front": "¿No hay un restaurante cerca de aquí? → sí"
+      },
+      {
+        "key": "pucsym",
+        "front": "¿No pusiste los libros en la mesa? → sí"
+      },
+      {
+        "key": "1iffeh",
+        "front": "¿No fuiste de vacaciones este año? → sí"
+      },
+      {
+        "key": "34904w",
+        "front": "¿No te gusta el café? → no"
+      },
+      {
+        "key": "6mdj5u",
+        "front": "¿No trabajas los sábados? → no"
+      },
+      {
+        "key": "z3b36r",
+        "front": "¿Ustedes no quieren ir a Australia este verano? → no"
+      }
+    ],
+    "leccion16": [
+      {
+        "key": "1jkg06f",
+        "front": "creer (presente) → yo"
+      },
+      {
+        "key": "1jkg05p",
+        "front": "creer (presente) → tú"
+      },
+      {
+        "key": "1kquv7l",
+        "front": "creer (presente) → él/ella"
+      },
+      {
+        "key": "qjt36u",
+        "front": "creer (presente) → nosotros"
+      },
+      {
+        "key": "3bqzg",
+        "front": "creer (presente) → ustedes"
+      },
+      {
+        "key": "1nxngzi",
+        "front": "creer (presente) → ellos/ellas"
+      },
+      {
+        "key": "10bdh2b",
+        "front": "creer (pretérito) → yo"
+      },
+      {
+        "key": "oajgzh",
+        "front": "creer (pretérito) → él/ella"
+      },
+      {
+        "key": "18vh24a",
+        "front": "creer (pretérito) → ellos/ellas"
+      },
+      {
+        "key": "1re47zj",
+        "front": "creer (imperfecto) → yo"
+      },
+      {
+        "key": "xj92mw",
+        "front": "Mi abuela siempre creyó en la suerte"
+      },
+      {
+        "key": "15kkmyk",
+        "front": "¿Crees que va a venir?"
+      },
+      {
+        "key": "82a03s",
+        "front": "esperar (presente) → yo"
+      },
+      {
+        "key": "82a032",
+        "front": "esperar (presente) → tú"
+      },
+      {
+        "key": "j1688y",
+        "front": "esperar (presente) → él/ella"
+      },
+      {
+        "key": "1ok90zr",
+        "front": "esperar (presente) → nosotros"
+      },
+      {
+        "key": "xer5zx",
+        "front": "esperar (presente) → ustedes"
+      },
+      {
+        "key": "1o2icxr",
+        "front": "esperar (presente) → ellos/ellas"
+      },
+      {
+        "key": "1mazese",
+        "front": "esperar (pretérito) → él/ella"
+      },
+      {
+        "key": "15cjy6o",
+        "front": "esperar (imperfecto) → yo"
+      },
+      {
+        "key": "1sihkpm",
+        "front": "Espero el taxi"
+      },
+      {
+        "key": "1vgaipl",
+        "front": "Espero llegar a tiempo"
+      },
+      {
+        "key": "1onk5r4",
+        "front": "¡Espero que sí!"
+      },
+      {
+        "key": "fz4fmj",
+        "front": "el o al → Esperé ___ autobús media hora"
+      },
+      {
+        "key": "f7uo09",
+        "front": "el o al → Esperamos ___ doctor una hora"
+      },
+      {
+        "key": "48a0d2",
+        "front": "creer"
+      },
+      {
+        "key": "wzd5yv",
+        "front": "esperar"
+      },
+      {
+        "key": "ht5ghy",
+        "front": "la maleta"
+      },
+      {
+        "key": "15ls2zt",
+        "front": "hacer la maleta"
+      },
+      {
+        "key": "joo104",
+        "front": "el taxista"
+      },
+      {
+        "key": "46irc2",
+        "front": "abajo"
+      },
+      {
+        "key": "z3f9cx",
+        "front": "el vuelo"
+      },
+      {
+        "key": "1emyxqn",
+        "front": "documentar una maleta"
+      },
+      {
+        "key": "1jax6zs",
+        "front": "apurarse"
+      },
+      {
+        "key": "19mw7dj",
+        "front": "la sala de abordar"
+      },
+      {
+        "key": "7kb7a8",
+        "front": "abordar"
+      },
+      {
+        "key": "176jynf",
+        "front": "llegar a tiempo"
+      },
+      {
+        "key": "8hfnc3",
+        "front": "afortunadamente"
+      },
+      {
+        "key": "94yr4t",
+        "front": "cambiar de opinión"
+      },
+      {
+        "key": "992pfy",
+        "front": "visitar → Ayer yo ___ a mis papás"
+      },
+      {
+        "key": "18r3kan",
+        "front": "ir → En 2023, yo ___ a Guadalajara tres veces"
+      },
+      {
+        "key": "d2ttkq",
+        "front": "vivir → Mis papás ___ en Monterrey diez años"
+      },
+      {
+        "key": "1rmvhh1",
+        "front": "vivir → Cuando yo era niño, ___ en el campo"
+      },
+      {
+        "key": "1rcnu0x",
+        "front": "ir → Antes yo ___ al gimnasio los lunes, pero ahora voy los sábados"
+      },
+      {
+        "key": "1aucbs5",
+        "front": "haber → Llovía y ___ mucha gente en el aeropuerto"
+      },
+      {
+        "key": "uwgdtp",
+        "front": "hacer → Yo ___ mi maleta cuando el taxista me llamó"
+      },
+      {
+        "key": "v381ov",
+        "front": "estar → Me dijo que ___ cansado"
+      },
+      {
+        "key": "1e3f6gx",
+        "front": "salir → Creía que el vuelo ___ de la Terminal 1"
+      },
+      {
+        "key": "yidyud",
+        "front": "ser → El hotel ___ muy bonito y estaba cerca de la playa"
+      },
+      {
+        "key": "dbvpxr",
+        "front": "ser → ___ las diez cuando Andrés llegó al aeropuerto"
+      },
+      {
+        "key": "17x3gka",
+        "front": "ser → El viaje ___ genial, ¡me encantó!"
+      },
+      {
+        "key": "uq94pt",
+        "front": "Llovía cuando llegó"
+      },
+      {
+        "key": "19t9kgt",
+        "front": "saber → ¿De verdad? ¡No ___!"
+      },
+      {
+        "key": "updwl9",
+        "front": "saber → Ayer yo ___ la verdad"
+      },
+      {
+        "key": "y8vri7",
+        "front": "conocer → Yo ___ a mi esposa en una clase de español en 2015"
+      },
+      {
+        "key": "rs1fr9",
+        "front": "poder → Afortunadamente, nosotros ___ llegar a tiempo"
+      },
+      {
+        "key": "5q55hc",
+        "front": "Ayer supe que Lucía estaba en Guadalajara"
+      },
+      {
+        "key": "rnfxmv",
+        "front": "Quise abrir la puerta, pero no pude"
+      },
+      {
+        "key": "njuszq",
+        "front": "No quiso ir a la ciudad"
+      },
+      {
+        "key": "1nxjy0q",
+        "front": "Tenía que levantarme temprano"
+      },
+      {
+        "key": "kr5ciz",
+        "front": "Tuve que correr para llegar a tiempo"
+      },
+      {
+        "key": "zjbjjk",
+        "front": "Le dije: «Tengo que salir ahora» → Le dije que…"
+      },
+      {
+        "key": "1920n6j",
+        "front": "Le dije: «Tienes que regresar ahora» → Le dije que…"
+      },
+      {
+        "key": "1y9s4le",
+        "front": "Le dije: «No conozco a Camila» → Le dije que…"
+      },
+      {
+        "key": "1kmpoqv",
+        "front": "Le pregunté: «¿Dónde estás?» → Le pregunté…"
+      },
+      {
+        "key": "1cw7wa",
+        "front": "Te pregunté: «¿A qué hora sale el avión?» → Te pregunté…"
+      },
+      {
+        "key": "eyy9h2",
+        "front": "Le pregunté: «¿Hay mucha gente allá?» → Le pregunté…"
+      },
+      {
+        "key": "841raw",
+        "front": "Le pregunté: «¿Ves mucho a tu novio?» → Le pregunté…"
+      },
+      {
+        "key": "d0o5os",
+        "front": "¿Estabas en tu casa cuando llegó el taxista? → sí"
+      },
+      {
+        "key": "1m3cpkm",
+        "front": "¿Creías que yo era estadounidense? → sí"
+      },
+      {
+        "key": "1iwb1ez",
+        "front": "¿Pensabas que yo te esperaba allá? → sí"
+      },
+      {
+        "key": "ctbabg",
+        "front": "¿La empleada te dijo que tenías que apurarte? → sí"
+      },
+      {
+        "key": "e7iw77",
+        "front": "¿Ustedes esperaron a Rebeca para salir? → sí"
+      },
+      {
+        "key": "1hw2n8v",
+        "front": "¿Tardaste más de una hora en llegar? → sí"
+      },
+      {
+        "key": "1d7bhvm",
+        "front": "Tardamos más de una hora en llegar"
+      },
+      {
+        "key": "17hin4o",
+        "front": "Me dejó abordar"
+      },
+      {
+        "key": "166p3gl",
+        "front": "Tuve que ir al aeropuerto por mi mamá"
+      }
+    ],
+    "leccion17": [
+      {
+        "key": "xe7bw6",
+        "front": "recibir (presente) → yo"
+      },
+      {
+        "key": "xe7bvg",
+        "front": "recibir (presente) → tú"
+      },
+      {
+        "key": "wcnca8",
+        "front": "recibir (presente) → él/ella"
+      },
+      {
+        "key": "2v5cc5",
+        "front": "recibir (presente) → nosotros"
+      },
+      {
+        "key": "1aq8a17",
+        "front": "recibir (presente) → ustedes"
+      },
+      {
+        "key": "1ju0cdp",
+        "front": "recibir (presente) → ellos/ellas"
+      },
+      {
+        "key": "ewjrf6",
+        "front": "recibir (pretérito) → yo"
+      },
+      {
+        "key": "1flhy2x",
+        "front": "recibir (pretérito) → ellos/ellas"
+      },
+      {
+        "key": "1h1lns4",
+        "front": "oír (presente) → yo"
+      },
+      {
+        "key": "1h1lnre",
+        "front": "oír (presente) → tú"
+      },
+      {
+        "key": "txltge",
+        "front": "oír (presente) → él/ella"
+      },
+      {
+        "key": "1t4z6xv",
+        "front": "oír (presente) → nosotros"
+      },
+      {
+        "key": "18b6r7d",
+        "front": "oír (presente) → ustedes"
+      },
+      {
+        "key": "1q26gij",
+        "front": "oír (presente) → ellos/ellas"
+      },
+      {
+        "key": "o2o5xc",
+        "front": "oír (pretérito) → yo"
+      },
+      {
+        "key": "1qvpkqi",
+        "front": "oír (pretérito) → él/ella"
+      },
+      {
+        "key": "17zrkl3",
+        "front": "oír (pretérito) → ellos/ellas"
+      },
+      {
+        "key": "ekhab0",
+        "front": "oír (imperfecto) → yo"
+      },
+      {
+        "key": "h7e8v9",
+        "front": "recibir"
+      },
+      {
+        "key": "377i1f",
+        "front": "oír"
+      },
+      {
+        "key": "z0lo9l",
+        "front": "el ruido"
+      },
+      {
+        "key": "56m9ca",
+        "front": "el pasillo"
+      },
+      {
+        "key": "ap4644",
+        "front": "el examen"
+      },
+      {
+        "key": "d8djc9",
+        "front": "el resultado"
+      },
+      {
+        "key": "1pzdc9a",
+        "front": "las matemáticas"
+      },
+      {
+        "key": "19t5r9m",
+        "front": "la prepa"
+      },
+      {
+        "key": "ynnpuw",
+        "front": "útil"
+      },
+      {
+        "key": "vetem2",
+        "front": "nervioso"
+      },
+      {
+        "key": "cbdixj",
+        "front": "bastante"
+      },
+      {
+        "key": "1pceswv",
+        "front": "Oí un ruido en el pasillo"
+      },
+      {
+        "key": "l7mvks",
+        "front": "Recibí los resultados ayer"
+      },
+      {
+        "key": "17cn8wl",
+        "front": "¿Me oyes?"
+      },
+      {
+        "key": "koxtnt",
+        "front": "No te oigo"
+      },
+      {
+        "key": "1361svx",
+        "front": "Quiero mucho a mi abuela → con pronombre"
+      },
+      {
+        "key": "vnhcyb",
+        "front": "¿Dónde conociste a tu novio? → con pronombre"
+      },
+      {
+        "key": "1gy340b",
+        "front": "Espero a mis amigas cerca de la escuela → con pronombre"
+      },
+      {
+        "key": "8zu6g3",
+        "front": "¿Oyes bien al profesor desde allá? → con pronombre"
+      },
+      {
+        "key": "b9zpzm",
+        "front": "Recibieron los resultados ayer → con pronombre"
+      },
+      {
+        "key": "16su55k",
+        "front": "Llevaba mi camisa verde todos los días → con pronombre"
+      },
+      {
+        "key": "y2mze1",
+        "front": "Vamos a visitar el museo el sábado → con pronombre"
+      },
+      {
+        "key": "q874ci",
+        "front": "Estoy buscando mis lentes → con pronombre"
+      },
+      {
+        "key": "3kws55",
+        "front": "Hay que hacer los ejercicios hoy → con pronombre"
+      },
+      {
+        "key": "usk7pd",
+        "front": "Les hablo a mis papás todos los días por teléfono → con pronombre"
+      },
+      {
+        "key": "1349fg3",
+        "front": "¿Viste a tu abuela antes de salir? → sí"
+      },
+      {
+        "key": "1d6xp72",
+        "front": "¿Tu jefe entendió tu explicación? → sí"
+      },
+      {
+        "key": "mh8wd0",
+        "front": "¿Vas a ver a tu hermana en dos semanas? → sí"
+      },
+      {
+        "key": "6pg18c",
+        "front": "¿Ustedes esperaron a los niños en la escuela? → sí"
+      },
+      {
+        "key": "8urnn",
+        "front": "¿Oíste a los niños en la noche? → sí"
+      },
+      {
+        "key": "o1gz69",
+        "front": "¿Ves mucho a tus papás? → sí"
+      },
+      {
+        "key": "1q8xdyv",
+        "front": "¿Les escribes mucho a tus papás? → sí"
+      },
+      {
+        "key": "cam79x",
+        "front": "¿Les hablaste a tus abuelos hoy? → sí"
+      },
+      {
+        "key": "3estw7",
+        "front": "¿Le contestaste a tu jefe? → sí"
+      },
+      {
+        "key": "rg2t8d",
+        "front": "¿Le dijiste eso a tu jefe? → sí"
+      },
+      {
+        "key": "14swfev",
+        "front": "¿Le preguntaste la hora al mesero? → sí"
+      },
+      {
+        "key": "q24kef",
+        "front": "¿Me oyes? → sí"
+      },
+      {
+        "key": "faq4xf",
+        "front": "¿Nos ves? → sí"
+      },
+      {
+        "key": "t1gfl7",
+        "front": "¿El profesor les contestó a ustedes? → sí"
+      },
+      {
+        "key": "ne2cnq",
+        "front": "¿Jessica te creyó? → sí"
+      },
+      {
+        "key": "190j5o5",
+        "front": "Mi mamá me compró estos lentes → con dos pronombres"
+      },
+      {
+        "key": "oxzz5y",
+        "front": "Te mando las fotos mañana → con dos pronombres"
+      },
+      {
+        "key": "tcdgee",
+        "front": "Le di el libro a Natalia → con dos pronombres"
+      },
+      {
+        "key": "19io5k8",
+        "front": "¿Le dijiste la verdad a tu mamá? → con dos pronombres"
+      },
+      {
+        "key": "wrwet7",
+        "front": "Les mandé las fotos a mis papás → con dos pronombres"
+      },
+      {
+        "key": "3kzps7",
+        "front": "Voy a mandarle los documentos a mi jefe → con dos pronombres"
+      },
+      {
+        "key": "17rmy1a",
+        "front": "¿Cómo te fue?"
+      },
+      {
+        "key": "upp7x1",
+        "front": "Me fue bien"
+      },
+      {
+        "key": "1cuhvjt",
+        "front": "¿Cómo les fue?"
+      },
+      {
+        "key": "pre3kf",
+        "front": "Te va a ir bien"
+      },
+      {
+        "key": "jh3jch",
+        "front": "Me pareció muy difícil"
+      },
+      {
+        "key": "stvacn",
+        "front": "Soy muy mala para la filosofía"
+      },
+      {
+        "key": "up04on",
+        "front": "¡Cruzo los dedos!"
+      },
+      {
+        "key": "2vxpgy",
+        "front": "¡Igualmente!"
+      },
+      {
+        "key": "1fpejx8",
+        "front": "Te deseo unas felices vacaciones"
+      },
+      {
+        "key": "1t3gsqx",
+        "front": "Están nerviosos por el examen de admisión"
+      },
+      {
+        "key": "5jq3ek",
+        "front": "Gracias, pero no fue muy útil"
+      }
+    ],
+    "leccion18": [
+      {
+        "key": "17v16io",
+        "front": "hablar (imperativo) → tú"
+      },
+      {
+        "key": "mlepo7",
+        "front": "hablar (imperativo) → usted"
+      },
+      {
+        "key": "sx3o33",
+        "front": "hablar (imperativo) → ustedes"
+      },
+      {
+        "key": "tmipb7",
+        "front": "comer (imperativo) → usted"
+      },
+      {
+        "key": "1ey8jck",
+        "front": "volver (imperativo) → tú"
+      },
+      {
+        "key": "1ri0qsr",
+        "front": "volver (imperativo) → usted"
+      },
+      {
+        "key": "17r0q1p",
+        "front": "decir (imperativo) → tú"
+      },
+      {
+        "key": "1i5xk9l",
+        "front": "hacer (imperativo) → tú"
+      },
+      {
+        "key": "jrim9d",
+        "front": "ir (imperativo) → tú"
+      },
+      {
+        "key": "1iwggmy",
+        "front": "poner (imperativo) → tú"
+      },
+      {
+        "key": "sqouup",
+        "front": "salir (imperativo) → tú"
+      },
+      {
+        "key": "fup6io",
+        "front": "ser (imperativo) → tú"
+      },
+      {
+        "key": "tyjq44",
+        "front": "tener (imperativo) → tú"
+      },
+      {
+        "key": "chkhru",
+        "front": "venir (imperativo) → tú"
+      },
+      {
+        "key": "5sqsgs",
+        "front": "¿Bueno?"
+      },
+      {
+        "key": "2vs29g",
+        "front": "¡Bienvenido a México!"
+      },
+      {
+        "key": "1bn7shi",
+        "front": "¿Cómo llego a tu departamento?"
+      },
+      {
+        "key": "1yiugzy",
+        "front": "¡Bájate!"
+      },
+      {
+        "key": "14ydepq",
+        "front": "¡Sigue derecho!"
+      },
+      {
+        "key": "ypolce",
+        "front": "dos cuadras"
+      },
+      {
+        "key": "blivoj",
+        "front": "¡Dobla a la derecha!"
+      },
+      {
+        "key": "rkmk11",
+        "front": "¡Dobla a la izquierda!"
+      },
+      {
+        "key": "19rumue",
+        "front": "la farmacia"
+      },
+      {
+        "key": "da4sl3",
+        "front": "mi edificio"
+      },
+      {
+        "key": "1d8offa",
+        "front": "enfrente de un parque"
+      },
+      {
+        "key": "l3fmz1",
+        "front": "¿Y si me pierdo?"
+      },
+      {
+        "key": "1oscdg3",
+        "front": "¡No te preocupes!"
+      },
+      {
+        "key": "1og0ze1",
+        "front": "¡Pregúntale a alguien!"
+      },
+      {
+        "key": "1g7tqjm",
+        "front": "¡Toca el timbre!"
+      },
+      {
+        "key": "v9p8yw",
+        "front": "el elevador"
+      },
+      {
+        "key": "f99nwg",
+        "front": "descompuesto"
+      },
+      {
+        "key": "aasbs0",
+        "front": "Nos vemos en una hora"
+      },
+      {
+        "key": "1to37qs",
+        "front": "decir (imperativo) → usted"
+      },
+      {
+        "key": "9omq4",
+        "front": "estar (imperativo) → usted"
+      },
+      {
+        "key": "4bm6t6",
+        "front": "saber (imperativo) → usted"
+      },
+      {
+        "key": "1dl45nx",
+        "front": "buscar (imperativo) → usted"
+      },
+      {
+        "key": "189lytg",
+        "front": "llegar (imperativo) → usted"
+      },
+      {
+        "key": "f0hdi1",
+        "front": "empezar (imperativo) → ustedes"
+      },
+      {
+        "key": "1s6sazd",
+        "front": "Tienes que prender la computadora → en imperativo"
+      },
+      {
+        "key": "1bx2yao",
+        "front": "Ustedes tienen que ser puntuales → en imperativo"
+      },
+      {
+        "key": "4qf8gw",
+        "front": "Ustedes tienen que ir al banco → en imperativo"
+      },
+      {
+        "key": "soxml9",
+        "front": "Usted tiene que abrir la puerta → en imperativo"
+      },
+      {
+        "key": "1637hv7",
+        "front": "Usted tiene que contestar el teléfono → en imperativo"
+      },
+      {
+        "key": "g0ubp9",
+        "front": "hablar (imperativo negativo) → tú"
+      },
+      {
+        "key": "foddyh",
+        "front": "comer (imperativo negativo) → tú"
+      },
+      {
+        "key": "1wfi9kq",
+        "front": "decir (imperativo negativo) → tú"
+      },
+      {
+        "key": "1o7hxou",
+        "front": "ir (imperativo negativo) → tú"
+      },
+      {
+        "key": "4o1v3x",
+        "front": "ser (imperativo negativo) → tú"
+      },
+      {
+        "key": "8agy97",
+        "front": "Tienes que poner tus libros en la mesa → en imperativo negativo"
+      },
+      {
+        "key": "rmlz74",
+        "front": "Usted tiene que contestar el teléfono → en imperativo negativo"
+      },
+      {
+        "key": "1kllz1",
+        "front": "Tienes que esperarlos → en imperativo"
+      },
+      {
+        "key": "oqucoh",
+        "front": "Tienes que darle la pluma → en imperativo"
+      },
+      {
+        "key": "1v4m8hf",
+        "front": "Usted tiene que decirme su nombre → en imperativo"
+      },
+      {
+        "key": "6mpnt3",
+        "front": "Usted tiene que llamarnos mañana → en imperativo"
+      },
+      {
+        "key": "1c80cey",
+        "front": "¡Escúchame!"
+      },
+      {
+        "key": "1b3xs42",
+        "front": "¡Hazme un café!"
+      },
+      {
+        "key": "1x7qlhk",
+        "front": "Cómpralo → en negativo"
+      },
+      {
+        "key": "8axepy",
+        "front": "Dale el libro → en negativo"
+      },
+      {
+        "key": "1bh7hmt",
+        "front": "Dímelo → en negativo"
+      },
+      {
+        "key": "f8jwjn",
+        "front": "No me digas eso"
+      },
+      {
+        "key": "xrxc9x",
+        "front": "No me mientas"
+      },
+      {
+        "key": "uk6cb8",
+        "front": "Usted tiene que explicármelo → en imperativo"
+      },
+      {
+        "key": "1ka6jve",
+        "front": "Tienes que dárselos → en imperativo"
+      },
+      {
+        "key": "fv4ryj",
+        "front": "Tienes que recordármelo mañana → en imperativo"
+      },
+      {
+        "key": "qndfyt",
+        "front": "Tienes que decírmelo → en imperativo"
+      },
+      {
+        "key": "1xz7fqj",
+        "front": "levantarse (imperativo) → tú"
+      },
+      {
+        "key": "jp9y9u",
+        "front": "levantarse (imperativo) → usted"
+      },
+      {
+        "key": "4a19kq",
+        "front": "levantarse (imperativo) → ustedes"
+      },
+      {
+        "key": "110lyzg",
+        "front": "preocuparse (imperativo negativo) → tú"
+      },
+      {
+        "key": "bdsykz",
+        "front": "preocuparse (imperativo negativo) → usted"
+      },
+      {
+        "key": "1elvvle",
+        "front": "Tienes que acordarte → en imperativo"
+      },
+      {
+        "key": "5wdkj7",
+        "front": "Tienes que vestirte → en imperativo"
+      },
+      {
+        "key": "hx39i2",
+        "front": "Ustedes tienen que sentarse → en imperativo"
+      },
+      {
+        "key": "db3pua",
+        "front": "Dime lo que tienes"
+      },
+      {
+        "key": "1uwe2f4",
+        "front": "¡Diviértete!"
+      },
+      {
+        "key": "hyzo3u",
+        "front": "¡Vámonos!"
+      },
+      {
+        "key": "1kwm1hv",
+        "front": "No se peleen"
+      },
+      {
+        "key": "6egow4",
+        "front": "No me hables así"
+      },
+      {
+        "key": "1ewrvib",
+        "front": "Dímelo"
+      },
+      {
+        "key": "37gr5j",
+        "front": "Pásamelo"
+      },
+      {
+        "key": "1svfd0t",
+        "front": "Llámame mañana"
+      },
+      {
+        "key": "1kxkvd5",
+        "front": "¡No manejes tan rápido!"
+      },
+      {
+        "key": "1eb3ed9",
+        "front": "¡Cállate!"
+      },
+      {
+        "key": "criq5a",
+        "front": "¡Apúrate!"
+      },
+      {
+        "key": "r71rb8",
+        "front": "¡Vamos a comer!"
+      }
+    ],
+    "leccion19": [
+      {
+        "key": "1o5j06v",
+        "front": "salir (presente) → tú"
+      },
+      {
+        "key": "7am94b",
+        "front": "salir (presente) → él/ella"
+      },
+      {
+        "key": "sdi3m8",
+        "front": "salir (presente) → nosotros"
+      },
+      {
+        "key": "lo76va",
+        "front": "salir (presente) → ustedes"
+      },
+      {
+        "key": "76ohrc",
+        "front": "salir (presente) → ellos/ellas"
+      },
+      {
+        "key": "19kwe6l",
+        "front": "salir (pretérito) → yo"
+      },
+      {
+        "key": "q48hev",
+        "front": "salir (pretérito) → él/ella"
+      },
+      {
+        "key": "8w431g",
+        "front": "salir (pretérito) → ellos/ellas"
+      },
+      {
+        "key": "1umpiu",
+        "front": "beber (presente) → yo"
+      },
+      {
+        "key": "1umpi4",
+        "front": "beber (presente) → tú"
+      },
+      {
+        "key": "w0sn8w",
+        "front": "beber (presente) → él/ella"
+      },
+      {
+        "key": "1r14g39",
+        "front": "beber (presente) → nosotros"
+      },
+      {
+        "key": "1aedkzv",
+        "front": "beber (presente) → ustedes"
+      },
+      {
+        "key": "1np7mnh",
+        "front": "beber (presente) → ellos/ellas"
+      },
+      {
+        "key": "13fc2tu",
+        "front": "beber (pretérito) → yo"
+      },
+      {
+        "key": "1orutvw",
+        "front": "beber (pretérito) → él/ella"
+      },
+      {
+        "key": "114y93d",
+        "front": "beber (pretérito) → ellos/ellas"
+      },
+      {
+        "key": "11yoohq",
+        "front": "el desayuno"
+      },
+      {
+        "key": "r7jp9l",
+        "front": "la cena"
+      },
+      {
+        "key": "1cpi902",
+        "front": "en la comida"
+      },
+      {
+        "key": "1gfjybp",
+        "front": "un pan tostado"
+      },
+      {
+        "key": "npar4u",
+        "front": "un huevo estrellado"
+      },
+      {
+        "key": "1ozqx6z",
+        "front": "un limón"
+      },
+      {
+        "key": "1hetvb7",
+        "front": "un aguacate"
+      },
+      {
+        "key": "t72gia",
+        "front": "un tomate"
+      },
+      {
+        "key": "yzw683",
+        "front": "el queso"
+      },
+      {
+        "key": "19jmixn",
+        "front": "la carne"
+      },
+      {
+        "key": "7rolrp",
+        "front": "el pescado"
+      },
+      {
+        "key": "yojgv8",
+        "front": "el arroz"
+      },
+      {
+        "key": "16hmaoh",
+        "front": "los frijoles"
+      },
+      {
+        "key": "19m3y6s",
+        "front": "la fruta"
+      },
+      {
+        "key": "2z6jma",
+        "front": "la sal"
+      },
+      {
+        "key": "qvopv8",
+        "front": "el agua"
+      },
+      {
+        "key": "49imlv",
+        "front": "el té"
+      },
+      {
+        "key": "qw4xoy",
+        "front": "el vino"
+      },
+      {
+        "key": "1p4j01m",
+        "front": "vegetariano"
+      },
+      {
+        "key": "1yhz0nb",
+        "front": "fresco"
+      },
+      {
+        "key": "7jwbfd",
+        "front": "salado"
+      },
+      {
+        "key": "199kn2t",
+        "front": "algo dulce"
+      },
+      {
+        "key": "b1yvs",
+        "front": "reemplazar"
+      },
+      {
+        "key": "1wxybwj",
+        "front": "¡Qué rico!"
+      },
+      {
+        "key": "hlm4vw",
+        "front": "por cierto"
+      },
+      {
+        "key": "1cj12ml",
+        "front": "de entrada"
+      },
+      {
+        "key": "1d8vwd5",
+        "front": "de plato fuerte"
+      },
+      {
+        "key": "noch9n",
+        "front": "de postre"
+      },
+      {
+        "key": "4j7ry8",
+        "front": "salir"
+      },
+      {
+        "key": "1b7znbl",
+        "front": "Tengo hambre"
+      },
+      {
+        "key": "u5163i",
+        "front": "Tengo sed"
+      },
+      {
+        "key": "14n5ry8",
+        "front": "Ya no tenía hambre"
+      },
+      {
+        "key": "181nevn",
+        "front": "Ya no como carne"
+      },
+      {
+        "key": "1ddv3wo",
+        "front": "salir o sacar → Todos los días, yo ___ al perro a las siete"
+      },
+      {
+        "key": "ut4hqn",
+        "front": "salir o sacar → Anoche, Jessica no ___: cenó en casa"
+      },
+      {
+        "key": "iazcjw",
+        "front": "salir o sacar → Ayer yo ___ la basura"
+      },
+      {
+        "key": "10ml38o",
+        "front": "salir o sacar → Normalmente, nosotros ___ de casa a las ocho"
+      },
+      {
+        "key": "4b07zo",
+        "front": "salir o sacar → ¿Tú ___ la basura los miércoles?"
+      },
+      {
+        "key": "1nmmwmr",
+        "front": "¿Qué quieres tomar?"
+      },
+      {
+        "key": "ysxltt",
+        "front": "No tomo"
+      },
+      {
+        "key": "7i1l0t",
+        "front": "queso → Me encanta ___"
+      },
+      {
+        "key": "1w28yjl",
+        "front": "verduras → No me gustan ___"
+      },
+      {
+        "key": "jdfru0",
+        "front": "agua → ___ es muy importante"
+      },
+      {
+        "key": "d4k4pm",
+        "front": "sal → ¿Hay ___ en la mesa?"
+      },
+      {
+        "key": "fohizr",
+        "front": "pan → Como ___ y queso"
+      },
+      {
+        "key": "1k934qk",
+        "front": "queso → Me gusta comer ___ en la mañana"
+      },
+      {
+        "key": "8i06un",
+        "front": "huevos → ___ están en la mesa"
+      },
+      {
+        "key": "m2gmwe",
+        "front": "huevos → Compré ___ y tomates"
+      },
+      {
+        "key": "1q167hu",
+        "front": "Hay gente en el aeropuerto → mucho"
+      },
+      {
+        "key": "87quea",
+        "front": "Tienes que poner sal → un poco"
+      },
+      {
+        "key": "cwgqw5",
+        "front": "Tiene amigos mexicanos → bastante"
+      },
+      {
+        "key": "s47v42",
+        "front": "Como verduras → poco"
+      },
+      {
+        "key": "jx19cg",
+        "front": "Tomo agua → mucho"
+      },
+      {
+        "key": "qkz8b",
+        "front": "Puse sal → demasiado"
+      },
+      {
+        "key": "1f55sw6",
+        "front": "muy o mucho → Tengo ___ hambre"
+      },
+      {
+        "key": "f4nvk4",
+        "front": "muy o mucho → El pescado está ___ rico"
+      },
+      {
+        "key": "1g8pgdq",
+        "front": "muy o mucho → Me gusta ___ el queso"
+      },
+      {
+        "key": "4nrprf",
+        "front": "muy o mucho → Comimos ___ tacos"
+      },
+      {
+        "key": "7biij3",
+        "front": "muy o mucho → Hoy hace ___ frío"
+      },
+      {
+        "key": "1spc6fs",
+        "front": "muy o mucho → Hablas español ___ bien"
+      },
+      {
+        "key": "yl4kwv",
+        "front": "Prefiero comer cosas dulces en la mañana"
+      },
+      {
+        "key": "wzozpa",
+        "front": "Como demasiada carne y poco pescado"
+      },
+      {
+        "key": "1swxsco",
+        "front": "¿Puedes sacar al perro?"
+      }
+    ],
+    "leccion20": [
+      {
+        "key": "13spfwq",
+        "front": "pedir (presente) → yo"
+      },
+      {
+        "key": "13spfw0",
+        "front": "pedir (presente) → tú"
+      },
+      {
+        "key": "1ixgi84",
+        "front": "pedir (presente) → él/ella"
+      },
+      {
+        "key": "11mr8nd",
+        "front": "pedir (presente) → nosotros"
+      },
+      {
+        "key": "1xb1fz3",
+        "front": "pedir (presente) → ustedes"
+      },
+      {
+        "key": "144zda9",
+        "front": "pedir (presente) → ellos/ellas"
+      },
+      {
+        "key": "d3ta06",
+        "front": "pedir (pretérito) → yo"
+      },
+      {
+        "key": "zdhmg0",
+        "front": "pedir (pretérito) → él/ella"
+      },
+      {
+        "key": "uve5r1",
+        "front": "pedir (pretérito) → ellos/ellas"
+      },
+      {
+        "key": "fihd5t",
+        "front": "el mesero"
+      },
+      {
+        "key": "qvxwvk",
+        "front": "el menú"
+      },
+      {
+        "key": "bq4kky",
+        "front": "la cuenta"
+      },
+      {
+        "key": "nl5raj",
+        "front": "la propina"
+      },
+      {
+        "key": "c93ef4",
+        "front": "una bebida"
+      },
+      {
+        "key": "r7twfx",
+        "front": "la piña"
+      },
+      {
+        "key": "ww6q1e",
+        "front": "la carne de puerco"
+      },
+      {
+        "key": "ldq0hw",
+        "front": "la cebolla"
+      },
+      {
+        "key": "ykez0q",
+        "front": "caro"
+      },
+      {
+        "key": "1vl1a4e",
+        "front": "barato"
+      },
+      {
+        "key": "4h6eyh",
+        "front": "pedir"
+      },
+      {
+        "key": "7mv3ts",
+        "front": "servir"
+      },
+      {
+        "key": "5y2c97",
+        "front": "probar"
+      },
+      {
+        "key": "4h3ecw",
+        "front": "pagar"
+      },
+      {
+        "key": "hum7ty",
+        "front": "un invitado"
+      },
+      {
+        "key": "qbk9l0",
+        "front": "una orden de tacos"
+      },
+      {
+        "key": "15rjqbq",
+        "front": "Buenas tardes"
+      },
+      {
+        "key": "x150rr",
+        "front": "¿Algo más?"
+      },
+      {
+        "key": "1m9b87n",
+        "front": "Es todo"
+      },
+      {
+        "key": "2llex7",
+        "front": "¡Nada de eso!"
+      },
+      {
+        "key": "vihrrl",
+        "front": "Quédese con el cambio"
+      },
+      {
+        "key": "fkkai6",
+        "front": "Aquí tiene"
+      },
+      {
+        "key": "krsra5",
+        "front": "No se preocupe"
+      },
+      {
+        "key": "11hm5lx",
+        "front": "¿Cuánto es?"
+      },
+      {
+        "key": "ykez1h",
+        "front": "casi"
+      },
+      {
+        "key": "f9grqt",
+        "front": "el diez por ciento"
+      },
+      {
+        "key": "vy9fg1",
+        "front": "pedir o preguntar → Jessica le ___ la hora al mesero"
+      },
+      {
+        "key": "ki8ddc",
+        "front": "pedir o preguntar → Jessica le ___ un café al mesero"
+      },
+      {
+        "key": "nd1x9t",
+        "front": "servir (presente) → yo"
+      },
+      {
+        "key": "1xvl8s0",
+        "front": "servir (presente) → nosotros"
+      },
+      {
+        "key": "1vmbmkn",
+        "front": "servir (pretérito) → él/ella"
+      },
+      {
+        "key": "1ebw4mj",
+        "front": "repetir (presente) → él/ella"
+      },
+      {
+        "key": "1jcyhic",
+        "front": "repetir (pretérito) → ellos/ellas"
+      },
+      {
+        "key": "1pi4wg5",
+        "front": "seguir (presente) → yo"
+      },
+      {
+        "key": "i2h66z",
+        "front": "seguir (pretérito) → él/ella"
+      },
+      {
+        "key": "s2tds8",
+        "front": "pedir → gerundio"
+      },
+      {
+        "key": "qrz06q",
+        "front": "Mis amigos piden la cuenta → en pretérito"
+      },
+      {
+        "key": "15k7o9x",
+        "front": "Los niños se visten solos → en pretérito"
+      },
+      {
+        "key": "aqapcm",
+        "front": "Yo me visto a las siete → en pretérito"
+      },
+      {
+        "key": "1euywds",
+        "front": "Siguen hablando → en pretérito"
+      },
+      {
+        "key": "2fjxly",
+        "front": "Siempre pido tacos al pastor"
+      },
+      {
+        "key": "1ya0oh",
+        "front": "¿Qué vas a pedir?"
+      },
+      {
+        "key": "1iwqc1t",
+        "front": "Le pedí la cuenta al mesero"
+      },
+      {
+        "key": "kc3hv9",
+        "front": "Sigo aprendiendo español"
+      },
+      {
+        "key": "so9atz",
+        "front": "Quiero un café → más cortés"
+      },
+      {
+        "key": "zk0z0s",
+        "front": "Quiero pagar → más cortés"
+      },
+      {
+        "key": "3lil9j",
+        "front": "¿Me trae el menú, por favor?"
+      },
+      {
+        "key": "1qfl3on",
+        "front": "¿Nos trae la cuenta, por favor?"
+      },
+      {
+        "key": "jr7wjp",
+        "front": "¿Me puede traer una servilleta?"
+      },
+      {
+        "key": "1pfdk7x",
+        "front": "Voy a querer unos tacos al pastor"
+      },
+      {
+        "key": "x9r0l6",
+        "front": "¿Me pasas la sal?"
+      },
+      {
+        "key": "ft7xkr",
+        "front": "para + yo → ___, una limonada, por favor"
+      },
+      {
+        "key": "16idoms",
+        "front": "para + tú → Este regalo es ___"
+      },
+      {
+        "key": "1q398ht",
+        "front": "sin + tú → No puedo vivir ___"
+      },
+      {
+        "key": "lc9jhi",
+        "front": "cerca de + yo → Ella vive ___"
+      },
+      {
+        "key": "1pa3xhj",
+        "front": "con + yo → ¿Quieres venir ___?"
+      },
+      {
+        "key": "h2cut9",
+        "front": "con + tú → Quiero ir ___"
+      },
+      {
+        "key": "4hz0b2",
+        "front": "con + nosotros → Mis papás vinieron ___"
+      },
+      {
+        "key": "1iw9oqd",
+        "front": "¿Cuánto cuesta el café? → $45"
+      },
+      {
+        "key": "1ibiw6k",
+        "front": "¿Cuánto cuestan los tacos? → $95"
+      },
+      {
+        "key": "1xb1pw5",
+        "front": "¿Cuánto cuestan las enchiladas? → $120"
+      },
+      {
+        "key": "1o4uar8",
+        "front": "¿Cuánto es? → $270"
+      },
+      {
+        "key": "1uyzk7l",
+        "front": "¿Cuánto es? → $12.50"
+      },
+      {
+        "key": "mz5sjr",
+        "front": "¿Cuánto cuesta el departamento? → $2,000,000"
+      },
+      {
+        "key": "etsch6",
+        "front": "Hoy voy a probar algo nuevo"
+      },
+      {
+        "key": "pmsazo",
+        "front": "Hoy pago yo"
+      },
+      {
+        "key": "xjr9z4",
+        "front": "Es un placer comer contigo"
+      },
+      {
+        "key": "yv0k25",
+        "front": "A mi amigo no le gusta mucho el chile"
+      }
+    ],
+    "leccion21": [
+      {
+        "key": "xhoe14",
+        "front": "responder (presente) → yo"
+      },
+      {
+        "key": "xhoe0e",
+        "front": "responder (presente) → tú"
+      },
+      {
+        "key": "st3c5e",
+        "front": "responder (presente) → él/ella"
+      },
+      {
+        "key": "s01buv",
+        "front": "responder (presente) → nosotros"
+      },
+      {
+        "key": "176o9wd",
+        "front": "responder (presente) → ustedes"
+      },
+      {
+        "key": "1orbgu7",
+        "front": "responder (presente) → ellos/ellas"
+      },
+      {
+        "key": "pqrpni",
+        "front": "responder (pretérito) → él/ella"
+      },
+      {
+        "key": "5o14ax",
+        "front": "irse (presente) → yo"
+      },
+      {
+        "key": "5o14a7",
+        "front": "irse (presente) → tú"
+      },
+      {
+        "key": "1741tk3",
+        "front": "irse (presente) → él/ella"
+      },
+      {
+        "key": "2tuwi0",
+        "front": "irse (presente) → nosotros"
+      },
+      {
+        "key": "1lhmrb2",
+        "front": "irse (presente) → ustedes"
+      },
+      {
+        "key": "1andusg",
+        "front": "irse (presente) → ellos/ellas"
+      },
+      {
+        "key": "nbbimd",
+        "front": "irse (pretérito) → yo"
+      },
+      {
+        "key": "klaan",
+        "front": "irse (pretérito) → él/ella"
+      },
+      {
+        "key": "aogd07",
+        "front": "¡Me voy!"
+      },
+      {
+        "key": "1fasnkv",
+        "front": "¡Ya voy!"
+      },
+      {
+        "key": "lok5i8",
+        "front": "¿Ya te vas?"
+      },
+      {
+        "key": "zanqfk",
+        "front": "estar enfermo"
+      },
+      {
+        "key": "1b6uvz7",
+        "front": "estar resfriado"
+      },
+      {
+        "key": "1lc45km",
+        "front": "tener gripa"
+      },
+      {
+        "key": "18h4pqo",
+        "front": "tener fiebre"
+      },
+      {
+        "key": "zjlaut",
+        "front": "hacer ejercicio"
+      },
+      {
+        "key": "mt6ux5",
+        "front": "ponerse a dieta"
+      },
+      {
+        "key": "14albyi",
+        "front": "subir de peso"
+      },
+      {
+        "key": "10h6e1x",
+        "front": "bajar de peso"
+      },
+      {
+        "key": "39yqgd",
+        "front": "hacer una cita"
+      },
+      {
+        "key": "1g72taq",
+        "front": "las medicinas"
+      },
+      {
+        "key": "1qmlblm",
+        "front": "curarse"
+      },
+      {
+        "key": "bbxoqg",
+        "front": "la cabeza"
+      },
+      {
+        "key": "146ezav",
+        "front": "la garganta"
+      },
+      {
+        "key": "2e7lzg",
+        "front": "la espalda"
+      },
+      {
+        "key": "1uas0vc",
+        "front": "tener (pretérito perfecto) → yo"
+      },
+      {
+        "key": "zg5h6u",
+        "front": "comer (pretérito perfecto) → tú"
+      },
+      {
+        "key": "5oqn2b",
+        "front": "estar (pretérito perfecto) → él/ella"
+      },
+      {
+        "key": "1cnt9d0",
+        "front": "ir (pretérito perfecto) → nosotros"
+      },
+      {
+        "key": "cxyh5b",
+        "front": "vivir (pretérito perfecto) → ustedes"
+      },
+      {
+        "key": "eegy7f",
+        "front": "hablar (pretérito perfecto) → ellos/ellas"
+      },
+      {
+        "key": "8ge87i",
+        "front": "hacer → participio"
+      },
+      {
+        "key": "hds1hu",
+        "front": "decir → participio"
+      },
+      {
+        "key": "280ofs",
+        "front": "ver → participio"
+      },
+      {
+        "key": "166zbi6",
+        "front": "escribir → participio"
+      },
+      {
+        "key": "vw7brv",
+        "front": "abrir → participio"
+      },
+      {
+        "key": "85bdn3",
+        "front": "poner → participio"
+      },
+      {
+        "key": "dv52rt",
+        "front": "volver → participio"
+      },
+      {
+        "key": "1f3k1z4",
+        "front": "romper → participio"
+      },
+      {
+        "key": "4qbqwk",
+        "front": "morir → participio"
+      },
+      {
+        "key": "ph7ng7",
+        "front": "ir → ¿Tú ya ___ al médico?"
+      },
+      {
+        "key": "tss73y",
+        "front": "tener → ¿Tú alguna vez ___ gripa?"
+      },
+      {
+        "key": "1e2rdg0",
+        "front": "encontrar → James todavía no ___ el tiempo para empezar"
+      },
+      {
+        "key": "m7n56c",
+        "front": "tener → El año pasado yo ___ bronquitis"
+      },
+      {
+        "key": "ta59bw",
+        "front": "comer → Hoy yo ___ tacos"
+      },
+      {
+        "key": "gxm9tf",
+        "front": "¿Alguna vez has estado en Italia?"
+      },
+      {
+        "key": "vgmhwv",
+        "front": "¿Ya fuiste a la farmacia?"
+      },
+      {
+        "key": "1n0mbke",
+        "front": "¿Todavía estás resfriado?"
+      },
+      {
+        "key": "ap5spe",
+        "front": "alguna vez"
+      },
+      {
+        "key": "mcev6o",
+        "front": "¿Ya comiste? → no"
+      },
+      {
+        "key": "11zv809",
+        "front": "¿Ya hiciste la cita con el médico? → no"
+      },
+      {
+        "key": "1u8of68",
+        "front": "¿Ya le escribiste a tu mamá? → no"
+      },
+      {
+        "key": "ckpydu",
+        "front": "¿Ya tomaste tus medicinas? → no"
+      },
+      {
+        "key": "1f0zvis",
+        "front": "¿Alguna vez has visto la película Coco? → no"
+      },
+      {
+        "key": "f9olss",
+        "front": "¿Alguna vez te has puesto a dieta? → no"
+      },
+      {
+        "key": "1q0tegd",
+        "front": "¿Alguna vez le has dicho una mentira a tu mamá? → no"
+      },
+      {
+        "key": "k3b0ma",
+        "front": "¿Alguna vez has estado en Francia? → no"
+      },
+      {
+        "key": "1nyexkj",
+        "front": "Nunca voy al cine → con no"
+      },
+      {
+        "key": "150atm0",
+        "front": "Nadie contestó → con no"
+      },
+      {
+        "key": "125k2ry",
+        "front": "Nada me ayuda → con no"
+      },
+      {
+        "key": "13ii75n",
+        "front": "algo o nada → No, gracias, no quiero ___"
+      },
+      {
+        "key": "9s3da8",
+        "front": "algo o nada → ¿Quieres ___ de la farmacia?"
+      },
+      {
+        "key": "ajiphq",
+        "front": "alguien o nadie → ¿Hay ___ en el consultorio?"
+      },
+      {
+        "key": "cus475",
+        "front": "alguien o nadie → No vi a ___ en el gimnasio"
+      },
+      {
+        "key": "168cwmw",
+        "front": "Llamé al consultorio, pero nadie contestó"
+      },
+      {
+        "key": "1lma9ko",
+        "front": "doler → A mí ___ la cabeza"
+      },
+      {
+        "key": "l7x6zp",
+        "front": "doler → ¿A ti ___ los pies?"
+      },
+      {
+        "key": "1c9rmq0",
+        "front": "doler → A Mateo ___ la espalda"
+      },
+      {
+        "key": "guemnv",
+        "front": "doler → A nosotros ___ los ojos"
+      },
+      {
+        "key": "g6ot21",
+        "front": "doler → ¿A ustedes ___ la cabeza?"
+      },
+      {
+        "key": "1quxyzx",
+        "front": "doler → Ayer a Jessica ___ mucho la cabeza"
+      },
+      {
+        "key": "tpeyh9",
+        "front": "la o mi → Me duele ___ cabeza"
+      },
+      {
+        "key": "d8kcxm",
+        "front": "¿Qué te duele?"
+      }
+    ],
+    "leccion22": [
+      {
+        "key": "14crelz",
+        "front": "vender (condicional) → yo"
+      },
+      {
+        "key": "14crel9",
+        "front": "vender (condicional) → tú"
+      },
+      {
+        "key": "cr0wgh",
+        "front": "vender (condicional) → él/ella"
+      },
+      {
+        "key": "1ucpdti",
+        "front": "vender (condicional) → nosotros"
+      },
+      {
+        "key": "r4lu7g",
+        "front": "vender (condicional) → ustedes"
+      },
+      {
+        "key": "t25j7y",
+        "front": "vender (condicional) → ellos/ellas"
+      },
+      {
+        "key": "99vhpz",
+        "front": "ser (condicional) → él/ella"
+      },
+      {
+        "key": "1ax1u0e",
+        "front": "ir (condicional) → yo"
+      },
+      {
+        "key": "11x3880",
+        "front": "abrir (condicional) → usted"
+      },
+      {
+        "key": "z8vx3r",
+        "front": "acostarse (condicional) → nosotros"
+      },
+      {
+        "key": "10e40uo",
+        "front": "tener (condicional) → nosotros"
+      },
+      {
+        "key": "zwcs8j",
+        "front": "poder (condicional) → tú"
+      },
+      {
+        "key": "1m61ep7",
+        "front": "hacer (condicional) → ustedes"
+      },
+      {
+        "key": "1l4ep96",
+        "front": "decir (condicional) → yo"
+      },
+      {
+        "key": "qdv4jr",
+        "front": "querer (condicional) → yo"
+      },
+      {
+        "key": "kbtecl",
+        "front": "salir (condicional) → ellos/ellas"
+      },
+      {
+        "key": "kdh5v5",
+        "front": "poner (condicional) → él/ella"
+      },
+      {
+        "key": "1uqmcvl",
+        "front": "venir (condicional) → él/ella"
+      },
+      {
+        "key": "6255ty",
+        "front": "saber (condicional) → tú"
+      },
+      {
+        "key": "1ow4oai",
+        "front": "un genio"
+      },
+      {
+        "key": "1ou0j7c",
+        "front": "un deseo"
+      },
+      {
+        "key": "1nmh8ks",
+        "front": "pedir un deseo"
+      },
+      {
+        "key": "9ko9is",
+        "front": "dejar de"
+      },
+      {
+        "key": "ch6zj8",
+        "front": "una fundación"
+      },
+      {
+        "key": "h7izcc",
+        "front": "recoger"
+      },
+      {
+        "key": "5rp837",
+        "front": "pintar"
+      },
+      {
+        "key": "k5k8s3",
+        "front": "disfrutar de la vida"
+      },
+      {
+        "key": "1xrzxrj",
+        "front": "estresado"
+      },
+      {
+        "key": "1bq60mj",
+        "front": "¿Qué harías con mucho dinero?"
+      },
+      {
+        "key": "5na52n",
+        "front": "¡Sería genial!"
+      },
+      {
+        "key": "90uvdh",
+        "front": "Me dijo que vendría"
+      },
+      {
+        "key": "11d2erz",
+        "front": "¿Me puede pasar la sal, por favor? → en condicional"
+      },
+      {
+        "key": "1gvpr15",
+        "front": "Quiero otro café → en condicional"
+      },
+      {
+        "key": "mv0utn",
+        "front": "Queremos comprar estos libros → en condicional"
+      },
+      {
+        "key": "w6brt1",
+        "front": "Debes descansar más → en condicional"
+      },
+      {
+        "key": "17na7hj",
+        "front": "¿Es posible pagar con tarjeta? → en condicional"
+      },
+      {
+        "key": "1qpfxez",
+        "front": "Hay más lugar → en condicional"
+      },
+      {
+        "key": "19ocl2n",
+        "front": "¿Podría abrir la puerta, por favor?"
+      },
+      {
+        "key": "10hym8z",
+        "front": "Me gustaría ir allá contigo"
+      },
+      {
+        "key": "o2cu9n",
+        "front": "¿Te gustaría un poco de agua?"
+      },
+      {
+        "key": "1hv734t",
+        "front": "ir → De niño, yo ___ a la playa todos los veranos"
+      },
+      {
+        "key": "udml27",
+        "front": "ir → Con más dinero, yo ___ a la playa todos los veranos"
+      },
+      {
+        "key": "mv4l6w",
+        "front": "decir → Yo en tu lugar, no le ___ nada"
+      },
+      {
+        "key": "1l5xgbo",
+        "front": "poder → ¿___ usted ayudarme, por favor?"
+      },
+      {
+        "key": "1pvemwm",
+        "front": "jugar → Cuando era niña, Valeria ___ en el jardín todas las tardes"
+      },
+      {
+        "key": "1lqeleu",
+        "front": "salir → Con un carro, nosotros ___ todos los fines de semana"
+      },
+      {
+        "key": "rlagc7",
+        "front": "estar abierto → La puerta ___"
+      },
+      {
+        "key": "2rvae9",
+        "front": "estar abierto → Las tiendas ___"
+      },
+      {
+        "key": "5pyvyv",
+        "front": "estar cerrado → Los bancos ___"
+      },
+      {
+        "key": "9ko0vd",
+        "front": "vender"
+      },
+      {
+        "key": "1ga53c5",
+        "front": "cerrado"
+      },
+      {
+        "key": "18uh1b",
+        "front": "la ventana"
+      },
+      {
+        "key": "1j7k20f",
+        "front": "Se vende"
+      },
+      {
+        "key": "1fu87lm",
+        "front": "Con mucho dinero, yo dejaría de trabajar"
+      },
+      {
+        "key": "1iwedc",
+        "front": "Sin hijos, saldríamos todo el tiempo"
+      },
+      {
+        "key": "i80243",
+        "front": "Yo en tu lugar no le diría nada"
+      },
+      {
+        "key": "1uy5r1i",
+        "front": "Nos acostaríamos más temprano"
+      },
+      {
+        "key": "1tybu0o",
+        "front": "Imagínate"
+      },
+      {
+        "key": "1779km3",
+        "front": "¡Así de simple!"
+      }
+    ],
+    "leccion23": [
+      {
+        "key": "neqqii",
+        "front": "leer (pretérito) → yo"
+      },
+      {
+        "key": "neqqhs",
+        "front": "leer (pretérito) → tú"
+      },
+      {
+        "key": "1brxu0k",
+        "front": "leer (pretérito) → él/ella"
+      },
+      {
+        "key": "enz7nd",
+        "front": "leer (pretérito) → nosotros"
+      },
+      {
+        "key": "1q5irrj",
+        "front": "leer (pretérito) → ustedes"
+      },
+      {
+        "key": "gjyne9",
+        "front": "leer (pretérito) → ellos/ellas"
+      },
+      {
+        "key": "evkly0",
+        "front": "leer (pretérito perfecto) → tú"
+      },
+      {
+        "key": "966fun",
+        "front": "escribir (pretérito) → él/ella"
+      },
+      {
+        "key": "1w8xf7h",
+        "front": "escribir (pretérito perfecto) → yo"
+      },
+      {
+        "key": "e8a2me",
+        "front": "escribir (condicional) → yo"
+      },
+      {
+        "key": "1ds36cm",
+        "front": "¿Leíste mi mensaje?"
+      },
+      {
+        "key": "1w61tbo",
+        "front": "Le escribí un mensaje a Lucía"
+      },
+      {
+        "key": "l8t9i4",
+        "front": "una pareja"
+      },
+      {
+        "key": "1dio5wj",
+        "front": "las montañas Rocosas"
+      },
+      {
+        "key": "nqyfy1",
+        "front": "una página"
+      },
+      {
+        "key": "1bklorr",
+        "front": "una caminata"
+      },
+      {
+        "key": "2856a2",
+        "front": "Estados Unidos"
+      },
+      {
+        "key": "zuztw7",
+        "front": "un pasaporte"
+      },
+      {
+        "key": "113bmtz",
+        "front": "un boleto de avión"
+      },
+      {
+        "key": "1vqytyn",
+        "front": "cada año"
+      },
+      {
+        "key": "1x185r7",
+        "front": "en cambio"
+      },
+      {
+        "key": "120tkrv",
+        "front": "todo junto"
+      },
+      {
+        "key": "jxjwut",
+        "front": "los viajes"
+      },
+      {
+        "key": "17e8r9p",
+        "front": "en o a → Vivimos ___ México"
+      },
+      {
+        "key": "1vnw846",
+        "front": "en o a → Vamos ___ Brasil este verano"
+      },
+      {
+        "key": "1qudgtd",
+        "front": "en o a → Estuvimos dos semanas ___ Oaxaca"
+      },
+      {
+        "key": "1hpamxm",
+        "front": "en o a → Volvimos ___ Nueva York"
+      },
+      {
+        "key": "1ucxtqd",
+        "front": "por o para → Esta página es ___ comprar boletos baratos"
+      },
+      {
+        "key": "1pkm961",
+        "front": "por o para → Esta medicina es ___ la garganta"
+      },
+      {
+        "key": "147xim4",
+        "front": "por o para → Mañana salimos ___ Brasil"
+      },
+      {
+        "key": "pypp6g",
+        "front": "por o para → Este regalo es ___ ti"
+      },
+      {
+        "key": "1sal8u7",
+        "front": "por o para → Necesito el pasaporte ___ el viernes"
+      },
+      {
+        "key": "9fv28j",
+        "front": "por o para → Hugo fue a Denver ___ trabajo"
+      },
+      {
+        "key": "12junmg",
+        "front": "por o para → Gracias ___ la información"
+      },
+      {
+        "key": "1606df2",
+        "front": "por o para → Pasamos ___ Denver para ir a las montañas Rocosas"
+      },
+      {
+        "key": "dezdvc",
+        "front": "por o para → Compramos los boletos ___ internet"
+      },
+      {
+        "key": "de0yd8",
+        "front": "por o para → Pagué cinco mil pesos ___ el boleto"
+      },
+      {
+        "key": "a6la77",
+        "front": "por o para → Tomo clases dos veces ___ semana"
+      },
+      {
+        "key": "yop4w5",
+        "front": "por o para → Me gusta caminar ___ la mañana"
+      },
+      {
+        "key": "j1wvcm",
+        "front": "mío → Esta maleta es ___"
+      },
+      {
+        "key": "1qzl08q",
+        "front": "nuestro → Estos boletos son ___"
+      },
+      {
+        "key": "14amqyz",
+        "front": "tuyo → ¿Esa bici es ___?"
+      },
+      {
+        "key": "13c21dk",
+        "front": "suyo → Esta idea no es mía, es ___"
+      },
+      {
+        "key": "158uxqv",
+        "front": "mi pasaporte → sin el sustantivo"
+      },
+      {
+        "key": "1p5y4pv",
+        "front": "tus papás → sin el sustantivo"
+      },
+      {
+        "key": "17kkr7w",
+        "front": "nuestra casa → sin el sustantivo"
+      },
+      {
+        "key": "1x58xt7",
+        "front": "el pasaporte de James → sin el sustantivo"
+      },
+      {
+        "key": "1cg150e",
+        "front": "Un amigo mío"
+      },
+      {
+        "key": "wtdtdr",
+        "front": "Nunca hemos ido a Europa"
+      },
+      {
+        "key": "fhqinx",
+        "front": "Siempre nos ha encantado viajar"
+      },
+      {
+        "key": "19uty5a",
+        "front": "Íbamos a ir a Brasil"
+      },
+      {
+        "key": "17caqq",
+        "front": "Deberían echarle un ojo"
+      },
+      {
+        "key": "174xhun",
+        "front": "¿Alguna vez has ido a Nueva York? → sí"
+      },
+      {
+        "key": "xaby5d",
+        "front": "¿Siempre les ha encantado viajar? → sí"
+      },
+      {
+        "key": "15gjo0w",
+        "front": "Con boletos más baratos, ¿irías a Brasil? → sí"
+      },
+      {
+        "key": "1olhdh9",
+        "front": "¿Ya leíste el libro de Lucía? → sí"
+      },
+      {
+        "key": "13eetvz",
+        "front": "¿Alguna vez has escrito un libro? → no"
+      },
+      {
+        "key": "9b27mu",
+        "front": "¿Ya compraste tus boletos para Italia? → no"
+      },
+      {
+        "key": "v71h9s",
+        "front": "¿Conocías a alguien cuando llegaste allá? → no"
+      },
+      {
+        "key": "nwt3ek",
+        "front": "¿Tu hija iba a ir con ustedes? → no"
+      }
     ]
   },
   "retired": {}
