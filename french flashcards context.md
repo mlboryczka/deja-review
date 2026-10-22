@@ -1010,6 +1010,10 @@ The files:
   question. Additive and re-runnable; the app works before it, knowing
   classes by date only, and the two checks of the deck wait for it.
 - `017_podcasts`: the three tables of Podcasts (see *Podcasts*).
+- `020_spanish` (on `testing`, written 2026-10-22, waits on the owner): the
+  Spanish deck's six tables, `es_user_cards` and the rest, made LIKE the
+  French ones (see *Spanish*). Only adds tables, so `main` is unaffected.
+  Tried on a throwaway Postgres: it runs, and runs again harmlessly.
   `podcast_episodes` is shared: written only by the server, and the first
   table any signed-in user may read. `podcast_follows` is each student's own
   to read, add and remove. `podcast_answers` is a record like `card_reviews`:
