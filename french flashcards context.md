@@ -13,7 +13,7 @@ document keep the old one.
 
 Live at `dejareview.vercel.app` (the students' app), deployed by Vercel from
 `main`; the old `french-flashcards-nine.vercel.app` still shows the same thing.
-Repo: `mlboryczka/french-flashcards`. The owner's test app, deployed from the
+Repo: `mlboryczka/deja-review` (renamed from `french-flashcards` 2026-10-25). The owner's test app, deployed from the
 `testing` branch, is at `dejareview-mlb.vercel.app` (owner, 2026-10-09; a
 Vercel domain tied to the `testing` branch). Vercel's own branch address
 `french-flashcards-git-testing-mlboryczkas-projects.vercel.app` also works.
@@ -78,7 +78,7 @@ for a yes (owner, 2026-09-25).
 
 **Work in the local copy, and push finished work to `main`** (since
 2026-09-12): not in a cloud container, and not straight onto GitHub. The copy
-is `~/Desktop/Projects/french-flashcards` on the owner's Mac. Vercel deploys
+is `~/Desktop/Projects/deja-review` on the owner's Mac. Vercel deploys
 from `main`, so nothing is live until it is there.
 
 - First `git fetch`, and fast-forward `main` if it is behind `origin/main`.

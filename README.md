@@ -1,6 +1,6 @@
 # Déjà Review
 
-[![Tests](https://github.com/mlboryczka/french-flashcards/actions/workflows/tests.yml/badge.svg)](https://github.com/mlboryczka/french-flashcards/actions/workflows/tests.yml)
+[![Tests](https://github.com/mlboryczka/deja-review/actions/workflows/tests.yml/badge.svg)](https://github.com/mlboryczka/deja-review/actions/workflows/tests.yml)
 
 Déjà Review is a flashcard app for learning French, built around the notebook a
 student keeps with their teacher. Claude reads each new class in the notebook
