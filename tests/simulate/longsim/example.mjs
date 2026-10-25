@@ -1,4 +1,4 @@
-const REPO = "/Users/mboryczka/Desktop/Projects/french-flashcards";
+const REPO = "/Users/mboryczka/Desktop/Projects/deja-review";
 const { applyAnswer } = await import(`${REPO}/src/lib/sessionQueue.js`);
 const { sideOf } = await import(`${REPO}/src/lib/directions.js`);
 const fmt = (iso) => new Date(iso).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
