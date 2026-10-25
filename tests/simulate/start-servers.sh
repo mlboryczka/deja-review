@@ -1,6 +1,6 @@
 #!/bin/bash
 # Starts the three stand-ins and the app preview. Logs go to $WORK/data/*.out
-export WORK=/private/tmp/claude-501/-Users-mboryczka-Desktop-Projects-french-flashcards/e5b7f33f-5063-4b70-b9d7-e01e98da6778/scratchpad/fsrs-test
+export WORK=/private/tmp/claude-501/-Users-mboryczka-Desktop-Projects-deja-review/e5b7f33f-5063-4b70-b9d7-e01e98da6778/scratchpad/fsrs-test
 export NO_PROXY='*'
 cd $WORK
 nohup node servers/db-standin.mjs >> data/db.out 2>&1 < /dev/null &
