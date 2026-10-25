@@ -18,8 +18,7 @@
 //   "yo" / "I"                                      the subject pronouns, both ways round
 //   "ser (presente) → yo" / "soy"                   ser, six persons; the line comes from the shape
 //   "ser → Mi esposa y yo ___ de Chicago"           ex. 1: ser after a name, a noun, usted
-//   "ellos o ellas → … ___ son mexicanas"           we and they: the women-only forms
-//   "mexicano → Lucía es ___"                       a nationality in the form that fits
+//   "español → Ellos son ___"                       a nationality in the form that fits
 //   "¿Eres estadounidense? → Sí, …"                 ex. 2: answer yes in a full sentence
 //   "pero" / "but"                                  ex. 3 word list, both ways round
 //   "¿De dónde eres?" / "Where are you from? …"     the dialogue and ex. 4, both ways round
@@ -48,11 +47,10 @@
 // passes for "Ella es mexicana", "ellas" for "she", "ellos" for "they (women
 // only)", "nosotras" for "we (men, or men and women)", and "Soy mexicano,
 // pero vivo en Los Ángeles" for the woman's sentence. So every form of ser is
-// asked exactly (the six drills, the ex. 1 gaps and the ex. 2 answers);
-// nosotros or nosotras and ellos or ellas by four gap cards; and the
-// nationality endings by five gap cards. The phrase cards are there for
-// meaning. Closing the gap on the phrase cards needs a change to the app's
-// fuzzy marking, not to this file.
+// asked exactly (the six drills, the ex. 1 gaps and the ex. 2 answers), and
+// the two nationality endings that aren't just -o to -a by two gap cards.
+// The phrase cards are there for meaning. Closing the gap on the phrase
+// cards needs a change to the app's fuzzy marking, not to this file.
 //
 // THE ESTAR SENTENCES ARE PHRASE CARDS ONLY. The sheet's ATENCIÓN box says
 // estar comes in Lección 2 and gives four sentences to learn by heart
@@ -79,20 +77,12 @@
 //   - The pronoun cards' English follows the sheet's table ("informal",
 //     "formal", "plural") in plain words: "one person you know well", "one
 //     person, politely", "several people".
-//   - The four "ellos o ellas" and "nosotros o nosotras" cards are not an
-//     exercise on the sheet. They are built from its sentences (ex. 1 "Ellas son
-//     profesoras de inglés", ex. 2 "¿Marta y Ana son mexicanas?" and
-//     "¿James y Jessica son estadounidenses?", ex. 4 "We are Mexican.
-//     (nosotras)" and "They are teachers"), so that its rule "nosotras and
-//     ellas are for a group of women only" is marked exactly.
-//   - The five nationality cards are not an exercise on the sheet either. They
-//     are its Nationalities section put into its sentences (Lucía es
-//     mexicana, Marta y Ana son mexicanas, Jessica y James son
-//     estadounidenses) and its examples (español → española, españoles).
+//   - The two nationality cards are not an exercise on the sheet. They are
+//     its Nationalities section put into its sentences (Jessica es
+//     estadounidense) and its examples (español → españoles).
 //   - Ex. 2 answers are accepted with or without the Sí the prompt already
 //     shows, with or without the subject pronoun, and with the name kept
 //     ("Sí, Lucía es de Guadalajara"): all are what a teacher would accept.
-//     "¿Ustedes son de Nueva York?" takes nosotros or nosotras.
 //   - Hints that pin down the Spanish: "Mi esposa se llama Linda" and "me
 //     llamo" say "(literally: …)", because "mi nombre es" is right too;
 //     "Soy mexicana, pero…" says "(said by a woman)".
@@ -100,6 +90,11 @@
 //     as Spanish usually says it; "Ellos son profesores" still passes (as
 //     close enough), and its English also takes "You are teachers", which
 //     son means with ustedes.
+//   - Taken out on 2026-10-25, at the owner's word ("don't test simple
+//     masculine/fem matching it's too easy"): the four "ellos o ellas" and
+//     "nosotros o nosotras" gap cards, and three nationality cards that only
+//     made a word feminine (mexicana, española, mexicanas). Also "¿Ustedes
+//     son de Nueva York? → Sí, …" ("get rid of this card").
 //
 // The notes (Use · Forms · Pronouns · Nationality) follow the
 // building-lessons skill. These sentences in them are not on the sheet;
@@ -114,7 +109,7 @@
 //     "Answering yes", which ex. 2 only shows.
 //   - Pronouns: the lead; the notes under "tú, usted or ustedes?" (its table
 //     says only "informal", "formal" and "plural"); and "The word after the
-//     verb can show it…", for the nosotros or nosotras cards.
+//     verb can show it…", for the nosotros and nosotras cards.
 //   - Nationality: the English column of the table.
 // Cut from the sheet as helping no card: the pointer to Lesson 5 for usted
 // and to Lesson 2 for estar ("Never point back to another section or
@@ -174,22 +169,12 @@ export const CARDS = [
   ["¿Y tú?", "And you? / What about you? (tú)", "E", "words"],
 
   // ── Nationalities: the sheet's section, in its sentences
-  ["mexicano → Lucía es ___", "mexicana", "G", "nationality"],            // -o becomes -a
-  ["español → Marta es ___", "española", "G", "nationality"],             // a consonant takes -a
   ["estadounidense → Jessica es ___", "estadounidense", "G", "nationality"], // -e doesn't change
-  ["mexicano → Marta y Ana son ___", "mexicanas", "G", "nationality"],    // women: -as
   ["español → Ellos son ___", "españoles", "G", "nationality"],           // -es after a consonant
-
-  // ── We and they: the women-only forms, marked exactly
-  ["ellos o ellas → Marta y Ana son de Guadalajara. ___ son mexicanas", "ellas", "G", "weandthey"],
-  ["ellos o ellas → Jessica y James son de Nueva York. ___ son estadounidenses", "ellos", "G", "weandthey"],
-  ["nosotros o nosotras → ___ somos mexicanas", "nosotras", "G", "weandthey"],
-  ["nosotros o nosotras → ___ somos profesores", "nosotros", "G", "weandthey"],
 
   // ── Ex. 2, sampled: one card for each change of person
   ["¿Eres estadounidense? → Sí, …", "Sí, soy estadounidense / Sí, yo soy estadounidense / Soy estadounidense / Yo soy estadounidense", "G", "answers"],
   ["¿Usted es de México? → Sí, …", "Sí, soy de México / Sí, yo soy de México / Soy de México / Yo soy de México", "G", "answers"],
-  ["¿Ustedes son de Nueva York? → Sí, …", "Sí, somos de Nueva York / Sí, nosotros somos de Nueva York / Sí, nosotras somos de Nueva York / Somos de Nueva York / Nosotros somos de Nueva York / Nosotras somos de Nueva York", "G", "answers"],
   ["¿Lucía es de Guadalajara? → Sí, …", "Sí, es de Guadalajara / Sí, ella es de Guadalajara / Sí, Lucía es de Guadalajara / Es de Guadalajara / Ella es de Guadalajara / Lucía es de Guadalajara", "G", "answers"],
   ["¿James y Jessica son estadounidenses? → Sí, …", "Sí, son estadounidenses / Sí, ellos son estadounidenses / Sí, James y Jessica son estadounidenses / Son estadounidenses / Ellos son estadounidenses / James y Jessica son estadounidenses", "G", "answers"],
   ["¿Lucía es tu profesora? → Sí, …", "Sí, es mi profesora / Sí, ella es mi profesora / Sí, Lucía es mi profesora / Es mi profesora / Ella es mi profesora / Lucía es mi profesora", "G", "answers"],
@@ -334,18 +319,16 @@ export const LESSON = {
   // The order a student meets NEW cards in: the pronouns first, because each
   // form of ser goes with one; then ser and ex. 1 on it, which needs only
   // the verb. The word list comes next, before anything that needs its
-  // words: the nationality gaps need mexicano and estadounidense, the we
-  // and they cards need mexicanas and profesores, and ex. 2's tu → mi card
-  // needs profesora (the dialogue teaches them first; the app has no
+  // words: the nationality gaps need estadounidense, and ex. 2's tu → mi
+  // card needs profesora (the dialogue teaches them first; the app has no
   // dialogue). The phrases made from all of it come last. Reviews are
   // unaffected; FSRS schedules those.
-  teachingOrder: ["pronouns", "forms", "gaps", "words", "nationality", "weandthey", "answers", "phrases"],
+  teachingOrder: ["pronouns", "forms", "gaps", "words", "nationality", "answers", "phrases"],
   // The line shown above a grammar card saying what to type (see
   // src/lib/cardInstruction.js). The drills get theirs from their shape.
   instructions: {
     gaps: "Fill the gap with ser in the present tense",
     nationality: "Fill the gap with the nationality, in the form that fits",
-    weandthey: "Fill the gap with the word for we or they that fits",
     answers: "Answer yes, in a full sentence",
   },
 };

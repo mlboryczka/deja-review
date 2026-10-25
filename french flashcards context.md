@@ -2310,6 +2310,21 @@ Flashcards / Podcasts switch is French only; Spanish has no Podcasts (owner,
   still allows) are right where the answer has "solo" and "este". French is
   marked accents aside, as always. "My answer should be accepted" tells
   Claude that Spanish accents must be right.
+- **One answer shown** (owner, 2026-10-25: "one version of the correct
+  translation is fine"): a Spanish card shows only the first of the " / "
+  answers it accepts, as the prompt and as the answer ("Son profesores" →
+  "They are teachers", not "They are teachers / They're teachers / You are
+  teachers (ustedes)"); a bracketed note for the whole card, like "(tú)",
+  stays. Marking reads the card itself, so every answer is still accepted
+  (`firstAnswer` in `src/lib/cardText.js`). French shows the whole list, as
+  before.
+- **No masculine/feminine matching** (owner, 2026-10-25: "don't test simple
+  masculine/fem matching it's too easy"): cards whose only job was to make a
+  word masculine or feminine to match the sentence were taken out (Lesson 1's
+  nosotros o nosotras and ellos o ellas, rubio → rubia, mío → mía, 19 in
+  all), each listed in its lesson's header and under "retired" in
+  `tests/released-lesson-cards.json`. Cards that test a noun's own gender
+  (el or la, al or a la, del or de la) were kept.
 - **Drills** read "tener (presente) → yo" with the bare form as the answer,
   "tengo"; "yo tengo" is accepted too, "él fue" and "ella fue" for an
   él/ella drill, and the line says "Present tense, yo form"

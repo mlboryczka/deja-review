@@ -13,7 +13,7 @@ import LessonPanel, { LESSON_PANEL_WIDTH } from "./LessonPanel";
 import Tour from "./Tour";
 import { tourSteps, TOUR_LESSON } from "./lib/tourSteps";
 import { useProgress } from "./useProgress";
-import { cleanFrenchPrompt, cleanEnglishPrompt, dropFinalPeriod } from "./lib/cardText";
+import { cleanFrenchPrompt, cleanEnglishPrompt, dropFinalPeriod, firstAnswer } from "./lib/cardText";
 import { drillAlternates, isConjugationDrill } from "./lib/cardInstruction";
 import { PANEL_ANIM_MS, PANEL_EASING } from "./lib/motion";
 import { classifyCard, CARD_TYPES, TYPE_LABEL, TYPE_COLOR } from "./lib/cardTypes";
@@ -557,6 +557,8 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   // The Spanish module: its own deck, lessons and voice. No cahier, uploads,
   // tutor, card editing or tour, all of which are about French cards.
   const spanish = course.id === "es";
+  // A Spanish card shows one answer of the list it accepts (lib/cardText.js).
+  const oneAnswer = spanish ? firstAnswer : (text) => text;
   // Which table each thing is in, and what this browser keeps it under.
   const tbl = course.table;
   const storeId = course.store(user?.id);
@@ -1808,14 +1810,14 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
       (card.shownDir === "fr" && !flipped) || (card.shownDir === "en" && flipped);
     if (isFrenchVisible) {
       // Slight delay so the speech starts after the flip animation
-      const t = setTimeout(() => speakFrench(cleanFrenchPrompt(card.f, card.b)), 200);
+      const t = setTimeout(() => speakFrench(oneAnswer(cleanFrenchPrompt(card.f, card.b))), 200);
       return () => clearTimeout(t);
     }
   }, [autoSpeak, card, flipped, mode]);
 
   // Speak French manually (button handler)
   const speakCard = useCallback(() => {
-    if (card) speakFrench(cleanFrenchPrompt(card.f, card.b));
+    if (card) speakFrench(oneAnswer(cleanFrenchPrompt(card.f, card.b)));
   }, [card]);
 
   // Speak any specific text (used for "tap a word to hear it")
@@ -3529,7 +3531,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
     lessonFilter,
     typeMode: typeMode && !!card,
     front: card && !sessionDone
-      ? dropFinalPeriod(card.shownDir === "fr" ? cleanFrenchPrompt(card.f, card.b) : cleanEnglishPrompt(card.b))
+      ? dropFinalPeriod(oneAnswer(card.shownDir === "fr" ? cleanFrenchPrompt(card.f, card.b) : cleanEnglishPrompt(card.b)))
       : "",
     hasCard: !!card && !sessionDone,
     // Never answered the way round it is shown.
@@ -4063,9 +4065,10 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   // card answers itself. English shown as the prompt loses any note naming the
   // French form ("to re-elect (past participle: réélu)"), for the same reason.
   // The answer side keeps everything, apart from a sentence-final full stop,
-  // which neither side shows.
-  const front = card ? dropFinalPeriod(card.shownDir==="fr" ? cleanFrenchPrompt(card.f, card.b) : cleanEnglishPrompt(card.b)) : "";
-  const back = card ? dropFinalPeriod(card.shownDir==="fr" ? card.b : card.f) : "";
+  // which neither side shows. In Spanish both sides show only the first of
+  // the answers the card accepts; marking still takes them all.
+  const front = card ? dropFinalPeriod(oneAnswer(card.shownDir==="fr" ? cleanFrenchPrompt(card.f, card.b) : cleanEnglishPrompt(card.b))) : "";
+  const back = card ? dropFinalPeriod(oneAnswer(card.shownDir==="fr" ? card.b : card.f)) : "";
   // Typing mode: user enabled it AND the card exists. All cards are
   // typable — if the back is a long explanation, the user can hit
   // "Show answer" to skip. The old isTypable guard (back ≤ 25 chars)

@@ -91,6 +91,11 @@
 //   - No slips in the sheets needed correcting.
 //
 // Checked 2026-10-22 by an independent reader: 4 fixes
+//
+// Taken out on 2026-10-25, at the owner's word ("don't test simple
+// masculine/fem matching it's too easy"): "cuánto →
+// ¿___ recámaras tiene el departamento?", which only made cuánto feminine.
+// Cuánta gente stays: gente means people but takes the feminine singular.
 
 export const CARDS = [
   // ── 1. The register: only the verb changes (and te becomes le)
@@ -135,7 +140,6 @@ export const CARDS = [
   // ── Ex. 6: cuánto and quién in the form that fits
   ["cuánto → ¿___ hermanos tienes?", "cuántos", "G", "forma"],
   ["cuánto → ¿___ gente hay en el restaurante?", "cuánta", "G", "forma"],          // gente is singular
-  ["cuánto → ¿___ recámaras tiene el departamento?", "cuántas", "G", "forma"],
   ["cuánto → ¿___ cuesta el carro?", "cuánto", "G", "forma"],                     // with a verb, no noun
   ["quién → ¿___ son esas personas?", "quiénes", "G", "forma"],
   ["quién → ¿___ es el señor de la derecha?", "quién", "G", "forma"],

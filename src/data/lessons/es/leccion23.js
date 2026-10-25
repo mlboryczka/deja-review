@@ -13,7 +13,7 @@
 //   "leer (pretérito) → él/ella" / "leyó"               drill; its line comes from its shape
 //   "en o a → Vamos ___ Brasil este verano"             pick the word (her section 2)
 //   "por o para → Hugo fue a Denver ___ trabajo"        pick the word (her ex. 4)
-//   "mío → Esta maleta es ___" / "mía"                  the possessive made to match (her ex. 5)
+//   "nuestro → Estos boletos son ___" / "nuestros"      the possessive made to match (her ex. 5)
 //   "mi pasaporte → sin el sustantivo" / "el mío"       the possessive standing for the noun
 //   "¿Ya leíste el libro de Lucía? → sí"                answer yes or no in a full sentence (her ex. 1–2)
 //   two-way phrase (E) and word (V) cards for the dialogue and her ex. 3 list
@@ -75,6 +75,10 @@
 //     libro" is accepted beside "un libro".
 //   - "¿Siempre les ha encantado viajar? → sí" also takes "A nosotros siempre
 //     nos ha encantado viajar": the a nosotros is how a speaker stresses who.
+//
+// Taken out on 2026-10-25, at the owner's word ("don't test simple
+// masculine/fem matching it's too easy"): mía, tuya and
+// suya, the ex. 5 gaps after ser that only made the possessive feminine.
 
 export const CARDS = [
   // ── 1. Leer: regular, but y in the preterite
@@ -125,10 +129,7 @@ export const CARDS = [
   ["por o para → Me gusta caminar ___ la mañana", "por", "G", "porpara"],             // part of the day
 
   // ── 4 and ex. 5: mío, tuyo, suyo, nuestro match the thing owned
-  ["mío → Esta maleta es ___", "mía", "G", "posesivos"],
   ["nuestro → Estos boletos son ___", "nuestros", "G", "posesivos"],
-  ["tuyo → ¿Esa bici es ___?", "tuya", "G", "posesivos"],
-  ["suyo → Esta idea no es mía, es ___", "suya", "G", "posesivos"],
   ["mi pasaporte → sin el sustantivo", "el mío", "G", "sinsustantivo"],
   ["tus papás → sin el sustantivo", "los tuyos", "G", "sinsustantivo"],
   ["nuestra casa → sin el sustantivo", "la nuestra", "G", "sinsustantivo"],

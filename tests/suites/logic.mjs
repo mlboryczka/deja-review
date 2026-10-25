@@ -2,7 +2,7 @@
 // the cases that motivated them.
 import { classifyCard } from "../../src/lib/cardTypes.js";
 import { looksMultiSense } from "../../src/lib/multiSense.js";
-import { cleanFrenchPrompt, cleanEnglishPrompt, dropFinalPeriod } from "../../src/lib/cardText.js";
+import { cleanFrenchPrompt, cleanEnglishPrompt, dropFinalPeriod, firstAnswer } from "../../src/lib/cardText.js";
 import { findRelatedCards, recentMisses, relevantMisses, buildTutorContext, cardPrompt } from "../../src/lib/deckContext.js";
 import { buildRequestMessages, normalizeCards, normalizeEdits } from "../../api/chat.js";
 import { reconcileLessons } from "../../src/lib/lessonSync.js";
@@ -604,6 +604,25 @@ console.log("\n  card text — what the prompt may not show");
   ck("an ellipsis is not a full stop", dropFinalPeriod("c'est pour ça que...") === "c'est pour ça que...");
   ck("nor is etc.", dropFinalPeriod("tout etc.") === "tout etc.");
   ck("? and ! are untouched", dropFinalPeriod("Tu viens ?") === "Tu viens ?");
+}
+
+// Owner, 2026-10-25, on Spanish cards: "one version of the correct
+// translation is fine". The card shows one; marking reads the card itself.
+console.log("\n  firstAnswer — a Spanish card shows one answer of its list");
+{
+  ck("the first of a list",
+     firstAnswer("Sí, somos de Nueva York / Somos de Nueva York / Nosotros somos de Nueva York") === "Sí, somos de Nueva York");
+  ck("a single answer is unchanged", firstAnswer("they (women only)") === "they (women only)");
+  ck("a note for the whole card stays",
+     firstAnswer("What's your name? / What are you called? (tú)") === "What's your name? (tú)");
+  ck("a note naming who the last answer's you is goes",
+     firstAnswer("They are teachers / They're teachers / You are teachers (ustedes)") === "They are teachers");
+  ck("so does one for the last answer's your",
+     firstAnswer("his book / her book / your book (usted, ustedes)") === "his book");
+  ck("and a usage note", firstAnswer("on the second floor / on the third floor (US)") === "on the second floor");
+  ck("a note the first answer already says goes",
+     firstAnswer("It went well for me / I did well / It went well (for me)") === "It went well for me");
+  ck("a slash with no spaces is not a list", firstAnswer("ser (presente) → él/ella") === "ser (presente) → él/ella");
 }
 
 console.log("\n  archive — out of circulation, recoverable");

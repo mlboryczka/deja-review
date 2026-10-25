@@ -9323,5 +9323,96 @@
       }
     ]
   },
-  "retired": {}
+  "retired": {
+    "leccion1": [
+      {
+        "key": "1jxkhde",
+        "front": "mexicano → Lucía es ___"
+      },
+      {
+        "key": "15afkhi",
+        "front": "español → Marta es ___"
+      },
+      {
+        "key": "ih2rna",
+        "front": "mexicano → Marta y Ana son ___"
+      },
+      {
+        "key": "bqhstq",
+        "front": "ellos o ellas → Marta y Ana son de Guadalajara. ___ son mexicanas"
+      },
+      {
+        "key": "l1f87b",
+        "front": "ellos o ellas → Jessica y James son de Nueva York. ___ son estadounidenses"
+      },
+      {
+        "key": "fxlvv1",
+        "front": "nosotros o nosotras → ___ somos mexicanas"
+      },
+      {
+        "key": "ctaa70",
+        "front": "nosotros o nosotras → ___ somos profesores"
+      },
+      {
+        "key": "3o5zhd",
+        "front": "¿Ustedes son de Nueva York? → Sí, …"
+      }
+    ],
+    "leccion4": [
+      {
+        "key": "1saxp45",
+        "front": "nuestro, nuestra, nuestros o nuestras → ___ hermana tiene doce años"
+      },
+      {
+        "key": "8bwxf4",
+        "front": "nuestro, nuestra, nuestros o nuestras → ___ hijos van a comer en el restaurante"
+      }
+    ],
+    "leccion7-2": [
+      {
+        "key": "1nc6l4h",
+        "front": "rubio → Valeria es ___"
+      },
+      {
+        "key": "f90sz7",
+        "front": "blanco → Lleva una bata ___"
+      },
+      {
+        "key": "1jbv0jc",
+        "front": "trabajador → Las médicas son ___"
+      },
+      {
+        "key": "cc8wk",
+        "front": "español → Mis amigas son ___"
+      },
+      {
+        "key": "n266xx",
+        "front": "médico → Valeria es ___"
+      },
+      {
+        "key": "efx8a6",
+        "front": "profesor → Mi hermana es ___"
+      }
+    ],
+    "leccion15": [
+      {
+        "key": "3u0byt",
+        "front": "cuánto → ¿___ recámaras tiene el departamento?"
+      }
+    ],
+    "leccion23": [
+      {
+        "key": "j1wvcm",
+        "front": "mío → Esta maleta es ___"
+      },
+      {
+        "key": "14amqyz",
+        "front": "tuyo → ¿Esa bici es ___?"
+      },
+      {
+        "key": "13c21dk",
+        "front": "suyo → Esta idea no es mía, es ___"
+      }
+    ]
+  }
 }

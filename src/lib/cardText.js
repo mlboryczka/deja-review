@@ -95,6 +95,38 @@ export function cleanEnglishPrompt(en) {
   return out || en;
 }
 
+// One answer shown on a Spanish card (owner, 2026-10-25: "one version of the
+// correct translation is fine"). A lesson card lists every answer a teacher
+// would accept, separated by " / ", so that any of them typed is marked right;
+// shown on the card, the list is clutter: "¿Ustedes son de Nueva York?" showed
+// six. Only the first is shown. Marking reads the card itself, so it still
+// takes them all.
+//
+// A note in brackets after the last answer usually pins down the whole card:
+// "What's your name? / What are you called? (tú)" keeps "(tú)". It stays
+// unless it is about the last answer alone: "They are teachers / You are
+// teachers (ustedes)" names who "you" is, "(US)" a usage and "to love
+// (someone)" an object, so those go, as does a note the first answer already
+// says ("It went well for me" needs no "(for me)").
+const ALL_CARD_NOTE = /\(([^()]*)\)$/;
+const YOU = /\byour?\b/i;
+
+export function firstAnswer(text) {
+  if (!text || !String(text).includes(" / ")) return text;
+  const answers = String(text).split(" / ").map((a) => a.trim()).filter(Boolean);
+  const first = answers[0];
+  if (answers.length < 2 || ALL_CARD_NOTE.test(first)) return first;
+  const last = answers[answers.length - 1];
+  const note = last.match(ALL_CARD_NOTE);
+  if (!note) return first;
+  const inner = note[1].trim();
+  const onlyLast =
+    /^(US|UK|someone)$/.test(inner) ||
+    first.toLowerCase().includes(inner.toLowerCase()) ||
+    (/\b(tú|usted|ustedes)\b/i.test(inner) && YOU.test(last) && !YOU.test(first));
+  return onlyLast ? first : `${first} ${note[0]}`;
+}
+
 // Cards are headwords and phrases, not prose, so a sentence-final full stop is
 // noise — and an inconsistent one, since most cards never had it. Dropped at
 // display time for the same reason the gloss is: no migration, and a lesson

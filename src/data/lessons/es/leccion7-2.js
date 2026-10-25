@@ -16,8 +16,8 @@
 //   "aprender → Nosotros ___ cocinar"            aprender a + a second verb (her ex. 8)
 //   "¿Entiendes la pregunta? → sí"               answer yes in a full sentence (ex. 4)
 //   "¿Entiendes la pregunta? → no"               answer no in a full sentence (ex. 5)
-//   "rubio → Valeria es ___"                     the adjective in the form that fits (ex. 3)
-//   "médico → Valeria es ___"                    a job after ser: no un / una, and the woman's form
+//   "azul → Tiene los ojos ___"                  the adjective in the form that fits (ex. 3)
+//   "periodista → Mi esposa es ___"              a job after ser: no un / una
 //   two-way phrase (E) and word (V) cards for the profile and the ex. 7 list
 //
 // WHY THE ADJECTIVES AND JOBS ARE ON EXACT CARDS. Phrase cards are marked with
@@ -91,6 +91,13 @@
 // Her "inglés → inglesa, sin acento" is left out: no card uses it.
 //
 // Checked 2026-10-22 by an independent reader: 2 fixes
+//
+// Taken out on 2026-10-25, at the owner's word ("don't test simple
+// masculine/fem matching it's too easy"): the cards that only
+// made a word feminine: rubia, blanca, trabajadoras and españolas from ex. 3,
+// and the job cards médica and profesora. The ex. 3 cards left are the ones
+// where the ending doesn't simply follow the woman: inteligentes, amable,
+// azules, felices and generosos.
 
 export const CARDS = [
   // ── 1. Entender (e → ie) and aprender (regular) in the present
@@ -145,19 +152,13 @@ export const CARDS = [
   ["¿Su hermana es muy tímida? → no", "No, no es muy tímida / No es muy tímida / No, su hermana no es muy tímida / Su hermana no es muy tímida / No, mi hermana no es muy tímida / Mi hermana no es muy tímida / No, ella no es muy tímida / Ella no es muy tímida", "G", "no"],
 
   // ── 2 and ex. 3: the adjective takes the gender and number of its noun
-  ["rubio → Valeria es ___", "rubia", "G", "agreement"],                       // -o → -a
-  ["blanco → Lleva una bata ___", "blanca", "G", "agreement"],
   ["inteligente → Sus hijos son muy ___", "inteligentes", "G", "agreement"],   // -e: plural -s
   ["amable → Es una mujer muy ___", "amable", "G", "agreement"],               // -e: no change for a woman
   ["azul → Tiene los ojos ___", "azules", "G", "agreement"],                   // consonant: plural -es
   ["feliz → Los niños están ___", "felices", "G", "agreement"],                // -z → -ces
-  ["trabajador → Las médicas son ___", "trabajadoras", "G", "agreement"],     // -or takes -a
-  ["español → Mis amigas son ___", "españolas", "G", "agreement"],            // nationality in a consonant takes -a
   ["generoso → Valeria y su esposo son ___", "generosos", "G", "agreement"],  // a man and a woman: masculine plural
 
   // ── 3. Jobs: no un / una after ser, and the form for a woman
-  ["médico → Valeria es ___", "médica", "G", "jobs"],
-  ["profesor → Mi hermana es ___", "profesora", "G", "jobs"],
   ["periodista → Mi esposa es ___", "periodista", "G", "jobs"],
   ["Su hija es médica", "Her daughter is a doctor / His daughter is a doctor", "E", "jobphrases"],
   ["Valeria es una médica amable y trabajadora", "Valeria is a kind and hard-working doctor", "E", "jobphrases"],

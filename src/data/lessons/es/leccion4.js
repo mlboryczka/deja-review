@@ -113,6 +113,11 @@
 //     only shows.
 // Cut from the sheet as helping no card: "Tu (your) has no accent, but tú
 // (you) does": the marker ignores accents.
+//
+// Taken out on 2026-10-25, at the owner's word ("don't test simple
+// masculine/fem matching it's too easy"): the two
+// "nuestro, nuestra, nuestros o nuestras" gap cards (nuestra hermana,
+// nuestros hijos), whose noun shows the form.
 
 export const CARDS = [
   // ── The verbs (ex. 4, and comer), before they are conjugated
@@ -179,8 +184,6 @@ export const CARDS = [
   ["tu o tus → ¿Cómo se llama la esposa de ___ hermano?", "tu", "G", "possessives"],
   ["su o sus → Es mi hermano John con ___ esposa", "su", "G", "possessives"],
   ["su o sus → Es mi hermano John con ___ dos hijos", "sus", "G", "possessives"],
-  ["nuestro, nuestra, nuestros o nuestras → ___ hermana tiene doce años", "nuestra", "G", "possessives"],
-  ["nuestro, nuestra, nuestros o nuestras → ___ hijos van a comer en el restaurante", "nuestros", "G", "possessives"],
 
   // ── Ex. 3: answer yes, so tu becomes mi and tus becomes mis
   ["¿Tu hermano vive en Nueva York? → Sí, …", "Sí, mi hermano vive en Nueva York / Mi hermano vive en Nueva York", "G", "ex3"],
