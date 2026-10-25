@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, Fragment, lazy, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { RAW } from "./data/cards"; // only used for the admin "seed demo deck" action
 import { lessonIdOf } from "./data/lessons";
@@ -92,6 +92,13 @@ import PodcastsPage from "./PodcastsPage";
 import { usePodcastFollows } from "./usePodcasts";
 import { podcastBySlug } from "./lib/podcastCatalogue";
 import { podcastsOpenTo } from "./lib/testApp";
+// The Spanish Exercises module (owner, 2026-10-24): the written exercises of
+// each Spanish lesson's sheet, answered and marked one item at a time. Its
+// pages are ExercisesPage's; the shell owns which one is showing.
+// Loaded only when Exercises is opened: its 27 sheets are about 800 KB that
+// no one else, French included, should have to download.
+const ExercisesPage = lazy(() => import("./ExercisesPage"));
+import { EXERCISE_TITLES, TITLES as EXERCISE_TITLE_OF } from "./data/exercises/es/titles.js";
 
 const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase();
 // The owner's account. Client-side only, so it only ever HIDES things: every
@@ -176,6 +183,32 @@ function writePodcastsPlace(userId, { open, view }) {
 export function clearPodcastsPlace(userId) {
   if (!userId) return;
   try { localStorage.removeItem(PODCASTS_PLACE_KEY + userId); } catch { /* storage blocked */ }
+  try { localStorage.removeItem(EXERCISES_PLACE_KEY + userId); } catch { /* storage blocked */ }
+  // The exercises started again (ExercisesPage's own key).
+  try { localStorage.removeItem("es-exercises-again:" + userId); } catch { /* storage blocked */ }
+}
+
+// ─── EXERCISES: WHERE YOU WERE (Spanish, 2026-10-24) ─────────────────────
+// The Spanish sidebar's switch has two halves, Flashcards and Exercises, as
+// French has Flashcards and Podcasts. Whether Exercises was showing, and which
+// lesson, is kept per user in this browser like the place in Podcasts, so a
+// reload opens where you were. Only for someone with Spanish.
+const EXERCISES_PLACE_KEY = "es-exercises-place:";
+function readExercisesPlace(userId) {
+  if (!userId) return null;
+  try {
+    const p = JSON.parse(localStorage.getItem(EXERCISES_PLACE_KEY + userId) || "null");
+    if (!p || typeof p !== "object") return null;
+    return { open: p.open === true, lesson: EXERCISE_TITLE_OF[p.lesson] ? p.lesson : null };
+  } catch {
+    return null;
+  }
+}
+function writeExercisesPlace(userId, { open, lesson }) {
+  if (!userId) return;
+  try {
+    localStorage.setItem(EXERCISES_PLACE_KEY + userId, JSON.stringify({ open, lesson }));
+  } catch { /* storage blocked: the place is a convenience, not a record */ }
 }
 
 // Two tutor contexts with the same content. The podcasts page hands one up
@@ -600,6 +633,11 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   if (podPlaceRef.current === undefined) {
     podPlaceRef.current = podcastsUser(user) && !spanish ? readPodcastsPlace(user?.id) : null;
   }
+  // The same for Exercises, in Spanish.
+  const exPlaceRef = useRef(undefined);
+  if (exPlaceRef.current === undefined) {
+    exPlaceRef.current = podcastsUser(user) && spanish ? readExercisesPlace(user?.id) : null;
+  }
   // The page: study | lessons | stats | podcasts. "study" is Cards and also
   // the inside of a lesson (lessonFilter). "podcasts" is the whole Podcasts
   // module, whichever of its pages is showing (podView, below), so the module
@@ -607,7 +645,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   // and enterLesson set the page, and that alone brings the sidebar back to
   // Flashcards. A separate module flag left behind on Podcasts would have the
   // tour pointing at a Lessons item that isn't drawn.
-  const [mode, setMode] = useState(() => (podPlaceRef.current?.open ? "podcasts" : "study"));
+  const [mode, setMode] = useState(() => (podPlaceRef.current?.open ? "podcasts" : exPlaceRef.current?.open ? "exercises" : "study"));
   // seen/got/missed count TYPED answers only — those are verifiable, and
   // accuracy built from self-reported flips would be meaningless. `answered`
   // counts every graded card in either mode, so the end-of-session summary
@@ -936,14 +974,29 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   // and the place-saving effect don't depend on the page (never add `mode` to
   // either; owner rule: updates never reset progress).
   const lastCardsModeRef = useRef("study");
-  useEffect(() => { if (mode !== "podcasts") lastCardsModeRef.current = mode; }, [mode]);
+  useEffect(() => { if (mode !== "podcasts" && mode !== "exercises") lastCardsModeRef.current = mode; }, [mode]);
   // The switch's two halves. Stable, so the tour can call goFlashcards.
   const goPodcasts = useCallback(() => {
     if (hasPodcasts) setMode("podcasts");
   }, [hasPodcasts]);
   const goFlashcards = useCallback(() => {
-    setMode((m) => (m === "podcasts" ? lastCardsModeRef.current || "study" : m));
+    setMode((m) => (m === "podcasts" || m === "exercises" ? lastCardsModeRef.current || "study" : m));
   }, []);
+  // ── EXERCISES (Spanish, 2026-10-24) ──
+  // The second half of the Spanish switch, for the same people as Spanish.
+  // Leaving for Flashcards and coming back touches nothing in the cards, as
+  // with Podcasts above.
+  const hasExercises = hasModules && spanish;
+  const exercisesOn = hasExercises && mode === "exercises";
+  useEffect(() => { if (mode === "exercises" && !hasExercises) setMode("study"); }, [mode, hasExercises]);
+  const [exView, setExView] = useState(() => ({ lesson: exPlaceRef.current?.lesson || null }));
+  const goExercises = useCallback(() => {
+    if (hasExercises) setMode("exercises");
+  }, [hasExercises]);
+  useEffect(() => {
+    if (!hasExercises || !user?.id) return;
+    writeExercisesPlace(user.id, { open: exercisesOn, lesson: exView.lesson });
+  }, [hasExercises, user?.id, exercisesOn, exView.lesson]);
   // Changing module stops the browser voice: a card being read aloud must
   // not carry on over an episode, nor a podcast word over the next card. The
   // episode's own recording is the podcasts page's to pause, and it does so
@@ -3036,6 +3089,8 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
     // the rail. The same drawings as the approved mockup.
     episodes: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg>,
     mine: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16.85 18.58a9 9 0 1 0-9.7 0"/><path d="M8 14a5 5 0 1 1 8 0"/><circle cx="12" cy="11" r="1"/><path d="M13 17a1 1 0 1 0-2 0l.5 4.5a.5.5 0 1 0 1 0Z"/></svg>,
+    // Exercises (Spanish): the switch's half on the rail, and All exercises.
+    pencil: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>,
     headphones: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></svg>,
   };
 
@@ -3147,21 +3202,23 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
             white. On the rail they stack as two icons, named on hover. Owner
             only until the owner has tried it, except on the test app: a
             student's sidebar has no switch and is exactly what it was. */}
-        {/* Not in Spanish, which is a part of the app of its own, switched
-            to with the flag in the top-right corner (owner, 2026-10-22: "the
-            spanish module and the french modules should be separate"). */}
-        {hasPodcasts && (
+        {/* Spanish, a part of the app of its own (owner, 2026-10-22: "the
+            spanish module and the french modules should be separate"), has
+            Exercises in the second half instead (2026-10-24). */}
+        {(hasPodcasts || hasExercises) && (
           <div
             data-module-switch
             role="group"
-            aria-label="Flashcards or podcasts"
+            aria-label={hasExercises ? "Flashcards or exercises" : "Flashcards or podcasts"}
             style={sidebarMin ? S.modSwitchMin : S.modSwitch}
           >
             {[
               ["flashcards", "Flashcards", NAV_ICONS.study, goFlashcards],
-              ["podcasts", "Podcasts", NAV_ICONS.headphones, goPodcasts],
+              hasExercises
+                ? ["exercises", "Exercises", NAV_ICONS.pencil, goExercises]
+                : ["podcasts", "Podcasts", NAV_ICONS.headphones, goPodcasts],
             ].map(([key, label, icon, go]) => {
-              const on = (key === "podcasts") === podcastsOn;
+              const on = (key !== "flashcards") === (podcastsOn || exercisesOn);
               return (
                 <button
                   key={key}
@@ -3221,7 +3278,41 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
             </Fragment>
           );
         })}
-        {!podcastsOn && navItems.map(([m, label]) => {
+        {/* Exercises' side: All exercises, with every lesson beneath it,
+            the one open marked. Not on the rail, which has no room to nest
+            anything. */}
+        {exercisesOn && (
+          <>
+            <button
+              data-ex-nav="all"
+              className="side-btn"
+              aria-current={!exView.lesson ? "page" : undefined}
+              style={{ ...(sidebarMin ? { ...S.sideItem, ...S.sideItemMin } : S.sideItem), ...(!exView.lesson || sidebarMin ? S.sideItemActive : null) }}
+              onClick={() => setExView({ lesson: null })}
+              title={sidebarMin ? "All exercises" : undefined}
+              aria-label={sidebarMin ? "All exercises" : undefined}
+            >
+              <span style={S.sideIcon}>{NAV_ICONS.episodes}</span>
+              {!sidebarMin && "All exercises"}
+            </button>
+            {!sidebarMin && EXERCISE_TITLES.map((l) => {
+              const on = exView.lesson === l.id;
+              return (
+                <button
+                  key={l.id}
+                  data-ex-nav={l.id}
+                  className="side-btn"
+                  aria-current={on ? "page" : undefined}
+                  style={on ? { ...S.sideSubItem, ...S.sideSubItemActive } : S.sideSubItem}
+                  onClick={() => setExView({ lesson: l.id })}
+                >
+                  {l.title}
+                </button>
+              );
+            })}
+          </>
+        )}
+        {!podcastsOn && !exercisesOn && navItems.map(([m, label]) => {
           const baseStyle = sidebarMin ? { ...S.sideItem, ...S.sideItemMin } : S.sideItem;
           const activeStyle = S.sideItemActive;
           return (
@@ -3413,7 +3504,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
               // Which Podcasts page feedback came from (podcasts/episode,
               // podcasts/mine…), not just "podcasts": the review reads it as
               // "from the <page> page".
-              currentPage={podcastsOn ? `podcasts/${podView.view}` : spanish ? `Spanish ${mode}` : mode}
+              currentPage={podcastsOn ? `podcasts/${podView.view}` : exercisesOn ? `Spanish exercises/${exView.lesson || "all"}` : spanish ? `Spanish ${mode}` : mode}
               currentCard={mode === "study" ? card : null}
               course={course.id}
               open={showFeedback}
@@ -3639,6 +3730,27 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
             openChat={openChat}
             onNeedKey={onPodcastNeedKey}
           />
+        </main>
+        {modals}
+      </div>
+    );
+  }
+
+  // ── EXERCISES (Spanish, 2026-10-24) ─────────────────────────────────
+  // The same three children as every other page, as with Podcasts above.
+  if (exercisesOn) {
+    return (
+      <div style={shellStyle}>
+        {sidebar}
+        <main style={{ ...mainStyle, position: "relative" }}>
+          {onCourse && (
+            <div style={{ ...S.cornerFlag, right: (mainStyle.paddingRight || 0) + 24 }}>
+              <LanguageFlag course={course.id} onCourse={onCourse} />
+            </div>
+          )}
+          <Suspense fallback={null}>
+            <ExercisesPage user={user} view={exView} setView={setExView} onNeedKey={onPodcastNeedKey} />
+          </Suspense>
         </main>
         {modals}
       </div>

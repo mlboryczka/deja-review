@@ -824,7 +824,7 @@ route means retiring or merging one. `api/_lib/` is shared code, not a route.
 | `cahier-sync.js` | Linked cahier: turns the doc's unread classes into cards. A body with `notesChecks` is instead the owner's test of how Claude reads a class (`api/_lib/notesChecks.js`) |
 | `cahier-daily.js` | Daily cron at 13:00 UTC: syncs up to 40 linked docs. A second schedule, 14:00 UTC, runs the status check on every student instead (`api/_lib/statusDaily.js`), first asking Claude about look-alike cards in study it hasn't judged, up to 200 a student a day; 15:00 and 16:00 UTC run the tests of Claude's marking and of its reading of class notes, each only when due (`api/_lib/evalRuns.js`), and either one, when its own isn't due, the test of Claude's same-or-different question (`api/_lib/repeatsChecks.js`). Vercel's `x-vercel-cron-schedule` header says which |
 | `chat.js` | The tutor. Gives hints, not the answer, until the card's answer is shown. Never writes cards |
-| `review-answer.js` | "My answer should be accepted". Saves an accepted answer for that student only; "Accept anyway" skips Claude. A body with `feedback` is instead Claude's review of a piece of feedback and the owner's Apply and Dismiss (`api/_lib/feedbackReview.js`), here because of the 12-route limit. Every verdict is saved to `answer_reviews` (migration_015); a body with `answerChecks` is the owner's list of them and the test made from them (`api/_lib/answerChecks.js`) |
+| `review-answer.js` | "My answer should be accepted". Saves an accepted answer for that student only; "Accept anyway" skips Claude. A body with `feedback` is instead Claude's review of a piece of feedback and the owner's Apply and Dismiss (`api/_lib/feedbackReview.js`), here because of the 12-route limit. Every verdict is saved to `answer_reviews` (migration_015); a body with `answerChecks` is the owner's list of them and the test made from them (`api/_lib/answerChecks.js`). A body with `exercise` is an answer to the Spanish Exercises, marked and kept (`api/_lib/exercises.js`, see *Spanish*) |
 | `fsrs-fit.js` | Once a day per student: fits their own FSRS settings when due, and recomputes memory estimates when the settings change |
 | `admin-update-card.js` | Saves a card edit, for any student's own cards despite the name. Uses the service role: edits from the browser under RLS silently did nothing. A body with `action: "remove"` is a student removing a card: archived with the reason "removed", answers kept (`api/_lib/removeCard.js`) |
 | `admin-users.js` | Admin only: every account and its activity. `?view=status` is the latest status check on every student; with `&run=1` they are all checked now |
@@ -863,6 +863,7 @@ route means retiring or merging one. `api/_lib/` is shared code, not a route.
 | `parse-cahier.js` (commit), `cahier-sync.js`, `cahier-daily.js` (the status run, and the test of the question), `podcasts.js` (`add-card`): same card or different | `claude-opus-5-5`, effort `medium`, with Anthropic's fallback model if it declines |
 | `podcasts.js` (`episode`, `_lib/podcastQuestions.js`): writing an episode's questions, once | `claude-opus-5-5`, effort `medium`, with the fallback; 150 s, reply at most 16,000 tokens |
 | `podcasts.js` (`mark`, `_lib/podcastQuestions.js`): marking one answer | `claude-opus-5-5`, effort `low`, with the fallback; 45 s, reply at most 2,000 tokens |
+| `review-answer.js` (`exercise`, `_lib/exercises.js`): marking one Spanish exercise answer the key doesn't have | `claude-opus-5-5`, effort `low`, with the fallback; 40 s, reply at most 2,000 tokens |
 
 No other route calls a model. The tutor's effort is set explicitly: left
 unset, the model thought at high effort and the tutor was slow.
@@ -1014,6 +1015,10 @@ The files:
   Spanish deck's six tables, `es_user_cards` and the rest, made LIKE the
   French ones (see *Spanish*). Only adds tables, so `main` is unaffected.
   Tried on a throwaway Postgres: it runs, and runs again harmlessly.
+- `022_spanish_exercises` (on `testing`, written 2026-10-24, waits on the
+  owner): `es_exercise_answers`, every answer to the Spanish Exercises (see
+  *Spanish*). The server writes it; each student reads their own. Only adds
+  a table. Until it is run, answers are marked but not kept.
 - `021_spanish_logs` (on `testing`, written 2026-10-22, waits on the owner):
   `es_answer_reviews` and `es_parse_corrections`, LIKE the French logs, for
   the Spanish module's verdicts and corrections (see *Spanish*). Service role
@@ -1513,6 +1518,14 @@ Twenty need no browser:
   (even cut short) finding its podcast and episode, only the two sites read;
   and `migration_017` run twice after every migration where the machine has
   Postgres.
+- `es-exercises`: the Spanish Exercises (`src/lib/exerciseMarking.js`,
+  `api/_lib/exercises.js`, `src/data/exercises/es/`). Every sheet loads, every
+  item is answerable and its key marks its own answers right; the key's
+  rules (punctuation aside, accents counted, "sólo" allowed, true-or-false
+  pressed the wrong way); and the server: the key decides without Claude,
+  Claude gets the sheet's instruction and the typed answer, every answer is
+  kept for its student, no key means nothing asked or kept, an unreadable
+  reply keeps nothing, and before migration_022 the page is told. No browser.
 - `podcast-marking`: the Podcasts server (`api/_lib/podcasts.js`,
   `podcastQuestions.js`) with a stand-in Claude counted at the wire: the
   questions written once and checked against the transcript, "Got it" only
@@ -2243,7 +2256,7 @@ Flashcards / Podcasts switch is French only; Spanish has no Podcasts (owner,
   French one (sync, rank, instruction lines, notes, switches).
 - **Not in Spanish**: the tutor, uploading notes, the linked cahier, the
   first-visit tour, Podcasts and the "Include lessons" switch (every Spanish
-  card is a lesson card). The daily FSRS check runs from the French app only;
+  card is a lesson card). Spanish has Exercises instead of Podcasts (below). The daily FSRS check runs from the French app only;
   Spanish is scheduled with the settings it gives.
 - **Logged and checked as French is** (owner, 2026-10-22: "make sure that the
   evaluation harness, all the saved feedback and changes, etc are logged in
@@ -2322,6 +2335,55 @@ Flashcards / Podcasts switch is French only; Spanish has no Podcasts (owner,
   "Spanish needs one update to the database before it can open: run
   migration_020_spanish.sql in Supabase, then reload", with "Back to
   French".
+
+### Exercises (Spanish only)
+
+Owner, 2026-10-24: "create a new module only in the spanish module for
+quizzing me on the exercises you put together for each lesson". The Spanish
+sidebar has a switch at the top, **Flashcards / Exercises**, like French's
+Flashcards / Podcasts; French is unchanged. Exercises' sidebar has All
+exercises with every lesson beneath it. The app reopens on the Exercises
+page you were on (kept in this browser, `es-exercises-place:<user id>`).
+
+- **What is in it**: every written exercise of the 27 EJERCICIOS sheets
+  (the 26 lessons and Lesson 8's time-and-date annex), item by item, in
+  `src/data/exercises/es/<id>.js`, about 3,300 items. The sheets have no
+  answer key, so one was written for the app, as a Mexican Spanish teacher
+  would mark it, and checked by an independent reader, as the lessons were.
+  The oral exercises (dictation, answering aloud) are left out: their
+  recordings don't exist. An exercise that works on another's sentences
+  shows the sentence in each item; a sheet's worked first line is the
+  exercise's example; a writing task with no items on the sheet became one
+  or more free-writing items.
+- **Four kinds of item** (`src/lib/exerciseMarking.js`): gaps typed into the
+  sentence (`gaps`, one list of right answers per blank), one answer
+  (`answer` and `also`), free writing (`open`, an example answer; `long` for
+  a paragraph), and true or false (`truth`: Verdadero or Falso, then a
+  sentence that confirms or corrects it).
+- **Marking**: the key first, on the page and again on the server, at no
+  cost. Capitals, punctuation, ¿ and ¡ don't count; accents do, as on the
+  cards: right but for an accent is "Almost", "Check the accents" ("sólo"
+  and "éste" are right, as on the cards). A true-or-false pressed the wrong
+  way is Wrong. Anything else, free writing included, is Claude's (Right,
+  Almost or Wrong, a sentence saying why, and the answer corrected), so a
+  right answer the key doesn't list is still right. The server marks the
+  sheet's own item, never what the page sends. Claude is given the lesson's
+  text (`texts.js`, from the lesson sheets by `scripts/es-exercise-texts.mjs`)
+  when the exercise is about it.
+- **The page**: Enter checks an answer and puts the cursor in the next item,
+  so a sheet is done without the mouse; Claude's verdict arrives while you
+  type the next one. "Lesson text" shows the dialogue the comprehension
+  questions are about. "Try again" on an item and "Start this exercise
+  again" add answers and hide the old ones from the page; they remove
+  nothing.
+- **Kept**: every answer, in `es_exercise_answers` (migration_022): the item,
+  its prompt as shown, what was typed, the verdict, who marked it, Claude's
+  note and correction. Written by the server; a student reads only their
+  own. Until migration_022 is run the page still marks answers and says they
+  aren't being kept.
+- **Who has it**: the same people as Spanish. The server refuses anyone else
+  (403). Claude is paid for as everywhere else: the owner's account for the
+  owner (and Laura on the test app), anyone else's own key.
 
 ---
 

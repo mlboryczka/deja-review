@@ -14,8 +14,9 @@
 // A body with `feedback` instead is Claude's review of a piece of feedback,
 // and the owner's Apply and Dismiss: see _lib/feedbackReview.js. One with
 // `answerChecks` is the owner's list of these verdicts and the test made from
-// them: see _lib/answerChecks.js. They live here because the Hobby plan
-// deploys at most 12 routes.
+// them: see _lib/answerChecks.js. One with `exercise` is an answer to the
+// Spanish Exercises, marked and kept: see _lib/exercises.js. They live here
+// because the Hobby plan deploys at most 12 routes.
 //
 // Every verdict is saved (answer_reviews, migration_015), accept or not, so
 // the owner can see what Claude decided and mark where it went wrong.
@@ -29,9 +30,11 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 import { requireUser, isAdmin, adminEmail } from "./_lib/auth.js";
-import { requireAnthropicKey } from "./_lib/anthropicKey.js";
+import { requireAnthropicKey, resolveAnthropicKey } from "./_lib/anthropicKey.js";
 import { handleFeedbackRequest, supabaseFeedbackStore } from "./_lib/feedbackReview.js";
 import { askClaude, verdictRow, handleAnswerChecks, supabaseAnswerStore } from "./_lib/answerChecks.js";
+import { handleExerciseRequest, supabaseExerciseStore } from "./_lib/exercises.js";
+import { podcastsOpenTo } from "../src/lib/testApp.js";
 
 export const config = { maxDuration: 60 };
 
@@ -72,6 +75,7 @@ export default async function handler(req, res) {
 
   if (req.body?.feedback) return feedbackReview(req, res, user);
   if (req.body?.answerChecks) return answerChecks(req, res, user);
+  if (req.body?.exercise) return exercises(req, res, user);
 
   const {
     card_id,
@@ -186,6 +190,32 @@ async function answerChecks(req, res, user) {
       return res.status(401).json({ error: "Anthropic refused the server's key." });
     }
     return res.status(500).json({ error: err.message || "The answer checks failed." });
+  }
+}
+
+// The Spanish Exercises (2026-10-24): the same people as the Spanish module,
+// the owner and anyone signed in on the test app (src/lib/testApp.js). The
+// key that pays is worked out only if Claude has to mark the answer.
+async function exercises(req, res, user) {
+  if (!podcastsOpenTo({ isOwner: isAdmin(user), signedIn: true, host: req.headers.host })) {
+    return res.status(403).json({ error: "Exercises aren’t open on this app.", code: "forbidden" });
+  }
+  const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
+  const db = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
+    ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } })
+    : null;
+  try {
+    const { status, json } = await handleExerciseRequest({
+      body: req.body.exercise,
+      user,
+      store: db ? supabaseExerciseStore(db) : null,
+      apiKey: () => resolveAnthropicKey(req, user),
+    });
+    return res.status(status).json(json);
+  } catch (err) {
+    // The raw message is for the log, never for the page.
+    console.error("exercise answer failed:", err);
+    return res.status(500).json({ error: "Couldn’t mark that just now. Try again.", code: "server_error" });
   }
 }
 
