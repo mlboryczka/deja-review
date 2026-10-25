@@ -22,7 +22,6 @@
 //   "estar → ¿Cómo ___ ustedes?"                   the verb given, in one of the sheet's sentences (ex. 1)
 //   "ser o estar → Lucía ___ en Los Ángeles"       choose the verb, then give its form (ex. 2)
 //   "estar o ir → Mis hijos ___ en la playa"       the same, for a and en (ex. 1 nos. 12–13)
-//   "al o a la → Vamos ___ restaurante"            a + el = al
 //   "Estoy cansado → con ir a"                     rewrite in the near future
 //   "¿Vas al restaurante? → Sí, …"                 answer yes in a full sentence (ex. 3)
 //   "3 → en letras" / "tres"                       the numbers
@@ -71,13 +70,15 @@
 //
 // Where this departs from the sheets, or adds to them:
 //   - The "estar o ir" cards are ex. 1 nos. 12 and 13 without the verb
-//     given; the "al o a la" cards are section 4's examples ("Vamos al
-//     restaurante", "¿Vas a la playa?"); the "→ con ir a" rewrites are
+//     given; the "→ con ir a" rewrites are
 //     section 4's ("Va a estar cansado", "Voy a ir a la playa"); the "por
 //     qué o porque" cards are section 7's example. None of them is an
 //     exercise on the sheet, and every answer is the sheet's own.
 //   - "ser o estar → Ellos ___ aquí en Guadalajara" is ex. 5's "They are
 //     here in Guadalajara", which a phrase card would pass as "Son aquí…".
+//   - Taken out on 2026-10-25, at the owner's word (no masculine/feminine
+//     cards, "it's too easy"): the two "al o a la" cards (Vamos al
+//     restaurante, ¿Vas a la playa?), whose only choice was the noun's gender.
 //   - Ex. 3's answers are accepted with or without the Sí the prompt shows,
 //     with or without the subject pronoun, and with the noun kept or
 //     replaced. "¿Estás cansado?" also takes cansada, as the French
@@ -184,10 +185,6 @@ export const CARDS = [
   // ── 4. To go
   ["Voy a la playa", "I'm going to the beach / I am going to the beach / I go to the beach", "E", "irphrases"],
   ["¿Adónde vas?", "Where are you going? / Where are you going to? (tú)", "E", "irphrases"],
-
-  // ── a + el = al; with la, nothing changes
-  ["al o a la → Vamos ___ restaurante", "al", "G", "al"],
-  ["al o a la → ¿Vas ___ playa hoy?", "a la", "G", "al"],
 
   // ── a after ir, en after estar (ex. 1 nos. 12 and 13, verb not given)
   ["estar o ir → Mis hijos ___ en la playa", "están", "G", "estaroir"],
@@ -403,8 +400,8 @@ export const LESSON = {
   // words (the phrase cards ask for cansado, la playa, hacer and cenar in
   // Spanish, and "La esposa de Diego ___ muy cansada" can't be decided
   // without knowing cansada; the dialogue teaches them first, and the app
-  // has no dialogue). Then estar's phrases and ser or estar; ir's phrases,
-  // al, and estar or ir, once both verbs' uses have been met; the near
+  // has no dialogue). Then estar's phrases and ser or estar; ir's phrases
+  // and estar or ir, once both verbs' uses have been met; the near
   // future and its phrases; ex. 3 only after the near future, because two of
   // its questions are in it. Numbers come before the plurals that count with
   // them; por qué or porque last, as on the sheet. Reviews are unaffected;
@@ -413,7 +410,7 @@ export const LESSON = {
     "estar", "ir", "gaps",
     "words",
     "estarphrases", "serestar",
-    "irphrases", "al", "estaroir",
+    "irphrases", "estaroir",
     "future", "futurephrases", "answers",
     "numbers", "pluralnum", "plural",
     "why",
@@ -425,7 +422,6 @@ export const LESSON = {
   instructions: {
     gaps: "Fill the gap with the verb given, in the present tense",
     serestar: "Fill the gap with ser or estar in the present tense",
-    al: "Fill the gap with the one that fits the place",
     estaroir: "Fill the gap with estar or ir in the present tense",
     future: "Put this in the near future (ir a + infinitive)",
     answers: "Answer yes, in a full sentence",

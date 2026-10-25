@@ -19,19 +19,16 @@
 //   "Tengo 17 años → la pregunta, con tú"             ask the age question
 //   "ser, estar o tener → Mi hermana ___ nueve años"  choose the verb, then give its form
 //   "¿Tienes una idea? → Sí, …"                       answer yes in a full sentence (ex. 2, 3)
-//   "el, la, los o las → ___ día"                     the article (ex. 4)
-//   "del o de la → Es el libro ___ vendedor"          de + el = del
 //   "cerca de mí → ___ libro es muy bonito"           este, ese or aquel, for the distance (ex. 5)
 //   "6 → en letras" / "seis"                          the numbers
 //   "un regalo" / "a present"                         words and phrases, both ways round
 //
-// WHY THE ARTICLES, THE DEMONSTRATIVES AND THE AGE ARE ON EXACT CARDS. Word
-// and phrase cards are marked with typo tolerance. A word card does refuse
-// the wrong article at its start ("la día"), but inside a phrase a wrong
-// form passes as close enough: "aquel mesa" for "aquella mesa", "este
-// libros" for "estos libros", "Ella es nueve años" beside "Tiene nueve
-// años". So every article and demonstrative the lesson teaches is an exact
-// gap card, and tener for age is asked by the "ser, estar o tener" cards,
+// WHY THE DEMONSTRATIVES AND THE AGE ARE ON EXACT CARDS. Word and phrase
+// cards are marked with typo tolerance. A word card does refuse the wrong
+// article at its start ("la día"), but inside a phrase a wrong form passes
+// as close enough: "aquel mesa" for "aquella mesa", "este libros" for
+// "estos libros", "Ella es nueve años" beside "Tiene nueve años". So every
+// demonstrative the lesson teaches is an exact gap card, and tener for age is asked by the "ser, estar o tener" cards,
 // where it has to be told from ser and estar. The phrase cards are there for
 // meaning.
 //
@@ -85,8 +82,6 @@
 //     sentence. Its "………… librería es muy bonita. (lejos)" is asked with
 //     cerca de mí, for esta, which ex. 5 never asks for; aquella is asked by
 //     "Los libros están en ___ mesa".
-//   - The "del o de la" cards are section 3's "el libro del vendedor" and a
-//     sentence built from the dialogue's "la historia de México".
 //   - Ex. 2 and 3 answers are accepted with or without the Sí the prompt
 //     shows, with or without the subject pronoun, and with the noun kept or
 //     replaced. "¿Eres mexicano?" also takes mexicana; "¿Tu hermana tiene
@@ -99,6 +94,11 @@
 //     buying ("I'll take"), and to carry is its everyday sense.
 //   - "mi papá" is "mi papá / mi padre": papá is the everyday Mexican word,
 //     and a teacher accepts the standard padre for "my father" too.
+//   - Taken out on 2026-10-25, at the owner's word (no masculine/feminine
+//     cards: "remove the noun-gender cards too"): the eight article gap
+//     cards from ex. 4 (el día, la mano, los problemas, el restaurante, un
+//     mapa, una ciudad, unos audífonos, unas ideas) and the two "del o de
+//     la" cards. A word card still asks each noun with its article.
 //
 // The notes (Use · Forms · Gender · Articles · This, that · Numbers) follow
 // the building-lessons skill. These sentences in them are not on the sheet;
@@ -180,21 +180,6 @@ export const CARDS = [
   ["¿Los vendedores tienen una idea? → Sí, …", "Sí, tienen una idea / Sí, ellos tienen una idea / Sí, los vendedores tienen una idea / Tienen una idea / Ellos tienen una idea / Los vendedores tienen una idea", "G", "answers"],
   ["¿Eres mexicano? → Sí, …", "Sí, soy mexicano / Sí, soy mexicana / Sí, yo soy mexicano / Sí, yo soy mexicana / Soy mexicano / Soy mexicana / Yo soy mexicano / Yo soy mexicana", "G", "answers"],
   ["¿Los libros están en la mesa? → Sí, …", "Sí, están en la mesa / Sí, los libros están en la mesa / Están en la mesa / Los libros están en la mesa", "G", "answers"],
-
-  // ── 3. The articles (ex. 4): the exceptions to the -o / -a rule, the
-  //    nouns the rule can't place, and the plural "some"
-  ["el, la, los o las → ___ día", "el", "G", "articles"],
-  ["el, la, los o las → ___ mano", "la", "G", "articles"],
-  ["el, la, los o las → ___ problemas", "los", "G", "articles"],
-  ["el, la, los o las → ___ restaurante", "el", "G", "articles"],
-  ["un, una, unos o unas → ___ mapa", "un", "G", "articles"],
-  ["un, una, unos o unas → ___ ciudad", "una", "G", "articles"],
-  ["un, una, unos o unas → ___ audífonos", "unos", "G", "articles"],
-  ["un, una, unos o unas → ___ ideas", "unas", "G", "articles"],
-
-  // ── de + el = del; with la, nothing changes
-  ["del o de la → Es el libro ___ vendedor", "del", "G", "del"],
-  ["del o de la → Es un libro sobre la historia ___ ciudad", "de la", "G", "del"],
 
   // ── 4. This and that (ex. 5): the distance, then the noun's form
   ["cerca de mí → ___ libro es muy bonito", "este", "G", "demonstratives"],
@@ -371,27 +356,23 @@ export const LESSON = {
   // them: "Los audífonos ___ en el segundo piso" can't be decided without
   // knowing what en el segundo piso means (the dialogue teaches it first;
   // the app has no dialogue). Then ser, estar or tener, and the answers,
-  // which mix the three verbs. Then the articles once the nouns' genders are
-  // known, del, and this and that; the sentences, which need all of it; the
+  // which mix the three verbs. Then this and that; the sentences, which need all of it; the
   // numbers last, as on the sheet. Reviews are unaffected; FSRS schedules
   // those.
   teachingOrder: [
     "tener", "tenergap", "age",
     "vocab", "serestartener", "answers",
-    "articles", "del", "demonstratives", "phrases",
+    "demonstratives", "phrases",
     "numbers",
   ],
   // The line shown above a grammar card saying what to type (see
   // src/lib/cardInstruction.js). The drills get theirs from their own shape.
   // In "age" only the question card is a grammar card, so the line is its.
-  // The article lines never name the article.
   instructions: {
     tenergap: "Fill the gap with tener in the present tense",
     age: "Write the question this answers (not a yes/no one)",
     serestartener: "Fill the gap with ser, estar or tener in the present",
     answers: "Answer yes, in a full sentence",
-    articles: "Fill the gap with the right article",
-    del: "Fill the gap with the one that fits the noun",
     demonstratives: "Fill the gap with the word for this or that, for that distance",
     numbers: "Write this number in Spanish, in words",
   },

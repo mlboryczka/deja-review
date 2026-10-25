@@ -2318,13 +2318,15 @@ Flashcards / Podcasts switch is French only; Spanish has no Podcasts (owner,
   stays. Marking reads the card itself, so every answer is still accepted
   (`firstAnswer` in `src/lib/cardText.js`). French shows the whole list, as
   before.
-- **No masculine/feminine matching** (owner, 2026-10-25: "don't test simple
-  masculine/fem matching it's too easy"): cards whose only job was to make a
-  word masculine or feminine to match the sentence were taken out (Lesson 1's
-  nosotros o nosotras and ellos o ellas, rubio → rubia, mío → mía, 19 in
-  all), each listed in its lesson's header and under "retired" in
-  `tests/released-lesson-cards.json`. Cards that test a noun's own gender
-  (el or la, al or a la, del or de la) were kept.
+- **No masculine/feminine cards** (owner, 2026-10-25: "don't test simple
+  masculine/fem matching it's too easy", then "remove the noun-gender cards
+  too"): every card whose only job was to choose or make the masculine or
+  feminine form was taken out, 32 in all: Lesson 1's nosotros o nosotras
+  and ellos o ellas, rubio → rubia, mío → mía, and the noun-gender cards
+  (Lesson 3's el, la, los o las and un, una, unos o unas, al o a la, del o
+  de la, cuánta gente). Each is listed in its lesson's header and under
+  "retired" in `tests/released-lesson-cards.json`. Word cards still give
+  each noun with its article.
 - **Drills** read "tener (presente) → yo" with the bare form as the answer,
   "tengo"; "yo tengo" is accepted too, "él fue" and "ella fue" for an
   él/ella drill, and the line says "Present tense, yo form"
