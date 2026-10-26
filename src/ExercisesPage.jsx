@@ -24,7 +24,7 @@ import { supabase } from "./supabase";
 import { T } from "./theme";
 import { EXERCISE_LESSONS, EXERCISES_BY_ID } from "./data/exercises/es/index.js";
 import { LESSON_TEXTS } from "./data/exercises/es/texts.js";
-import { itemKey, kindOf, isAnswered, markByKey, typedText, keyAnswer, keyReason, hintText, hintLevels } from "./lib/exerciseMarking.js";
+import { itemKey, kindOf, isAnswered, markByKey, typedText, keyAnswer, keyReason, hintText, hintLevels, markedNow, findItem } from "./lib/exerciseMarking.js";
 import { markAnswer, loadAnswers } from "./lib/exerciseApi.js";
 import { BYOK_REQUIRED, BAD_KEY } from "./lib/anthropicKey";
 
@@ -74,9 +74,11 @@ function useAnswers(userId) {
     s.started = true;
     loadAnswers({ supabase, userId }).then(({ answers, missing, error }) => {
       // Oldest first, so each item ends on its latest; one answered on this
-      // page while they loaded is newer than any of them.
+      // page while they loaded is newer than any of them. One the key marked
+      // Almost for an accent that no longer counts shows as Right
+      // (markedNow).
       const latest = {};
-      for (const a of answers) latest[a.key] = a;
+      for (const a of answers) latest[a.key] = markedNow(findItem(EXERCISES_BY_ID, a.key)?.item, a);
       for (const [k, a] of Object.entries(s.latest)) latest[k] = a;
       s.latest = latest;
       s.missing = missing;

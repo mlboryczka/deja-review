@@ -8,10 +8,11 @@
 // and on the server:
 //
 //   right    it is one of the key's answers, capitals, punctuation, ¿ ¡ and
-//            spaces aside
-//   almost   it is one of them but for its accents ("Check the accents"):
-//            accents are checked in Spanish (owner, 2026-10-22), "esta" is
-//            not "está", "ano" not "año"
+//            spaces aside, and accents too but for those that count
+//            (owner, 2026-10-26; src/lib/spanishAccents.js): "Hoy don Rafael
+//            esta de mal humor", "estan", "manana" are right
+//   almost   it is one of them but for an accent that changes a verb's tense
+//            or person: "hablo" for "habló", "hable" for "hablé"
 //   null     the key doesn't have it: Claude decides (api/_lib/exercises.js),
 //            so a right answer the key doesn't list is still right
 //
@@ -20,6 +21,8 @@
 // always goes to Claude.
 //
 // Pure, plain JS: the page imports it, and so do the server and the tests.
+
+import { accentCounts } from "./spanishAccents.js";
 
 // Accents the Real Academia no longer asks for but still allows, on solo and
 // the demonstratives: "sólo" and "éste" are right where the key has "solo"
@@ -69,14 +72,24 @@ export function kindOf(item) {
 // The key's right answers for one box.
 const answersOf = (item) => [item?.answer, ...(Array.isArray(item?.also) ? item.also : [])].filter((a) => typeof a === "string" && a.trim());
 
-// One typed text against a list of right answers: "right", "accents" or null.
+// The words of a typed text off only in an accent that counts, as [typed,
+// right] pairs, against a right answer it matches accents aside. Both are
+// plain(), and accents don't move words, so they line up word for word.
+function countingSlips(t, a) {
+  const want = a.split(" ");
+  return t.split(" ").map((w, i) => [w, want[i]]).filter(([w, r]) => w !== r && accentCounts(r));
+}
+
+// One typed text against a list of right answers: "right", "accents" (an
+// accent that counts is off) or null.
 function against(typed, answers) {
   const t = plain(typed);
   if (!t) return null;
   if (answers.some((a) => plain(a) === t)) return "right";
   const b = bare(typed);
-  if (answers.some((a) => bare(a) === b)) return "accents";
-  return null;
+  const near = answers.filter((a) => bare(a) === b);
+  if (!near.length) return null;
+  return near.some((a) => !countingSlips(t, plain(a)).length) ? "right" : "accents";
 }
 
 // A true-or-false answer's sentence, with or without the "Verdadero." or
@@ -142,9 +155,9 @@ export function keyAnswer(item) {
 // Why the key marked an answer a miss, for "Why?" under it (owner,
 // 2026-10-26: "there should also be a "why was my answer wrong" option").
 // A miss Claude marked carries Claude's own sentence (its note); the key's
-// misses are only two: an answer right but for its accents, and a
-// true-or-false pressed the wrong way. `line` is the answer as kept
-// (typedText). "" when the key has nothing to say about it.
+// misses are only two: an answer right but for an accent that changes a
+// verb's tense, and a true-or-false pressed the wrong way. `line` is the
+// answer as kept (typedText). "" when the key has nothing to say about it.
 export function keyReason(item, line) {
   const kind = kindOf(item);
   const text = String(line ?? "");
@@ -155,8 +168,9 @@ export function keyReason(item, line) {
     }
   }
   // Word by word against the key's answer it matches but for accents: the
-  // two have the same words, so the ones that differ are the accents. They
-  // are quoted as written ("Lucía", not "lucía").
+  // two have the same words, so the ones that differ are the accents, and
+  // only those that count are named. They are quoted as written ("Habló",
+  // not "habló").
   const pairs = [];
   const written = (s) => String(s ?? "").normalize("NFC").replace(/[¿¡?!.,;:"“”«»()\[\]…–—\-/]+/g, " ").trim().split(/\s+/);
   const accents = (typed, answers) => {
@@ -164,7 +178,7 @@ export function keyReason(item, line) {
     if (!match) return;
     const want = plain(match).split(" ");
     const [wantAs, typedAs] = [written(match), written(typed)];
-    plain(typed).split(" ").forEach((w, i) => { if (w !== want[i]) pairs.push(`"${wantAs[i] ?? want[i]}", not "${typedAs[i] ?? w}"`); });
+    plain(typed).split(" ").forEach((w, i) => { if (w !== want[i] && accentCounts(want[i])) pairs.push(`"${wantAs[i] ?? want[i]}", not "${typedAs[i] ?? w}"`); });
   };
   if (kind === "gaps") {
     // The blanks as typed, out of "Yo [esta] aquí." ([[…]] is the sheet's
@@ -176,7 +190,33 @@ export function keyReason(item, line) {
   } else {
     accents(text, answersOf(item));
   }
-  return pairs.length ? `Right but for the accents: ${pairs.join("; ")}.` : "";
+  if (!pairs.length) return "";
+  return `Right but for ${pairs.length > 1 ? "the accents, which change the tense" : "the accent, which changes the tense"}: ${pairs.join("; ")}.`;
+}
+
+// The typed answer back out of the line it was kept as (typedText's), or
+// null when it can't be read back.
+function typedFromLine(item, line) {
+  const kind = kindOf(item);
+  const text = String(line ?? "");
+  if (kind === "gaps") {
+    const typed = [...text.matchAll(/\[\[[^\]]*\]\]|\[([^\]]*)\]/g)].filter((m) => m[1] !== undefined).map((m) => m[1]);
+    return typed.length === item.gaps.length ? typed : null;
+  }
+  if (kind === "truth") {
+    const truth = /^\s*verdadero\b/i.test(text) ? true : /^\s*falso\b/i.test(text) ? false : null;
+    return truth === null ? null : { truth, text: truthSentence(text) };
+  }
+  return text;
+}
+
+// An answer the key marked Almost while every accent still counted (before
+// 2026-10-26), shown with the verdict the key gives it now: "Hoy don Rafael
+// esta de mal humor" was Almost and is Right. The row kept stays as it was.
+export function markedNow(item, answer) {
+  if (!item || answer?.markedBy !== "key" || answer.verdict !== "almost") return answer;
+  const typed = typedFromLine(item, answer.typed);
+  return typed !== null && markByKey(item, typed)?.verdict === "right" ? { ...answer, verdict: "right" } : answer;
 }
 
 // A hint for an item still to answer (owner, 2026-10-26: "exercises should

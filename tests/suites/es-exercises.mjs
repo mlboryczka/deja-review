@@ -6,9 +6,12 @@
 //   - every lesson's exercise file is complete and answerable: each item has
 //     a prompt, a gap item has one list of answers per blank, the others an
 //     answer, and the key marks its own answers right;
-//   - the key ignores capitals, punctuation, ¿ and ¡, but not accents:
-//     "esta" for "está" is "Almost", as on the cards ("Check the accents"),
-//     and "sólo" for "solo" is right;
+//   - the key ignores capitals, punctuation, ¿ and ¡, and every accent but
+//     one that changes a verb's tense (owner, 2026-10-26): "esta de mal
+//     humor" for "está de mal humor" is right, "hablo" for "habló" is
+//     "Almost", as on the cards, and "sólo" for "solo" is right; an answer
+//     the key marked Almost before, for an accent that no longer counts,
+//     shows as Right;
 //   - a true-or-false pressed the wrong way is wrong without asking Claude;
 //     free writing always goes to Claude;
 //   - the server marks with the sheet's own item, not what the page sends,
@@ -21,8 +24,8 @@
 //     rest as _, then one more letter a press, until the whole answer shows;
 //   - "Why?" under a miss (owner, 2026-10-26: "there should also be a "why
 //     was my answer wrong" option") has a reason for every miss the key
-//     marks: the accents it caught, as the key writes them, or a
-//     true-or-false pressed the wrong way;
+//     marks: the accents that change the tense, as the key writes them, or
+//     a true-or-false pressed the wrong way;
 //   - the exercises the owner had taken out (2026-10-25) stay out: no
 //     sentence of your own, nothing about yourself, no question to write, no
 //     answer about the text and no yes or no in a full sentence, and every
@@ -33,7 +36,8 @@
 import { checker } from "../check.mjs";
 import { EXERCISE_LESSONS, EXERCISES_BY_ID, LEFT_OUT, numbered } from "../../src/data/exercises/es/index.js";
 import { LESSON_TEXTS } from "../../src/data/exercises/es/texts.js";
-import { plain, bare, kindOf, markByKey, typedText, keyAnswer, itemKey, findItem, isAnswered, hintText, hintLevels, keyReason } from "../../src/lib/exerciseMarking.js";
+import { plain, bare, kindOf, markByKey, typedText, keyAnswer, itemKey, findItem, isAnswered, hintText, hintLevels, keyReason, markedNow } from "../../src/lib/exerciseMarking.js";
+import { accentCounts } from "../../src/lib/spanishAccents.js";
 import { handleExerciseRequest, markPrompt, readMark } from "../../api/_lib/exercises.js";
 
 const ck = checker();
@@ -115,7 +119,17 @@ ck("a gap the key doesn't have goes to Claude", markByKey(gap, ["eres"]) === nul
 const two = { prompt: "Ana ___ abrir la puerta, pero no ___.", gaps: [["quiso"], ["pudo"]] };
 ck("two gaps: both right is right, one wrong goes to Claude", markByKey(two, ["quiso", "pudo"])?.verdict === "right" && markByKey(two, ["quiso", "puede"]) === null);
 const acc = { prompt: "Where are you? (tú)", answer: "¿Dónde estás?" };
-ck("right but for an accent is Almost, with no call", markByKey(acc, "donde estas")?.verdict === "almost" && markByKey(acc, "donde estas")?.accents === true);
+ck("right but for accents that change no tense is right, with no call: donde estas", markByKey(acc, "donde estas")?.verdict === "right");
+const spoke = { prompt: "She spoke with Ana.", answer: "Habló con Ana." };
+ck("right but for an accent that changes the tense is Almost, with no call: hablo for habló",
+   markByKey(spoke, "hablo con ana")?.verdict === "almost" && markByKey(spoke, "hablo con ana")?.accents === true);
+const rafael = { prompt: "Today Don Rafael is in a bad mood.", answer: "Hoy don Rafael está de mal humor." };
+ck("esta for the verb está is right, and estan for están",
+   markByKey(rafael, "Hoy don Rafael esta de mal humor")?.verdict === "right" && markByKey({ prompt: "x", answer: "Están en casa." }, "estan en casa")?.verdict === "right");
+ck("a missing ñ is forgiven like an accent", markByKey({ prompt: "x", answer: "Tengo diez años." }, "tengo diez anos")?.verdict === "right");
+ck("the accents that count are those that change a verb's tense",
+   ["habló", "hablo", "hablé", "hable", "llegó", "llego", "llegué", "llegue", "trabajó", "trabajo"].every(accentCounts) &&
+   !["está", "esta", "están", "estás", "tú", "él", "sé", "dé", "cómo", "qué", "días", "año", "frío"].some(accentCounts));
 ck("an accent that Real Academia still allows is right", markByKey({ prompt: "only", answer: "solo" }, "sólo")?.verdict === "right");
 ck("another wording in also is right", markByKey({ prompt: "x", answer: "Me llamo Ana.", also: ["Mi nombre es Ana."] }, "mi nombre es ana")?.verdict === "right");
 const tf = { prompt: "Lucía vive en Guadalajara.", truth: false, answer: "Falso. Lucía vive en Estados Unidos." };
@@ -152,11 +166,21 @@ ck("a true-or-false hint starts with Verdadero or Falso", hintText(tf, 1) === "F
 
 // ── Why a miss is a miss ─────────────────────────────────────────────────
 console.log("Why?");
+const past = { prompt: "Ayer ella ___ con Ana. (hablar)", gaps: [["habló"]] };
+ck("a blank right but for an accent that changes the tense says which word",
+   keyReason(past, typedText(past, ["hablo"])) === "Right but for the accent, which changes the tense: \"habló\", not \"hablo\".");
 const estar = { prompt: "Ella ___ muy bien. (estar)", gaps: [["está"]] };
-ck("a blank right but for its accent says which word", keyReason(estar, typedText(estar, ["esta"])) === "Right but for the accents: \"está\", not \"esta\".");
-ck("a sentence names every word, as the key writes it",
-   keyReason(tf, typedText(tf, { truth: false, text: "Lucia vive en Estados Unidos." })) === "Right but for the accents: \"Lucía\", not \"Lucia\"." &&
-   keyReason(acc, "Donde estas") === "Right but for the accents: \"Dónde\", not \"Donde\"; \"estás\", not \"estas\".");
+ck("a blank right but for an accent that changes no tense is right, with no reason",
+   markByKey(estar, ["esta"])?.verdict === "right" && keyReason(estar, typedText(estar, ["esta"])) === "");
+const tfPast = { prompt: "Ana habló con Lucía.", truth: true, answer: "Verdadero. Ana habló con Lucía." };
+ck("a sentence names only the accents that change the tense, as the key writes them",
+   keyReason({ prompt: "x", answer: "Después llegué y Ana habló." }, "Despues llegue y Ana hablo.") === "Right but for the accents, which change the tense: \"llegué\", not \"llegue\"; \"habló\", not \"hablo\"." &&
+   keyReason(tfPast, typedText(tfPast, { truth: true, text: "Ana hablo con Lucia." })) === "Right but for the accent, which changes the tense: \"habló\", not \"hablo\".");
+ck("an answer the key marked Almost before, for an accent that no longer counts, shows as Right; one that still counts stays Almost; Claude's stays as Claude marked it",
+   markedNow(rafael, { markedBy: "key", verdict: "almost", typed: "Hoy don Rafael esta de mal humor" }).verdict === "right" &&
+   markedNow(estar, { markedBy: "key", verdict: "almost", typed: typedText(estar, ["esta"]) }).verdict === "right" &&
+   markedNow(past, { markedBy: "key", verdict: "almost", typed: typedText(past, ["hablo"]) }).verdict === "almost" &&
+   markedNow(rafael, { markedBy: "claude", verdict: "almost", typed: "Hoy don Rafael esta de mal humor" }).verdict === "almost");
 ck("a true-or-false pressed the wrong way says which it is", keyReason(tf, typedText(tf, { truth: true, text: "Sí." })) === "The statement is false, so the answer is Falso.");
 ck("an answer the key doesn't have gets no reason from the key: Claude's note is the reason", keyReason(gap, typedText(gap, ["eres"])) === "" && keyReason(acc, "¿Dónde vives?") === "");
 {

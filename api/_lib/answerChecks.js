@@ -65,12 +65,12 @@ Consider:
 - Synonyms and near-synonyms (e.g., "instead of" vs "in place of", "salesperson" vs "salesman")
 - Minor phrasing variations that preserve meaning
 - Whether the user's answer demonstrates correct understanding
-- For ${language} answers, grammatical gender must be correct (${language === "Spanish" ? "un vs una, el vs la" : "un vs une, le vs la"})${language === "Spanish" ? "\n- For Spanish answers, written accents must be correct (habló vs hablo, año vs ano, tú vs tu)" : ""}
+- For ${language} answers, grammatical gender must be correct (${language === "Spanish" ? "un vs una, el vs la" : "un vs une, le vs la"})${language === "Spanish" ? "\n- For Spanish answers, an accent counts only where it changes a verb's tense or person (habló vs hablo, hablé vs hable); any other missing or wrong accent, and a missing ñ, is no mistake (estan for están, esta for the verb está, tu for tú, ano for año)" : ""}
 - For English answers, articles (a/an/the) are interchangeable
 
 Do NOT accept:
 - Answers in the wrong language
-- Answers with wrong grammatical gender in ${language}${language === "Spanish" ? "\n- Spanish answers with a missing or wrong accent" : ""}
+- Answers with wrong grammatical gender in ${language}${language === "Spanish" ? "\n- Spanish answers with an accent that changes a verb's tense or person (hablo for habló)" : ""}
 - Answers that mean something different
 - Answers that are partially correct but miss the core meaning
 

@@ -96,7 +96,7 @@ const cardsTable = (course) => (course === "es" ? "es_user_cards" : "user_cards"
 // Read before the feedback when it is about the Spanish module, so the review
 // judges Spanish as Spanish. Said here rather than in SYSTEM_PROMPT, whose
 // wording is the French review's and stays as it is.
-const SPANISH_NOTE = "This feedback is from the Spanish part of the app. Its cards have Latin American Spanish on the front and English on the back, built from Spanish lessons; everything said above about French applies to Spanish instead, except that Spanish answers are marked with their accents (\"hablo\" is wrong for \"habló\"). Check every claim about Spanish yourself.";
+const SPANISH_NOTE = "This feedback is from the Spanish part of the app. Its cards have Latin American Spanish on the front and English on the back, built from Spanish lessons; everything said above about French applies to Spanish instead, except that Spanish answers are marked with the accents that change a verb's tense or person (\"hablo\" is wrong for \"habló\") and no other accents (\"esta\" is right for the verb \"está\"). Check every claim about Spanish yourself.";
 
 // What Claude is told about one entry.
 export function describeFeedback(row, card, { screenshot = false } = {}) {

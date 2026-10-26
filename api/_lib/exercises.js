@@ -13,8 +13,9 @@
 // are read from the app's own exercise data, never from the request, so what
 // is marked and kept is the sheet's item whatever the page sent.
 //
-// The answer key marks first (markByKey: right, or right but for its
-// accents, or a true-or-false pressed the wrong way), and costs nothing.
+// The answer key marks first (markByKey: right, or right but for an accent
+// that changes a verb's tense, or a true-or-false pressed the wrong way), and
+// costs nothing.
 // Anything the key doesn't have goes to Claude, which decides right, almost
 // or wrong, says why in a sentence, and gives the answer corrected; so a
 // right answer the key doesn't list is still right. Every answer is kept,
@@ -45,7 +46,8 @@ You are given the lesson, the exercise's instruction in Spanish and in English, 
 
 Verdicts:
 - "right": correct Spanish (or correct English, where the item asks for English) that does exactly what the item and the instruction ask: the right verb, tense, person and form, and the right meaning. A wording different from the key's is right whenever a Mexican Spanish teacher would accept it. For free writing, any correct sentence that does what is asked is right, whatever it is about.
-- "almost": right except for one small slip: a missing or wrong accent (accents count in Spanish: "esta" is not "está", "tu" is not "tú"), a missing tilde on ñ, or one wrong letter in an otherwise right word.
+- "almost": right except for one small slip: an accent that changes a verb's tense or person ("hablo" for "habló", "hable" for "hablé", "hablara" for "hablará"), or one wrong letter in an otherwise right word.
+- Any other missing or wrong accent, and a missing ñ, is no slip at all: the answer is "right" if it is otherwise right ("estan" for "están", "esta" for the verb "está", "tu" for "tú", "como" for "cómo", "manana" for "mañana").
 - "wrong": anything else: a wrong form, tense, person or word, a wrong meaning, a part left out, or an answer that doesn't do what the instruction asks (for example the right meaning in the present when the exercise asks for the preterite).
 - Ignore capitals and punctuation, ¿ and ¡ included, except where a comma changes the meaning: "No, tengo tiempo" (no, I have time) is not "No tengo tiempo".
 - For a gap item the learner typed only the words in [brackets]; judge those words in their sentence.

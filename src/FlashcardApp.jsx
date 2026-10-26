@@ -4,6 +4,7 @@ import { RAW } from "./data/cards"; // only used for the admin "seed demo deck" 
 import { lessonIdOf } from "./data/lessons";
 import { catalogueFor } from "./data/lessons/byCourse";
 import { SPANISH_EXACT, ENGLISH_EXACT } from "./data/lessons/es/exactWords.js";
+import { accentCounts } from "./lib/spanishAccents.js";
 import { courseOf } from "./lib/course";
 import { reconcileLessons, ADOPTED_SOURCE } from "./lib/lessonSync";
 import { archivedSource, ARCHIVE_PREFIX } from "./lib/archive";
@@ -328,13 +329,17 @@ function stripParens(s) {
   do { prev = out; out = out.replace(/\([^()]*\)/g, " "); } while (out !== prev);
   return out.replace(/\(.*$/, " ").replace(/\)/g, " ").replace(/\s+/g, " ").trim();
 }
-// Spanish answers are marked with their accents (owner, 2026-10-22:
-// "accents must be checked"): "habló" is not "hablo", "año" not "ano", "tú"
-// not "tu". The match itself is made with accents set aside, as before, so
-// a typo elsewhere is still forgiven; then every typed word that is a word of
-// the answer but for its accents is a wrong answer. A word with a typo in it
-// isn't judged for its accents: the tolerance has already judged it.
-// French answers are marked as they always were, accents aside.
+// Spanish answers are marked with the accents that change a verb's tense
+// (owner, 2026-10-22: "accents must be checked"; 2026-10-26: "the accents
+// shouldn't be a criteria for marking something incorrect, unless the word
+// NEEDS the accent (for instance to determine the proper tense)"): "habló"
+// is not "hablo", but "esta" is right for está, "tu" for tú and "ano" for
+// año (src/lib/spanishAccents.js). The match itself is made with
+// accents set aside, as before, so a typo elsewhere is still forgiven; then
+// every typed word that is a word of the answer but for an accent that
+// counts is a wrong answer. A word with a typo in it isn't judged for its
+// accents: the tolerance has already judged it. French answers are marked as
+// they always were, accents aside.
 function keepAccents(s) {
   return String(s || "").toLowerCase().normalize("NFC")
     .replace(/\([^)]*\)/g, "")
@@ -362,17 +367,19 @@ function accentsRight(typed, answer) {
     const fs = forms.get(withoutAccents(w));
     if (!fs || fs.has(w)) continue;
     if (OLD_ACCENTS.has(w) && fs.has(OLD_ACCENTS.get(w))) continue;
+    if (![...fs].some(accentCounts)) continue;
     return false;
   }
   return true;
 }
-// The words of the answer that must be typed exactly, accents included
-// (owner, 2026-10-25): those on `exactWords`, a Map from each to the
-// spellings that count as typing it (src/data/lessons/es/exactWords.js: the
-// Spanish lessons' irregular verb forms, numbers and months), and any word
-// with a figure in it. "right" when each was typed, "accent" when one was
-// typed but for its accents, and "missing" when one wasn't typed at all:
-// "poní" for puse, "setenta" for sesenta, "July" for June.
+// The words of the answer that must be typed exactly (owner, 2026-10-25),
+// accents included where they change a verb's tense: those on `exactWords`,
+// a Map from each to the spellings that count as typing it
+// (src/data/lessons/es/exactWords.js: the Spanish lessons' irregular verb
+// forms, numbers and months), and any word with a figure in it. "right" when
+// each was typed, "accent" when one was typed but for an accent that counts,
+// and "missing" when one wasn't typed at all: "poní" for puse, "setenta" for
+// sesenta, "July" for June.
 function exactWordsTyped(typed, answer, exactWords) {
   if (!exactWords) return "right";
   const want = keepAccents(answer).split(" ").filter((w) => exactWords.has(w) || /\d/.test(w));
@@ -385,7 +392,7 @@ function exactWordsTyped(typed, answer, exactWords) {
     const ways = exactWords.get(w) || [w];
     if (ways.some((x) => asTyped.has(x))) continue;
     if (!ways.some((x) => bare.has(withoutAccents(x)))) return "missing";
-    accent = true;
+    if (accentCounts(w)) accent = true;
   }
   return accent ? "accent" : "right";
 }
@@ -415,16 +422,16 @@ function exactWordsTyped(typed, answer, exactWords) {
 // tolerance below still lets a slightly shorter answer through, as on French
 // phrase cards; the lessons test pronouns on exact cards.)
 //
-// `accents`: the answer is Spanish, and its accents are checked (see
-// accentsRight). A match that is right but for an accent is
-// { match: false, wrongAccent: true }.
+// `accents`: the answer is Spanish, and its accents that change a verb's
+// tense are checked (see accentsRight). A match that is right but for such an
+// accent ("hablo" for habló) is { match: false, wrongAccent: true }.
 //
 // `exactWords`: words the tolerance must not touch, on a Spanish card the
 // irregular verb forms, numbers and months (see exactWordsTyped). A near miss
 // is still a match, but only with each of them typed as the answer has it:
 // "Ayer puse la computadora en la sla" is close enough, "Ayer poní la
-// computadora en la sala" is wrong, and "Ayer pusé…" is right but for its
-// accent.
+// computadora en la sala" is wrong, and "Ayer pusé…" is right, its accent
+// changing no tense.
 function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings = false, articles = "fr", accents = false, exactWords = null } = {}) {
   const t = normalize(typed);
   if (!t) return { match: false };
@@ -4594,7 +4601,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
                           {typeResult==="correct" && "✓ Correct!"}
                           {typeResult==="close" && (typedAnswer.trim() ? `✓ Close enough — you wrote: ${typedAnswer.trim()}` : "✓ Close enough")}
                           {typeResult==="wrongArticle" && (typedAnswer.trim() ? `✗ Wrong article — you wrote: ${typedAnswer.trim()}` : `✗ Wrong article — answer: ${back}`)}
-                          {typeResult==="wrongAccent" && `✗ Check the accents — you wrote: ${typedAnswer.trim()}`}
+                          {typeResult==="wrongAccent" && `✗ The accent changes the tense — you wrote: ${typedAnswer.trim()}`}
                           {typeResult==="wrong" && (typedAnswer.trim() ? `✗ You wrote: ${typedAnswer.trim()}` : `✗ Answer: ${back}`)}
                           {typeResult==="revealed" && `Answer: ${back}`}
                         </>

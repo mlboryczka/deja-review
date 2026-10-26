@@ -1526,11 +1526,12 @@ Twenty need no browser:
 - `es-exercises`: the Spanish Exercises (`src/lib/exerciseMarking.js`,
   `api/_lib/exercises.js`, `src/data/exercises/es/`). Every sheet loads, every
   item is answerable and its key marks its own answers right; the key's
-  rules (punctuation aside, accents counted, "sólo" allowed, true-or-false
-  pressed the wrong way); the hint (first letters, one more a press, and on
-  every item the whole first answer at the end); the key's "Why?" (every
-  accent-only miss named word by word, a true-or-false pressed the wrong
-  way); and the server: the key decides without Claude,
+  rules (punctuation aside, only an accent that changes a verb's tense
+  counted, "sólo" allowed, a saved Almost whose accent no longer counts
+  shown Right, true-or-false pressed the wrong way); the hint (first
+  letters, one more a press, and on every item the whole first answer at
+  the end); the key's "Why?" (every miss for a tense accent named word by
+  word, a true-or-false pressed the wrong way); and the server: the key decides without Claude,
   Claude gets the sheet's instruction and the typed answer, every answer is
   kept for its student, no key means nothing asked or kept, an unreadable
   reply keeps nothing, and before migration_022 the page is told. No browser.
@@ -2324,16 +2325,28 @@ Flashcards / Podcasts switch is French only; Spanish has no Podcasts (owner,
   through as close enough, as in French ("Conozco" for "La conozco", "Hablé
   por teléfono" for "Le hablé por teléfono"). The lessons tested pronouns on
   exact cards until the grammar cards went (2026-10-25); since then only an
-  irregular verb form is held exact (below). **Accents are checked on Spanish answers** (owner,
-  2026-10-22: "accents must be checked"; `accentsRight` in
-  `FlashcardApp.jsx`, `accents` in `matchAnswer`): the match is made with
-  accents set aside, as before, then any typed word that is a word of the
-  answer but for its accents makes it a miss, shown "✗ Check the accents".
-  "hablo" is not "habló", "ano" not "año", "tu" not "tú". A word with a typo
-  isn't judged for accents, and "sólo" and "éste" (accents the Real Academia
-  still allows) are right where the answer has "solo" and "este". French is
-  marked accents aside, as always. "My answer should be accepted" tells
-  Claude that Spanish accents must be right.
+  irregular verb form is held exact (below). **Accents are checked on Spanish answers only where they change a verb's tense** (owner,
+  2026-10-22: "accents must be checked"; 2026-10-26: "the accents
+  shouldn't be a criteria for marking something incorrect, unless the word
+  NEEDS the accent (for instance to determine the proper tense)", and of
+  "Hoy don Rafael esta de mal humor": "this should be correct";
+  `accentsRight` in `FlashcardApp.jsx`, `accents` in `matchAnswer`,
+  `src/lib/spanishAccents.js`): the match is made with accents set aside,
+  as before, then a typed word that is a word of the answer but for an
+  accent that counts makes it a miss, shown "✗ The accent changes the
+  tense". An accent counts only on a verb form spelled like another form of
+  the same verb but for it: "hablo" is not "habló", "llegue" not "llegué",
+  "hablara" not "hablará". The 158 such words of the lessons and exercises
+  are listed in `src/data/lessons/es/tenseAccents.js`, made by
+  `scripts/tense-accents.mjs` from Fred Jehle's Spanish verb conjugation
+  database (637 verbs, CC BY-NC-SA 3.0) and 20 regular -ar verbs it lacks;
+  "frío" is left out (cold there, not "I fry"). Every other accent, and the
+  ñ, is forgiven: "esta" for the verb está, "estan", "tu" for tú, "como
+  estas", "anos" for años are right. A word with a typo isn't judged for
+  accents, and "sólo" and "éste" (accents the Real Academia still allows)
+  are right where the answer has "solo" and "este". French is marked
+  accents aside, as always. "My answer should be accepted" tells Claude the
+  same rule.
 - **One answer shown** (owner, 2026-10-25: "one version of the correct
   translation is fine"): a Spanish card shows only the first of the " / "
   answers it accepts, as the prompt and as the answer ("Son profesores" →
@@ -2393,7 +2406,8 @@ Flashcards / Podcasts switch is French only; Spanish has no Podcasts (owner,
   Spanish, and the English numbers (each also as its figure), ordinals and
   months for typed English. Any word with a figure in it counts too.
   `exactWordsTyped` (`exactWords` in `matchAnswer`) fails an answer missing
-  one, and calls it a wrong accent when only the accent is off; a slip
+  one, and calls it a wrong accent when only an accent that changes the
+  tense is off ("pusé" for puse and "se" for sé are right); a slip
   anywhere else is still close enough. French is unchanged. In a deck, the
   unanswered grammar cards are deleted (200 at a time) and the answered ones
   put away with their answers, 14 on the owner's deck. The 8 sentences take
@@ -2473,9 +2487,13 @@ page you were on (kept in this browser, `es-exercises-place:<user id>`).
   a paragraph), and true or false (`truth`: Verdadero or Falso, then a
   sentence that confirms or corrects it).
 - **Marking**: the key first, on the page and again on the server, at no
-  cost. Capitals, punctuation, ¿ and ¡ don't count; accents do, as on the
-  cards: right but for an accent is "Almost" ("sólo" and "éste" are right,
-  as on the cards). A true-or-false pressed the wrong
+  cost. Capitals, punctuation, ¿ and ¡ don't count, and nor do accents but
+  those that change a verb's tense, as on the cards: right but for such an
+  accent is "Almost" ("llegue" for llegué), and "Hoy don Rafael esta de mal
+  humor" is right ("sólo" and "éste" are right, as on the cards). An answer
+  the key marked Almost before 2026-10-26 for an accent that no longer
+  counts shows as Right (`markedNow`; the row kept is unchanged), and Claude
+  is told the same rule. A true-or-false pressed the wrong
   way is Wrong. Anything else, free writing included, is Claude's (Right,
   Almost or Wrong, a sentence saying why, and the answer corrected), so a
   right answer the key doesn't list is still right. The server marks the
@@ -2496,8 +2514,8 @@ page you were on (kept in this browser, `es-exercises-place:<user id>`).
   under "Correct:", only when "Why?" beside the verdict is pressed (owner,
   2026-10-26: "there should also be a "why was my answer wrong" option").
   For a miss the key marked, the key says why (`keyReason`): the words whose
-  accents are off, as the key writes them ("Right but for the accents:
-  "está", not "esta"."), or "The statement is false, so the answer is
+  accent changes the tense, as the key writes them ("Right but for the
+  accent, which changes the tense: "llegué", not "llegue"."), or "The statement is false, so the answer is
   Falso." Nothing new is kept.
 - **Hint** (owner, 2026-10-26: "exercises should have a hint option"): an
   item still to answer has "Hint" at its right. It shows, under the boxes,

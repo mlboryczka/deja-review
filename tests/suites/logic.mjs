@@ -536,7 +536,9 @@ console.log("\n  marking — Spanish articles and ¿ ¡, French unchanged");
   const mStart = app.indexOf("function matchAnswer(");
   const end = app.indexOf("\n}\n", mStart) + 3;
   const file = path.join(os.tmpdir(), `logic-matcher-${process.pid}.mjs`);
-  fs.writeFileSync(file, app.slice(start, end) + "\nexport { matchAnswer };\n");
+  // The one import the matcher needs: which Spanish accents count.
+  const accents = new URL("../../src/lib/spanishAccents.js", import.meta.url).href;
+  fs.writeFileSync(file, `import { accentCounts } from ${JSON.stringify(accents)};\n` + app.slice(start, end) + "\nexport { matchAnswer };\n");
   const { matchAnswer } = await import(`file://${file}?t=${Date.now()}`);
   fs.unlinkSync(file);
   const ok = (typed, answer, opts) => matchAnswer(typed, answer, [], opts).match === true;
@@ -549,13 +551,17 @@ console.log("\n  marking — Spanish articles and ¿ ¡, French unchanged");
      matchAnswer("Les hablé", "Le hablé", [], { articles: "none" }).wrongArticle !== true &&
      matchAnswer("Les hablé", "Le hablé").wrongArticle === true);
   ck("an English answer still drops its the", ok("hand", "the hand", { articles: "en" }));
-  // Spanish answers have their accents checked (owner, 2026-10-22).
+  // Spanish answers have their accents checked (owner, 2026-10-22), but only
+  // those that change a verb's tense (2026-10-26, src/lib/spanishAccents.js).
   const es = { articles: "none", accents: true };
   ck("a Spanish drill right with its accent is right", ok("habló", "habló", { exact: true, accents: true }));
-  ck("and without it is a wrong accent", matchAnswer("hablo", "habló", [], { exact: true, accents: true }).wrongAccent === true);
-  ck("a Spanish question needs its accents, ¿ or not",
-     ok("Cómo estás?", "¿Cómo estás?", es) && matchAnswer("como estas", "¿Cómo estás?", [], es).wrongAccent === true);
-  ck("año is not ano", matchAnswer("Tengo diez anos", "Tengo diez años", [], es).wrongAccent === true);
+  ck("and without it is a wrong accent: hablo is another tense", matchAnswer("hablo", "habló", [], { exact: true, accents: true }).wrongAccent === true);
+  ck("so is llego for llegó in a phrase", matchAnswer("Ayer llego tarde", "Ayer llegó tarde", [], es).wrongAccent === true);
+  ck("an accent that changes no tense is forgiven, ¿ or not: como estas for ¿Cómo estás?",
+     ok("Cómo estás?", "¿Cómo estás?", es) && ok("como estas", "¿Cómo estás?", es));
+  ck("esta is right for the verb está, and estan for están",
+     ok("Hoy don Rafael esta de mal humor", "Hoy don Rafael está de mal humor", es) && ok("Ellos estan en casa", "Ellos están en casa", es));
+  ck("a missing ñ is forgiven like an accent: anos for años", ok("Tengo diez anos", "Tengo diez años", es));
   ck("a typo elsewhere is still forgiven, with the accents right", ok("Tengo diez añoss", "Tengo diez años", es));
   ck("the accents the RAE still allows are right: sólo for solo", ok("Sólo tengo uno", "Solo tengo uno", es));
   ck("French answers are still marked accents aside", ok("tres bien", "très bien") && ok("evidemment", "évidemment"));
@@ -582,9 +588,10 @@ console.log("\n  marking — Spanish articles and ¿ ¡, French unchanged");
   ck("a slip elsewhere in the phrase is still close enough",
      matchAnswer("Ayer puse la computadora en la sla", put, [], verbs).close === true &&
      matchAnswer("Conozco el centro bien", "Conozco bien el centro", [], verbs).close === true);
-  ck("a verb form right but for its accent is a wrong accent",
-     matchAnswer("Ayer pusé la computadora en la sala", put, [], verbs).wrongAccent === true &&
-     matchAnswer("No se", "No sé", [], verbs).wrongAccent === true);
+  ck("an exact word right but for an accent that changes no tense is right: pusé for puse, se for sé",
+     ok("Ayer pusé la computadora en la sala", put, verbs) && ok("No se", "No sé", verbs));
+  ck("one whose accent changes the tense is a wrong accent",
+     matchAnswer("Ella hablo con Ana", "Ella habló con Ana", [], { ...es, exactWords: new Map([["habló", ["habló"]]]) }).wrongAccent === true);
   ck("se, not on the list, is never asked for as sé", ok("Mi esposa se lama Linda", "Mi esposa se llama Linda", verbs));
 }
 
