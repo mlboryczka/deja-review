@@ -262,7 +262,9 @@ const PROPOSE_TOOL = {
 // The Spanish module's tutor (2026-10-26). The course is Latin American
 // Spanish with Mexican settings and words, ustedes and never vosotros, the
 // preterite as the main past (memory: the Spanish course), and its marking
-// counts accents (owner, 2026-10-22). Its deck is words and phrases only and
+// counts an accent only where it changes a verb's tense (owner, 2026-10-26,
+// lib/spanishAccents.js), which the tutor is told so that it never calls a
+// forgiven accent a mistake. Its deck is words and phrases only and
 // the grammar is on Exercises (owner, 2026-10-26), so it proposes no grammar
 // drills. Written out whole rather than built from the French: each prompt
 // is its own cached prefix, and the French one stays exactly as it was.
@@ -274,7 +276,7 @@ Add register, gender, an example sentence, or a false-friend warning ONLY when i
 
 Teach the Spanish of Mexico: ustedes for "you" to several people, never vosotros; the preterite for a finished past action; Mexican words where they differ ("el departamento", "la recámara", "el carro"). Say how Spain differs only when it matters to the question.
 
-Accents are part of the spelling, and the app marks "esta" for "está" and "hablo" for "habló" as mistakes. Always write Spanish with its accents, its ñ, and its ¿ and ¡.
+Always write Spanish with its accents, its ñ, and its ¿ and ¡. When the app marks their answers, it forgives a missing accent or ñ unless the accent changes a verb's tense: "hablo" for "habló" is marked wrong, "esta" for "está" is not. So never call a forgiven accent a mistake; you may show the spelling in passing.
 
 Write plain prose. No bullet lists, headings or tables — they are not rendered and the symbols show. Italics or bold on a Spanish word are fine, sparingly. Spanish in Spanish, everything else in English.
 
@@ -294,7 +296,7 @@ They study by recalling the answer before it is shown, and the app records each 
 
 ## An exercise
 
-Instead of a card, the [Context] block may name the exercise on their screen, from their lesson's exercise sheet: its instruction, and its items, numbered as on their screen, each with its expected answer and whether they have answered it. An answer is marked right, almost right (right but for its accents) or wrong. In a fill-in-the-blank item, what they typed in each blank is in square brackets.
+Instead of a card, the [Context] block may name the exercise on their screen, from their lesson's exercise sheet: its instruction, and its items, numbered as on their screen, each with its expected answer and whether they have answered it. An answer is marked right, almost right (right but for an accent that changes a verb's tense) or wrong. In a fill-in-the-blank item, what they typed in each blank is in square brackets.
 - If an item has NOT been answered yet, never state its answer, or a form of it, or a word that gives it away — not even if they ask outright, because finding it is the exercise. Help them work it out instead: the rule the exercise practises, the person and tense needed, a verb like it, the first letter. If they want the answer itself, tell them that checking an answer shows the correct one.
 - Once an item has been answered, you may explain it in full: compare what they typed with the correct answer and say what the difference is.
 - "Number 3" means item 3 of this exercise. "This one" with no number means the item the cursor is on, unless they are plainly asking about the answer just marked, which is the item answered last.
@@ -549,6 +551,8 @@ const clip = (v) => String(v ?? "").trim().slice(0, 200);
 const RESULT_TEXT = {
   wrong: "was marked wrong",
   wrongArticle: "has the right word with the wrong article",
+  // Spanish: "✗ The accent changes the tense" on the card.
+  wrongAccent: "was marked wrong because an accent that changes the verb's tense is missing or misplaced",
   close: "was accepted as close enough",
   correct: "was marked correct",
 };
@@ -677,7 +681,7 @@ const EXERCISE_ITEMS_MAX = 60;
 const EXERCISE_LESSON_TEXT_MAX = 4000;
 const EXERCISE_VERDICT_TEXT = {
   right: "was marked right",
-  almost: "was marked almost right (right but for its accents)",
+  almost: "was marked almost right (right but for an accent that changes the verb's tense)",
   wrong: "was marked wrong",
 };
 

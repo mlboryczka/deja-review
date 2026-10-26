@@ -339,6 +339,19 @@ console.log("\n  The Spanish tutor");
   }, es.categories).map((c) => c.front);
   ck("a Spanish grammar drill is dropped, a word and a phrase stay", kept.join(" | ") === "una colina | estar de buen humor", kept.join(" | "));
 
+  // An accent counts only where it changes a verb's tense (owner, 2026-10-26),
+  // so the tutor must not call "esta" for "está" a mistake, and a card marked
+  // "✗ The accent changes the tense" reaches it with what was typed.
+  ck("the Spanish tutor knows an accent counts only where it changes the tense",
+     /"hablo" for "habló" is marked wrong, "esta" for "está" is not/.test(es.system) && !/marks "esta" for "está"/.test(es.system));
+  const accent = text(buildRequestMessages({
+    course: "es",
+    messages: [{ role: "user", content: "why?" }],
+    context: { currentCard: { prompt: "I spoke", answer: "hablé", answered: true, result: "wrongAccent", typed: "hable" } },
+  }).at(-1));
+  ck("a card marked wrong for a tense accent reaches the tutor with what was typed",
+     /They typed "hable", which was marked wrong because an accent that changes the verb's tense/.test(accent), accent);
+
   // "la", "en" and "qué" match every card; "ya" is the word asked about.
   const ES = [
     { f: "la casa", b: "the house", row_id: 1 },

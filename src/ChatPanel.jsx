@@ -118,7 +118,7 @@ function suggestionsFor(card, podcast, exercise, spanish) {
   if (!card.answered) {
     return ["Give me a hint without the answer", "What kind of word am I looking for?"];
   }
-  if (card.result === "wrong" || card.result === "wrongArticle" || card.result === "revealed") {
+  if (card.result === "wrong" || card.result === "wrongArticle" || card.result === "wrongAccent" || card.result === "revealed") {
     return [
       card.result === "revealed" ? "Help me remember this one" : "Why was my answer wrong?",
       "Use it in a sentence",
