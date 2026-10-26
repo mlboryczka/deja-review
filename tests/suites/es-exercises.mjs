@@ -16,14 +16,15 @@
 //     for the student who gave it, and says so when the table isn't there
 //     yet; with no key, nothing is asked and nothing kept;
 //   - a reply from Claude that can't be read keeps nothing;
-//   - the exercises the owner had taken out (2026-10-25, #53–#56) stay out:
-//     no sentence of your own, nothing about yourself, no question to write
-//     and no answer about the text, and every other item is still there.
+//   - the exercises the owner had taken out (2026-10-25) stay out: no
+//     sentence of your own, nothing about yourself, no question to write, no
+//     answer about the text and no yes or no in a full sentence, and every
+//     other item is still there, numbered 1, 2, 3 on the page.
 //
 // No browser and no network: Claude and the database are stand-ins.
 
 import { checker } from "../check.mjs";
-import { EXERCISE_LESSONS, EXERCISES_BY_ID, LEFT_OUT } from "../../src/data/exercises/es/index.js";
+import { EXERCISE_LESSONS, EXERCISES_BY_ID, LEFT_OUT, numbered } from "../../src/data/exercises/es/index.js";
 import { LESSON_TEXTS } from "../../src/data/exercises/es/texts.js";
 import { plain, bare, kindOf, markByKey, typedText, keyAnswer, itemKey, findItem, isAnswered } from "../../src/lib/exerciseMarking.js";
 import { handleExerciseRequest, markPrompt, readMark } from "../../api/_lib/exercises.js";
@@ -68,26 +69,31 @@ ck("the lesson text is there for every sheet that has one (not Lesson 15, which 
    EXERCISE_LESSONS.filter((l) => l.textOf !== "leccion15" && !LESSON_TEXTS[l.textOf]).length === 0);
 
 // The owner, 2026-10-25: "get rid of these types of exercises throughout
-// lessons". Free writing is left only in Lesson 16's translation of its text.
+// lessons", and of answering yes in a full sentence, "remove this type of
+// lesson". Free writing is left only in Lesson 16's translation of its text.
 const leftIn = [];
 for (const lesson of EXERCISE_LESSONS) {
   for (const ex of lesson.exercises) {
     const asks = `${ex.instruction} ${ex.english}`;
     const own = ex.items.some((it) => kindOf(it) === "open") && !(lesson.id === "leccion16" && ex.n === 3);
-    if (own || /corresponden a las respuestas|sobre el (diálogo|texto)|diciendo la verdad|según tu opinión|of your own|your own way/i.test(asks)) leftIn.push(`${lesson.id} ej ${ex.n}`);
+    if (own || /corresponden a las respuestas|sobre el (diálogo|texto)|diciendo la verdad|según tu opinión|of your own|your own way|responder a las preguntas[^.]*de forma (afirmativa|negativa)|^poner las preguntas y las respuestas/i.test(asks)) leftIn.push(`${lesson.id} ej ${ex.n}`);
   }
 }
-ck("no exercise taken out on 2026-10-25 is left: no sentence of your own, nothing about yourself, no question to write, no answer about the text",
+ck("no exercise taken out on 2026-10-25 is left: no sentence of your own, nothing about yourself, no question to write, no answer about the text, no yes or no in a full sentence",
    leftIn.length === 0, leftIn.join("; "));
-ck("52 exercises are out, 184 are left, every lesson keeps some, and every other item is still there",
-   Object.values(LEFT_OUT).flat().length === 52 && EXERCISE_LESSONS.reduce((n, l) => n + l.exercises.length, 0) === 184 &&
-   EXERCISE_LESSONS.every((l) => l.exercises.length > 0) && items === 3015);
+ck("91 exercises are out, 145 are left, every lesson keeps some, and every other item is still there",
+   Object.values(LEFT_OUT).flat().length === 91 && EXERCISE_LESSONS.reduce((n, l) => n + l.exercises.length, 0) === 145 &&
+   EXERCISE_LESSONS.every((l) => l.exercises.length > 0) && items === 2434);
 // "renumber the exercises properly" (owner, 2026-10-25).
 ck("each lesson's exercises are numbered 1, 2, 3… on the page, in order",
    EXERCISE_LESSONS.every((l) => l.exercises.every((ex, i) => ex.number === i + 1)));
+const shifted = numbered([
+  { n: 2, instruction: "Completar.", english: "Fill the gaps." },
+  { n: 3, instruction: "Poner las frases del ejercicio 2 en plural.", english: "Put exercise 2's sentences in the plural." },
+]);
 ck("an instruction pointing at another exercise gives its number on the page",
-   /del ejercicio 1 en plural/.test(EXERCISES_BY_ID["leccion12-1"].exercises.find((ex) => ex.n === 3).instruction) &&
-   /from exercise 1 /.test(EXERCISES_BY_ID.leccion18.exercises.find((ex) => ex.n === 2).english));
+   shifted[1].number === 2 && /del ejercicio 1 en/.test(shifted[1].instruction) && /exercise 1's/.test(shifted[1].english) &&
+   /del ejercicio 1 en/.test(EXERCISES_BY_ID.leccion18.exercises.find((ex) => ex.n === 2).instruction));
 
 // ── The key's marking ────────────────────────────────────────────────────
 console.log("Marking by the key");

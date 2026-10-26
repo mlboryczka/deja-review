@@ -2377,8 +2377,12 @@ page you were on (kept in this browser, `es-exercises-place:<user id>`).
   22 lessons (482 items), listed in `LEFT_OUT` in
   `src/data/exercises/es/index.js`: sentences of your own, answers about
   yourself, writing the question that goes with an answer, and answering
-  questions about the text. Their files keep them as the sheets have them.
-  Lesson 16's translation of its text stays. 184 exercises, 3,015 items.
+  questions about the text. Then, of Lesson 7.2's "Responder a las
+  preguntas de forma afirmativa", "remove this type of lesson": every
+  answer to a question with yes or no in a full sentence, 39 more in 20
+  lessons (581 items), the pronoun, todavía no and nunca ones included.
+  Their files keep them as the sheets have them. Lesson 16's translation of
+  its text stays. 145 exercises, 2,434 items.
   The page numbers each lesson's exercises 1, 2, 3… as they now stand
   (owner, 2026-10-25: "renumber the exercises properly"); `n`, the number
   every answer is kept under, stays the sheet's, and an instruction pointing

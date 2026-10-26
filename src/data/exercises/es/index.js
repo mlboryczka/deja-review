@@ -37,11 +37,14 @@ import leccion21 from "./leccion21.js";
 import leccion22 from "./leccion22.js";
 import leccion23 from "./leccion23.js";
 
-// Left out at the owner's word (2026-10-25, feedback #53–#56 on Lesson 7.1):
-// every exercise that has no set answer for the key to check. "get rid of the
-// exercises wherein a write a sentence of my own with. particular word", and of
-// answering truthfully, writing the question, and answering about the text:
-// "get rid of these types of exercises throughout lessons". Their files keep
+// Left out at the owner's word, 2026-10-25. First (feedback #53–#56 on Lesson
+// 7.1) every exercise that has no set answer for the key to check: "get rid
+// of the exercises wherein a write a sentence of my own with. particular
+// word", and of answering truthfully, writing the question, and answering
+// about the text: "get rid of these types of exercises throughout lessons".
+// Then, of Lesson 7.2's "Responder a las preguntas de forma afirmativa":
+// "remove this type of lesson", so every answer to a question with yes or no
+// in a full sentence goes too, whatever else it practises. Their files keep
 // them as the sheets have them, numbered as on the sheet. Lesson 16's ex. 3,
 // translating the lesson's text, stays: it is a translation.
 //   your own sentences   5: 1, 2 · 7-1: 1 · 7-2: 1, 2 · 9: 1, 2 · 10: 1, 2, 11 ·
@@ -55,20 +58,26 @@ import leccion23 from "./leccion23.js";
 //                        15: 4, 5 · 22: 5
 //   about the text       1: 6 · 2: 7 · 3: 10 · 4: 9 · 5: 12 · 6: 10 · 7-1: 7 ·
 //                        7-2: 9 · 14: 2 · 16: 4 · 18: 9
+//   yes or no, in full   1: 2 · 2: 3 · 3: 2, 3 · 4: 2, 3 · 5: 4, 6 · 6: 3, 4 ·
+//                        7-2: 4, 5 · 8: 3, 4 · 9: 4, 5 · 10: 3, 4 · 11: 6, 7 ·
+//                        12-1: 2, 3 (ex. 2 again, in the plural), 7 ·
+//                        12-2: 4, 5, 6 · 13: 7, 8 · 14: 4, 5 · 15: 2 · 16: 6 ·
+//                        17: 5, 9, 11 · 21: 3, 4 · 23: 1, 2
 export const LEFT_OUT = {
-  leccion1: [6], leccion2: [7], leccion3: [10], leccion4: [9], leccion5: [1, 2, 12], leccion6: [5, 10],
-  "leccion7-1": [1, 3, 4, 7], "leccion7-2": [1, 2, 6, 9], "leccion8-anexo": [4], leccion9: [1, 2, 6],
-  leccion10: [1, 2, 5, 11], leccion11: [1, 2, 8], "leccion12-1": [1, 5], "leccion12-2": [1, 11],
-  leccion13: [1], leccion14: [2, 6], leccion15: [3, 4, 5], leccion16: [1, 2, 4, 7], leccion17: [1, 2, 6],
-  leccion18: [9, 11], leccion21: [1, 5], leccion22: [1, 4, 5],
+  leccion1: [2, 6], leccion2: [3, 7], leccion3: [2, 3, 10], leccion4: [2, 3, 9], leccion5: [1, 2, 4, 6, 12],
+  leccion6: [3, 4, 5, 10], "leccion7-1": [1, 3, 4, 7], "leccion7-2": [1, 2, 4, 5, 6, 9], leccion8: [3, 4],
+  "leccion8-anexo": [4], leccion9: [1, 2, 4, 5, 6], leccion10: [1, 2, 3, 4, 5, 11], leccion11: [1, 2, 6, 7, 8],
+  "leccion12-1": [1, 2, 3, 5, 7], "leccion12-2": [1, 4, 5, 6, 11], leccion13: [1, 7, 8], leccion14: [2, 4, 5, 6],
+  leccion15: [2, 3, 4, 5], leccion16: [1, 2, 4, 6, 7], leccion17: [1, 2, 5, 6, 9, 11], leccion18: [9, 11],
+  leccion21: [1, 3, 4, 5], leccion22: [1, 4, 5], leccion23: [1, 2],
 };
 
 // The page numbers a lesson's exercises 1, 2, 3… as they now stand (owner,
 // 2026-10-25: "renumber the exercises properly"). `n` stays the sheet's
 // number, which every answer is kept under. An instruction pointing at
-// another exercise ("del ejercicio 2", Lesson 12.1) points at its number on
-// the page.
-function numbered(exercises) {
+// another exercise ("del ejercicio 1", Lesson 18) points at its number on the
+// page.
+export function numbered(exercises) {
   const number = new Map(exercises.map((ex, i) => [ex.n, i + 1]));
   const renumber = (text) =>
     typeof text === "string"
