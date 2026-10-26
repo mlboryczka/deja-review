@@ -212,8 +212,9 @@ function writeExercisesPlace(userId, { open, lesson }) {
     localStorage.setItem(EXERCISES_PLACE_KEY + userId, JSON.stringify({ open, lesson }));
   } catch { /* storage blocked: the place is a convenience, not a record */ }
 }
-// The lessons under All exercises, folded away with the arrow beside it
-// (owner, 2026-10-25: "need to be able to remove the subheadings (lessons)").
+// The lessons under All exercises, folded away by All exercises or the arrow
+// beside it (owner, 2026-10-25: "need to be able to remove the subheadings
+// (lessons)").
 // Kept folded in this browser until opened again.
 const EXERCISES_FOLDED_KEY = "es-exercises-folded:";
 function readExercisesFolded(userId) {
@@ -3352,9 +3353,10 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
         })}
         {/* Exercises' side: All exercises, with every lesson beneath it,
             the one open marked. Not on the rail, which has no room to nest
-            anything. The arrow beside All exercises folds the lessons away;
-            folded, the lesson you're in still shows, as under Basic
-            Lessons. */}
+            anything. All exercises, or the arrow beside it, folds the
+            lessons away and back (owner, 2026-10-26: not only the arrow);
+            All exercises also opens its page. Folded, the lesson you're in
+            still shows, as under Basic Lessons. */}
         {exercisesOn && (
           <>
             <div style={S.sideItemWrap}>
@@ -3363,9 +3365,14 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
                 className="side-btn"
                 aria-current={!exView.lesson ? "page" : undefined}
                 style={{ ...(sidebarMin ? { ...S.sideItem, ...S.sideItemMin } : S.sideItem), ...(!exView.lesson || sidebarMin ? S.sideItemActive : null) }}
-                onClick={() => setExView({ lesson: null })}
+                onClick={() => {
+                  setExView({ lesson: null });
+                  // The rail shows no lessons, so there is nothing to fold.
+                  if (!sidebarMin) setExLessonsFolded((v) => !v);
+                }}
                 title={sidebarMin ? "All exercises" : undefined}
                 aria-label={sidebarMin ? "All exercises" : undefined}
+                aria-expanded={!sidebarMin ? !exLessonsFolded : undefined}
               >
                 <span style={S.sideIcon}>{NAV_ICONS.episodes}</span>
                 {!sidebarMin && "All exercises"}

@@ -2417,9 +2417,13 @@ Owner, 2026-10-24: "create a new module only in the spanish module for
 quizzing me on the exercises you put together for each lesson". The Spanish
 sidebar has a switch at the top, **Flashcards / Exercises**, like French's
 Flashcards / Podcasts; French is unchanged. Exercises' sidebar has All
-exercises with every lesson beneath it; the arrow beside All exercises folds
-the lessons away, leaving the one you're in (owner, 2026-10-25: "need to be
-able to remove the subheadings (lessons)"), and stays folded in this browser
+exercises with every lesson beneath it. Clicking All exercises, or the arrow
+beside it, folds the lessons away and brings them back, leaving the one you're
+in (owner, 2026-10-25: "need to be able to remove the subheadings (lessons)";
+2026-10-26: clicking All exercises should do it, not only the arrow). All
+exercises also opens its page, so from inside a lesson one click goes there
+and folds the list. On the minimized sidebar, which shows no lessons, it only
+opens the page. The list stays folded in this browser
 (`es-exercises-folded:<user id>`). The app reopens on the Exercises
 page you were on (kept in this browser, `es-exercises-place:<user id>`).
 
