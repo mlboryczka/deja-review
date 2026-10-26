@@ -2379,8 +2379,8 @@ page you were on (kept in this browser, `es-exercises-place:<user id>`).
   sentence that confirms or corrects it).
 - **Marking**: the key first, on the page and again on the server, at no
   cost. Capitals, punctuation, ¿ and ¡ don't count; accents do, as on the
-  cards: right but for an accent is "Almost", "Check the accents" ("sólo"
-  and "éste" are right, as on the cards). A true-or-false pressed the wrong
+  cards: right but for an accent is "Almost" ("sólo" and "éste" are right,
+  as on the cards). A true-or-false pressed the wrong
   way is Wrong. Anything else, free writing included, is Claude's (Right,
   Almost or Wrong, a sentence saying why, and the answer corrected), so a
   right answer the key doesn't list is still right. The server marks the
@@ -2392,7 +2392,12 @@ page you were on (kept in this browser, `es-exercises-place:<user id>`).
   type the next one. "Lesson text" shows the dialogue the comprehension
   questions are about. "Try again" on an item and "Start this exercise
   again" add answers and hide the old ones from the page; they remove
-  nothing.
+  nothing. A marked answer shows only Right, Almost or Wrong, and under
+  Almost or Wrong one line, "Correct:", the answer corrected: Claude's
+  correction where it made one, otherwise the key's answer (owner,
+  2026-10-25: "get rid of the description after the right/wrong tag",
+  "only need corrected, not the answer. change to correct:"). Claude's
+  sentence saying why is kept with the answer, not shown.
 - **Kept**: every answer, in `es_exercise_answers` (migration_022): the item,
   its prompt as shown, what was typed, the verdict, who marked it, Claude's
   note and correction. Written by the server; a student reads only their

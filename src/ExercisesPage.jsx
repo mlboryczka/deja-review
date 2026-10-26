@@ -536,26 +536,23 @@ function Marked({ item, answer, onRetry }) {
     );
   }
   const v = answer.verdict;
-  const byKey = answer.markedBy === "key";
-  const key = keyAnswer(item);
-  let message = null;
-  if (byKey && v === "almost") message = "Check the accents.";
-  else if (byKey && v === "wrong" && kind === "truth") message = `It’s ${item.truth ? "true" : "false"}.`;
-  else if (!byKey) message = answer.note || null;
-  const showKey = !(byKey && v === "right");
+  // The verdict alone, and under a miss one line, the answer corrected (owner,
+  // 2026-10-25: "get rid of the description after the right/wrong tag", "only
+  // need corrected, not the answer. change to correct:"). The two used to
+  // differ: "Corrected: alrededor del mundo", "The answer: por el mundo". It
+  // is Claude's correction of what was typed, or, where there is none (an
+  // accent the key caught, a true-or-false pressed the wrong way), the key's
+  // answer. Claude's sentence saying why is still kept with the answer.
+  const correct = v === "right" ? "" : answer.correct || keyAnswer(item);
   return (
     <>
       {kind !== "gaps" && <div style={S.prompt}><Rich text={item.prompt} /></div>}
       <div style={S.mine} data-ex-typed><TypedLine text={answer.typed} /></div>
       <div style={S.fb}>
         <span style={{ ...S.verdict, ...VERDICT_STYLE[v] }} data-ex-verdict={v}>{VERDICT_LABEL[v]}</span>
-        {message && <span data-ex-note>{message}</span>}
       </div>
-      {!byKey && v !== "right" && answer.correct && (
-        <div style={S.line} data-ex-correct><b>Corrected:</b> {answer.correct}</div>
-      )}
-      {showKey && key && (
-        <div style={S.line} data-ex-key><b>{kind === "open" ? "An example:" : v === "right" ? "The key’s answer:" : "The answer:"}</b> {key}</div>
+      {correct && (
+        <div style={S.line} data-ex-correct><b>Correct:</b> {correct}</div>
       )}
       {answer.unsaved && <div style={S.unsaved}>This answer was marked but not saved, so it won’t be here next time.</div>}
       <button type="button" style={S.retry} onClick={onRetry} data-ex-retry>Try again</button>
