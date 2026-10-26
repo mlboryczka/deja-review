@@ -9,7 +9,9 @@
 // key doesn't have (api/_lib/exercises.js), and the next item is ready to
 // type. Every answer is kept (es_exercise_answers, migration_022); an item
 // shows its latest one. "Try again" and "Start again" add answers, they never
-// remove any.
+// remove any. "Hint" on an item still to answer shows the key's answer a
+// letter at a time (hintText in exerciseMarking.js); it isn't kept and
+// doesn't change the marking.
 //
 // The shell (FlashcardApp) owns which page is showing, so the sidebar can
 // mark it and the page opens where you left it.
@@ -19,7 +21,7 @@ import { supabase } from "./supabase";
 import { T } from "./theme";
 import { EXERCISE_LESSONS, EXERCISES_BY_ID } from "./data/exercises/es/index.js";
 import { LESSON_TEXTS } from "./data/exercises/es/texts.js";
-import { itemKey, kindOf, isAnswered, markByKey, typedText, keyAnswer } from "./lib/exerciseMarking.js";
+import { itemKey, kindOf, isAnswered, markByKey, typedText, keyAnswer, keyReason, hintText, hintLevels } from "./lib/exerciseMarking.js";
 import { markAnswer, loadAnswers } from "./lib/exerciseApi.js";
 import { BYOK_REQUIRED, BAD_KEY } from "./lib/anthropicKey";
 
@@ -336,15 +338,32 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
   const setTyped = (v) => { drafts.set(draftKey, v); setTypedState(v); };
   const [problem, setProblem] = useState(null);
   const [retrying, setRetrying] = useState(false);
+  // How much of the hint shows: none, then one more letter of each word per
+  // press. It goes once the item is answered, so "Try again" starts without.
+  const [hint, setHint] = useState(0);
+  const levels = hintLevels(item);
   const firstInput = useRef(null);
+  const itemRef = useRef(null);
   const open = !answer || retrying;
   // "Try again" puts the cursor straight back in the item.
   useLayoutEffect(() => { if (retrying) firstInput.current?.focus(); }, [retrying]);
+
+  // The cursor stays where it was typing; pressed from outside the item, it
+  // goes to the item's first empty box.
+  const moreHint = () => {
+    setHint((h) => Math.min(h + 1, levels));
+    const li = itemRef.current;
+    if (li && !li.contains(document.activeElement)) {
+      const boxes = [...li.querySelectorAll("input, textarea")];
+      (boxes.find((el) => !el.value.trim()) || boxes[0])?.focus({ preventScroll: true });
+    }
+  };
 
   const check = async () => {
     if (!isAnswered(item, typed)) return;
     setProblem(null);
     setRetrying(false);
+    setHint(0);
     const ticket = ++ticketSeq;
     const now = new Date().toISOString();
     const line = typedText(item, typed);
@@ -392,7 +411,7 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
 
   const state = !open ? (answer.pending ? "checking" : "done") : "open";
   return (
-    <li style={S.item} data-ex-item={key} data-ex-state={state} data-ex-kind={kind}>
+    <li ref={itemRef} style={S.item} data-ex-item={key} data-ex-state={state} data-ex-kind={kind}>
       <span style={S.itemNum}>{number}</span>
       <div style={S.itemBody}>
         {open ? (
@@ -477,6 +496,11 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
                 </button>
               </div>
             )}
+            {hint > 0 && (
+              <div style={S.hintLine} data-ex-hint>
+                <b>Hint:</b> <span style={S.hintText}>{hintText(item, hint)}</span>
+              </div>
+            )}
             {/* Only once something is typed: a sheet of empty gaps each with
                 its own button was a wall of buttons. */}
             {kind === "gaps" && typed.some((v) => v.trim()) && (
@@ -508,6 +532,21 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
           <Marked item={item} answer={answer} onRetry={() => setRetrying(true)} />
         )}
       </div>
+      {/* Still there, unseen, once the whole answer shows, so the sentence
+          beside it doesn't move. */}
+      {open && (
+        <button
+          type="button"
+          style={{ ...S.hintBtn, ...(hint >= levels ? S.hintBtnGone : null) }}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={moreHint}
+          disabled={hint >= levels}
+          title="Shows the first letter of each word of the answer, then one more letter each time"
+          data-ex-hint-btn
+        >
+          {hint ? "Show more" : "Hint"}
+        </button>
+      )}
     </li>
   );
 }
@@ -526,6 +565,7 @@ function TypedLine({ text }) {
 
 function Marked({ item, answer, onRetry }) {
   const kind = kindOf(item);
+  const [why, setWhy] = useState(false);
   if (answer.pending) {
     return (
       <>
@@ -542,17 +582,27 @@ function Marked({ item, answer, onRetry }) {
   // differ: "Corrected: alrededor del mundo", "The answer: por el mundo". It
   // is Claude's correction of what was typed, or, where there is none (an
   // accent the key caught, a true-or-false pressed the wrong way), the key's
-  // answer. Claude's sentence saying why is still kept with the answer.
+  // answer. Claude's sentence saying why is still kept with the answer, and
+  // shows under a miss only when "Why?" is pressed (owner, 2026-10-26:
+  // "there should also be a "why was my answer wrong" option"); for a miss
+  // the key marked, the key says why (keyReason).
   const correct = v === "right" ? "" : answer.correct || keyAnswer(item);
+  const reason = v === "right" ? "" : answer.note || keyReason(item, answer.typed);
   return (
     <>
       {kind !== "gaps" && <div style={S.prompt}><Rich text={item.prompt} /></div>}
       <div style={S.mine} data-ex-typed><TypedLine text={answer.typed} /></div>
       <div style={S.fb}>
         <span style={{ ...S.verdict, ...VERDICT_STYLE[v] }} data-ex-verdict={v}>{VERDICT_LABEL[v]}</span>
+        {reason && !why && (
+          <button type="button" style={S.link} onClick={() => setWhy(true)} data-ex-why>Why?</button>
+        )}
       </div>
       {correct && (
         <div style={S.line} data-ex-correct><b>Correct:</b> {correct}</div>
+      )}
+      {why && reason && (
+        <div style={S.line} data-ex-reason><b>Why:</b> {reason}</div>
       )}
       {answer.unsaved && <div style={S.unsaved}>This answer was marked but not saved, so it won’t be here next time.</div>}
       <button type="button" style={S.retry} onClick={onRetry} data-ex-retry>Try again</button>
@@ -573,6 +623,9 @@ const VERDICT_STYLE = {
   almost: { background: PART_BG, color: PART_INK },
   wrong: { background: T.color.errorContainer, color: T.color.onErrorContainer },
 };
+
+// A small underlined button that reads as a link: "Try again", "Hint", "Why?".
+const LINK = { padding: 0, border: "none", background: "transparent", fontFamily: T.font.sans, fontSize: 11.5, fontWeight: 600, color: T.color.onSurfaceVariant, cursor: "pointer", textDecoration: "underline", textDecorationColor: "rgba(3,22,50,0.25)", textUnderlineOffset: 2 };
 
 const S = {
   scroll: { flex: 1, minHeight: 0, overflowY: "auto", boxSizing: "border-box" },
@@ -627,6 +680,11 @@ const S = {
   truthBtn: { padding: "6px 14px", borderWidth: 1, borderStyle: "solid", borderRadius: T.radius.full, fontFamily: T.font.sans, fontSize: 12, fontWeight: 700, cursor: "pointer" },
   truthBtnOn: { background: T.color.primary, borderColor: T.color.primary, color: T.color.onPrimary },
   truthBtnOff: { background: T.color.surfaceLowest, borderColor: "rgba(3,22,50,0.15)", color: T.color.primary },
+  hintBtn: { ...LINK, flexShrink: 0, alignSelf: "flex-start", marginTop: 7, whiteSpace: "nowrap" },
+  hintBtnGone: { visibility: "hidden" },
+  hintLine: { marginTop: 8, fontSize: 13.5, lineHeight: 1.6, color: T.color.primary },
+  // Monospaced and spaced out, so every hidden letter is its own _ to count.
+  hintText: { fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace", fontSize: 13.5, letterSpacing: "0.12em", whiteSpace: "pre-wrap" },
   inlineError: { marginTop: 8, fontSize: 12.5, color: T.color.error, lineHeight: 1.5 },
   errorAction: { marginLeft: 8, padding: "4px 10px", borderWidth: 1, borderStyle: "solid", borderColor: "rgba(3,22,50,0.2)", borderRadius: T.radius.md, background: T.color.surfaceLowest, color: T.color.primary, fontFamily: T.font.sans, fontSize: 11.5, fontWeight: 700, cursor: "pointer" },
 
@@ -637,6 +695,7 @@ const S = {
   verdict: { display: "inline-block", padding: "2px 10px", marginRight: 8, borderRadius: T.radius.full, fontSize: 11.5, fontWeight: 800 },
   line: { marginTop: 6, fontSize: 13.5, lineHeight: 1.55, color: T.color.primary },
   unsaved: { marginTop: 6, fontSize: 12, color: T.color.onSurfaceVariant },
-  retry: { marginTop: 6, padding: 0, border: "none", background: "transparent", fontFamily: T.font.sans, fontSize: 11.5, fontWeight: 600, color: T.color.onSurfaceVariant, cursor: "pointer", textDecoration: "underline", textDecorationColor: "rgba(3,22,50,0.25)", textUnderlineOffset: 2 },
+  link: LINK,
+  retry: { ...LINK, marginTop: 6 },
   again: { marginTop: 12, padding: "7px 14px", borderWidth: 1, borderStyle: "solid", borderColor: "rgba(3,22,50,0.15)", borderRadius: T.radius.md, background: "transparent", color: T.color.primary, fontFamily: T.font.sans, fontWeight: 700, fontSize: 12, cursor: "pointer" },
 };

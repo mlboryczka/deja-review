@@ -1527,7 +1527,10 @@ Twenty need no browser:
   `api/_lib/exercises.js`, `src/data/exercises/es/`). Every sheet loads, every
   item is answerable and its key marks its own answers right; the key's
   rules (punctuation aside, accents counted, "sólo" allowed, true-or-false
-  pressed the wrong way); and the server: the key decides without Claude,
+  pressed the wrong way); the hint (first letters, one more a press, and on
+  every item the whole first answer at the end); the key's "Why?" (every
+  accent-only miss named word by word, a true-or-false pressed the wrong
+  way); and the server: the key decides without Claude,
   Claude gets the sheet's instruction and the typed answer, every answer is
   kept for its student, no key means nothing asked or kept, an unreadable
   reply keeps nothing, and before migration_022 the page is told. No browser.
@@ -2470,7 +2473,22 @@ page you were on (kept in this browser, `es-exercises-place:<user id>`).
   correction where it made one, otherwise the key's answer (owner,
   2026-10-25: "get rid of the description after the right/wrong tag",
   "only need corrected, not the answer. change to correct:"). Claude's
-  sentence saying why is kept with the answer, not shown.
+  sentence saying why is kept with the answer and shows, as a "Why:" line
+  under "Correct:", only when "Why?" beside the verdict is pressed (owner,
+  2026-10-26: "there should also be a "why was my answer wrong" option").
+  For a miss the key marked, the key says why (`keyReason`): the words whose
+  accents are off, as the key writes them ("Right but for the accents:
+  "está", not "esta"."), or "The statement is false, so the answer is
+  Falso." Nothing new is kept.
+- **Hint** (owner, 2026-10-26: "exercises should have a hint option"): an
+  item still to answer has "Hint" at its right. It shows, under the boxes,
+  the key's first answer with the first letter of each word and a _ for
+  every other letter ("p_______" for prefiero; two blanks are numbered,
+  "1. m_   2. n___"; punctuation, ¿ and ¡ show). Then "Show more" adds one
+  letter to every word, until the whole answer shows and the link goes. The
+  cursor stays in the box. A hint isn't kept and doesn't change the
+  marking; it goes once the item is answered, so "Try again" starts
+  without one (`hintText`, `hintLevels`).
 - **Kept**: every answer, in `es_exercise_answers` (migration_022): the item,
   its prompt as shown, what was typed, the verdict, who marked it, Claude's
   note and correction. Written by the server; a student reads only their

@@ -16,6 +16,13 @@
 //     for the student who gave it, and says so when the table isn't there
 //     yet; with no key, nothing is asked and nothing kept;
 //   - a reply from Claude that can't be read keeps nothing;
+//   - a hint (owner, 2026-10-26: "exercises should have a hint option")
+//     shows the first letter of each word of the key's first answer, the
+//     rest as _, then one more letter a press, until the whole answer shows;
+//   - "Why?" under a miss (owner, 2026-10-26: "there should also be a "why
+//     was my answer wrong" option") has a reason for every miss the key
+//     marks: the accents it caught, as the key writes them, or a
+//     true-or-false pressed the wrong way;
 //   - the exercises the owner had taken out (2026-10-25) stay out: no
 //     sentence of your own, nothing about yourself, no question to write, no
 //     answer about the text and no yes or no in a full sentence, and every
@@ -26,7 +33,7 @@
 import { checker } from "../check.mjs";
 import { EXERCISE_LESSONS, EXERCISES_BY_ID, LEFT_OUT, numbered } from "../../src/data/exercises/es/index.js";
 import { LESSON_TEXTS } from "../../src/data/exercises/es/texts.js";
-import { plain, bare, kindOf, markByKey, typedText, keyAnswer, itemKey, findItem, isAnswered } from "../../src/lib/exerciseMarking.js";
+import { plain, bare, kindOf, markByKey, typedText, keyAnswer, itemKey, findItem, isAnswered, hintText, hintLevels, keyReason } from "../../src/lib/exerciseMarking.js";
 import { handleExerciseRequest, markPrompt, readMark } from "../../api/_lib/exercises.js";
 
 const ck = checker();
@@ -120,6 +127,49 @@ ck("free writing goes to Claude", markByKey(open, "Yo sé cocinar.") === null);
 ck("an empty answer isn't marked", !isAnswered(gap, [""]) && !isAnswered(acc, "  ") && !isAnswered(tf, { truth: null, text: "x" }));
 ck("the typed line fills the blanks in brackets", typedText(two, ["quiso", "pudo"]) === "Ana [quiso] abrir la puerta, pero no [pudo].");
 ck("the key's answer fills the blanks with the first answer", keyAnswer(two) === "Ana quiso abrir la puerta, pero no pudo.");
+
+// ── Hints ────────────────────────────────────────────────────────────────
+console.log("Hints");
+const blank = { prompt: "Yo ___ caminar. (preferir)", gaps: [["prefiero"]] };
+ck("a blank's hint is its first letter, then one more each press, until the word",
+   hintText(blank, 1) === "p_______" && hintText(blank, 2) === "pr______" && hintLevels(blank) === 8 && hintText(blank, 8) === "prefiero");
+const pair = { prompt: "Yo ___ despierto a las seis y después ___ despierto a mis hijos.", gaps: [["me"], ["nada", "—", "-"]] };
+ck("two blanks are hinted one by one, numbered, \"nada\" included", hintText(pair, 1) === "1. m_   2. n___" && hintText(pair, 4) === "1. me   2. nada");
+const sentence = { prompt: "I prefer to eat sweet things in the morning.", answer: "Prefiero comer cosas dulces en la mañana.", also: ["En la mañana prefiero comer cosas dulces."] };
+ck("a sentence shows each word's first letter and length, its punctuation, and only the first answer",
+   hintText(sentence, 1) === "P_______ c____ c____ d_____ e_ l_ m_____." && hintText(sentence, 3) === "Pre_____ com__ cos__ dul___ en la mañ___.");
+ck("¿ ¡ and an apostrophe always show", hintText({ prompt: "x", answer: "¿Qué tomas? ¡Agua!" }, 1) === "¿Q__ t____? ¡A___!" && hintText({ prompt: "x", answer: "It's 2:39 p.m." }, 1) === "I_'_ 2:3_ p.m.");
+ck("a true-or-false hint starts with Verdadero or Falso", hintText(tf, 1) === "F____. L____ v___ e_ E______ U_____.");
+{
+  const off = [];
+  for (const lesson of EXERCISE_LESSONS) for (const ex of lesson.exercises) ex.items.forEach((item, i) => {
+    const full = hintText(item, hintLevels(item));
+    const want = kindOf(item) === "gaps" ? item.gaps.map((g, j) => (item.gaps.length > 1 ? `${j + 1}. ${g[0]}` : g[0])).join("   ") : item.answer;
+    if (full !== want || hintText(item, 1) === "") off.push(itemKey(lesson.id, ex.n, i));
+  });
+  ck("on every item, pressed enough times, the hint is the key's whole first answer", off.length === 0, off.slice(0, 8).join("; "));
+}
+
+// ── Why a miss is a miss ─────────────────────────────────────────────────
+console.log("Why?");
+const estar = { prompt: "Ella ___ muy bien. (estar)", gaps: [["está"]] };
+ck("a blank right but for its accent says which word", keyReason(estar, typedText(estar, ["esta"])) === "Right but for the accents: \"está\", not \"esta\".");
+ck("a sentence names every word, as the key writes it",
+   keyReason(tf, typedText(tf, { truth: false, text: "Lucia vive en Estados Unidos." })) === "Right but for the accents: \"Lucía\", not \"Lucia\"." &&
+   keyReason(acc, "Donde estas") === "Right but for the accents: \"Dónde\", not \"Donde\"; \"estás\", not \"estas\".");
+ck("a true-or-false pressed the wrong way says which it is", keyReason(tf, typedText(tf, { truth: true, text: "Sí." })) === "The statement is false, so the answer is Falso.");
+ck("an answer the key doesn't have gets no reason from the key: Claude's note is the reason", keyReason(gap, typedText(gap, ["eres"])) === "" && keyReason(acc, "¿Dónde vives?") === "");
+{
+  const strip = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").normalize("NFC");
+  const silent = [];
+  for (const lesson of EXERCISE_LESSONS) for (const ex of lesson.exercises) ex.items.forEach((item, i) => {
+    const kind = kindOf(item);
+    if (kind === "open") return;
+    const typed = kind === "gaps" ? item.gaps.map((g) => strip(g[0])) : kind === "truth" ? { truth: item.truth, text: strip(item.answer) } : strip(item.answer);
+    if (markByKey(item, typed)?.verdict === "almost" && !keyReason(item, typedText(item, typed))) silent.push(itemKey(lesson.id, ex.n, i));
+  });
+  ck("every item's key answer typed without its accents gets a reason", silent.length === 0, silent.slice(0, 8).join("; "));
+}
 
 // ── The server ───────────────────────────────────────────────────────────
 console.log("The server");

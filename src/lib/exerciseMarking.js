@@ -139,6 +139,75 @@ export function keyAnswer(item) {
   return String(item?.answer ?? "");
 }
 
+// Why the key marked an answer a miss, for "Why?" under it (owner,
+// 2026-10-26: "there should also be a "why was my answer wrong" option").
+// A miss Claude marked carries Claude's own sentence (its note); the key's
+// misses are only two: an answer right but for its accents, and a
+// true-or-false pressed the wrong way. `line` is the answer as kept
+// (typedText). "" when the key has nothing to say about it.
+export function keyReason(item, line) {
+  const kind = kindOf(item);
+  const text = String(line ?? "");
+  if (kind === "truth") {
+    const chose = /^\s*verdadero\b/i.test(text) ? true : /^\s*falso\b/i.test(text) ? false : null;
+    if (chose !== null && chose !== item.truth) {
+      return item.truth ? "The statement is true, so the answer is Verdadero." : "The statement is false, so the answer is Falso.";
+    }
+  }
+  // Word by word against the key's answer it matches but for accents: the
+  // two have the same words, so the ones that differ are the accents. They
+  // are quoted as written ("Lucía", not "lucía").
+  const pairs = [];
+  const written = (s) => String(s ?? "").normalize("NFC").replace(/[¿¡?!.,;:"“”«»()\[\]…–—\-/]+/g, " ").trim().split(/\s+/);
+  const accents = (typed, answers) => {
+    const match = answers.find((a) => bare(a) === bare(typed) && plain(a) !== plain(typed));
+    if (!match) return;
+    const want = plain(match).split(" ");
+    const [wantAs, typedAs] = [written(match), written(typed)];
+    plain(typed).split(" ").forEach((w, i) => { if (w !== want[i]) pairs.push(`"${wantAs[i] ?? want[i]}", not "${typedAs[i] ?? w}"`); });
+  };
+  if (kind === "gaps") {
+    // The blanks as typed, out of "Yo [esta] aquí." ([[…]] is the sheet's
+    // underlining).
+    const typed = [...text.matchAll(/\[\[[^\]]*\]\]|\[([^\]]*)\]/g)].filter((m) => m[1] !== undefined).map((m) => m[1]);
+    item.gaps.forEach((list, i) => accents(typed[i] ?? "", list));
+  } else if (kind === "truth") {
+    accents(truthSentence(text), answersOf(item).map(truthSentence));
+  } else {
+    accents(text, answersOf(item));
+  }
+  return pairs.length ? `Right but for the accents: ${pairs.join("; ")}.` : "";
+}
+
+// A hint for an item still to answer (owner, 2026-10-26: "exercises should
+// have a hint option"). It is the key's first answer with only the first
+// `level` letters of each word showing and the rest as _, so the words and
+// their lengths show; punctuation, ¿ and ¡ stay. Each level shows one more
+// letter of every word, and at hintLevels(item) the whole answer shows:
+//   level 1   "Prefiero comer cosas dulces." → "P_______ c____ c____ d_____."
+// A gap item hints each blank, numbered when it has more than one ("1. m_
+// 2. n___"); a true-or-false item hints the key's sentence, Verdadero or
+// Falso included. Nothing about it is kept or changes the marking.
+const hintSources = (item) =>
+  (kindOf(item) === "gaps" ? item.gaps.map((list) => list?.[0]) : [item?.answer]).map((s) => String(s ?? "").normalize("NFC"));
+
+// A word keeps its apostrophe, which always shows: "It's" is "I_'_".
+const WORD = /[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu;
+const LETTER = /[\p{L}\p{N}]/u;
+const lettersOf = (w) => [...w].filter((c) => LETTER.test(c)).length;
+
+export function hintLevels(item) {
+  return Math.max(1, ...hintSources(item).flatMap((s) => s.match(WORD) || []).map(lettersOf));
+}
+
+export function hintText(item, level) {
+  const show = Math.max(1, Math.floor(level) || 1);
+  const masked = hintSources(item).map((s) =>
+    s.replace(WORD, (w) => { let seen = 0; return [...w].map((c) => (!LETTER.test(c) || ++seen <= show ? c : "_")).join(""); })
+  );
+  return masked.length > 1 ? masked.map((m, i) => `${i + 1}. ${m}`).join("   ") : masked[0];
+}
+
 // Where an item's answers are kept: lesson, exercise number, item number.
 export const itemKey = (lessonId, exerciseN, index) => `${lessonId}/${exerciseN}/${index + 1}`;
 
