@@ -16,14 +16,16 @@ import { sideOf, directionsOf } from "./directions.js";
 // Function words carry no signal and match everything. English and French
 // together, since a question mixes both ("what does chouette mean"). Checked
 // against the accent-folded form too, so "où" is as dead as "ou".
-const STOP = new Set([
-  // English
+const ENGLISH_STOP = [
   "a", "an", "the", "is", "are", "was", "were", "be", "do", "does", "did",
   "how", "what", "when", "where", "which", "who", "why", "can", "could",
   "would", "should", "i", "you", "it", "to", "of", "in", "on", "for", "and",
   "or", "but", "with", "say", "says", "said", "mean", "means", "meaning",
   "use", "uses", "using", "used", "difference", "between", "my", "me",
   "there", "this", "that", "these", "those", "some", "any", "not", "no",
+];
+const STOP = new Set([
+  ...ENGLISH_STOP,
   // French
   "le", "la", "les", "un", "une", "des", "du", "de", "et", "ou", "est",
   "sont", "que", "qui", "quoi", "pour", "avec", "dans", "sur", "je", "tu",
@@ -32,6 +34,21 @@ const STOP = new Set([
   // What an apostrophe leaves behind once elision is split off: qu'il, jusqu'à.
   "qu", "jusqu", "lorsqu", "puisqu",
 ]);
+// The Spanish module's tutor (2026-10-26): English and Spanish, since a
+// question there mixes those ("what does ya mean"). Unaccented, as the check
+// folds accents: "qué", "él" and "está" go with "que", "el" and "esta". Ser,
+// estar and hay stay in: they are what a question is often about.
+const SPANISH_STOP = new Set([
+  ...ENGLISH_STOP, "spanish",
+  "el", "la", "los", "las", "lo", "un", "una", "unos", "unas", "de", "del",
+  "al", "es", "son", "que", "quien", "como", "cual", "donde", "cuando", "en",
+  "por", "para", "con", "sin", "se", "le", "les", "me", "te", "nos", "mi",
+  "mis", "tu", "tus", "su", "sus", "yo", "ella", "ellos", "ellas", "usted",
+  "ustedes", "nosotros", "nosotras", "este", "esta", "esto", "estos", "estas",
+  "ese", "esa", "eso", "esos", "esas", "si", "muy", "mas", "pero", "porque",
+  "espanol",
+]);
+const stopFor = (course) => (course === "es" ? SPANISH_STOP : STOP);
 
 // Accents and ligatures off. Learners on an English keyboard type "ecole" and
 // "soeur", and a match that needs the accent finds nothing for them.
@@ -49,12 +66,12 @@ export function fold(word) {
 // is the word "école" (the "l" is then too short to count). Both the question
 // and the card go through this, so "aujourd'hui" splitting in two still matches
 // itself.
-function words(text) {
+function words(text, stop = STOP) {
   return String(text || "")
     .toLowerCase()
     .normalize("NFC")
     .split(/[^a-zà-öø-ÿœæ]+/)
-    .filter((w) => w.length >= 2 && !STOP.has(w) && !STOP.has(fold(w)));
+    .filter((w) => w.length >= 2 && !stop.has(w) && !stop.has(fold(w)));
 }
 
 /**
@@ -71,10 +88,12 @@ function words(text) {
  * @param {string} question   what the learner typed
  * @param {Array}  cards      shaped deck rows from useUserDeck ({ f, b, ... })
  * @param {number} limit      how many to return
+ * @param {string} course     "fr", or "es" for the Spanish module's deck
  * @returns {Array<{front: string, back: string}>}
  */
-export function findRelatedCards(question, cards, limit = 8) {
-  const askedWords = words(question);
+export function findRelatedCards(question, cards, limit = 8, course = "fr") {
+  const stop = stopFor(course);
+  const askedWords = words(question, stop);
   if (!askedWords.length || !Array.isArray(cards)) return [];
   const asked = new Set(askedWords);
   const askedFolded = new Set(askedWords.map(fold));
@@ -83,11 +102,11 @@ export function findRelatedCards(question, cards, limit = 8) {
   for (const c of cards) {
     if (!c?.f) continue;
     let score = 0;
-    for (const w of words(c.f)) {
+    for (const w of words(c.f, stop)) {
       if (asked.has(w)) score += 3;
       else if (askedFolded.has(fold(w))) score += 2;
     }
-    for (const w of words(c.b)) if (asked.has(w) || askedFolded.has(fold(w))) score += 1;
+    for (const w of words(c.b, stop)) if (asked.has(w) || askedFolded.has(fold(w))) score += 1;
     if (score > 0) scored.push({ card: c, score });
   }
 
@@ -141,10 +160,11 @@ const MISS_WINDOW_DAYS = 30;
  * missing la colline". A miss from last spring is not what they keep getting
  * wrong either.
  */
-export function relevantMisses({ question, currentCard, cards, now = Date.now(), limit = 6 }) {
+export function relevantMisses({ question, currentCard, cards, now = Date.now(), limit = 6, course = "fr" }) {
   if (!Array.isArray(cards)) return [];
+  const stop = stopFor(course);
   const topic = new Set(
-    words(`${question || ""} ${currentCard?.f || ""} ${currentCard?.b || ""}`).map(fold)
+    words(`${question || ""} ${currentCard?.f || ""} ${currentCard?.b || ""}`, stop).map(fold)
   );
   if (!topic.size) return [];
   const since = now - MISS_WINDOW_DAYS * 24 * 60 * 60 * 1000;
@@ -153,7 +173,7 @@ export function relevantMisses({ question, currentCard, cards, now = Date.now(),
       c?.f &&
       c.row_id !== currentCard?.row_id &&
       (lastMissedAt(c) ?? 0) >= since &&
-      words(`${c.f} ${c.b}`).some((w) => topic.has(fold(w)))
+      words(`${c.f} ${c.b}`, stop).some((w) => topic.has(fold(w)))
     )
     .sort((a, b) => lastMissedAt(b) - lastMissedAt(a))
     .slice(0, limit)
@@ -295,6 +315,106 @@ export function podcastContext(podcast) {
   return out.title || out.show || out.passage || out.transcript ? out : null;
 }
 
+// ── An exercise instead of a card (Spanish, 2026-10-26) ───────────────────
+// On the Spanish module's Exercises there is no card on screen either. What
+// the tutor is told instead is the exercise being worked on, from the lesson's
+// exercise sheet: its instruction and every item, numbered as on the page,
+// with the key's answer and whether it has been answered. The exercises page
+// hands it up as
+//   { key, lesson, number, title, instruction, english, example,
+//     items: [{ number, prompt, answer, answered, typed, verdict, correct }],
+//     focus, last, text }
+// (focus: the item with the cursor; last: the one answered last; text: the
+// lesson's text, when the exercise is about it) and FlashcardApp passes it to
+// the tutor as `exercise`. As with a card, an item's answer is not given away
+// before it has been answered (api/chat.js, "An exercise"). The server clips
+// to the same limits, which leave room: the longest exercise has 41 items,
+// the longest lesson text 1,536 characters (measured 2026-10-26).
+const EXERCISE_TEXT_MAX = 800;
+const EXERCISE_ITEMS_MAX = 60;
+const EXERCISE_LESSON_TEXT_MAX = 4000;
+const EXERCISE_VERDICTS = new Set(["right", "almost", "wrong"]);
+
+const exerciseItems = (exercise) => (Array.isArray(exercise?.items) ? exercise.items : []);
+
+/** The item with the cursor, or null. */
+export function exerciseFocus(exercise) {
+  const n = questionNumber({ number: exercise?.focus });
+  return (n && exerciseItems(exercise).find((it) => questionNumber(it) === n)) || null;
+}
+
+/** The exercise as the panel's header names it: its item with the cursor, or its title. */
+export function exerciseLabel(exercise) {
+  const n = questionNumber(exercise);
+  const name = n ? `Ejercicio ${n}` : "Ejercicio";
+  const item = exerciseFocus(exercise);
+  if (item) return `${name}, ${questionNumber(item)}: ${textOf(item.prompt)}`;
+  return textOf(exercise?.title) ? `${name} · ${textOf(exercise.title)}` : name;
+}
+
+/**
+ * What a question asked on Exercises was about, kept on the turn as its
+ * `about` (the server clips it to 200 characters): the exercise and the start
+ * of the item with the cursor.
+ */
+export function exerciseAbout(exercise) {
+  const n = questionNumber(exercise);
+  const title = textOf(exercise?.title);
+  const name = `${n ? `Ejercicio ${n}` : "An exercise"}${title ? ` (${title})` : ""}`;
+  const item = exerciseFocus(exercise);
+  if (!item) return name;
+  const p = textOf(item.prompt);
+  const head = p.length > 110 ? `${p.slice(0, 109).trimEnd()}…` : p;
+  return `${name}, number ${questionNumber(item)}: « ${head} »`;
+}
+
+/**
+ * The exercise as sent in the request's `context.exercise`, or null when
+ * there is nothing to send. What the student typed goes only once an item
+ * has been answered, as on Podcasts: a draft still in the box is theirs.
+ */
+export function exerciseContext(exercise) {
+  if (!exercise || typeof exercise !== "object") return null;
+  const clip = (v) => textOf(v).slice(0, EXERCISE_TEXT_MAX);
+  const items = [];
+  for (const it of exerciseItems(exercise).slice(0, EXERCISE_ITEMS_MAX)) {
+    const number = questionNumber(it);
+    const prompt = clip(it?.prompt);
+    if (!number || !prompt) continue;
+    const answered = !!it.answered;
+    const typed = answered ? clip(it.typed) : "";
+    const verdict = answered && EXERCISE_VERDICTS.has(it.verdict) ? it.verdict : null;
+    const correct = verdict && verdict !== "right" ? clip(it.correct) : "";
+    items.push({
+      number,
+      prompt,
+      answer: clip(it.answer),
+      answered,
+      ...(typed ? { typed } : null),
+      ...(verdict ? { verdict } : null),
+      ...(correct ? { correct } : null),
+    });
+  }
+  if (!items.length) return null;
+  const has = (n) => n > 0 && items.some((it) => it.number === n);
+  const focus = questionNumber({ number: exercise.focus });
+  const last = questionNumber({ number: exercise.last });
+  const example = clip(exercise.example);
+  const text = textOf(exercise.text).slice(0, EXERCISE_LESSON_TEXT_MAX);
+  return {
+    lesson: textOf(exercise.lesson).slice(0, 200),
+    number: questionNumber(exercise),
+    title: textOf(exercise.title).slice(0, 200),
+    instruction: clip(exercise.instruction),
+    english: clip(exercise.english),
+    ...(example ? { example } : null),
+    items,
+    ...(has(focus) ? { focus } : null),
+    ...(has(last) ? { last } : null),
+    ...(text ? { text } : null),
+  };
+}
+
 /**
  * Assemble everything the tutor endpoint is given about the learner's deck.
  * Returns undefined when there is nothing worth sending, so the request body
@@ -309,8 +429,11 @@ export function podcastContext(podcast) {
  *   view's live state: `answered`, and after a typed answer `typed` and `result`
  * @param {object} [opts.podcast]         on Podcasts, the episode on screen and
  *   the passage being answered (see podcastContext). Sent as `podcast`.
+ * @param {object} [opts.exercise]        on the Spanish Exercises, the exercise
+ *   being worked on (see exerciseContext). Sent as `exercise`.
+ * @param {string} [opts.course]          "es" in the Spanish module
  */
-export function buildTutorContext({ question, previousQuestion, cards, currentCard, podcast }) {
+export function buildTutorContext({ question, previousQuestion, cards, currentCard, podcast, exercise, course = "fr" }) {
   const ctx = {};
 
   if (currentCard?.f) {
@@ -341,9 +464,12 @@ export function buildTutorContext({ question, previousQuestion, cards, currentCa
   // if both came, wins, as the thing the study view is asking right now.
   const pod = currentCard?.f ? null : podcastContext(podcast);
   if (pod) ctx.podcast = pod;
+  // Nor on Exercises, which is Spanish and so never shows an episode either.
+  const ex = currentCard?.f || pod ? null : exerciseContext(exercise);
+  if (ex) ctx.exercise = ex;
 
-  let related = findRelatedCards(question, cards);
-  if (!related.length && previousQuestion) related = findRelatedCards(previousQuestion, cards);
+  let related = findRelatedCards(question, cards, 8, course);
+  if (!related.length && previousQuestion) related = findRelatedCards(previousQuestion, cards, 8, course);
   // "What's the French for a hill?" matches the card being asked, and the
   // related list would hand over its answer beside the instruction not to.
   if (currentCard?.f && !currentCard.answered) {
@@ -351,7 +477,7 @@ export function buildTutorContext({ question, previousQuestion, cards, currentCa
   }
   if (related.length) ctx.relatedCards = related;
 
-  const misses = relevantMisses({ question, currentCard, cards });
+  const misses = relevantMisses({ question, currentCard, cards, course });
   if (misses.length) ctx.recentMisses = misses;
 
   return Object.keys(ctx).length ? ctx : undefined;

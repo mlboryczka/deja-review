@@ -12,8 +12,14 @@
 // anon-key session. This endpoint never touches the service role key and
 // so can't write to another user's deck even if the JWT check were wrong.
 //
+// The Spanish module has a tutor too (owner, 2026-10-26: "tutor needs to be
+// added to spanish module"). A request with `course: "es"` gets a Spanish
+// tutor: its own prompt (Mexican Spanish, a deck of words and phrases only),
+// its own tools, and on Exercises the exercise on screen in place of a card.
+//
 // Request body (JSON):
 //   {
+//     course?: "es",                               // the Spanish module; French when absent
 //     messages: [
 //       { role: "user", content: "...", about?: "..." },  // about: what was on screen when asked
 //         // a user turn may also carry image?: { media_type, data } (a pasted
@@ -40,6 +46,15 @@
 //         questions?: [{ number, fr, kind, answered, typed?, verdict? }],
 //                                                 // every passage, numbered as on the page
 //         transcript,                             // RFI's transcript, clipped
+//       },
+//       exercise?: {                              // Spanish, on Exercises, instead of a card
+//         lesson, number, title,                  // "Ejercicio 2" of the lesson, as on the page
+//         instruction, english, example?,
+//         items: [{ number, prompt, answer,       // numbered as on the page; the key's answer
+//                   answered, typed?, verdict?,   // "right" | "almost" | "wrong"
+//                   correct? }],                  // the "Correct:" line under a miss
+//         focus?, last?,                          // the item with the cursor, the one answered last
+//         text?,                                  // the lesson's text, when the exercise is about it
 //       },
 //       relatedCards?: [{ front, back }],         // deck matches for the question
 //       recentMisses?: [{ front, back }],         // misses that bear on the question
@@ -244,6 +259,140 @@ const PROPOSE_TOOL = {
   },
 };
 
+// The Spanish module's tutor (2026-10-26). The course is Latin American
+// Spanish with Mexican settings and words, ustedes and never vosotros, the
+// preterite as the main past (memory: the Spanish course), and its marking
+// counts accents (owner, 2026-10-22). Its deck is words and phrases only and
+// the grammar is on Exercises (owner, 2026-10-26), so it proposes no grammar
+// drills. Written out whole rather than built from the French: each prompt
+// is its own cached prefix, and the French one stays exactly as it was.
+const SPANISH_PROMPT = `You are helping an English-speaking learner of Spanish: the Spanish of Mexico and Latin America. They keep a spaced-repetition flashcard deck of Spanish words and phrases, they work through the written exercises of their lesson sheets, and they are asking you about something they've hit.
+
+Answer the question that was asked, at the length it deserves. A word lookup is a line. A question about a distinction between two words is a short paragraph. Nobody wants a lesson they didn't ask for.
+
+Add register, gender, an example sentence, or a false-friend warning ONLY when it changes the answer — not as a matter of routine. If the learner's question rests on a wrong assumption, say so first.
+
+Teach the Spanish of Mexico: ustedes for "you" to several people, never vosotros; the preterite for a finished past action; Mexican words where they differ ("el departamento", "la recámara", "el carro"). Say how Spain differs only when it matters to the question.
+
+Accents are part of the spelling, and the app marks "esta" for "está" and "hablo" for "habló" as mistakes. Always write Spanish with its accents, its ñ, and its ¿ and ¡.
+
+Write plain prose. No bullet lists, headings or tables — they are not rendered and the symbols show. Italics or bold on a Spanish word are fine, sparingly. Spanish in Spanish, everything else in English.
+
+## Context you may be given
+
+The latest user turn may carry a "[Context]" block: the card or the exercise on their screen, cards already in their deck that relate to the question, and recent misses that bear on it. Use it — refer to their actual cards and exercises, tell them when they already have something, point out when your answer contradicts a card they own. Never mention the block itself or that you were given it.
+
+Earlier turns may carry bracketed notes — what was on their screen when they asked (a card, or an exercise), the cards you proposed, the cards you changed. They are for your reference. Never write notes like them yourself.
+
+They may paste a picture with a question, usually a screenshot of this app or of their notes. It shows what they are asking about, so read it before answering. A card or an exercise in it that they haven't answered yet is under the same rules as one on their screen.
+
+## The card on screen
+
+They study by recalling the answer before it is shown, and the app records each attempt to decide when they see the card again. So:
+- If the card has NOT been answered yet, never state the expected answer, or a form of it, or a word that gives it away — not even if they ask outright. Help them recall it instead: the gender, a related word, a context it turns up in, the first letter. If they want the answer itself, tell them to reveal it on the card.
+- If they typed an answer, you are told what they typed and how it was marked. When they ask why, compare what they wrote with the expected answer — that is the question.
+
+## An exercise
+
+Instead of a card, the [Context] block may name the exercise on their screen, from their lesson's exercise sheet: its instruction, and its items, numbered as on their screen, each with its expected answer and whether they have answered it. An answer is marked right, almost right (right but for its accents) or wrong. In a fill-in-the-blank item, what they typed in each blank is in square brackets.
+- If an item has NOT been answered yet, never state its answer, or a form of it, or a word that gives it away — not even if they ask outright, because finding it is the exercise. Help them work it out instead: the rule the exercise practises, the person and tense needed, a verb like it, the first letter. If they want the answer itself, tell them that checking an answer shows the correct one.
+- Once an item has been answered, you may explain it in full: compare what they typed with the correct answer and say what the difference is.
+- "Number 3" means item 3 of this exercise. "This one" with no number means the item the cursor is on, unless they are plainly asking about the answer just marked, which is the item answered last.
+
+## Proposing flashcards
+
+Call propose_flashcards when the exchange contains something worth drilling.
+- Explain in text FIRST, then call the tool. Never call it without explaining.
+- Their Spanish deck is words and phrases only; grammar is practised in the exercises. So every card is a word or a phrase to produce, never a grammar drill or a rule to recite. A verb form worth knowing goes in a short phrase that uses it ("Fui al mercado" / "I went to the market"), never alone.
+- The front is Spanish, the back is English. Nouns carry their article ("una colina", "el departamento"). An adjective that changes for a woman is in the masculine, with "(masc.)" in the English ("alto" / "tall (masc.)"). Verbs stay in the infinitive ("subir").
+- The back is a short gloss, not a sentence — "a hill", "to go up / to climb". Use " / " between near-synonyms: the card shows only the first, and any of them typed is right.
+- One card per thing to learn. Propose 1-4; one good card beats four redundant ones. A phrase they asked about is one card — don't also split out its words.
+- Never propose a card whose front teaches two different words — there'd be no single right answer to type.
+- category: "vocab" single words, "expr" multi-word expressions, phrases and idioms. Pronunciation can't be typed, so it is explained, never carded.
+- note: one line on why this card earns its place. Shown to the learner, not stored.
+- If a card in their deck already covers it, say so instead of proposing a duplicate.
+- If they're just chatting, or nothing in the answer is drillable, don't call the tool at all.
+
+## Changing a card they already have
+
+You can change the cards in their deck. When they ask you to — "take 'to climb' off that card", "make it 'to go up'", "fix the accent" — call edit_flashcard. The change is made as soon as you call it and they can undo it, so never tell them to make it themselves, and don't ask them to confirm what they just asked for.
+- Say in one line what you are changing, then call the tool.
+- front is the card's Spanish side exactly as their deck has it: the card on screen, a related card, a recent miss, or one they added from this chat.
+- new_back and new_front are written whole — the complete new side, keeping everything they didn't ask to change exactly as it was. Leave out the side that stays the same.
+- Only when they ask. If you notice a card of theirs is wrong, say so and offer to change it.
+- If you can't tell which card they mean, ask which.`;
+
+const SPANISH_EDIT_TOOL = {
+  name: "edit_flashcard",
+  description:
+    "Change a card already in the learner's deck, when they ask you to. The change is made at once, and they can undo it.",
+  input_schema: {
+    type: "object",
+    properties: {
+      front: {
+        type: "string",
+        description: "The card's Spanish side exactly as it is in their deck now.",
+      },
+      new_front: {
+        type: "string",
+        description: "The whole new Spanish side. Leave out to keep it.",
+      },
+      new_back: {
+        type: "string",
+        description: "The whole new English side. Leave out to keep it.",
+      },
+    },
+    required: ["front"],
+  },
+};
+
+const SPANISH_PROPOSE_TOOL = {
+  name: "propose_flashcards",
+  description:
+    "Propose flashcards for the learner to add to their Spanish deck. Call this only when the conversation contains something worth drilling, and only after explaining it in text.",
+  input_schema: {
+    type: "object",
+    properties: {
+      cards: {
+        type: "array",
+        description: "The proposed cards, 1-4 of them.",
+        items: {
+          type: "object",
+          properties: {
+            front: {
+              type: "string",
+              description: "What the learner is shown, in Spanish: 'una colina', 'alto', 'estar de buen humor'.",
+            },
+            back: {
+              type: "string",
+              description: "What the learner types, in English: 'a hill', 'tall (masc.)', 'to be in a good mood'.",
+            },
+            category: {
+              type: "string",
+              enum: ["vocab", "expr"],
+              description: "Which part of the deck this belongs to.",
+            },
+            note: {
+              type: "string",
+              description:
+                "One line on why this card earns its place. Shown to the learner, not stored.",
+            },
+          },
+          required: ["front", "back", "category"],
+        },
+      },
+    },
+    required: ["cards"],
+  },
+};
+
+// Which tutor a request gets, by its course.
+const TUTORS = {
+  fr: { system: SYSTEM_PROMPT, tools: [PROPOSE_TOOL, EDIT_TOOL], categories: ["vocab", "expr", "gram"] },
+  es: { system: SPANISH_PROMPT, tools: [SPANISH_PROPOSE_TOOL, SPANISH_EDIT_TOOL], categories: ["vocab", "expr"] },
+};
+export const tutorFor = (body) => (body?.course === "es" ? TUTORS.es : TUTORS.fr);
+
 // Trim the thread to something bounded before it reaches the API. Keeps the
 // most recent turns — the front of a long conversation matters least for a
 // lookup, and dropping it keeps latency and cost flat as the session runs on.
@@ -377,6 +526,9 @@ function buildContextBlock(ctx) {
 
   const pod = ctx.podcast && typeof ctx.podcast === "object" ? podcastLines(ctx.podcast) : "";
   if (pod) parts.push(pod);
+
+  const ex = ctx.exercise && typeof ctx.exercise === "object" ? exerciseLines(ctx.exercise) : "";
+  if (ex) parts.push(ex);
 
   const related = cardList(ctx.relatedCards);
   if (related.length) {
@@ -514,6 +666,63 @@ function questionLines(list) {
   return out.join("\n");
 }
 
+// The exercise on screen, on the Spanish module's Exercises (2026-10-26). As
+// with a card, whether each item has been answered decides what the tutor may
+// say (see "An exercise" in the Spanish prompt), so it is stated item by item.
+// The page sends the same limits (src/lib/deckContext.js). Measured on the
+// exercise files (2026-10-26): the longest exercise has 41 items (Lesson 15's
+// third), the longest item 308 characters, the longest lesson text 1,536.
+const EXERCISE_TEXT_MAX = 800;
+const EXERCISE_ITEMS_MAX = 60;
+const EXERCISE_LESSON_TEXT_MAX = 4000;
+const EXERCISE_VERDICT_TEXT = {
+  right: "was marked right",
+  almost: "was marked almost right (right but for its accents)",
+  wrong: "was marked wrong",
+};
+
+function exerciseLines(ex) {
+  const items = [];
+  for (const it of Array.isArray(ex.items) ? ex.items.slice(0, EXERCISE_ITEMS_MAX) : []) {
+    if (!it || typeof it !== "object") continue;
+    const n = questionNo(it);
+    const prompt = clipTo(it.prompt, EXERCISE_TEXT_MAX);
+    if (!n || !prompt) continue;
+    const answer = clipTo(it.answer, EXERCISE_TEXT_MAX);
+    const typed = it.answered ? clipTo(it.typed, EXERCISE_TEXT_MAX) : "";
+    const verdict = it.answered ? EXERCISE_VERDICT_TEXT[it.verdict] : "";
+    const correct = clipTo(it.correct, EXERCISE_TEXT_MAX);
+    if (!it.answered) {
+      items.push(`${n}. "${prompt}" — NOT answered yet, so do not give its answer away. Its expected answer: "${answer}".`);
+    } else if (typed && verdict) {
+      const fix = it.verdict !== "right" && correct ? ` The correct answer: "${correct}".` : "";
+      items.push(`${n}. "${prompt}" — they answered "${typed}", which ${verdict}.${fix}`);
+    } else {
+      items.push(`${n}. "${prompt}" — answered. Its expected answer: "${answer}".`);
+    }
+  }
+  if (!items.length) return "";
+
+  const lesson = clipTo(ex.lesson, PODCAST_TEXT_MAX);
+  const title = clipTo(ex.title, PODCAST_TEXT_MAX);
+  const number = questionNo(ex);
+  const instruction = clipTo(ex.instruction, EXERCISE_TEXT_MAX);
+  const english = clipTo(ex.english, EXERCISE_TEXT_MAX);
+  const example = clipTo(ex.example, EXERCISE_TEXT_MAX);
+  const name = [number ? `Ejercicio ${number}` : "An exercise", title ? `"${title}"` : ""].filter(Boolean).join(", ");
+  const lines = [`Exercise on screen: ${name}${lesson ? `, from ${lesson}` : ""}.`];
+  if (instruction) lines.push(`Its instruction: "${instruction}"${english ? ` (in English: "${english}")` : ""}`);
+  if (example) lines.push(`The sheet's example: "${example}"`);
+  lines.push(`Its items, numbered as on their screen:\n${items.join("\n")}`);
+  const focus = questionNo({ number: ex.focus });
+  const last = questionNo({ number: ex.last });
+  if (focus) lines.push(`The cursor is on item ${focus}.`);
+  if (last) lines.push(`The item they answered last is ${last}.`);
+  const text = clipTo(ex.text, EXERCISE_LESSON_TEXT_MAX);
+  if (text) lines.push(`The lesson's text, which the exercise is about:\n${text}`);
+  return lines.join("\n");
+}
+
 // Attach the context to the final user turn, leaving the caller's array alone.
 // A turn with a picture goes as the picture, then the text.
 function withContext(messages, contextBlock) {
@@ -565,8 +774,10 @@ function withHistoryCache(messages) {
 
 // Validate the model's tool input rather than trusting it toward the DB. The
 // client lets the learner edit a proposal before adding it, so this is the
-// floor on shape, not on quality.
-export function normalizeCards(input) {
+// floor on shape, not on quality. `categories` are the course's: a Spanish
+// grammar drill is dropped like a made-up category, since the Spanish deck
+// is words and phrases only.
+export function normalizeCards(input, categories = TUTORS.fr.categories) {
   const proposed = Array.isArray(input?.cards) ? input.cards : [];
   return proposed
     .filter((c) => c && typeof c.front === "string" && typeof c.back === "string")
@@ -577,7 +788,7 @@ export function normalizeCards(input) {
       // Anything else — "pron" from an older prompt, a made-up category — is a
       // card with nothing sensible to type, and falling back to vocab used to
       // file it as a word.
-      category: ["vocab", "expr", "gram"].includes(c.category) ? c.category : "",
+      category: categories.includes(c.category) ? c.category : "",
       note: typeof c.note === "string" ? c.note.trim() : "",
     }))
     // A grammar card without its arrow asks for English (answerLang reads the
@@ -662,6 +873,8 @@ export default async function handler(req, res) {
     res.write(`data: ${JSON.stringify(event)}\n\n`);
   };
 
+  const tutor = tutorFor(req.body);
+
   try {
     const anthropic = new Anthropic({ apiKey });
     const stream = anthropic.messages.stream({
@@ -679,11 +892,12 @@ export default async function handler(req, res) {
       // Breakpoint at the end of the stable prefix (tools render before the
       // system prompt, so this covers both). Too short to cache by itself —
       // see withHistoryCache — but on the first question it is the only
-      // prefix there is, and once history is added it costs nothing.
+      // prefix there is, and once history is added it costs nothing. Each
+      // course's prompt is a prefix of its own.
       system: [
-        { type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
+        { type: "text", text: tutor.system, cache_control: { type: "ephemeral" } },
       ],
-      tools: [PROPOSE_TOOL, EDIT_TOOL],
+      tools: tutor.tools,
       messages,
     });
     upstream = stream;
@@ -696,7 +910,7 @@ export default async function handler(req, res) {
     const editInputs = [];
     for (const block of final.content || []) {
       if (block.type === "tool_use" && block.name === "propose_flashcards") {
-        cards = normalizeCards(block.input);
+        cards = normalizeCards(block.input, tutor.categories);
       } else if (block.type === "tool_use" && block.name === "edit_flashcard") {
         editInputs.push(block.input);
       }

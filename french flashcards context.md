@@ -2262,10 +2262,25 @@ Flashcards / Podcasts switch is French only; Spanish has no Podcasts (owner,
   `src/data/lessons/byCourse.js`: both catalogues are built by
   `src/data/lessons/catalogue.js`, so a Spanish lesson works exactly as a
   French one (sync, rank, instruction lines, notes, switches).
-- **Not in Spanish**: the tutor, uploading notes, the linked cahier, the
+- **Not in Spanish**: uploading notes, the linked cahier, the
   first-visit tour, Podcasts and the "Include lessons" switch (every Spanish
   card is a lesson card). Spanish has Exercises instead of Podcasts (below). The daily FSRS check runs from the French app only;
   Spanish is scheduled with the settings it gives.
+- **The tutor** (owner, 2026-10-26: "tutor needs to be added to spanish
+  module"): the same panel, opened from Tutor in the sidebar, "Ask the
+  tutor" in the account menu or under a missed card, as in French. Its
+  requests carry `course: "es"` (ChatPanel's `course`), and api/chat.js then
+  answers as a Spanish tutor (`SPANISH_PROMPT`): the Spanish of Mexico,
+  ustedes and never vosotros, Spanish always written with its accents. It
+  proposes only word and phrase cards (`vocab`, `expr`; a grammar drill is
+  dropped), because the grammar is on Exercises. A card added from it goes
+  into `es_user_cards`; a card it changes goes through
+  `/api/admin-update-card` with `course: "es"` and is logged in
+  `es_parse_corrections`, as the card editor does. Its conversation is kept
+  apart from the French one, under `es:<user id>` (`lib/tutorThreads.js`),
+  and the cards it is shown as related are matched with Spanish filler
+  words left out (`SPANISH_STOP` in `lib/deckContext.js`). On Exercises it
+  is told the exercise on screen (see *Exercises*, "The tutor").
 - **Logged and checked as French is** (owner, 2026-10-22: "make sure that the
   evaluation harness, all the saved feedback and changes, etc are logged in
   the spanish module just as they are for the french module"). Spanish has
@@ -2493,6 +2508,22 @@ page you were on (kept in this browser, `es-exercises-place:<user id>`).
   cursor stays in the box. A hint isn't kept and doesn't change the
   marking; it goes once the item is answered, so "Try again" starts
   without one (`hintText`, `hintLevels`).
+- **The tutor** (2026-10-26): on a lesson's page the tutor is told the
+  exercise being worked on, as Podcasts tells it the episode: the exercise
+  whose item has the cursor, else the one answered last, else the first.
+  It gets every item, numbered as on the page, with the key's answer, what
+  was typed and how it was marked, which item has the cursor and which was
+  answered last, and the lesson's text when the exercise is about it (true
+  or false, translating the text) or the text is open (`tutorExercise` in
+  ExercisesPage.jsx, `exerciseContext` in lib/deckContext.js,
+  `exerciseLines` in api/chat.js). An item not yet answered is under the
+  card's rule: the tutor doesn't give its answer away and helps toward it
+  instead. The panel's header names the exercise and the item ("Ejercicio
+  1, 2: Mis papás ___ cerca de Nueva York. (vivir)"), and its first
+  suggestions are "What did I get wrong in number 1?", "Give me a hint for
+  number 2 without the answer" and "Explain the rule this exercise
+  practises". A marked item has no "Ask the tutor" of its own: Tutor in the
+  sidebar opens the panel on the exercise.
 - **Kept**: every answer, in `es_exercise_answers` (migration_022): the item,
   its prompt as shown, what was typed, the verdict, who marked it, Claude's
   note and correction. Written by the server; a student reads only their

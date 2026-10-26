@@ -15,8 +15,11 @@
 //
 // The shell (FlashcardApp) owns which page is showing, so the sidebar can
 // mark it and the page opens where you left it.
+//
+// The tutor (2026-10-26) is told the exercise being worked on, as Podcasts
+// tells it the episode: a lesson's page hands it up (onTutorContext).
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, Fragment } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, Fragment } from "react";
 import { supabase } from "./supabase";
 import { T } from "./theme";
 import { EXERCISE_LESSONS, EXERCISES_BY_ID } from "./data/exercises/es/index.js";
@@ -135,8 +138,69 @@ function tally(lesson, latest, again) {
 const countLine = ({ items, answered, right }) =>
   answered ? `${items} questions · ${answered} answered, ${right} right` : `${items} questions`;
 
+// ── What the tutor is told ───────────────────────────────────────────────
+// The exercise being worked on: the one whose item has the cursor, else the
+// one answered last, else the lesson's first. Every item goes, numbered as on
+// the page, with the key's answer and whether it has been answered; the tutor
+// doesn't give an answer away before then (api/chat.js, "An exercise"). Shape:
+// lib/deckContext.js, exerciseContext.
+const plainLine = (s) => String(s ?? "").replace(/\[\[([^\]]*)\]\]/g, "$1").replace(/\s*\n\s*/g, " / ").trim();
+const lessonTextLines = (lines) =>
+  (Array.isArray(lines) ? lines : [])
+    .map((l) => l.title || (l.scene ? `(${l.scene})` : "") || l.question || (l.who ? `${l.who}: ${l.text}` : l.text || ""))
+    .filter(Boolean)
+    .join("\n");
+const exerciseOfKey = (lesson, key) =>
+  key ? lesson.exercises.find((ex) => String(key).startsWith(`${lesson.id}/${ex.n}/`)) || null : null;
+
+function tutorExercise(lesson, latest, again, focusKey, textShown) {
+  const shownOf = (ex, i) => shownAnswer(latest, again, lesson.id, ex.n, itemKey(lesson.id, ex.n, i));
+  const doneAt = (a) => (a && !a.pending ? at(a.answeredAt) || 1 : 0);
+  let ex = exerciseOfKey(lesson, focusKey);
+  if (!ex) {
+    let when = 0;
+    for (const e of lesson.exercises) e.items.forEach((_, i) => {
+      const t = doneAt(shownOf(e, i));
+      if (t > when) { when = t; ex = e; }
+    });
+  }
+  ex = ex || lesson.exercises[0];
+  if (!ex) return null;
+  let last = 0, lastAt = 0;
+  const items = ex.items.map((item, i) => {
+    const a = shownOf(ex, i);
+    const t = doneAt(a);
+    if (t && t >= lastAt) { lastAt = t; last = i + 1; }
+    return {
+      number: i + 1,
+      prompt: plainLine(item.prompt),
+      answer: plainLine(keyAnswer(item)),
+      answered: !!t,
+      ...(t ? { typed: plainLine(a.typed), verdict: a.verdict, correct: a.verdict === "right" ? "" : plainLine(a.correct || keyAnswer(item)) } : null),
+    };
+  });
+  const focus = exerciseOfKey(lesson, focusKey) === ex ? Number(String(focusKey).split("/").pop()) || 0 : 0;
+  // The lesson's text goes when the exercise is about it (true or false
+  // about the dialogue, translating the text) or it is open on the page.
+  const aboutText = textShown || ex.items.some((it) => kindOf(it) === "truth" || kindOf(it) === "open");
+  const text = aboutText ? lessonTextLines(LESSON_TEXTS[lesson.textOf]) : "";
+  return {
+    key: `ex:${lesson.id}/${ex.n}${focus ? `/${focus}` : ""}`,
+    lesson: lesson.title,
+    number: ex.number,
+    title: ex.title,
+    instruction: plainLine(ex.instruction),
+    english: ex.english,
+    ...(ex.example ? { example: plainLine(ex.example) } : null),
+    items,
+    ...(focus ? { focus } : null),
+    ...(last ? { last } : null),
+    ...(text ? { text } : null),
+  };
+}
+
 // ── The page ─────────────────────────────────────────────────────────────
-export default function ExercisesPage({ user, view, setView, onNeedKey }) {
+export default function ExercisesPage({ user, view, setView, onNeedKey, onTutorContext }) {
   const store = useAnswers(user?.id);
   const [again, setAgain] = useState(() => readAgain(user?.id));
   const startAgain = (lessonId, n) => {
@@ -148,6 +212,8 @@ export default function ExercisesPage({ user, view, setView, onNeedKey }) {
   const lesson = view?.lesson ? EXERCISES_BY_ID[view.lesson] : null;
   const scrollRef = useRef(null);
   useEffect(() => { scrollRef.current?.scrollTo?.(0, 0); }, [view?.lesson]);
+  // On the list of lessons no exercise is on screen.
+  useEffect(() => { if (!lesson) onTutorContext?.(null); }, [lesson, onTutorContext]);
 
   return (
     <div style={S.scroll} ref={scrollRef} data-exercises-page={lesson ? "lesson" : "list"}>
@@ -168,6 +234,7 @@ export default function ExercisesPage({ user, view, setView, onNeedKey }) {
             startAgain={startAgain}
             onBack={() => setView({ lesson: null })}
             onNeedKey={onNeedKey}
+            onTutorContext={onTutorContext}
           />
         ) : (
           <>
@@ -197,11 +264,37 @@ export default function ExercisesPage({ user, view, setView, onNeedKey }) {
 }
 
 // ── One lesson's exercises ───────────────────────────────────────────────
-function LessonExercises({ user, lesson, store, again, startAgain, onBack, onNeedKey }) {
+function LessonExercises({ user, lesson, store, again, startAgain, onBack, onNeedKey, onTutorContext }) {
   const [showText, setShowText] = useState(false);
   const text = LESSON_TEXTS[lesson.textOf] || null;
   const t = tally(lesson, store.latest, again);
   const listRef = useRef(null);
+
+  // The item with the cursor, which the tutor is told about with its
+  // exercise. Kept when the cursor goes to the tutor's own box.
+  const [focusKey, setFocusKey] = useState(null);
+  const onFocusItem = (e) => {
+    const key = e.target?.closest?.("[data-ex-item]")?.dataset?.exItem;
+    if (key) setFocusKey(key);
+  };
+  const tutorFor = useCallback(
+    (key) => tutorExercise(lesson, store.latest, again, key, showText),
+    [lesson, store.latest, again, showText]
+  );
+  const tutorCtx = useMemo(() => tutorFor(focusKey), [tutorFor, focusKey]);
+  const tellRef = useRef(onTutorContext);
+  tellRef.current = onTutorContext;
+  const sentRef = useRef("");
+  const tellTutor = useCallback((ctx) => {
+    const sig = ctx ? JSON.stringify(ctx) : "";
+    if (sig === sentRef.current) return;
+    sentRef.current = sig;
+    tellRef.current?.(ctx);
+  }, []);
+  useEffect(() => { tellTutor(tutorCtx); }, [tutorCtx, tellTutor]);
+  // Leaving the lesson leaves no exercise on screen. What was sent is
+  // forgotten too, so the lesson opened again sends its exercise afresh.
+  useEffect(() => () => { sentRef.current = ""; tellRef.current?.(null); }, []);
 
   // After an answer is sent, the next item still to answer gets the cursor.
   const focusNext = useCallback((fromKey) => {
@@ -231,7 +324,7 @@ function LessonExercises({ user, lesson, store, again, startAgain, onBack, onNee
         )}
       </div>
       {showText && text && <LessonText lines={text} />}
-      <div ref={listRef}>
+      <div ref={listRef} onFocus={onFocusItem}>
         {lesson.exercises.map((ex) => (
           <ExerciseBlock
             key={ex.n}

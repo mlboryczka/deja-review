@@ -3,8 +3,8 @@
 import { classifyCard } from "../../src/lib/cardTypes.js";
 import { looksMultiSense } from "../../src/lib/multiSense.js";
 import { cleanFrenchPrompt, cleanEnglishPrompt, dropFinalPeriod, firstAnswer } from "../../src/lib/cardText.js";
-import { findRelatedCards, recentMisses, relevantMisses, buildTutorContext, cardPrompt } from "../../src/lib/deckContext.js";
-import { buildRequestMessages, normalizeCards, normalizeEdits } from "../../api/chat.js";
+import { findRelatedCards, recentMisses, relevantMisses, buildTutorContext, cardPrompt, exerciseAbout, exerciseLabel } from "../../src/lib/deckContext.js";
+import { buildRequestMessages, normalizeCards, normalizeEdits, tutorFor } from "../../api/chat.js";
 import { reconcileLessons } from "../../src/lib/lessonSync.js";
 import { planReplace } from "../../src/lib/replaceDeck.js";
 import { lessonSource, lessonCardKey } from "../../src/lib/lessonSource.js";
@@ -315,6 +315,79 @@ console.log("\n  /api/chat — what a conversation becomes");
   ck("an earlier answer keeps the cards it changed", /Cards you changed: ainsi que — as well as \/ just as → ainsi que — as well as\]/.test(text(edited[1])), text(edited[1]));
   ck("an edit the student undid says so", /they undid this/.test(text(edited[3])), text(edited[3]));
   ck("the card on screen is named as the deck stores it", /In their deck it is the card "ainsi que" — "as well as"/.test(text(edited.at(-1))), text(edited.at(-1)));
+}
+
+// The Spanish module's tutor (owner, 2026-10-26: "tutor needs to be added to
+// spanish module"): its own prompt and tools, words and phrases only, Spanish
+// filler words, and on Exercises the exercise on screen in place of a card.
+console.log("\n  The Spanish tutor");
+{
+  const text = (m) => (typeof m.content === "string" ? m.content : m.content.map((b) => b.text).join(""));
+  const es = tutorFor({ course: "es" });
+  const fr = tutorFor({});
+  ck("a Spanish request gets the Spanish tutor, and anything else the French one",
+     /learner of Spanish/.test(es.system) && /learner of French/.test(fr.system) && tutorFor({ course: "de" }) === fr);
+  const enumOf = (t) => t.tools.find((x) => x.name === "propose_flashcards").input_schema.properties.cards.items.properties.category.enum.join();
+  ck("the Spanish tutor proposes words and phrases only, the French one grammar drills too",
+     enumOf(es) === "vocab,expr" && enumOf(fr) === "vocab,expr,gram", `${enumOf(es)} / ${enumOf(fr)}`);
+  const kept = normalizeCards({
+    cards: [
+      { front: "pedir → yo", back: "pido", category: "gram" },
+      { front: "una colina", back: "a hill", category: "vocab" },
+      { front: "estar de buen humor", back: "to be in a good mood", category: "expr" },
+    ],
+  }, es.categories).map((c) => c.front);
+  ck("a Spanish grammar drill is dropped, a word and a phrase stay", kept.join(" | ") === "una colina | estar de buen humor", kept.join(" | "));
+
+  // "la", "en" and "qué" match every card; "ya" is the word asked about.
+  const ES = [
+    { f: "la casa", b: "the house", row_id: 1 },
+    { f: "el carro", b: "the car", row_id: 2 },
+    { f: "ya", b: "already / now", row_id: 3 },
+    { f: "de nada", b: "you're welcome", row_id: 4 },
+  ];
+  const ya = buildTutorContext({ question: "¿Qué significa ya en la frase?", cards: ES, course: "es" });
+  ck("in Spanish the word asked about is found, and the filler words find nothing",
+     (ya?.relatedCards || []).map((c) => c.front).join() === "ya", JSON.stringify(ya?.relatedCards));
+
+  const exercise = {
+    key: "ex:leccion4/1/2",
+    lesson: "Lección 4 · Verbos regulares",
+    number: 1,
+    title: "Conjugación",
+    instruction: "Completar con el verbo regular conjugado en presente.",
+    english: "Fill each gap with the regular verb in brackets, in the present tense.",
+    items: [
+      { number: 1, prompt: "Yo ___ mucho con mis amigos. (caminar)", answer: "Yo camino mucho con mis amigos. (caminar)",
+        answered: true, typed: "Yo [camina] mucho con mis amigos. (caminar)", verdict: "wrong", correct: "Yo camino mucho con mis amigos. (caminar)" },
+      // A draft still in the box is the student's, and never sent.
+      { number: 2, prompt: "Mis papás ___ cerca de Nueva York. (vivir)", answer: "Mis papás viven cerca de Nueva York. (vivir)",
+        answered: false, typed: "Mis papás [viv] cerca" },
+    ],
+    focus: 2,
+    last: 1,
+  };
+  const onEx = buildTutorContext({ question: "why was number 1 wrong?", cards: ES, exercise, course: "es" });
+  ck("on Exercises the exercise goes, every item with it, and where the cursor is",
+     onEx?.exercise?.items?.length === 2 && onEx.exercise.focus === 2 && onEx.exercise.last === 1, JSON.stringify(onEx?.exercise));
+  ck("what was typed goes only once an item has been answered",
+     onEx.exercise.items[0].typed && !("typed" in onEx.exercise.items[1]), JSON.stringify(onEx.exercise.items));
+  ck("a card on screen wins over an exercise",
+     !buildTutorContext({ question: "x", cards: ES, currentCard: { ...ES[0], shownDir: "fr", answered: false }, exercise, course: "es" })?.exercise);
+  ck("a question keeps the exercise and item it was asked about",
+     exerciseAbout(exercise) === "Ejercicio 1 (Conjugación), number 2: « Mis papás ___ cerca de Nueva York. (vivir) »", exerciseAbout(exercise));
+  ck("the panel's header names the item with the cursor",
+     exerciseLabel(exercise) === "Ejercicio 1, 2: Mis papás ___ cerca de Nueva York. (vivir)", exerciseLabel(exercise));
+
+  const sent = text(buildRequestMessages({ course: "es", messages: [{ role: "user", content: "why was number 1 wrong?" }], context: onEx }).at(-1));
+  ck("the tutor is told the exercise by its number on the page",
+     /Exercise on screen: Ejercicio 1, "Conjugación", from Lección 4 · Verbos regulares\./.test(sent), sent);
+  ck("and that item 1 was marked wrong, with the correct answer",
+     /1\. "Yo ___ mucho con mis amigos\. \(caminar\)" — they answered "Yo \[camina\] mucho con mis amigos\. \(caminar\)", which was marked wrong\. The correct answer: "Yo camino/.test(sent), sent);
+  ck("and that item 2 is not answered and not to be given away",
+     /2\. "Mis papás ___ cerca de Nueva York\. \(vivir\)" — NOT answered yet, so do not give its answer away\./.test(sent), sent);
+  ck("and where the cursor is, and which item was answered last",
+     /The cursor is on item 2\./.test(sent) && /The item they answered last is 1\./.test(sent), sent);
 }
 
 // Keeping a deck in step with a lesson. The requirement that costs real data:

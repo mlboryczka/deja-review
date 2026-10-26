@@ -221,10 +221,11 @@ function readExercisesFolded(userId) {
   try { return !!userId && localStorage.getItem(EXERCISES_FOLDED_KEY + userId) === "1"; } catch { return false; }
 }
 
-// Two tutor contexts with the same content. The podcasts page hands one up
-// whenever what is on screen changes; a fresh object with nothing new in it
-// must not re-render the whole app (and, through new props, the page again).
-const sameTutorPodcast = (a, b) => {
+// Two tutor contexts with the same content. The podcasts page and the
+// exercises page hand one up whenever what is on screen changes; a fresh
+// object with nothing new in it must not re-render the whole app (and,
+// through new props, the page again).
+const sameTutorContext = (a, b) => {
   if (a === b) return true;
   if (!a || !b) return false;
   try { return JSON.stringify(a) === JSON.stringify(b); } catch { return false; }
@@ -601,8 +602,9 @@ function typedGotIt(typeResult) {
 // it is only passed to someone who has both, and draws the flag that does it.
 export default function FlashcardApp({ user, onSignOut, course: courseId = "fr", onCourse }) {
   const course = courseOf(courseId);
-  // The Spanish module: its own deck, lessons and voice. No cahier, uploads,
-  // tutor, card editing or tour, all of which are about French cards.
+  // The Spanish module: its own deck, lessons and voice. No cahier, uploads
+  // or tour, all of which are about French cards. Its tutor is the Spanish
+  // one (owner, 2026-10-26), and card editing works on Spanish cards.
   const spanish = course.id === "es";
   // A Spanish card shows one answer of the list it accepts (lib/cardText.js).
   const oneAnswer = spanish ? firstAnswer : (text) => text;
@@ -1082,7 +1084,14 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   const [tutorPodcast, setTutorPodcast] = useState(null);
   const onTutorPodcast = useCallback((ctx) => {
     const next = ctx && typeof ctx === "object" ? ctx : null;
-    setTutorPodcast((prev) => (sameTutorPodcast(prev, next) ? prev : next));
+    setTutorPodcast((prev) => (sameTutorContext(prev, next) ? prev : next));
+  }, []);
+  // The same for the exercise being worked on, on the Spanish Exercises
+  // (2026-10-26), while Exercises is showing.
+  const [tutorExercise, setTutorExercise] = useState(null);
+  const onTutorExercise = useCallback((ctx) => {
+    const next = ctx && typeof ctx === "object" ? ctx : null;
+    setTutorExercise((prev) => (sameTutorContext(prev, next) ? prev : next));
   }, []);
   // The page's callbacks, made once, so a page effect that depends on them
   // doesn't run again on every render of the app.
@@ -3492,9 +3501,9 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
             nav items but never takes the active state. It lives here rather
             than in the profile menu because looking a word up mid-session is
             a primary action, and nobody finds it behind an avatar. */}
-        {/* Not in Spanish: the tutor is a French tutor, and the cards it
-            adds and changes are French cards. */}
-        {!spanish && (
+        {/* In Spanish too (owner, 2026-10-26: "tutor needs to be added to
+            spanish module"): there it is a Spanish tutor, and the cards it
+            adds and changes are Spanish cards (ChatPanel's course). */}
         <button
           data-tutor-toggle
           data-tour="nav-tutor"
@@ -3507,7 +3516,6 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
           <span style={S.sideIcon}>{NAV_ICONS.tutor}</span>
           {!sidebarMin && "Tutor"}
         </button>
-        )}
       </nav>
 
       {/* Bottom: account, then feedback beneath it */}
@@ -3539,9 +3547,6 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
               </button>
               {showProfileMenu && (
                 <div style={S.profileMenuBottom} data-tour="profile-menu">
-                  {/* The tutor and uploads are French only (see the tutor's
-                      button above). */}
-                  {!spanish && (<>
                   <button
                     data-tutor-toggle
                     style={S.profileMenuItem}
@@ -3549,6 +3554,9 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
                   >
                     Ask the tutor
                   </button>
+                  {/* Uploads are French only: they make cards from French
+                      notes. */}
+                  {!spanish && (
                   <button
                     data-tour="upload"
                     style={S.profileMenuItem}
@@ -3556,7 +3564,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
                   >
                     Upload document
                   </button>
-                  </>)}
+                  )}
                   <button
                     style={S.profileMenuItem}
                     onClick={() => { setShowKeyModal(true); setShowProfileMenu(false); }}
@@ -3662,10 +3670,12 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
         </button>,
         document.body
       )}
-      {!spanish && <ChatPanel
+      <ChatPanel
         open={showChat}
         onClose={() => setShowChat(false)}
         user={user}
+        // In the Spanish module, the Spanish tutor and the Spanish deck.
+        course={course.id}
         cards={userCards}
         // Live rather than a snapshot, so the tutor follows you as you advance
         // through the session — with whether each card's answer has been shown.
@@ -3675,6 +3685,9 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
         // showing: a context left over from an episode must not ride along
         // with a question asked on Cards.
         podcast={podcastsOn ? tutorPodcast : null}
+        // On the Spanish Exercises, the exercise being worked on, handed up
+        // by the exercises page in the same way.
+        exercise={exercisesOn ? tutorExercise : null}
         thread={tutorThread}
         // The insert hands back the row, so the deck takes it in place; only a
         // write that returned nothing falls back to a refetch.
@@ -3683,7 +3696,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
         onNeedKey={() => { setShowChat(false); setShowKeyModal(true); }}
         reflow={chatReflow}
         sidebarWidth={sidebarWidth}
-      />}
+      />
       <ApiKeyModal
         open={showKeyModal}
         onClose={() => setShowKeyModal(false)}
@@ -3849,7 +3862,13 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
             </div>
           )}
           <Suspense fallback={null}>
-            <ExercisesPage user={user} view={exView} setView={setExView} onNeedKey={onPodcastNeedKey} />
+            <ExercisesPage
+              user={user}
+              view={exView}
+              setView={setExView}
+              onNeedKey={onPodcastNeedKey}
+              onTutorContext={onTutorExercise}
+            />
           </Suspense>
         </main>
         {modals}
@@ -4616,7 +4635,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
                                     Mark for review
                                   </button>
                                 )}
-                                {missed && !spanish && (
+                                {missed && (
                                   <button
                                     data-tutor-toggle
                                     style={S.typeLink}

@@ -5,9 +5,10 @@ import { supabase } from "./supabase";
 import { T } from "./theme";
 import { CAT_UI_TO_DB } from "./lib/cardCategories";
 import { keyHeaders, BYOK_REQUIRED, BAD_KEY } from "./lib/anthropicKey";
-import { cleanFrenchPrompt } from "./lib/cardText";
-import { buildTutorContext, cardPrompt, cardAnswer, podcastAbout, podcastLabel, questionNumber } from "./lib/deckContext";
+import { cleanFrenchPrompt, firstAnswer } from "./lib/cardText";
+import { buildTutorContext, cardPrompt, cardAnswer, podcastAbout, podcastLabel, questionNumber, exerciseAbout, exerciseFocus, exerciseLabel } from "./lib/deckContext";
 import { readThread, writeThread } from "./lib/tutorThreads";
+import { courseOf } from "./lib/course";
 import { imageFromPaste, pasteHasText, shrinkImage } from "./lib/pastedImage";
 import { logCorrection, CORRECTION_CATEGORIES, CORRECTION_ACTIONS } from "./lib/parseCorrections";
 
@@ -37,10 +38,15 @@ import { logCorrection, CORRECTION_CATEGORIES, CORRECTION_ACTIONS } from "./lib/
 //     with an Undo beside it. It used to answer that it had no way to edit
 //     cards and send you to the editor (owner, 2026-10-18): asking was the
 //     decision, so it is not put to you again as a button.
+//   • The Spanish module has the same panel (owner, 2026-10-26: "tutor needs
+//     to be added to spanish module"), with course="es": it asks the Spanish
+//     tutor (api/chat.js), adds and changes cards in the Spanish deck, keeps
+//     a thread of its own, and on Exercises is told the exercise on screen.
 //
 // Usage:
 //   <ChatPanel open={showChat} onClose={...} user={user} cards={userCards}
-//              currentCard={...} podcast={...} thread={{ id, rowId }}
+//              currentCard={...} podcast={...} exercise={...} course="fr"
+//              thread={{ id, rowId }}
 //              onCardAdded={addDeckCard} onCardUpdated={patchDeckCard} />
 
 // Panel width. Exported because FlashcardApp reflows the app by exactly this
@@ -87,6 +93,11 @@ const SUGGESTIONS = [
   "How do I say \"I'm looking forward to it\"?",
   "When do I use the subjunctive after bien que?",
 ];
+const SPANISH_SUGGESTIONS = [
+  "What's the difference between ser and estar?",
+  "How do I say \"I'm looking forward to it\"?",
+  "When do I use por and when para?",
+];
 
 // Opened on a card, the useful first questions are about THAT card, and which
 // ones depends on where the student is with it. None of these is sent on its
@@ -96,9 +107,14 @@ const SUGGESTIONS = [
 // answered, and before it is answered none of them asks for its meaning: the
 // passage IS the question, and the tutor won't translate it until it has
 // been answered (api/chat.js, "A podcast episode").
-function suggestionsFor(card, podcast) {
+//
+// On the Spanish Exercises (2026-10-26) they are about the item answered last
+// and the one with the cursor, and an item not yet answered gets a hint, never
+// its answer (api/chat.js, "An exercise").
+function suggestionsFor(card, podcast, exercise, spanish) {
   if (!card?.f && podcast) return podcastSuggestions(podcast);
-  if (!card?.f) return SUGGESTIONS;
+  if (!card?.f && exercise) return exerciseSuggestions(exercise);
+  if (!card?.f) return spanish ? SPANISH_SUGGESTIONS : SUGGESTIONS;
   if (!card.answered) {
     return ["Give me a hint without the answer", "What kind of word am I looking for?"];
   }
@@ -120,6 +136,19 @@ function podcastSuggestions(podcast) {
   if (p.verdict === "partly") return ["Why was my answer only partly right?", reuse];
   if (p.verdict === "missed") return ["What did I miss in this passage?", reuse];
   return [reuse, "Explain the grammar in this passage"];
+}
+
+function exerciseSuggestions(exercise) {
+  const items = Array.isArray(exercise?.items) ? exercise.items : [];
+  const missed = (it) => it?.answered && (it.verdict === "wrong" || it.verdict === "almost");
+  const out = [];
+  const last = items.find((it) => it.number === exercise.last);
+  if (missed(last)) out.push(`What did I get wrong in number ${last.number}?`);
+  const focus = exerciseFocus(exercise);
+  if (focus && !focus.answered) out.push(`Give me a hint for number ${focus.number} without the answer`);
+  else if (missed(focus) && focus !== last) out.push(`What did I get wrong in number ${focus.number}?`);
+  out.push("Explain the rule this exercise practises");
+  return out;
 }
 
 // Bold and italics, rendered. The prompt asks for plain prose, but a model
@@ -155,7 +184,7 @@ const frontKey = (front) => String(front || "").toLowerCase().trim();
 // One proposed card. Its own component so each chip owns its edit state —
 // hoisting that into ChatPanel would mean a keystroke in one chip re-rendering
 // the whole thread.
-function ProposedCard({ card, added, deckByFront, onAdd, onReplace }) {
+function ProposedCard({ card, added, deckByFront, onAdd, onReplace, language = "French" }) {
   // Cleaned the same way the study view cleans it, so the chip shows what the
   // card will actually look like when you meet it.
   const [front, setFront] = useState(() => cleanFrenchPrompt(card.front, card.back));
@@ -183,7 +212,7 @@ function ProposedCard({ card, added, deckByFront, onAdd, onReplace }) {
               style={S.chipEditFront}
               value={front}
               onChange={(e) => setFront(e.target.value)}
-              aria-label="Card front (French)"
+              aria-label={`Card front (${language})`}
             />
             <input
               style={S.chipEditBack}
@@ -319,6 +348,14 @@ export default function ChatPanel({
   // them ({ key, episode, passage, transcript }, see lib/deckContext.js).
   // Sent as the request's `context.podcast`. Null everywhere else.
   podcast = null,
+  // On the Spanish Exercises (2026-10-26), in place of a card: the exercise
+  // being worked on, as the exercises page describes it ({ key, number,
+  // title, instruction, items, focus, last, … }, see lib/deckContext.js).
+  // Sent as the request's `context.exercise`. Null everywhere else.
+  exercise = null,
+  // "fr", or "es" in the Spanish module (lib/course.js): which tutor answers,
+  // which deck its cards go to, and which thread is kept.
+  course = "fr",
   // Bumped when the tutor is opened from a card ("Ask the tutor" after a
   // miss). A thread about a different card is put away for a fresh one.
   thread = null,
@@ -340,7 +377,12 @@ export default function ChatPanel({
   // covered, every press on it was lost, the nav toggle included.
   sidebarWidth = 0,
 }) {
-  const threadKey = user?.id || "";
+  const lang = courseOf(course);
+  const spanish = lang.id === "es";
+  // On a Spanish card only the first of its answers is shown (lib/cardText.js),
+  // and the header shows the card as the card does.
+  const oneAnswer = spanish ? firstAnswer : (text) => text;
+  const threadKey = lang.store(user?.id) || "";
   const [messages, setMessages] = useState(() => readThread(threadKey));
   useEffect(() => { writeThread(threadKey, messages); }, [threadKey, messages]);
   const messagesRef = useRef(messages);
@@ -548,7 +590,8 @@ export default function ChatPanel({
   // The card editor's own save (FlashcardApp's saveCardEdit): the same
   // endpoint, which checks the card is the caller's, and the same entry in
   // the corrections ledger. Only the French and English change; the card's
-  // answers and schedule are its own and stay.
+  // answers and schedule are its own and stay. A Spanish card is changed in
+  // the Spanish deck, and logged in its ledger, as the card editor does.
   const writeCard = useCallback(async (rowId, originalFront, front, back) => {
     const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch("/api/admin-update-card", {
@@ -557,14 +600,14 @@ export default function ChatPanel({
         "Content-Type": "application/json",
         Authorization: `Bearer ${session?.access_token || ""}`,
       },
-      body: JSON.stringify({ row_id: rowId, original_front: originalFront, front, back }),
+      body: JSON.stringify({ row_id: rowId, original_front: originalFront, front, back, ...(spanish ? { course: "es" } : null) }),
     });
     if (!res.ok) {
       let msg = `HTTP ${res.status}`;
       try { msg = (await res.json()).error || msg; } catch { /* not JSON */ }
       throw new Error(msg);
     }
-  }, []);
+  }, [spanish]);
 
   const applyEdit = useCallback(
     async (edit) => {
@@ -599,6 +642,7 @@ export default function ChatPanel({
           corrected_front: front,
           corrected_back: back,
           notes: "Changed by the tutor, at the student's request",
+          ...(spanish ? { course: "es" } : null),
         });
         patchEdit(edit.key, { ...was, status: "done" });
       } catch (e) {
@@ -606,7 +650,7 @@ export default function ChatPanel({
         patchEdit(edit.key, { ...was, status: "failed", error: e.message || "something went wrong." });
       }
     },
-    [patchEdit, writeCard, onCardUpdated]
+    [patchEdit, writeCard, onCardUpdated, spanish]
   );
 
   const undoEdit = useCallback(
@@ -626,6 +670,7 @@ export default function ChatPanel({
           corrected_front: edit.oldFront,
           corrected_back: edit.oldBack,
           notes: "The student undid the tutor's change",
+          ...(spanish ? { course: "es" } : null),
         });
         patchEdit(edit.key, { status: "undone" });
       } catch (e) {
@@ -634,7 +679,7 @@ export default function ChatPanel({
         setError(`Couldn't undo the change to "${edit.front}": ${e.message || "unknown error"}`);
       }
     },
-    [patchEdit, writeCard, onCardUpdated]
+    [patchEdit, writeCard, onCardUpdated, spanish]
   );
 
   const send = useCallback(
@@ -663,9 +708,14 @@ export default function ChatPanel({
           // what "why?" was about. On Podcasts, the episode and the start of
           // the passage; its key (pod:<episode>:<passage>) does what a card's
           // row id does, so opening the tutor on another passage starts a
-          // fresh thread rather than turn nine of this one.
-          about: currentCard?.f ? cardPrompt(currentCard) : podcast ? podcastAbout(podcast) : "",
-          rowId: currentCard?.row_id ?? podcast?.key ?? null,
+          // fresh thread rather than turn nine of this one. On Exercises, the
+          // exercise and the item with the cursor, keyed the same way
+          // (ex:<lesson>/<exercise>/<item>).
+          about: currentCard?.f ? cardPrompt(currentCard)
+            : podcast ? podcastAbout(podcast)
+            : exercise ? exerciseAbout(exercise)
+            : "",
+          rowId: currentCard?.row_id ?? podcast?.key ?? exercise?.key ?? null,
           ...(pasted ? { image: pasted } : null),
         },
       ];
@@ -707,6 +757,8 @@ export default function ChatPanel({
           },
           signal: controller.signal,
           body: JSON.stringify({
+            // The Spanish tutor, in the Spanish module.
+            ...(spanish ? { course: "es" } : null),
             // The prose, plus what grounded each turn: the card a question was
             // asked about, and the fronts and backs an answer proposed — so
             // "change the second card" can be answered. Notes stay client-side.
@@ -726,7 +778,7 @@ export default function ChatPanel({
             })),
             // Rebuilt from scratch every turn against the question just asked,
             // so it never accumulates in the thread.
-            context: buildTutorContext({ question: trimmed, previousQuestion, cards, currentCard, podcast }),
+            context: buildTutorContext({ question: trimmed, previousQuestion, cards, currentCard, podcast, exercise, course: lang.id }),
           }),
         });
 
@@ -851,7 +903,7 @@ export default function ChatPanel({
         abortRef.current = null;
       }
     },
-    [input, image, sending, messages, cards, currentCard, podcast, user, updateLast, drain, drained, stopDrain, applyEdit]
+    [input, image, sending, messages, cards, currentCard, podcast, exercise, spanish, lang.id, user, updateLast, drain, drained, stopDrain, applyEdit]
   );
 
   // A pasted picture is shrunk and held above the box until the question
@@ -884,18 +936,20 @@ export default function ChatPanel({
         // The column defaults to '[]'.
         source: "tutor-chat",
       };
+      // The Spanish module's deck is es_user_cards (migration_020).
+      const table = lang.table("user_cards");
       try {
         // An INSERT, not an upsert. The chip has already checked the deck for
         // this front, so a card that exists never gets here — it is offered
         // as Replace instead.
-        let { data, error: insErr } = await supabase.from("user_cards").insert(row).select();
+        let { data, error: insErr } = await supabase.from(table).insert(row).select();
         // The one card the deck in memory can't show: an archived one, whose
         // row still holds the (user_id, front) slot. Adding it again is how
         // an archived card comes back (see lib/archive.js), so that conflict
         // alone falls through to the upsert, which clears the archived source.
         if (insErr?.code === "23505") {
           ({ data, error: insErr } = await supabase
-            .from("user_cards")
+            .from(table)
             .upsert(row, { onConflict: "user_id,front" })
             .select());
         }
@@ -907,7 +961,7 @@ export default function ChatPanel({
         setError(`Couldn't add "${card.front}": ${e.message || "unknown error"}`);
       }
     },
-    [user, onCardAdded]
+    [user, onCardAdded, lang]
   );
 
   // Replace the English on a card the student already has. Only the back
@@ -926,7 +980,7 @@ export default function ChatPanel({
             "Content-Type": "application/json",
             Authorization: `Bearer ${session?.access_token || ""}`,
           },
-          body: JSON.stringify({ row_id: existing.row_id, front: existing.f, back }),
+          body: JSON.stringify({ row_id: existing.row_id, front: existing.f, back, ...(spanish ? { course: "es" } : null) }),
         });
         if (!res.ok) {
           let msg = `HTTP ${res.status}`;
@@ -940,7 +994,7 @@ export default function ChatPanel({
         setError(`Couldn't update "${existing.f}": ${e.message || "unknown error"}`);
       }
     },
-    [user, onCardUpdated]
+    [user, onCardUpdated, spanish]
   );
 
   // The box starts at one line and grows with what you type, to a cap. It was
@@ -1001,8 +1055,8 @@ export default function ChatPanel({
                 the card has shown it. */}
             {currentCard?.f && (
               <div style={S.contextChip} data-tutor-context>
-                {cardPrompt(currentCard)}
-                {currentCard.answered ? ` — ${cardAnswer(currentCard)}` : ""}
+                {oneAnswer(cardPrompt(currentCard))}
+                {currentCard.answered ? ` — ${oneAnswer(cardAnswer(currentCard))}` : ""}
               </div>
             )}
             {/* On Podcasts: the passage being answered, in French as it is on
@@ -1018,6 +1072,13 @@ export default function ChatPanel({
                 {podcast.passage?.fr
                   ? `${questionNumber(podcast.passage) ? `Question ${questionNumber(podcast.passage)}: ` : ""}« ${podcast.passage.fr} »`
                   : podcastLabel(podcast)}
+              </div>
+            )}
+            {/* On the Spanish Exercises: the exercise, and the item with the
+                cursor as the page numbers it. The lesson is on hover. */}
+            {!currentCard?.f && !podcast && exercise?.items?.length > 0 && (
+              <div style={S.contextChip} data-tutor-exercise={exercise.key || ""} title={exercise.lesson || undefined}>
+                {exerciseLabel(exercise)}
               </div>
             )}
           </div>
@@ -1041,7 +1102,7 @@ export default function ChatPanel({
           <div style={S.threadFoot}>
           {messages.length === 0 && (
             <div style={S.empty}>
-              {suggestionsFor(currentCard, podcast).map((s) => (
+              {suggestionsFor(currentCard, podcast, exercise, spanish).map((s) => (
                 <button key={s} style={S.suggestion} onClick={() => send(s)}>
                   {s}
                 </button>
@@ -1084,6 +1145,7 @@ export default function ChatPanel({
                       deckByFront={deckByFront}
                       onAdd={addCard}
                       onReplace={replaceBack}
+                      language={lang.language}
                     />
                   ))}
                 </div>
