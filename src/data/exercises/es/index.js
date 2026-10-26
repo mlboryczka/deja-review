@@ -37,12 +37,43 @@ import leccion21 from "./leccion21.js";
 import leccion22 from "./leccion22.js";
 import leccion23 from "./leccion23.js";
 
+// Left out at the owner's word (2026-10-25, feedback #53–#56 on Lesson 7.1):
+// every exercise that has no set answer for the key to check. "get rid of the
+// exercises wherein a write a sentence of my own with. particular word", and of
+// answering truthfully, writing the question, and answering about the text:
+// "get rid of these types of exercises throughout lessons". Their files keep
+// them as the sheets have them; the numbers left keep the sheet's. Lesson 16's
+// ex. 3, translating the lesson's text, stays: it is a translation.
+//   your own sentences   5: 1, 2 · 7-1: 1 · 7-2: 1, 2 · 9: 1, 2 · 10: 1, 2, 11 ·
+//                        11: 1, 2 · 12-1: 1, 5 (Paola's routine retold) ·
+//                        12-2: 1, 11 · 13: 1 · 16: 1, 2, 7 · 17: 1, 2,
+//                        6 (words of your own for a pronoun) · 18: 11 · 21: 1 ·
+//                        22: 1, 4 (finish the sentence your way)
+//   about yourself       6: 5 (react with your own opinion) · 7-1: 3 ·
+//                        8 annex: 4 · 15: 3 · 21: 5
+//   write the question   7-1: 4 · 7-2: 6 · 9: 6 · 10: 5 · 11: 8 · 14: 6 ·
+//                        15: 4, 5 · 22: 5
+//   about the text       1: 6 · 2: 7 · 3: 10 · 4: 9 · 5: 12 · 6: 10 · 7-1: 7 ·
+//                        7-2: 9 · 14: 2 · 16: 4 · 18: 9
+export const LEFT_OUT = {
+  leccion1: [6], leccion2: [7], leccion3: [10], leccion4: [9], leccion5: [1, 2, 12], leccion6: [5, 10],
+  "leccion7-1": [1, 3, 4, 7], "leccion7-2": [1, 2, 6, 9], "leccion8-anexo": [4], leccion9: [1, 2, 6],
+  leccion10: [1, 2, 5, 11], leccion11: [1, 2, 8], "leccion12-1": [1, 5], "leccion12-2": [1, 11],
+  leccion13: [1], leccion14: [2, 6], leccion15: [3, 4, 5], leccion16: [1, 2, 4, 7], leccion17: [1, 2, 6],
+  leccion18: [9, 11], leccion21: [1, 5], leccion22: [1, 4, 5],
+};
+
 export const EXERCISE_LESSONS = [
   leccion1, leccion2, leccion3, leccion4, leccion5, leccion6, leccion7_1, leccion7_2, leccion7_3,
   leccion8, leccion8_anexo, leccion9, leccion10, leccion11, leccion12_1, leccion12_2, leccion13,
   leccion14, leccion15, leccion16, leccion17, leccion18, leccion19, leccion20, leccion21, leccion22,
   leccion23,
-].map((l) => ({ ...l, title: TITLES[l.id] || l.id, textOf: TEXT_OF[l.id] || l.id }));
+].map((l) => ({
+  ...l,
+  title: TITLES[l.id] || l.id,
+  textOf: TEXT_OF[l.id] || l.id,
+  exercises: l.exercises.filter((ex) => !(LEFT_OUT[l.id] || []).includes(ex.n)),
+}));
 
 export const EXERCISES_BY_ID = Object.fromEntries(EXERCISE_LESSONS.map((l) => [l.id, l]));
 

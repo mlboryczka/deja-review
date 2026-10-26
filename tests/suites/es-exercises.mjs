@@ -15,12 +15,15 @@
 //     asks Claude only when the key doesn't settle it, keeps every answer
 //     for the student who gave it, and says so when the table isn't there
 //     yet; with no key, nothing is asked and nothing kept;
-//   - a reply from Claude that can't be read keeps nothing.
+//   - a reply from Claude that can't be read keeps nothing;
+//   - the exercises the owner had taken out (2026-10-25, #53–#56) stay out:
+//     no sentence of your own, nothing about yourself, no question to write
+//     and no answer about the text, and every other item is still there.
 //
 // No browser and no network: Claude and the database are stand-ins.
 
 import { checker } from "../check.mjs";
-import { EXERCISE_LESSONS, EXERCISES_BY_ID } from "../../src/data/exercises/es/index.js";
+import { EXERCISE_LESSONS, EXERCISES_BY_ID, LEFT_OUT } from "../../src/data/exercises/es/index.js";
 import { LESSON_TEXTS } from "../../src/data/exercises/es/texts.js";
 import { plain, bare, kindOf, markByKey, typedText, keyAnswer, itemKey, findItem, isAnswered } from "../../src/lib/exerciseMarking.js";
 import { handleExerciseRequest, markPrompt, readMark } from "../../api/_lib/exercises.js";
@@ -63,6 +66,22 @@ ck(`all ${EXERCISE_LESSONS.length} sheets load, with ${items} items, each answer
    EXERCISE_LESSONS.length === 27 && items > 2000 && problems.length === 0, problems.slice(0, 8).join("; "));
 ck("the lesson text is there for every sheet that has one (not Lesson 15, which has none)",
    EXERCISE_LESSONS.filter((l) => l.textOf !== "leccion15" && !LESSON_TEXTS[l.textOf]).length === 0);
+
+// The owner, 2026-10-25: "get rid of these types of exercises throughout
+// lessons". Free writing is left only in Lesson 16's translation of its text.
+const leftIn = [];
+for (const lesson of EXERCISE_LESSONS) {
+  for (const ex of lesson.exercises) {
+    const asks = `${ex.instruction} ${ex.english}`;
+    const own = ex.items.some((it) => kindOf(it) === "open") && !(lesson.id === "leccion16" && ex.n === 3);
+    if (own || /corresponden a las respuestas|sobre el (diálogo|texto)|diciendo la verdad|según tu opinión|of your own|your own way/i.test(asks)) leftIn.push(`${lesson.id} ej ${ex.n}`);
+  }
+}
+ck("no exercise taken out on 2026-10-25 is left: no sentence of your own, nothing about yourself, no question to write, no answer about the text",
+   leftIn.length === 0, leftIn.join("; "));
+ck("52 exercises are out, 184 are left, every lesson keeps some, and every other item is still there",
+   Object.values(LEFT_OUT).flat().length === 52 && EXERCISE_LESSONS.reduce((n, l) => n + l.exercises.length, 0) === 184 &&
+   EXERCISE_LESSONS.every((l) => l.exercises.length > 0) && items === 3015);
 
 // ── The key's marking ────────────────────────────────────────────────────
 console.log("Marking by the key");

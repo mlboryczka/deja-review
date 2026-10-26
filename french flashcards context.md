@@ -2371,7 +2371,15 @@ page you were on (kept in this browser, `es-exercises-place:<user id>`).
   recordings don't exist. An exercise that works on another's sentences
   shows the sentence in each item; a sheet's worked first line is the
   exercise's example; a writing task with no items on the sheet became one
-  or more free-writing items.
+  or more free-writing items. Left out at the owner's word (2026-10-25,
+  feedback #53–#56: "get rid of these types of exercises throughout
+  lessons"): every exercise with no set answer for the key to check, 52 in
+  22 lessons (482 items), listed in `LEFT_OUT` in
+  `src/data/exercises/es/index.js`: sentences of your own, answers about
+  yourself, writing the question that goes with an answer, and answering
+  questions about the text. Their files keep them as the sheets have them,
+  and the exercises left keep the sheet's numbers. Lesson 16's translation
+  of its text stays. 184 exercises, 3,015 items.
 - **Four kinds of item** (`src/lib/exerciseMarking.js`): gaps typed into the
   sentence (`gaps`, one list of right answers per blank), one answer
   (`answer` and `also`), free writing (`open`, an example answer; `long` for
