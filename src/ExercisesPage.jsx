@@ -282,7 +282,7 @@ function ExerciseBlock({ user, lesson, exercise, store, again, onStartAgain, foc
   return (
     <section style={S.ex} data-exercise={exercise.n}>
       <div style={S.exHead}>
-        <span style={S.exNum}>Ejercicio {exercise.n}</span>
+        <span style={S.exNum}>Ejercicio {exercise.number}</span>
         <span style={S.exTitle}>{exercise.title}</span>
         {answered > 0 && (
           <span style={S.exScore} data-exercise-score>{`${right} of ${exercise.items.length} right`}</span>

@@ -82,6 +82,12 @@ ck("no exercise taken out on 2026-10-25 is left: no sentence of your own, nothin
 ck("52 exercises are out, 184 are left, every lesson keeps some, and every other item is still there",
    Object.values(LEFT_OUT).flat().length === 52 && EXERCISE_LESSONS.reduce((n, l) => n + l.exercises.length, 0) === 184 &&
    EXERCISE_LESSONS.every((l) => l.exercises.length > 0) && items === 3015);
+// "renumber the exercises properly" (owner, 2026-10-25).
+ck("each lesson's exercises are numbered 1, 2, 3… on the page, in order",
+   EXERCISE_LESSONS.every((l) => l.exercises.every((ex, i) => ex.number === i + 1)));
+ck("an instruction pointing at another exercise gives its number on the page",
+   /del ejercicio 1 en plural/.test(EXERCISES_BY_ID["leccion12-1"].exercises.find((ex) => ex.n === 3).instruction) &&
+   /from exercise 1 /.test(EXERCISES_BY_ID.leccion18.exercises.find((ex) => ex.n === 2).english));
 
 // ── The key's marking ────────────────────────────────────────────────────
 console.log("Marking by the key");

@@ -42,8 +42,8 @@ import leccion23 from "./leccion23.js";
 // exercises wherein a write a sentence of my own with. particular word", and of
 // answering truthfully, writing the question, and answering about the text:
 // "get rid of these types of exercises throughout lessons". Their files keep
-// them as the sheets have them; the numbers left keep the sheet's. Lesson 16's
-// ex. 3, translating the lesson's text, stays: it is a translation.
+// them as the sheets have them, numbered as on the sheet. Lesson 16's ex. 3,
+// translating the lesson's text, stays: it is a translation.
 //   your own sentences   5: 1, 2 · 7-1: 1 · 7-2: 1, 2 · 9: 1, 2 · 10: 1, 2, 11 ·
 //                        11: 1, 2 · 12-1: 1, 5 (Paola's routine retold) ·
 //                        12-2: 1, 11 · 13: 1 · 16: 1, 2, 7 · 17: 1, 2,
@@ -63,6 +63,20 @@ export const LEFT_OUT = {
   leccion18: [9, 11], leccion21: [1, 5], leccion22: [1, 4, 5],
 };
 
+// The page numbers a lesson's exercises 1, 2, 3… as they now stand (owner,
+// 2026-10-25: "renumber the exercises properly"). `n` stays the sheet's
+// number, which every answer is kept under. An instruction pointing at
+// another exercise ("del ejercicio 2", Lesson 12.1) points at its number on
+// the page.
+function numbered(exercises) {
+  const number = new Map(exercises.map((ex, i) => [ex.n, i + 1]));
+  const renumber = (text) =>
+    typeof text === "string"
+      ? text.replace(/\b(ejercicio|exercise) (\d+)\b/gi, (all, word, n) => (number.has(Number(n)) ? `${word} ${number.get(Number(n))}` : all))
+      : text;
+  return exercises.map((ex, i) => ({ ...ex, number: i + 1, instruction: renumber(ex.instruction), english: renumber(ex.english) }));
+}
+
 export const EXERCISE_LESSONS = [
   leccion1, leccion2, leccion3, leccion4, leccion5, leccion6, leccion7_1, leccion7_2, leccion7_3,
   leccion8, leccion8_anexo, leccion9, leccion10, leccion11, leccion12_1, leccion12_2, leccion13,
@@ -72,7 +86,7 @@ export const EXERCISE_LESSONS = [
   ...l,
   title: TITLES[l.id] || l.id,
   textOf: TEXT_OF[l.id] || l.id,
-  exercises: l.exercises.filter((ex) => !(LEFT_OUT[l.id] || []).includes(ex.n)),
+  exercises: numbered(l.exercises.filter((ex) => !(LEFT_OUT[l.id] || []).includes(ex.n))),
 }));
 
 export const EXERCISES_BY_ID = Object.fromEntries(EXERCISE_LESSONS.map((l) => [l.id, l]));
