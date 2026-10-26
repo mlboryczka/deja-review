@@ -184,6 +184,7 @@ export function clearPodcastsPlace(userId) {
   if (!userId) return;
   try { localStorage.removeItem(PODCASTS_PLACE_KEY + userId); } catch { /* storage blocked */ }
   try { localStorage.removeItem(EXERCISES_PLACE_KEY + userId); } catch { /* storage blocked */ }
+  try { localStorage.removeItem(EXERCISES_FOLDED_KEY + userId); } catch { /* storage blocked */ }
   // The exercises started again (ExercisesPage's own key).
   try { localStorage.removeItem("es-exercises-again:" + userId); } catch { /* storage blocked */ }
 }
@@ -209,6 +210,13 @@ function writeExercisesPlace(userId, { open, lesson }) {
   try {
     localStorage.setItem(EXERCISES_PLACE_KEY + userId, JSON.stringify({ open, lesson }));
   } catch { /* storage blocked: the place is a convenience, not a record */ }
+}
+// The lessons under All exercises, folded away with the arrow beside it
+// (owner, 2026-10-25: "need to be able to remove the subheadings (lessons)").
+// Kept folded in this browser until opened again.
+const EXERCISES_FOLDED_KEY = "es-exercises-folded:";
+function readExercisesFolded(userId) {
+  try { return !!userId && localStorage.getItem(EXERCISES_FOLDED_KEY + userId) === "1"; } catch { return false; }
 }
 
 // Two tutor contexts with the same content. The podcasts page hands one up
@@ -999,6 +1007,11 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
     if (!hasExercises || !user?.id) return;
     writeExercisesPlace(user.id, { open: exercisesOn, lesson: exView.lesson });
   }, [hasExercises, user?.id, exercisesOn, exView.lesson]);
+  const [exLessonsFolded, setExLessonsFolded] = useState(() => readExercisesFolded(user?.id));
+  useEffect(() => {
+    if (!user?.id) return;
+    try { localStorage.setItem(EXERCISES_FOLDED_KEY + user.id, exLessonsFolded ? "1" : "0"); } catch { /* storage blocked */ }
+  }, [user?.id, exLessonsFolded]);
   // Changing module stops the browser voice: a card being read aloud must
   // not carry on over an episode, nor a podcast word over the next card. The
   // episode's own recording is the podcasts page's to pause, and it does so
@@ -3179,8 +3192,11 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
           {SIDEBAR_TOGGLE_ICON(false)}
         </button>
       )}
-      {/* Nav items with icons */}
-      <nav style={S.sideNav}>
+      {/* Nav items with icons. Full width, the nav scrolls on its own, so a
+          long list (Exercises' 27 lessons) never pushes the account and Send
+          feedback out of view, nor the feedback card that opens above them
+          (owner, 2026-10-25: "usernamef/feedback should always been in view"). */}
+      <nav style={sidebarMin ? S.sideNavMin : S.sideNav}>
         {sidebarMin && (
           // Minimized, the expand button is one more item in the rail: the
           // same button style as Cards and the rest, so it shares their centre
@@ -3282,22 +3298,41 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
         })}
         {/* Exercises' side: All exercises, with every lesson beneath it,
             the one open marked. Not on the rail, which has no room to nest
-            anything. */}
+            anything. The arrow beside All exercises folds the lessons away;
+            folded, the lesson you're in still shows, as under Basic
+            Lessons. */}
         {exercisesOn && (
           <>
-            <button
-              data-ex-nav="all"
-              className="side-btn"
-              aria-current={!exView.lesson ? "page" : undefined}
-              style={{ ...(sidebarMin ? { ...S.sideItem, ...S.sideItemMin } : S.sideItem), ...(!exView.lesson || sidebarMin ? S.sideItemActive : null) }}
-              onClick={() => setExView({ lesson: null })}
-              title={sidebarMin ? "All exercises" : undefined}
-              aria-label={sidebarMin ? "All exercises" : undefined}
-            >
-              <span style={S.sideIcon}>{NAV_ICONS.episodes}</span>
-              {!sidebarMin && "All exercises"}
-            </button>
-            {!sidebarMin && EXERCISE_TITLES.map((l) => {
+            <div style={S.sideItemWrap}>
+              <button
+                data-ex-nav="all"
+                className="side-btn"
+                aria-current={!exView.lesson ? "page" : undefined}
+                style={{ ...(sidebarMin ? { ...S.sideItem, ...S.sideItemMin } : S.sideItem), ...(!exView.lesson || sidebarMin ? S.sideItemActive : null) }}
+                onClick={() => setExView({ lesson: null })}
+                title={sidebarMin ? "All exercises" : undefined}
+                aria-label={sidebarMin ? "All exercises" : undefined}
+              >
+                <span style={S.sideIcon}>{NAV_ICONS.episodes}</span>
+                {!sidebarMin && "All exercises"}
+              </button>
+              {!sidebarMin && (
+                <button
+                  data-ex-fold
+                  className="side-btn"
+                  style={S.sideFoldBtn}
+                  onClick={() => setExLessonsFolded((v) => !v)}
+                  aria-expanded={!exLessonsFolded}
+                  aria-label={exLessonsFolded ? "Show the lessons" : "Hide the lessons"}
+                  title={exLessonsFolded ? "Show the lessons" : "Hide the lessons"}
+                >
+                  <span style={{ ...S.sideChevron, ...(exLessonsFolded ? null : S.sideChevronOpen), marginLeft:0 }} aria-hidden="true">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                  </span>
+                </button>
+              )}
+            </div>
+            {!sidebarMin && EXERCISE_TITLES.filter((l) => !exLessonsFolded || exView.lesson === l.id).map((l) => {
               const on = exView.lesson === l.id;
               return (
                 <button
@@ -3423,10 +3458,12 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
             panel well clear of Tutor. On a short window it holds a floor while
             the panel is open, and the sidebar scrolls instead of the panel
             climbing over the nav. */}
+        {/* Open, it never gives up height: the nav scrolls instead, so the
+            whole card is in view as it opens (owner, 2026-10-25). */}
         <div
           ref={setFeedbackDock}
           data-feedback-dock
-          style={{ ...S.sideFeedbackDock, minHeight: showFeedback ? 244 : 0 }}
+          style={{ ...S.sideFeedbackDock, minHeight: showFeedback ? 244 : 0, flexShrink: showFeedback ? 0 : 1 }}
         />
         <div style={sidebarMin ? { ...S.sideDivider, ...S.sideDividerMin } : S.sideDivider} />
         <div style={sidebarMin ? { ...S.sideBottom, ...S.sideBottomMin } : S.sideBottom}>
@@ -5742,8 +5779,14 @@ const S = {
   sideBar: { width:SIDEBAR_WIDTH, background:T.color.surfaceLow, borderRight:"1px solid rgba(3,22,50,0.07)", paddingTop:40, paddingRight:0, paddingBottom:24, paddingLeft:0, display:"flex", flexDirection:"column", flexShrink:0, position:"sticky", top:0, height:"100vh", overflowY:"auto", boxSizing:"border-box", transition:`width ${PANEL_ANIM_MS}ms ${PANEL_EASING}` },
   // Not flex:1 any more — the feedback dock below takes the free height, so the
   // panel can sit in it. The nav looks the same either way.
-  sideNav: { display:"flex", flexDirection:"column", gap:4, flex:"none" },
-  sideFeedbackDock: { flex:"1 1 auto", minHeight:0, display:"flex", flexDirection:"column", justifyContent:"flex-end", padding:"24px 16px 12px", boxSizing:"border-box" },
+  // The two navs set the same keys, so going from one to the other leaves
+  // nothing of the first behind (the 24b55b7 bug).
+  sideNav: { display:"flex", flexDirection:"column", gap:4, flexGrow:0, flexShrink:1, flexBasis:"auto", minHeight:0, overflowY:"auto", overflowX:"hidden" },
+  sideNavMin: { display:"flex", flexDirection:"column", gap:4, flexGrow:0, flexShrink:0, flexBasis:"auto", minHeight:"auto", overflowY:"visible", overflowX:"visible" },
+  sideFeedbackDock: { flexGrow:1, flexShrink:1, flexBasis:"auto", minHeight:0, display:"flex", flexDirection:"column", justifyContent:"flex-end", padding:"24px 16px 12px", boxSizing:"border-box" },
+  // All exercises and the arrow that folds the lessons under it.
+  sideItemWrap: { position:"relative", display:"flex", flexDirection:"column" },
+  sideFoldBtn: { position:"absolute", top:"50%", right:20, transform:"translateY(-50%)", display:"flex", alignItems:"center", justifyContent:"center", width:28, height:28, padding:0, border:"none", background:"transparent", color:"rgba(3,22,50,0.6)", cursor:"pointer", borderRadius:T.radius.md },
   // Indented to sit under its parent nav item, and quieter than one: a lesson
   // is a place inside Lessons, not a peer of Cards and Stats.
   // Every nav style declares all FOUR border sides, even the three it does not

@@ -1196,8 +1196,13 @@ and shipped broken.
   card; the bottom sheet it replaced cost the card ~140px. It is an inset card,
   16px in from each edge (~223px wide), at the bottom of `data-feedback-dock`,
   the stretch between the nav and the account block. The dock's 24px top
-  padding keeps it clear of Tutor; while it is open the dock keeps 244px, and a
-  short window scrolls the sidebar. Its test marker is still
+  padding keeps it clear of Tutor; while it is open the dock keeps 244px and
+  never shrinks. At full width the nav scrolls on its own, so the account, Send
+  feedback and the open panel stay in view however long the nav is (owner,
+  2026-10-25: "usernamef/feedback should always been in view (and feedback
+  card should be in full view when it loads)"); Spanish Exercises' 27 lessons
+  had pushed them below the window. Only a window too short for the panel and
+  the account scrolls the sidebar. Its test marker is still
   `data-feedback-sheet`.
 - **It fades and rises over 200ms**, started by a `useLayoutEffect` that forces
   layout, not the tutor's two animation frames, which left it open but
@@ -2369,7 +2374,10 @@ Owner, 2026-10-24: "create a new module only in the spanish module for
 quizzing me on the exercises you put together for each lesson". The Spanish
 sidebar has a switch at the top, **Flashcards / Exercises**, like French's
 Flashcards / Podcasts; French is unchanged. Exercises' sidebar has All
-exercises with every lesson beneath it. The app reopens on the Exercises
+exercises with every lesson beneath it; the arrow beside All exercises folds
+the lessons away, leaving the one you're in (owner, 2026-10-25: "need to be
+able to remove the subheadings (lessons)"), and stays folded in this browser
+(`es-exercises-folded:<user id>`). The app reopens on the Exercises
 page you were on (kept in this browser, `es-exercises-place:<user id>`).
 
 - **What is in it**: every written exercise of the 27 EJERCICIOS sheets
