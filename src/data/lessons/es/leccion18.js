@@ -11,14 +11,10 @@
 // Spanish; see imperatif.js for why.
 //
 // Card shapes:
-//   "hablar (imperativo) → tú"               a command form; the line above comes from the shape
-//   "hablar (imperativo negativo) → tú"      a "don't" form, answered with its no ("no hables")
-//   "Tienes que decir la verdad → en imperativo"
-//                                            her ex. 1, 5, 6 and 7: the same person, as a command
-//   "Tienes que poner … → en imperativo negativo"   her ex. 2: the same, with no
-//   "Cómpralo → en negativo"                 a command with a pronoun, turned into "don't"
 //   two-way phrase (E) and word (V) cards: her phrases to learn, a sample of
 //   her translations (ex. 3, 4 and 8) and her word list (ex. 10)
+//   "Vuelve pronto a Guadalajara" / "Come back to Guadalajara soon"
+//                                                  an irregular verb form, in a phrase
 //
 // WHY THE FORMS ARE ON EXACT CARDS. A phrase card is marked with typo
 // tolerance, and the mistakes this lesson is about are a letter or two long:
@@ -99,26 +95,20 @@
 // Left out of the notes as helping no card: the pointers to earlier lessons
 // ("Mira (lección 4)…"), and "vámosnos" as a wrong form (the note just says
 // the -s drops).
+//
+// Taken out on 2026-10-25, at the owner's word ("the flashcards module for the
+// spanish section should be all words and phrases, no grammar", "i have the
+// exercises for those"): every grammar card, 51 here, with their sections,
+// order and instruction lines. That is the drills, gaps and rewrites this
+// header describes. The grammar is practised on the Exercises page.
+//
+// Added: 13 phrases (section "verbforms"), one for each irregular verb form
+// the drills asked that no word or phrase card had, each with words of this
+// lesson that no phrase used yet, checked by an independent reader. On any
+// Spanish phrase, an irregular verb form must be typed exactly
+// (irregularForms.js).
 
 export const CARDS = [
-  // ── 2. Tú, usted, ustedes on her model verbs
-  ["hablar (imperativo) → tú", "habla", "G", "regular"],
-  ["hablar (imperativo) → usted", "hable", "G", "regular"],
-  ["hablar (imperativo) → ustedes", "hablen", "G", "regular"],
-  ["comer (imperativo) → usted", "coma", "G", "regular"],          // -er takes an a
-  ["volver (imperativo) → tú", "vuelve", "G", "regular"],         // the vowel change stays
-  ["volver (imperativo) → usted", "vuelva", "G", "regular"],
-
-  // ── 2. The eight short tú forms
-  ["decir (imperativo) → tú", "di", "G", "irregular"],
-  ["hacer (imperativo) → tú", "haz", "G", "irregular"],
-  ["ir (imperativo) → tú", "ve", "G", "irregular"],
-  ["poner (imperativo) → tú", "pon", "G", "irregular"],
-  ["salir (imperativo) → tú", "sal", "G", "irregular"],
-  ["ser (imperativo) → tú", "sé", "G", "irregular"],
-  ["tener (imperativo) → tú", "ten", "G", "irregular"],
-  ["venir (imperativo) → tú", "ven", "G", "irregular"],
-
   // ── Ex. 10: her word list, the directions in the dialogue
   ["¿Bueno?", "Hello? (on the phone)", "E", "vocab"],
   ["¡Bienvenido a México!", "Welcome to Mexico!", "E", "vocab"],
@@ -139,68 +129,13 @@ export const CARDS = [
   ["descompuesto", "out of order / broken (masc.)", "V", "vocab"],
   ["Nos vemos en una hora", "See you in an hour", "E", "vocab"],
 
-  // ── 2. Usted and ustedes: from the yo form, and the verbs to learn
-  ["decir (imperativo) → usted", "diga", "G", "usted"],           // digo → diga
-  ["estar (imperativo) → usted", "esté", "G", "usted"],
-  ["saber (imperativo) → usted", "sepa", "G", "usted"],
-  ["buscar (imperativo) → usted", "busque", "G", "usted"],
-  ["llegar (imperativo) → usted", "llegue", "G", "usted"],
-  ["empezar (imperativo) → ustedes", "empiecen", "G", "usted"],   // vowel change and z → c
-
-  // ── Ex. 1: put it as a command, to the same person
-  ["Tienes que prender la computadora → en imperativo", "Prende la computadora", "G", "ex1"],
-  ["Ustedes tienen que ser puntuales → en imperativo", "Sean puntuales", "G", "ex1"],
-  ["Ustedes tienen que ir al banco → en imperativo", "Vayan al banco", "G", "ex1"],
-  ["Usted tiene que abrir la puerta → en imperativo", "Abra la puerta", "G", "ex1"],
-  ["Usted tiene que contestar el teléfono → en imperativo", "Conteste el teléfono", "G", "ex1"],
-
-  // ── 2. Don't: no + the usted form, with an -s for tú
-  ["hablar (imperativo negativo) → tú", "no hables", "G", "negative"],
-  ["comer (imperativo negativo) → tú", "no comas", "G", "negative"],
-  ["decir (imperativo negativo) → tú", "no digas", "G", "negative"],
-  ["ir (imperativo negativo) → tú", "no vayas", "G", "negative"],
-  ["ser (imperativo negativo) → tú", "no seas", "G", "negative"],
-
-  // ── Ex. 2: her ex. 1 sentences, as "don't"
-  ["Tienes que poner tus libros en la mesa → en imperativo negativo", "No pongas tus libros en la mesa", "G", "ex2"],
-  ["Usted tiene que contestar el teléfono → en imperativo negativo", "No conteste el teléfono", "G", "ex2"],
-
-  // ── 3. One pronoun, joined to the command (ex. 6)
-  ["Tienes que esperarlos → en imperativo", "Espéralos", "G", "pronouns"],
-  ["Tienes que darle la pluma → en imperativo", "Dale la pluma", "G", "pronouns"],
-  ["Usted tiene que decirme su nombre → en imperativo", "Dígame su nombre", "G", "pronouns"],
-  ["Usted tiene que llamarnos mañana → en imperativo", "Llámenos mañana", "G", "pronouns"],
-
   // ── Ex. 3: with tú, me goes on the end
   ["¡Escúchame!", "Listen to me! (tú)", "E", "withme"],
   ["¡Hazme un café!", "Make me a coffee! (tú, with hacer)", "E", "withme"],
 
-  // ── 3. With no, the pronoun goes first (her lesson's examples)
-  ["Cómpralo → en negativo", "No lo compres", "G", "negpronouns"],
-  ["Dale el libro → en negativo", "No le des el libro", "G", "negpronouns"],
-  ["Dímelo → en negativo", "No me lo digas", "G", "negpronouns"],
-
   // ── Ex. 4: don't, with me
   ["No me digas eso", "Don't tell me that (tú)", "E", "notme"],
   ["No me mientas", "Don't lie to me (tú)", "E", "notme"],
-
-  // ── 3. Two pronouns (ex. 7)
-  ["Usted tiene que explicármelo → en imperativo", "Explíquemelo", "G", "twopronouns"],
-  ["Tienes que dárselos → en imperativo", "Dáselos", "G", "twopronouns"],       // le → se
-  ["Tienes que recordármelo mañana → en imperativo", "Recuérdamelo mañana", "G", "twopronouns"],
-  ["Tienes que decírmelo → en imperativo", "Dímelo", "G", "twopronouns"],          // di + me + lo
-
-  // ── 4. Reflexive verbs
-  ["levantarse (imperativo) → tú", "levántate", "G", "reflexive"],
-  ["levantarse (imperativo) → usted", "levántese", "G", "reflexive"],
-  ["levantarse (imperativo) → ustedes", "levántense", "G", "reflexive"],
-  ["preocuparse (imperativo negativo) → tú", "no te preocupes", "G", "reflexive"],
-  ["preocuparse (imperativo negativo) → usted", "no se preocupe", "G", "reflexive"],
-
-  // ── Ex. 5: reflexive verbs with a vowel change
-  ["Tienes que acordarte → en imperativo", "Acuérdate", "G", "ex5"],
-  ["Tienes que vestirte → en imperativo", "Vístete", "G", "ex5"],
-  ["Ustedes tienen que sentarse → en imperativo", "Siéntense", "G", "ex5"],
 
   // ── Her phrases to learn by heart (levels 1 and 2)
   ["Dime lo que tienes", "Tell me what's wrong / Tell me what's the matter (tú)", "E", "phrases"],
@@ -217,6 +152,22 @@ export const CARDS = [
   ["¡Cállate!", "Be quiet! / Shut up! (tú)", "E", "level2"],
   ["¡Apúrate!", "Hurry up! (tú)", "E", "level2"],
   ["¡Vamos a comer!", "Let's eat! / We're going to eat!", "E", "level2"],
+
+  // ── Irregular verb forms, each in a short phrase with this lesson's words
+  //    (2026-10-25). The verb must be typed exactly: irregularForms.js.
+  ["Vuelve pronto a Guadalajara", "Come back to Guadalajara soon / Come back soon to Guadalajara / Return to Guadalajara soon (to a friend, with volver)", "E", "verbforms"],
+  ["Vuelva más tarde", "Come back later / Return later (usted, with volver)", "E", "verbforms"],
+  ["Haz la maleta esta noche", "Pack your suitcase tonight / Pack tonight / Pack your bag tonight / Pack the suitcase tonight (to a friend, with hacer)", "E", "verbforms"],
+  ["Ve derecho dos cuadras", "Go straight for two blocks / Go straight two blocks / Go straight ahead for two blocks (to a friend, with ir)", "E", "verbforms"],
+  ["Pon las maletas en el elevador", "Put the suitcases in the elevator / Put the suitcases in the lift (to a friend)", "E", "verbforms"],
+  ["Ten todo listo para mañana", "Have everything ready for tomorrow (to a friend)", "E", "verbforms"],
+  ["Ven a mi edificio: está enfrente de un parque", "Come to my building: it's across from a park / Come to my building: it is across from a park / Come to my building: it's opposite a park / Come to my building: it's in front of a park (to a friend, with enfrente)", "E", "verbforms"],
+  ["Diga algo en español", "Say something in Spanish (usted)", "E", "verbforms"],
+  ["Sepa que aquí siempre es bienvenido", "Know that you're always welcome here / Know that you are always welcome here / Please know that you're always welcome here (usted)", "E", "verbforms"],
+  ["Empiecen a comer", "Start eating / Start to eat / Begin eating / Begin to eat (to several people)", "E", "verbforms"],
+  ["No digas eso enfrente de los niños", "Don't say that in front of the kids / Don't say that in front of the children / Do not say that in front of the kids (to a friend, with enfrente)", "E", "verbforms"],
+  ["No vayas al centro en carro", "Don't go downtown by car / Do not go downtown by car / Don't drive downtown (to a friend)", "E", "verbforms"],
+  ["No seas egoísta", "Don't be selfish / Do not be selfish (to a friend)", "E", "verbforms"],
 ];
 
 // The notes: her lesson, translated into English and laid out on the notes
@@ -382,30 +333,14 @@ export const LESSON = {
   source: "Adapted from the LFL METHOD by Laura Caufour",
   cards: CARDS,
   notes: NOTES,
-  // The order a student meets NEW cards in, in the order of her grammar: the
-  // tú forms first, since the directions in her word list are tú commands;
-  // then usted and ustedes and her ex. 1; "don't" and her ex. 2; pronouns,
-  // affirmative then negative, then two of them; reflexive verbs; her
-  // phrases to learn and level 2 translations last, as they mix everything.
+  // The order a student meets NEW cards in. The grammar cards went on
+  // 2026-10-25, and what is left keeps the order it had: the sheet's own, each
+  // set of words before the phrases that use them, and the verb forms last, as
+  // their phrases use this lesson's words. Reviews are unaffected; FSRS
+  // schedules those.
   teachingOrder: [
-    "regular", "irregular",
-    "vocab",
-    "usted", "ex1",
-    "negative", "ex2",
-    "pronouns", "withme", "negpronouns", "notme", "twopronouns",
-    "reflexive", "ex5",
-    "phrases", "level2",
+    "vocab", "withme", "notme", "phrases", "level2", "verbforms",
   ],
-  // The drills get their line from their shape ("Command, tú form",
-  // "Negative command, tú form"). Phrase and word cards carry no line.
-  instructions: {
-    ex1: "Turn this into a command to the same person",
-    pronouns: "Turn this into a command to the same person",
-    twopronouns: "Turn this into a command to the same person",
-    ex5: "Turn this into a command to the same person",
-    ex2: "Turn this into a negative command to the same person",
-    negpronouns: "Make this command negative",
-  },
 };
 
 export default LESSON;

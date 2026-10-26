@@ -16,18 +16,10 @@
 // Spanish.
 //
 // Card shapes:
-//   "decir (presente) → yo" / "digo"                  drill; its line comes from its shape
-//   "tener que (pretérito) → yo" / "tuve que"         the same, for tener que
-//   "leer → gerundio" / "leyendo"                      the -ando / -iendo form
-//   "trabajar (estar + gerundio) → yo" / "estoy trabajando"
-//   "deber → Los pacientes ___ traer…"                the cue verb, in the present, in the gap
-//   "le o les → Martín ___ mandó un correo a…"        the pronoun (ex. 3)
-//   "a o al → … el problema ___ paciente"             a or al before the person (ex. 3)
-//   "Ella contestó al periodista → con le o les"      replace a + person with le or les (ex. 5)
-//   "Te voy a escribir → pronombre al final"          the pronoun's other place
-//   "1,000,000 → en letras" / "un millón"             numbers and years (ex. 13), written with
-//                                                     the sheet's commas, as in Mexico
 //   two-way word (V) and phrase (E) cards for ex. 10 and a sample of ex. 4, 11 and 12
+//   "mil" / "one thousand"                         a number, as a word
+//   "¿Qué digo en el correo?" / "What do I say in the email?"
+//                                                  an irregular verb form, in a phrase
 //
 // WHY THE PRONOUNS ARE ON EXACT CARDS. A phrase card is marked fuzzily, and
 // "Les dije la verdad a mi hermana" is one letter from "Le dije…": it would
@@ -103,6 +95,20 @@
 // flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
 // too"): the 6 cards that answered a question with yes or no in a full
 // sentence (section "answers").
+//
+// Taken out on 2026-10-25, at the owner's word ("the flashcards module for the
+// spanish section should be all words and phrases, no grammar", "i have the
+// exercises for those"): every grammar card, 51 here, with their sections,
+// order and instruction lines. That is the drills, gaps and rewrites this
+// header describes. The grammar is practised on the Exercises page.
+//
+// Kept as words and phrases, asked both ways round: the 8 that were grammar
+// cards only in form (the numbers).
+//
+// Added: 9 phrases (section "verbforms"), one for each irregular verb form the
+// drills asked that no word or phrase card had, each with words of this lesson
+// that no phrase used yet, checked by an independent reader. On any Spanish
+// phrase, an irregular verb form must be typed exactly (irregularForms.js).
 
 export const CARDS = [
   // ── The new verbs, before they are conjugated or used
@@ -116,37 +122,6 @@ export const CARDS = [
   ["olvidar", "to forget", "V", "verbs"],
   ["actualizar", "to update", "V", "verbs"],
 
-  // ── 1. Decir: -go with yo, e → i, and a preterite with j
-  ["decir (presente) → yo", "digo", "G", "decir"],
-  ["decir (presente) → tú", "dices", "G", "decir"],
-  ["decir (presente) → él/ella", "dice", "G", "decir"],
-  ["decir (presente) → nosotros", "decimos", "G", "decir"],
-  ["decir (presente) → ustedes", "dicen", "G", "decir"],
-  ["decir (presente) → ellos/ellas", "dicen", "G", "decir"],
-  ["decir (pretérito) → yo", "dije", "G", "decir"],
-  ["decir (pretérito) → tú", "dijiste", "G", "decir"],
-  ["decir (pretérito) → él/ella", "dijo", "G", "decir"],
-  ["decir (pretérito) → ellos/ellas", "dijeron", "G", "decir"],   // not dijieron
-
-  // ── 1. Deber, a regular -er verb
-  ["deber (presente) → yo", "debo", "G", "deber"],
-  ["deber (presente) → tú", "debes", "G", "deber"],
-  ["deber (presente) → él/ella", "debe", "G", "deber"],
-  ["deber (presente) → nosotros", "debemos", "G", "deber"],
-  ["deber (presente) → ustedes", "deben", "G", "deber"],
-  ["deber (presente) → ellos/ellas", "deben", "G", "deber"],
-
-  // ── 1. Deber and tener que + a second verb
-  ["deber → Los pacientes ___ traer su credencial", "deben", "G", "must"],
-  ["tener que → Yo ___ trabajar el sábado", "tengo que", "G", "must"],
-  ["tener que (pretérito) → yo", "tuve que", "G", "tenerque"],
-  ["tener que (pretérito) → nosotros", "tuvimos que", "G", "tenerque"],
-
-  // ── 2. Dar (the sheet's note)
-  ["dar (presente) → yo", "doy", "G", "dar"],
-  ["dar (pretérito) → yo", "di", "G", "dar"],
-  ["dar (pretérito) → él/ella", "dio", "G", "dar"],
-
   // ── Ex. 10: the rest of the word list
   ["un correo", "an email", "V", "vocab"],
   ["¿Ya terminaste?", "Are you done? / Did you finish? / Have you finished? (tú)", "E", "vocab"],
@@ -159,54 +134,36 @@ export const CARDS = [
   ["¡Ánimo!", "Hang in there! / Cheer up! / Come on!", "E", "vocab"],
   ["la semana pasada", "last week", "V", "vocab"],
 
-  // ── Ex. 3: le or les, decided by the person after a
-  ["le o les → Martín ___ mandó un correo a la señora Duarte", "le", "G", "lele"],
-  ["le o les → ___ voy a explicar la lección a los niños", "les", "G", "lele"],
-  ["le o les → ¿___ diste el expediente a Lucía?", "le", "G", "lele"],
-  ["le o les → Creo que ___ tienes que escribir a los papás de Diego", "les", "G", "lele"],
-
-  // ── Ex. 3: a, or al for a + el
-  ["a o al → La doctora le explicó el problema ___ paciente", "al", "G", "aal"],
-  ["a o al → Ayer le contesté ___ mi hermano", "a", "G", "aal"],
-
-  // ── Ex. 5: le or les in place of a + the person
-  ["La doctora dio los expedientes a Martín → con le o les", "La doctora le dio los expedientes", "G", "rewrite"],
-  ["Ella contestó al periodista → con le o les", "Ella le contestó", "G", "rewrite"],
-  ["Martín mandó un mensaje a los señores Ramírez → con le o les", "Martín les mandó un mensaje", "G", "rewrite"],
-
-  // ── 3. The pronoun's two places with a second verb
-  ["Le tengo que decir la verdad → pronombre al final", "Tengo que decirle la verdad", "G", "place"],
-  ["Te voy a escribir → pronombre al final", "Voy a escribirte", "G", "place"],
-  ["¿Puedes explicarme el problema? → pronombre al principio", "¿Me puedes explicar el problema?", "G", "place"],
-
   // ── Ex. 4, 11 and 12: sentences to learn whole
   ["Le dije la verdad a mi hermana", "I told my sister the truth / I told the truth to my sister", "E", "phrases"],
   ["¿Hablaste con el doctor?", "Did you talk to the doctor? / Did you speak to the doctor? / Did you talk with the doctor? (tú)", "E", "phrases"],
   ["Le hablé por teléfono", "I phoned her / I phoned him / I called her / I called him (with hablar)", "E", "phrases"],
 
-  // ── 4. The -ando / -iendo form: the irregular ones
-  ["leer → gerundio", "leyendo", "G", "gerund"],
-  ["decir → gerundio", "diciendo", "G", "gerund"],
-  ["dormir → gerundio", "durmiendo", "G", "gerund"],
-  ["ir → gerundio", "yendo", "G", "gerund"],
-
   // ── 4. Estar + -ando / -iendo: happening right now (ex. 9)
-  ["trabajar (estar + gerundio) → yo", "estoy trabajando", "G", "progressive"],
-  ["comer (estar + gerundio) → nosotros", "estamos comiendo", "G", "progressive"],
-  ["escribir (estar + gerundio) → él/ella", "está escribiendo", "G", "progressive"],
-  ["ver (estar + gerundio) → ustedes", "están viendo", "G", "progressive"],
   ["¿Qué estás haciendo?", "What are you doing? (tú, with estar)", "E", "progphrases"],
   ["Salgo mañana", "I'm leaving tomorrow / I leave tomorrow (with salir, in the present)", "E", "progphrases"],
 
   // ── 5. Thousands, millions and years (ex. 13)
-  ["1,000 → en letras", "mil", "G", "numbers"],
-  ["2,000 → en letras", "dos mil", "G", "numbers"],
-  ["300,000 personas → en letras", "trescientas mil personas", "G", "numbers"],
-  ["1,000,000 → en letras", "un millón", "G", "numbers"],
-  ["2,000,000 pesos → en letras", "dos millones de pesos", "G", "numbers"],
-  ["1,000,000,000 → en letras", "mil millones", "G", "numbers"],
-  ["1990 → en letras", "mil novecientos noventa", "G", "numbers"],
-  ["2026 → en letras", "dos mil veintiséis", "G", "numbers"],
+  ["mil", "one thousand / a thousand / thousand / 1000", "V", "numbers"],
+  ["dos mil", "two thousand / 2000", "V", "numbers"],
+  ["trescientas mil personas", "three hundred thousand people / 300000 people", "V", "numbers"],
+  ["un millón", "one million / a million / million / 1000000", "V", "numbers"],
+  ["dos millones de pesos", "two million pesos / 2 million pesos / 2000000 pesos", "V", "numbers"],
+  ["mil millones", "one billion / a billion / billion / 1000000000", "V", "numbers"],
+  ["mil novecientos noventa", "nineteen ninety / 1990 / one thousand nine hundred ninety / one thousand nine hundred and ninety", "V", "numbers"],
+  ["dos mil veintiséis", "two thousand twenty-six / twenty twenty-six / two thousand and twenty-six / two thousand twenty six / twenty twenty six / 2026", "V", "numbers"],
+
+  // ── Irregular verb forms, each in a short phrase with this lesson's words
+  //    (2026-10-25). The verb must be typed exactly: irregularForms.js.
+  ["¿Qué digo en el correo?", "What do I say in the email? / What should I say in the email? / What shall I say in the email?", "E", "verbforms"],
+  ["Siempre me dices la verdad", "You always tell me the truth (tú)", "E", "verbforms"],
+  ["Martín dice que ya mandó el correo", "Martín says he already sent the email / Martín says he's already sent the email / Martín says he has already sent the email / Martín says he sent the email already / Martín says that he already sent the email / Martín says that he's already sent the email / Martín says that he has already sent the email", "E", "verbforms"],
+  ["¿Por qué dicen que olvidé la reunión?", "Why do you say I forgot the meeting? / Why do you say that I forgot the meeting? / Why are you saying I forgot the meeting? / Why are you saying that I forgot the meeting? / Why do they say I forgot the meeting? / Why do they say that I forgot the meeting? / Why are they saying I forgot the meeting? / Why do you guys say I forgot the meeting? (ustedes)", "E", "verbforms"],
+  ["Me dijeron que todavía no", "They told me not yet / They said not yet / I was told not yet / You guys told me not yet / You guys said not yet", "E", "verbforms"],
+  ["Tuvimos que actualizar los expedientes", "We had to update the files / We had to update the records", "E", "verbforms"],
+  ["¿Te doy el expediente ahorita?", "Shall I give you the file right now? / Should I give you the file right now? / Do you want me to give you the file right now? / Shall I give you the file now? / Should I give you the file now? / Shall I give you the record right now? (tú, with ahorita)", "E", "verbforms"],
+  ["La semana pasada le di un regalo", "Last week I gave her a present / Last week I gave him a present / I gave her a present last week / I gave him a present last week / Last week I gave her a gift / Last week I gave him a gift / I gave her a gift last week / I gave him a gift last week", "E", "verbforms"],
+  ["James me dio su correo", "James gave me his email / James gave me his email address", "E", "verbforms"],
 ];
 
 // The notes: six tabs, Forms · Must · To someone · Pronouns · Right now ·
@@ -359,34 +316,14 @@ export const LESSON = {
   source: "Adapted from the LFL METHOD by Laura Caufour",
   cards: CARDS,
   notes: NOTES,
-  // The order a student meets NEW cards in. The new verbs first, as words,
-  // then their forms: decir, deber, then deber and tener que in sentences,
-  // tener que in the preterite, and dar. The rest of the word list comes
-  // before the pronoun cards, which use its words (un correo, un expediente).
-  // Then the pronouns in the order of the notes: le or les and a or al,
-  // replacing a + person, answering with the pronoun switched, and its place
-  // with a second verb. The phrase cards after the pronouns they contain.
-  // Then the -ando / -iendo form, estar with it, and its phrases. Numbers
-  // stand alone. Reviews are unaffected; FSRS schedules those.
+  // The order a student meets NEW cards in. The grammar cards went on
+  // 2026-10-25, and what is left keeps the order it had: the sheet's own, each
+  // set of words before the phrases that use them, and the verb forms last, as
+  // their phrases use this lesson's words. Reviews are unaffected; FSRS
+  // schedules those.
   teachingOrder: [
-    "verbs", "decir", "deber", "must", "tenerque", "dar",
-    "vocab",
-    "lele", "aal", "rewrite", "place", "phrases",
-    "gerund", "progressive", "progphrases",
-    "numbers",
+    "verbs", "vocab", "phrases", "progphrases", "numbers", "verbforms",
   ],
-  // The line above a grammar card saying what to type (src/lib/cardInstruction.js).
-  // The drills and the gerundio cards get theirs from their shape. The lele
-  // and aal lines don't name the choices: the front does, and naming les
-  // here would put an answer in the line.
-  instructions: {
-    must: "Fill the gap with the verb in the present tense",
-    lele: "Fill the gap with the right pronoun",
-    aal: "Fill the gap with the right one of the two",
-    rewrite: "Write it again, with le or les in place of a and the person",
-    place: "Write it again with the pronoun where the arrow says",
-    numbers: "Write this number in Spanish, in words",
-  },
 };
 
 export default LESSON;

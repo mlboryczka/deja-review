@@ -14,13 +14,10 @@
 // lesson.
 //
 // Card shapes:
-//   "querer (presente) → yo" / "quiero"          drill; its line comes from its shape
-//   "pensar → ¿Tú ___ que es una buena idea?"     the verb given, in the present (ex. 3)
-//   "Quiero ir a la catedral → en negativo"       make the sentence negative (ex. 5)
-//   "hay, está o están → ¿Dónde ___ la catedral?" choose and fill the gap (ex. 7)
-//   "¿Me puedes ayudar? → con usted"              say it with usted (ex. 8)
-//   "16 → en letras" / "dieciséis"                the number in words
 //   "intentar" / "to try"                         words and phrases, both ways round
+//   "dieciséis" / "sixteen"                        a number, as a word
+//   "Jessica quiere un mapa de la ciudad" / "Jessica wants a map of the city"
+//                                                  an irregular verb form, in a phrase
 //
 // WHY THE NEGATIVES ARE ALL ARROW CARDS. A word or phrase card is marked
 // with typo tolerance, and on anything over 14 letters three edits pass:
@@ -130,6 +127,20 @@
 // flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
 // too"): the 8 cards that answered a question with yes or no in a full
 // sentence (sections "yes" and "no").
+//
+// Taken out on 2026-10-25, at the owner's word ("the flashcards module for the
+// spanish section should be all words and phrases, no grammar", "i have the
+// exercises for those"): every grammar card, 47 here, with their sections,
+// order and instruction lines. That is the drills, gaps and rewrites this
+// header describes. The grammar is practised on the Exercises page.
+//
+// Kept as words and phrases, asked both ways round: the 5 that were grammar
+// cards only in form (the numbers).
+//
+// Added: 5 phrases (section "verbforms"), one for each irregular verb form the
+// drills asked that no word or phrase card had, each with words of this lesson
+// that no phrase used yet, checked by an independent reader. On any Spanish
+// phrase, an irregular verb form must be typed exactly (irregularForms.js).
 
 export const CARDS = [
   // ── Her word list (ex. 9) and the dialogue's set phrases, first: every
@@ -157,18 +168,6 @@ export const CARDS = [
   ["Disculpe", "Excuse me (usted)", "E", "words"],
 
   // ── 1. Querer and poder
-  ["querer (presente) → yo", "quiero", "G", "querer"],
-  ["querer (presente) → tú", "quieres", "G", "querer"],
-  ["querer (presente) → él/ella", "quiere", "G", "querer"],
-  ["querer (presente) → nosotros", "queremos", "G", "querer"],
-  ["querer (presente) → ustedes", "quieren", "G", "querer"],
-  ["querer (presente) → ellos/ellas", "quieren", "G", "querer"],
-  ["poder (presente) → yo", "puedo", "G", "poder"],
-  ["poder (presente) → tú", "puedes", "G", "poder"],
-  ["poder (presente) → él/ella", "puede", "G", "poder"],
-  ["poder (presente) → nosotros", "podemos", "G", "poder"],
-  ["poder (presente) → ustedes", "pueden", "G", "poder"],
-  ["poder (presente) → ellos/ellas", "pueden", "G", "poder"],
 
   // The questions a lost tourist asks (dialogue, ex. 10 nos. 18 and 20). The
   // English carries (tú) where usted would be different Spanish.
@@ -177,55 +176,20 @@ export const CARDS = [
   ["¿Puedo intentarlo?", "Can I try? / Can I try it? / May I try?", "E", "questions"],
   ["Voy a preguntarle a la señora del puesto de periódicos", "I'm going to ask the lady at the newspaper stand / I'm going to ask the lady at the newsstand", "E", "questions"],
 
-  // ── 2. Verbs that change their vowel: preferir, her other table
-  ["preferir (presente) → yo", "prefiero", "G", "preferir"],
-  ["preferir (presente) → tú", "prefieres", "G", "preferir"],
-  ["preferir (presente) → él/ella", "prefiere", "G", "preferir"],
-  ["preferir (presente) → nosotros", "preferimos", "G", "preferir"],
-  ["preferir (presente) → ustedes", "prefieren", "G", "preferir"],
-  ["preferir (presente) → ellos/ellas", "prefieren", "G", "preferir"],
-
-  // Ex. 3: one verb of her lists per card, every change at least once, and
-  // nosotros against ustedes on one sentence (volvemos / vuelven)
-  ["pensar → ¿Tú ___ que es una buena idea?", "piensas", "G", "vowels"],
-  ["entender → Ella no ___ bien el español", "entiende", "G", "vowels"],
-  ["empezar → La clase de español ___ hoy", "empieza", "G", "vowels"],
-  ["dormir → Mis hijos ___ mucho", "duermen", "G", "vowels"],
-  ["encontrar → Yo no ___ el mapa", "encuentro", "G", "vowels"],
-  ["volver → ¿Ustedes ___ a México este año?", "vuelven", "G", "vowels"],
-  ["volver → Nosotros ___ a México este año", "volvemos", "G", "vowels"],
-  ["poder → ¿Usted ___ repetir, por favor?", "puede", "G", "vowels"],
-
-  // ── 3. The negation (ex. 5): one card per thing that can go wrong
-  ["Me gusta caminar en la Ciudad de México → en negativo", "No me gusta caminar en la Ciudad de México", "G", "negation"],
-  ["Quiero ir a la catedral → en negativo", "No quiero ir a la catedral", "G", "negation"],
-  ["Marta vive en la Ciudad de México → en negativo", "Marta no vive en la Ciudad de México", "G", "negation"],
-  ["Es aquí → en negativo", "No es aquí", "G", "negation"],
-  ["Hay audífonos en la librería → en negativo", "No hay audífonos en la librería", "G", "negation"],
-
-  // Ex. 6: answer no, so say no twice; one card per change of person
-
-  // ── 4. Hay, está or están (ex. 7)
-  ["hay, está o están → ¿Dónde ___ la catedral?", "está", "G", "hay"],
-  ["hay, está o están → Allá ___ una estación de metro", "hay", "G", "hay"],
-  ["hay, está o están → Los libros ___ en aquella mesa", "están", "G", "hay"],
-  ["hay, está o están → En la librería ___ audífonos inalámbricos", "hay", "G", "hay"],
-  ["hay, está o están → Mi hotel ___ cerca del Zócalo", "está", "G", "hay"],
-  ["hay, está o están → La estación Hidalgo ___ allá", "está", "G", "hay"],
-
-  // ── 5. Tú or usted (ex. 8): one verb per card
-  ["¿Me puedes ayudar? → con usted", "¿Me puede ayudar? / ¿Usted me puede ayudar? / ¿Me puede ayudar usted? / ¿Me puede usted ayudar? / ¿Puede ayudarme? / ¿Usted puede ayudarme? / ¿Puede usted ayudarme?", "G", "usted"],
-  ["¿Adónde quieres ir? → con usted", "¿Adónde quiere ir? / ¿Adónde quiere ir usted? / ¿Adónde quiere usted ir?", "G", "usted"],
-  ["¿Hablas español? → con usted", "¿Habla español? / ¿Usted habla español? / ¿Habla usted español?", "G", "usted"],
-  ["¿Sabes dónde está la catedral? → con usted", "¿Sabe dónde está la catedral? / ¿Usted sabe dónde está la catedral? / ¿Sabe usted dónde está la catedral?", "G", "usted"],
-  ["Disculpa → con usted", "Disculpe", "G", "usted"],
-
   // ── 6. Numbers 16–20
-  ["16 → en letras", "dieciséis", "G", "numbers"],
-  ["17 → en letras", "diecisiete", "G", "numbers"],
-  ["18 → en letras", "dieciocho", "G", "numbers"],
-  ["19 → en letras", "diecinueve", "G", "numbers"],
-  ["20 → en letras", "veinte", "G", "numbers"],
+  ["dieciséis", "sixteen / 16", "V", "numbers"],
+  ["diecisiete", "seventeen / 17", "V", "numbers"],
+  ["dieciocho", "eighteen / 18", "V", "numbers"],
+  ["diecinueve", "nineteen / 19", "V", "numbers"],
+  ["veinte", "twenty / 20", "V", "numbers"],
+
+  // ── Irregular verb forms, each in a short phrase with this lesson's words
+  //    (2026-10-25). The verb must be typed exactly: irregularForms.js.
+  ["Jessica quiere un mapa de la ciudad", "Jessica wants a map of the city / Jessica wants a city map", "E", "verbforms"],
+  ["¿Quieren ir a la estación de metro?", "Do you want to go to the metro station? / Do you want to go to the subway station? / Do you guys want to go to the metro station? / Would you like to go to the metro station? / Do they want to go to the metro station? (ustedes)", "E", "verbforms"],
+  ["¿Me pueden ayudar? / ¿Pueden ayudarme?", "Can you help me? / Could you help me? / Can you guys help me? / Can they help me? (ustedes)", "E", "verbforms"],
+  ["El turista prefiere caminar", "The tourist prefers to walk / The tourist prefers walking / The tourist would rather walk", "E", "verbforms"],
+  ["¿Prefieren la playa o la ciudad?", "Do you prefer the beach or the city? / Do you guys prefer the beach or the city? / Do they prefer the beach or the city? (ustedes)", "E", "verbforms"],
 ];
 
 export const NOTES = [
@@ -371,36 +335,14 @@ export const LESSON = {
   source: "Adapted from the LFL METHOD by Laura Caufour",
   cards: CARDS,
   notes: NOTES,
-  // The order a student meets NEW cards in (reviews are FSRS's). The word
-  // list first, as in the French Leçon 5: the questions, the negatives and
-  // the answers are made of its words, and a phrase card shown in English
-  // can't be answered without them. Then her grammar in her order, each
-  // section followed by the cards that practise it: querer and poder, the
-  // questions they make, and answering yes with querer; preferir and the
-  // other verbs that change their vowel; the negation, then answering no;
-  // hay or está; tú or usted; the numbers.
+  // The order a student meets NEW cards in. The grammar cards went on
+  // 2026-10-25, and what is left keeps the order it had: the sheet's own, each
+  // set of words before the phrases that use them, and the verb forms last, as
+  // their phrases use this lesson's words. Reviews are unaffected; FSRS
+  // schedules those.
   teachingOrder: [
-    "words",
-    "querer", "poder", "questions",
-    "preferir", "vowels",
-    "negation",
-    "hay",
-    "usted",
-    "numbers",
+    "words", "questions", "numbers", "verbforms",
   ],
-  // The line shown above a grammar card saying what to type
-  // (src/lib/cardInstruction.js). The drills get theirs from their shape;
-  // words and questions are two-way phrase cards and carry none.
-  instructions: {
-    vowels: "Fill the gap with the verb in the present tense",
-    negation: "Make this sentence negative",
-    // Doesn't name the three words: they are on the card.
-    hay: "Fill the gap with the one that fits",
-    // Not "politely": that invites adding por favor, and the cards want
-    // only the tú → usted switch.
-    usted: "Say the same thing to someone you call usted",
-    numbers: "Write this number in Spanish, in words",
-  },
 };
 
 export default LESSON;

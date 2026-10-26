@@ -10,15 +10,10 @@
 // Spanish; see imperatif.js for why.
 //
 // Card shapes:
-//   "responder (presente) → yo" / "respondo"        drill; its line comes from its shape
-//   "comer (pretérito perfecto) → tú" / "has comido"  haber + participle, same shape
-//   "hacer → participio" / "hecho"                    the irregular participles
-//   "ir → ¿Tú ya ___ al médico?"                      preterite or haber + participle?
-//   "Nadie contestó → con no"                         the same sentence with no before the verb
-//   "alguien o nadie → No vi a ___ en el gimnasio"    pick the word (her ex. 6)
-//   "doler → ¿A ti ___ los pies?"                     pronoun + duele / duelen (her ex. 7)
 //   two-way phrase (E) and word (V) cards for the dialogue and "Las palabras
 //   de la salud"
+//   "James se va porque está enfermo" / "James is leaving because he's sick"
+//                                                  an irregular verb form, in a phrase
 //
 // WHY THE CHOICES ARE ON EXACT CARDS. Phrase cards are marked with typo
 // tolerance, and the mistakes this lesson is about are small: "me duele mi
@@ -90,26 +85,20 @@
 // flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
 // too"): the 8 cards that answered a question with yes or no in a full
 // sentence (sections "todaviano" and "nunca").
+//
+// Taken out on 2026-10-25, at the owner's word ("the flashcards module for the
+// spanish section should be all words and phrases, no grammar", "i have the
+// exercises for those"): every grammar card, 49 here, with their sections,
+// order and instruction lines. That is the drills, gaps and rewrites this
+// header describes. The grammar is practised on the Exercises page.
+//
+// Added: 5 phrases (section "verbforms"), one for each irregular verb form the
+// drills asked that no word or phrase card had, each with words of this lesson
+// that no phrase used yet, checked by an independent reader. On any Spanish
+// phrase, an irregular verb form must be typed exactly (irregularForms.js).
 
 export const CARDS = [
-  // ── 1. Responder: regular -er, like comer
-  ["responder (presente) → yo", "respondo", "G", "responder"],
-  ["responder (presente) → tú", "respondes", "G", "responder"],
-  ["responder (presente) → él/ella", "responde", "G", "responder"],
-  ["responder (presente) → nosotros", "respondemos", "G", "responder"],
-  ["responder (presente) → ustedes", "responden", "G", "responder"],
-  ["responder (presente) → ellos/ellas", "responden", "G", "responder"],
-  ["responder (pretérito) → él/ella", "respondió", "G", "responder"],
-
   // ── 2. Irse: to leave
-  ["irse (presente) → yo", "me voy", "G", "irse"],
-  ["irse (presente) → tú", "te vas", "G", "irse"],
-  ["irse (presente) → él/ella", "se va", "G", "irse"],
-  ["irse (presente) → nosotros", "nos vamos", "G", "irse"],
-  ["irse (presente) → ustedes", "se van", "G", "irse"],
-  ["irse (presente) → ellos/ellas", "se van", "G", "irse"],
-  ["irse (pretérito) → yo", "me fui", "G", "irse"],
-  ["irse (pretérito) → él/ella", "se fue", "G", "irse"],
   ["¡Me voy!", "I'm leaving! / I'm off!", "E", "irsefrases"],
   ["¡Ya voy!", "I'm coming! (when someone calls you)", "E", "irsefrases"],
   ["¿Ya te vas?", "Are you leaving already? (tú)", "E", "irsefrases"],
@@ -130,57 +119,25 @@ export const CARDS = [
   ["la garganta", "the throat", "V", "salud"],
   ["la espalda", "the back (of the body)", "V", "salud"],
 
-  // ── 3. The perfect: haber + participle. One verb per person
-  ["tener (pretérito perfecto) → yo", "he tenido", "G", "perfecto"],
-  ["comer (pretérito perfecto) → tú", "has comido", "G", "perfecto"],
-  ["estar (pretérito perfecto) → él/ella", "ha estado", "G", "perfecto"],
-  ["ir (pretérito perfecto) → nosotros", "hemos ido", "G", "perfecto"],
-  ["vivir (pretérito perfecto) → ustedes", "han vivido", "G", "perfecto"],
-  ["hablar (pretérito perfecto) → ellos/ellas", "han hablado", "G", "perfecto"],
-
-  // ── 3. The irregular participles, all nine in her table
-  ["hacer → participio", "hecho", "G", "participios"],
-  ["decir → participio", "dicho", "G", "participios"],
-  ["ver → participio", "visto", "G", "participios"],
-  ["escribir → participio", "escrito", "G", "participios"],
-  ["abrir → participio", "abierto", "G", "participios"],
-  ["poner → participio", "puesto", "G", "participios"],
-  ["volver → participio", "vuelto", "G", "participios"],
-  ["romper → participio", "roto", "G", "participios"],
-  ["morir → participio", "muerto", "G", "participios"],
-
   // ── 3–4. Preterite or perfect? Told by ya, alguna vez, todavía no, hoy, el año pasado
-  ["ir → ¿Tú ya ___ al médico?", "fuiste / has ido", "G", "cuando"],      // ya + preterite; has ido is right too
-  ["tener → ¿Tú alguna vez ___ gripa?", "has tenido / tuviste", "G", "cuando"], // an experience; tuviste is right too
-  ["encontrar → James todavía no ___ el tiempo para empezar", "ha encontrado", "G", "cuando"], // not yet
-  ["tener → El año pasado yo ___ bronquitis", "tuve", "G", "cuando"],    // a moment you can name
-  ["comer → Hoy yo ___ tacos", "comí", "G", "cuando"],                    // hoy too, in Latin America
   ["¿Alguna vez has estado en Italia?", "Have you ever been to Italy? (tú, with estar)", "E", "yafrases"],
   ["¿Ya fuiste a la farmacia?", "Have you been to the pharmacy yet? / Did you go to the pharmacy yet? (tú, with ya)", "E", "yafrases"],
   ["¿Todavía estás resfriado?", "Do you still have a cold? (tú)", "E", "yafrases"],
   ["alguna vez", "ever (in a question)", "V", "yafrases"],
 
-  // ── 5. Nunca, nada, nadie: before the verb alone, or after it with no
-  ["Nunca voy al cine → con no", "No voy nunca al cine / No voy al cine nunca", "G", "conno"],
-  ["Nadie contestó → con no", "No contestó nadie", "G", "conno"],
-  ["Nada me ayuda → con no", "No me ayuda nada", "G", "conno"],
-
   // ── Ex. 6, as pairs: the affirmative word or the negative one
-  ["algo o nada → No, gracias, no quiero ___", "nada", "G", "negacion"],     // her ATTENTION box
-  ["algo o nada → ¿Quieres ___ de la farmacia?", "algo", "G", "negacion"],
-  ["alguien o nadie → ¿Hay ___ en el consultorio?", "alguien", "G", "negacion"],
-  ["alguien o nadie → No vi a ___ en el gimnasio", "nadie", "G", "negacion"], // a before a person
   ["Llamé al consultorio, pero nadie contestó", "I called the doctor's office, but nobody answered / I called the doctor's office but no one answered", "E", "negfrases"],
 
   // ── 6 and ex. 7: doler, with its pronoun
-  ["doler → A mí ___ la cabeza", "me duele", "G", "doler"],
-  ["doler → ¿A ti ___ los pies?", "te duelen", "G", "doler"],
-  ["doler → A Mateo ___ la espalda", "le duele", "G", "doler"],
-  ["doler → A nosotros ___ los ojos", "nos duelen", "G", "doler"],
-  ["doler → ¿A ustedes ___ la cabeza?", "les duele", "G", "doler"],
-  ["doler → Ayer a Jessica ___ mucho la cabeza", "le dolió", "G", "dolerpast"],
-  ["la o mi → Me duele ___ cabeza", "la", "G", "cuerpo"],                  // her ATTENTION box
   ["¿Qué te duele?", "What hurts? / Where does it hurt? (tú)", "E", "dolerfrases"],
+
+  // ── Irregular verb forms, each in a short phrase with this lesson's words
+  //    (2026-10-25). The verb must be typed exactly: irregularForms.js.
+  ["James se va porque está enfermo", "James is leaving because he's sick / James is leaving because he is sick / James is leaving because he's ill / James is leaving because he is ill (with irse)", "E", "verbforms"],
+  ["Nos vamos porque me duele la cabeza", "We're leaving because my head hurts / We are leaving because my head hurts / We're leaving because I have a headache / We are leaving because I have a headache / We're leaving because I've got a headache (with irse)", "E", "verbforms"],
+  ["¿Por qué se van tan temprano?", "Why are you leaving so early? (ustedes, with irse) / Why are you guys leaving so early? / Why are you all leaving so early? / Why are they leaving so early?", "E", "verbforms"],
+  ["Me fui temprano a hacer ejercicio", "I left early to work out / I left early to exercise / I left early to go work out / I left early to go exercise (with irse)", "E", "verbforms"],
+  ["Jessica se fue sin sus medicinas", "Jessica left without her medicine / Jessica left without her medicines / Jessica left without her medication (with irse)", "E", "verbforms"],
 ];
 
 // The notes: her grammar sections 1 to 6, translated into English and
@@ -371,32 +328,15 @@ export const LESSON = {
   source: "Adapted from the LFL METHOD by Laura Caufour",
   cards: CARDS,
   notes: NOTES,
-  // The order a student meets NEW cards in: each practice section straight
-  // after the rule it drills, in the order of her grammar sections. The
-  // health words come after the first two verbs, before the first card that
-  // needs them (the answers ask for la cita, las medicinas and ponerse a
-  // dieta; doler needs la cabeza and la espalda). The perfect's forms and
-  // participles come before the cards that choose between it and the
-  // preterite, and both answer-no sets come once ya, todavía no and alguna
-  // vez have been met. Doler comes last, as on her sheet.
+  // The order a student meets NEW cards in. The grammar cards went on
+  // 2026-10-25, and what is left keeps the order it had: the sheet's own, each
+  // set of words before the phrases that use them, and the verb forms last, as
+  // their phrases use this lesson's words. Reviews are unaffected; FSRS
+  // schedules those.
   teachingOrder: [
-    "responder", "irse", "irsefrases",
-    "salud",
-    "perfecto", "participios", "cuando", "yafrases",
-    "conno", "negacion", "negfrases",
-    "doler", "dolerpast", "cuerpo", "dolerfrases",
+    "irsefrases", "salud", "yafrases", "negfrases", "dolerfrases",
+    "verbforms",
   ],
-  // The line above a grammar card saying what to type (src/lib/cardInstruction.js).
-  // Drills ("irse (presente) → yo", "hacer → participio") get theirs from
-  // their shape. Phrase and word cards carry no line.
-  instructions: {
-    cuando: "Fill the gap with the verb given, in the preterite or with haber",
-    conno: "Write the same sentence with no before the verb",
-    negacion: "Fill the gap with one of the two words given",
-    doler: "Fill the gap with doler in the present, and the pronoun before it",
-    dolerpast: "Fill the gap with doler in the preterite, and the pronoun before it",
-    cuerpo: "Fill the gap with one of the two words given",
-  },
 };
 
 export default LESSON;

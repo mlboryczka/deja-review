@@ -11,13 +11,9 @@
 // Spanish side.
 //
 // Card shapes:
-//   "acordarse (presente) → yo" / "me acuerdo"        drill; the line above comes from the shape
-//   "verse (presente) → nosotros" / "nos vemos"       a verb of "each other": nosotros and ellos only
-//   "acostarse (pretérito) → yo" / "me acosté"        reflexive verbs in the preterite
-//   "acordarse → ¿Te acuerdas ___ nuestra primera cita?"   the missing de / de que
-//   "Me acuerdo de tu nombre → con recordar"          say it with the other verb
-//   "hace o desde hace → Nos conocimos ___ seis meses"     ago, or for
 //   two-way word (V) and phrase (E) cards for the ex. 8 list and the dialogue
+//   "Me acuerdo de nuestra primera cita" / "I remember our first date (with acordarse)"
+//                                                  an irregular verb form, in a phrase
 //
 // WHY HACE OR DESDE HACE IS ON EXACT CARDS. A phrase card is marked with typo
 // tolerance, and "Vivo en Los Ángeles hace dos años" is six letters from the
@@ -81,6 +77,17 @@
 // flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
 // too"): the 5 cards that answered a question with yes or no in a full
 // sentence (section "answers").
+//
+// Taken out on 2026-10-25, at the owner's word ("the flashcards module for the
+// spanish section should be all words and phrases, no grammar", "i have the
+// exercises for those"): every grammar card, 29 here, with their sections,
+// order and instruction lines. That is the drills, gaps and rewrites this
+// header describes. The grammar is practised on the Exercises page.
+//
+// Added: 6 phrases (section "verbforms"), one for each irregular verb form the
+// drills asked that no word or phrase card had, each with words of this lesson
+// that no phrase used yet, checked by an independent reader. On any Spanish
+// phrase, an irregular verb form must be typed exactly (irregularForms.js).
 
 export const CARDS = [
   // ── Her verbs (ex. 8), before they are conjugated
@@ -94,45 +101,6 @@ export const CARDS = [
   ["volver a verse", "to see each other again", "V", "verbs"],
   ["llevar a alguien", "to take someone (somewhere)", "V", "verbs"],
   ["pasar por alguien", "to pick someone up", "V", "verbs"],
-
-  // ── 1. Acordarse: o → ue in the present, none in the preterite
-  ["acordarse (presente) → yo", "me acuerdo", "G", "acordarse"],
-  ["acordarse (presente) → tú", "te acuerdas", "G", "acordarse"],
-  ["acordarse (presente) → él/ella", "se acuerda", "G", "acordarse"],
-  ["acordarse (presente) → nosotros", "nos acordamos", "G", "acordarse"],
-  ["acordarse (presente) → ustedes", "se acuerdan", "G", "acordarse"],
-  ["acordarse (presente) → ellos/ellas", "se acuerdan", "G", "acordarse"],
-  ["acordarse (pretérito) → yo", "me acordé", "G", "acordarse"],
-
-  // ── Acordarse de, de que; recordar with neither
-  ["acordarse → ¿Te acuerdas ___ nuestra primera cita?", "de", "G", "acordarsede"],
-  ["acordarse → Me acordé ___ hoy tengo clase", "de que", "G", "acordarsede"],
-  ["Me acuerdo de tu nombre → con recordar", "Recuerdo tu nombre / Yo recuerdo tu nombre", "G", "recordar"],
-  ["Recuerdo a tu hermana → con acordarse", "Me acuerdo de tu hermana / Yo me acuerdo de tu hermana", "G", "recordar"],
-
-  // ── 2. Each other: like a reflexive verb, but only nos and se
-  ["verse (presente) → nosotros", "nos vemos", "G", "reciprocal"],
-  ["verse (presente) → ellos/ellas", "se ven", "G", "reciprocal"],
-  ["conocerse (pretérito) → nosotros", "nos conocimos", "G", "reciprocal"],
-  ["conocerse (pretérito) → ellos/ellas", "se conocieron", "G", "reciprocal"],
-  ["pelearse → Ayer yo ___ con mi novio", "me peleé", "G", "reciprocal"],  // with con, one person
-
-  // ── 3. Reflexive verbs in the preterite
-  ["acostarse (pretérito) → yo", "me acosté", "G", "preterite"],          // not me acuesté
-  ["acostarse (pretérito) → tú", "te acostaste", "G", "preterite"],
-  ["acostarse (pretérito) → él/ella", "se acostó", "G", "preterite"],
-  ["acostarse (pretérito) → ellos/ellas", "se acostaron", "G", "preterite"],
-  ["dormirse (pretérito) → él/ella", "se durmió", "G", "preterite"],
-  ["vestirse (pretérito) → ellos/ellas", "se vistieron", "G", "preterite"],
-  ["sentirse (pretérito) → yo", "me sentí", "G", "preterite"],
-  ["sentarse (pretérito) → yo", "me senté", "G", "preterite"],
-
-  // ── 4. Hace (ago) or desde hace (for), ex. 7
-  ["hace o desde hace → Nos conocimos ___ seis meses", "hace", "G", "hace"],
-  ["hace o desde hace → Vivo en Los Ángeles ___ dos años", "desde hace", "G", "hace"],
-  ["hace o desde hace → Mis papás llegaron ___ diez minutos", "hace", "G", "hace"],
-  ["hace o desde hace → Aprendo español ___ seis meses", "desde hace", "G", "hace"],
-  ["hace o desde hace → ___ una semana, vi a Andrés en la tele", "hace", "G", "hace"],
 
   // ── The rest of her ex. 8 list
   ["un novio", "a boyfriend", "V", "words"],
@@ -149,6 +117,15 @@ export const CARDS = [
   ["Nos conocimos hace un año", "We met a year ago / We met one year ago", "E", "phrases"],
   ["Nos vemos mucho", "We see each other a lot", "E", "phrases"],
   ["Se besaron la primera noche", "They kissed the first night / They kissed on the first night / You guys kissed the first night", "E", "phrases"],
+
+  // ── Irregular verb forms, each in a short phrase with this lesson's words
+  //    (2026-10-25). The verb must be typed exactly: irregularForms.js.
+  ["Me acuerdo de nuestra primera cita", "I remember our first date (with acordarse)", "E", "verbforms"],
+  ["¿Te acuerdas de mi madrina?", "Do you remember my godmother? (tú, with acordarse)", "E", "verbforms"],
+  ["Mi novio casi nunca se acuerda", "My boyfriend hardly ever remembers / My boyfriend almost never remembers / My boyfriend rarely remembers (with acordarse)", "E", "verbforms"],
+  ["¿Se acuerdan de su primera cita?", "Do you remember your first date? / Do they remember their first date? / Do you guys remember your first date? (ustedes, with acordarse)", "E", "verbforms"],
+  ["Mi papá se sentó y se durmió", "My dad sat down and fell asleep / My father sat down and fell asleep", "E", "verbforms"],
+  ["Se vistieron y pasaron por Lucía", "They got dressed and picked up Lucía / They got dressed and picked Lucía up / You guys got dressed and picked up Lucía / You guys got dressed and picked Lucía up", "E", "verbforms"],
 ];
 
 // The notes: her grammar sections 1 to 4, in English, restructured to the
@@ -285,29 +262,14 @@ export const LESSON = {
   source: "Adapted from the LFL METHOD by Laura Caufour",
   cards: CARDS,
   notes: NOTES,
-  // The order a student meets NEW cards in (reviews are FSRS's). Her verbs
-  // first, so no drill conjugates a verb the student can't yet read. Then
-  // her grammar in her order, each section followed by the cards that
-  // practise it: acordarse, de and recordar; each other; the preterite, and
-  // the answers, which are mostly in the preterite; hace. The other words
-  // and the phrases come last.
+  // The order a student meets NEW cards in. The grammar cards went on
+  // 2026-10-25, and what is left keeps the order it had: the sheet's own, each
+  // set of words before the phrases that use them, and the verb forms last, as
+  // their phrases use this lesson's words. Reviews are unaffected; FSRS
+  // schedules those.
   teachingOrder: [
-    "verbs",
-    "acordarse", "acordarsede", "recordar",
-    "reciprocal",
-    "preterite",
-    "hace",
-    "words", "phrases",
+    "verbs", "words", "phrases", "verbforms",
   ],
-  // The line shown above a grammar card saying what to type
-  // (src/lib/cardInstruction.js). The drills get theirs from their shape.
-  instructions: {
-    acordarsede: "Fill the gap with the missing word or words",
-    recordar: "Say the same thing with the verb given",
-    reciprocal: "Fill the gap with the verb in the preterite",
-    // Doesn't name the two: they are on the card.
-    hace: "Fill the gap with the right one of the two",
-  },
 };
 
 export default LESSON;

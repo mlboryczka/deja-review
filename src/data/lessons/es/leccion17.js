@@ -13,10 +13,9 @@
 // Spanish.
 //
 // Card shapes:
-//   "oír (presente) → yo"                          the verb tables; the line above comes from the shape
-//   "Quiero mucho a mi abuela → con pronombre"     replace the person or thing (her ex. 4 and 8)
-//   "Le di el libro a Natalia → con dos pronombres"   replace both (her ex. 10)
 //   two-way phrase (E) and word (V) cards for the dialogue and her translations
+//   "Mi abuela oye bastante bien" / "My grandmother hears pretty well"
+//                                                  an irregular verb form, in a phrase
 //
 // WHY LO / LE IS ONLY ON EXACT CARDS. Phrase cards are marked with typo
 // tolerance, and lo, la and le are a letter apart: "Le vi ayer" would pass
@@ -84,30 +83,19 @@
 // flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
 // too"): the 15 cards that answered a question with yes or no in a full
 // sentence (sections "respuestas", "respuestasdos" and "metenos").
+//
+// Taken out on 2026-10-25, at the owner's word ("the flashcards module for the
+// spanish section should be all words and phrases, no grammar", "i have the
+// exercises for those"): every grammar card, 34 here, with their sections,
+// order and instruction lines. That is the drills, gaps and rewrites this
+// header describes. The grammar is practised on the Exercises page.
+//
+// Added: 4 phrases (section "verbforms"), one for each irregular verb form the
+// drills asked that no word or phrase card had, each with words of this lesson
+// that no phrase used yet, checked by an independent reader. On any Spanish
+// phrase, an irregular verb form must be typed exactly (irregularForms.js).
 
 export const CARDS = [
-  // ── 1. Recibir: regular, like vivir
-  ["recibir (presente) → yo", "recibo", "G", "recibir"],
-  ["recibir (presente) → tú", "recibes", "G", "recibir"],
-  ["recibir (presente) → él/ella", "recibe", "G", "recibir"],
-  ["recibir (presente) → nosotros", "recibimos", "G", "recibir"],
-  ["recibir (presente) → ustedes", "reciben", "G", "recibir"],
-  ["recibir (presente) → ellos/ellas", "reciben", "G", "recibir"],
-  ["recibir (pretérito) → yo", "recibí", "G", "recibir"],
-  ["recibir (pretérito) → ellos/ellas", "recibieron", "G", "recibir"],
-
-  // ── 1. Oír: oigo, and a y between two vowels
-  ["oír (presente) → yo", "oigo", "G", "oir"],
-  ["oír (presente) → tú", "oyes", "G", "oir"],
-  ["oír (presente) → él/ella", "oye", "G", "oir"],
-  ["oír (presente) → nosotros", "oímos", "G", "oir"],
-  ["oír (presente) → ustedes", "oyen", "G", "oir"],
-  ["oír (presente) → ellos/ellas", "oyen", "G", "oir"],
-  ["oír (pretérito) → yo", "oí", "G", "oir"],
-  ["oír (pretérito) → él/ella", "oyó", "G", "oir"],
-  ["oír (pretérito) → ellos/ellas", "oyeron", "G", "oir"],
-  ["oír (imperfecto) → yo", "oía", "G", "oir"],
-
   // ── The dialogue's words
   ["recibir", "to receive / to get", "V", "vocab"],
   ["oír", "to hear", "V", "vocab"],
@@ -127,26 +115,6 @@ export const CARDS = [
   ["¿Me oyes?", "Can you hear me? (tú)", "E", "verbos"],
   ["No te oigo", "I can't hear you (tú)", "E", "verbos"],
 
-  // ── 2–3. One pronoun (her ex. 4 and 8)
-  ["Quiero mucho a mi abuela → con pronombre", "La quiero mucho", "G", "pronombre"],
-  ["¿Dónde conociste a tu novio? → con pronombre", "¿Dónde lo conociste?", "G", "pronombre"],
-  ["Espero a mis amigas cerca de la escuela → con pronombre", "Las espero cerca de la escuela", "G", "pronombre"],
-  ["¿Oyes bien al profesor desde allá? → con pronombre", "¿Lo oyes bien desde allá?", "G", "pronombre"],
-  ["Recibieron los resultados ayer → con pronombre", "Los recibieron ayer", "G", "pronombre"],
-  ["Llevaba mi camisa verde todos los días → con pronombre", "La llevaba todos los días", "G", "pronombre"],
-  ["Vamos a visitar el museo el sábado → con pronombre", "Lo vamos a visitar el sábado / Vamos a visitarlo el sábado", "G", "pronombre"],
-  ["Estoy buscando mis lentes → con pronombre", "Los estoy buscando / Estoy buscándolos", "G", "pronombre"],
-  ["Hay que hacer los ejercicios hoy → con pronombre", "Hay que hacerlos hoy", "G", "pronombre"],
-  ["Les hablo a mis papás todos los días por teléfono → con pronombre", "Les hablo todos los días por teléfono", "G", "pronombre"], // les is already there
-
-  // ── 5. Two pronouns (her ex. 10): the person first, and le, les → se
-  ["Mi mamá me compró estos lentes → con dos pronombres", "Mi mamá me los compró / Me los compró mi mamá", "G", "dos"],
-  ["Te mando las fotos mañana → con dos pronombres", "Te las mando mañana", "G", "dos"],
-  ["Le di el libro a Natalia → con dos pronombres", "Se lo di", "G", "dos"],
-  ["¿Le dijiste la verdad a tu mamá? → con dos pronombres", "¿Se la dijiste?", "G", "dos"],
-  ["Les mandé las fotos a mis papás → con dos pronombres", "Se las mandé", "G", "dos"],
-  ["Voy a mandarle los documentos a mi jefe → con dos pronombres", "Se los voy a mandar / Voy a mandárselos", "G", "dos"],
-
   // ── 6. In the dialogue (and her ex. 13)
   ["¿Cómo te fue?", "How did it go? (tú)", "E", "dialogo"],
   ["Me fue bien", "It went well for me / I did well / It went well (for me)", "E", "dialogo"],
@@ -159,6 +127,13 @@ export const CARDS = [
   ["Te deseo unas felices vacaciones", "I wish you a happy vacation / I wish you a happy holiday (tú)", "E", "dialogo"],
   ["Están nerviosos por el examen de admisión", "They're nervous about the entrance exam / They are nervous about the entrance exam", "E", "dialogo"],
   ["Gracias, pero no fue muy útil", "Thanks, but it wasn't very useful / Thank you, but it wasn't very useful", "E", "dialogo"],
+
+  // ── Irregular verb forms, each in a short phrase with this lesson's words
+  //    (2026-10-25). The verb must be typed exactly: irregularForms.js.
+  ["Mi abuela oye bastante bien", "My grandmother hears pretty well / My grandmother can hear pretty well / My grandmother hears quite well / My grandmother can hear quite well / My grandma hears pretty well / My grandma can hear pretty well / My grandmother hears fairly well", "E", "verbforms"],
+  ["¿Oyen bien al profesor de matemáticas?", "Can you hear the math teacher well? (ustedes) / Can you guys hear the math teacher well? / Can you hear the math teacher okay? (ustedes) / Do you hear the math teacher well? (ustedes) / Can you hear the maths teacher well? (ustedes) / Can they hear the math teacher well? / Do they hear the math teacher well?", "E", "verbforms"],
+  ["Diego estaba nervioso y no oyó la pregunta", "Diego was nervous and didn't hear the question / Diego was nervous and he didn't hear the question / Diego was nervous and did not hear the question", "E", "verbforms"],
+  ["Oyeron el resultado en la radio", "They heard the result on the radio / You heard the result on the radio (ustedes)", "E", "verbforms"],
 ];
 
 // The notes: the lesson's six sections, in English, rebuilt to the notes
@@ -329,24 +304,14 @@ export const LESSON = {
   source: "Adapted from the LFL METHOD by Laura Caufour",
   cards: CARDS,
   notes: NOTES,
-  // The order a student meets NEW cards in, following her sections: the two
-  // verbs, the dialogue's words, the verbs in use; then one pronoun, the yes
-  // answers that choose lo or le, me, te and nos, two pronouns; the
-  // dialogue's expressions last.
+  // The order a student meets NEW cards in. The grammar cards went on
+  // 2026-10-25, and what is left keeps the order it had: the sheet's own, each
+  // set of words before the phrases that use them, and the verb forms last, as
+  // their phrases use this lesson's words. Reviews are unaffected; FSRS
+  // schedules those.
   teachingOrder: [
-    "recibir", "oir",
-    "vocab", "verbos",
-    "pronombre",
-    "dos",
-    "dialogo",
+    "vocab", "verbos", "dialogo", "verbforms",
   ],
-  // The line above a grammar card saying what to type (src/lib/cardInstruction.js).
-  // The verb tables get theirs from their shape. Phrase and word cards are
-  // translations and carry no line.
-  instructions: {
-    pronombre: "Rewrite it with a pronoun instead of the person or thing",
-    dos: "Rewrite it with two pronouns, one for the thing and one for the person",
-  },
 };
 
 export default LESSON;

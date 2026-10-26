@@ -10,12 +10,9 @@
 // Spanish; see imperatif.js for why.
 //
 // Card shapes:
-//   "leer (pretérito) → él/ella" / "leyó"               drill; its line comes from its shape
-//   "en o a → Vamos ___ Brasil este verano"             pick the word (her section 2)
-//   "por o para → Hugo fue a Denver ___ trabajo"        pick the word (her ex. 4)
-//   "nuestro → Estos boletos son ___" / "nuestros"      the possessive made to match (her ex. 5)
-//   "mi pasaporte → sin el sustantivo" / "el mío"       the possessive standing for the noun
 //   two-way phrase (E) and word (V) cards for the dialogue and her ex. 3 list
+//   "Jessica leyó sobre las montañas Rocosas" / "Jessica read about the Rocky Mountains"
+//                                                  an irregular verb form, in a phrase
 //
 // WHY LEER'S SIX PERSONS ARE IN THE PRETERITE. Leer and escribir are both in
 // Lesson 4's list of regular verbs, so their present is not new. What is new
@@ -83,19 +80,20 @@
 // flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
 // too"): the 8 cards that answered a question with yes or no in a full
 // sentence (section "respuestas").
+//
+// Taken out on 2026-10-25, at the owner's word ("the flashcards module for the
+// spanish section should be all words and phrases, no grammar", "i have the
+// exercises for those"): every grammar card, 31 here, with their sections,
+// order and instruction lines. That is the drills, gaps and rewrites this
+// header describes. The grammar is practised on the Exercises page.
+//
+// Added: 3 phrases (section "verbforms"), one for each irregular verb form the
+// drills asked that no word or phrase card had, each with words of this lesson
+// that no phrase used yet, checked by an independent reader. On any Spanish
+// phrase, an irregular verb form must be typed exactly (irregularForms.js).
 
 export const CARDS = [
   // ── 1. Leer: regular, but y in the preterite
-  ["leer (pretérito) → yo", "leí", "G", "leer"],
-  ["leer (pretérito) → tú", "leíste", "G", "leer"],
-  ["leer (pretérito) → él/ella", "leyó", "G", "leer"],
-  ["leer (pretérito) → nosotros", "leímos", "G", "leer"],
-  ["leer (pretérito) → ustedes", "leyeron", "G", "leer"],
-  ["leer (pretérito) → ellos/ellas", "leyeron", "G", "leer"],
-  ["leer (pretérito perfecto) → tú", "has leído", "G", "escribir"],
-  ["escribir (pretérito) → él/ella", "escribió", "G", "escribir"],
-  ["escribir (pretérito perfecto) → yo", "he escrito", "G", "escribir"],
-  ["escribir (condicional) → yo", "escribiría", "G", "escribir"],
   ["¿Leíste mi mensaje?", "Did you read my message? / Did you read my text? (tú)", "E", "leerfrases"],
   ["Le escribí un mensaje a Lucía", "I wrote Lucía a message / I wrote a message to Lucía", "E", "leerfrases"],
 
@@ -112,32 +110,7 @@ export const CARDS = [
   ["todo junto", "all one word / all together (when spelling)", "V", "vocab"],
   ["los viajes", "travels / trips", "V", "vocab"],
 
-  // ── 2. Countries and cities: en for where you are, a for where you go
-  ["en o a → Vivimos ___ México", "en", "G", "paises"],
-  ["en o a → Vamos ___ Brasil este verano", "a", "G", "paises"],
-  ["en o a → Estuvimos dos semanas ___ Oaxaca", "en", "G", "paises"],
-  ["en o a → Volvimos ___ Nueva York", "a", "G", "paises"],
-
-  // ── 3 and ex. 4: por or para. The use each one stands for is in the comment
-  ["por o para → Esta página es ___ comprar boletos baratos", "para", "G", "porpara"], // a goal
-  ["por o para → Esta medicina es ___ la garganta", "para", "G", "porpara"],          // a goal
-  ["por o para → Mañana salimos ___ Brasil", "para", "G", "porpara"],                 // where you're heading
-  ["por o para → Este regalo es ___ ti", "para", "G", "porpara"],                     // a person
-  ["por o para → Necesito el pasaporte ___ el viernes", "para", "G", "porpara"],      // a deadline
-  ["por o para → Hugo fue a Denver ___ trabajo", "por", "G", "porpara"],              // the cause
-  ["por o para → Gracias ___ la información", "por", "G", "porpara"],                 // the cause
-  ["por o para → Pasamos ___ Denver para ir a las montañas Rocosas", "por", "G", "porpara"], // the way through
-  ["por o para → Compramos los boletos ___ internet", "por", "G", "porpara"],         // the means
-  ["por o para → Pagué cinco mil pesos ___ el boleto", "por", "G", "porpara"],        // a price
-  ["por o para → Tomo clases dos veces ___ semana", "por", "G", "porpara"],           // how often
-  ["por o para → Me gusta caminar ___ la mañana", "por", "G", "porpara"],             // part of the day
-
   // ── 4 and ex. 5: mío, tuyo, suyo, nuestro match the thing owned
-  ["nuestro → Estos boletos son ___", "nuestros", "G", "posesivos"],
-  ["mi pasaporte → sin el sustantivo", "el mío", "G", "sinsustantivo"],
-  ["tus papás → sin el sustantivo", "los tuyos", "G", "sinsustantivo"],
-  ["nuestra casa → sin el sustantivo", "la nuestra", "G", "sinsustantivo"],
-  ["el pasaporte de James → sin el sustantivo", "el de James / el suyo", "G", "sinsustantivo"],
   ["Un amigo mío", "A friend of mine", "E", "posfrases"],
 
   // ── 5. Review: the perfect; and the dialogue's iba a
@@ -145,6 +118,12 @@ export const CARDS = [
   ["Siempre nos ha encantado viajar", "We've always loved traveling / We have always loved to travel / We've always loved to travel", "E", "repaso"],
   ["Íbamos a ir a Brasil", "We were going to go to Brazil", "E", "repaso"],
   ["Deberían echarle un ojo", "You should take a look (ustedes) / You guys should take a look", "E", "repaso"],
+
+  // ── Irregular verb forms, each in a short phrase with this lesson's words
+  //    (2026-10-25). The verb must be typed exactly: irregularForms.js.
+  ["Jessica leyó sobre las montañas Rocosas", "Jessica read about the Rocky Mountains / Jessica read about the Rockies", "E", "verbforms"],
+  ["¿Leyeron mi correo sobre los pasaportes?", "Did you read my email about the passports? (ustedes) / Did you guys read my email about the passports? / Did you read my e-mail about the passports? / Did they read my email about the passports?", "E", "verbforms"],
+  ["Nunca he escrito sobre mis viajes / No he escrito nunca sobre mis viajes", "I've never written about my travels / I have never written about my travels / I've never written about my trips / I have never written about my trips", "E", "verbforms"],
 ];
 
 // The notes: her grammar sections 1 to 5, translated into English and
@@ -296,30 +275,14 @@ export const LESSON = {
   source: "Adapted from the LFL METHOD by Laura Caufour",
   cards: CARDS,
   notes: NOTES,
-  // The order a student meets NEW cards in: each practice section straight
-  // after the rule it drills, in the order of her grammar sections. Leer and
-  // escribir first, with their two phrases; then her word list, before the
-  // first cards that need it (the por / para gaps ask about boletos, la
-  // página and el pasaporte); then places, por and para, and the
-  // possessives. The review of the perfect comes last, and the answer cards
-  // after it, since they mix every tense the course has taught.
+  // The order a student meets NEW cards in. The grammar cards went on
+  // 2026-10-25, and what is left keeps the order it had: the sheet's own, each
+  // set of words before the phrases that use them, and the verb forms last, as
+  // their phrases use this lesson's words. Reviews are unaffected; FSRS
+  // schedules those.
   teachingOrder: [
-    "leer", "escribir", "leerfrases",
-    "vocab",
-    "paises", "porpara",
-    "posesivos", "sinsustantivo", "posfrases",
-    "repaso",
+    "leerfrases", "vocab", "posfrases", "repaso", "verbforms",
   ],
-  // The line above a grammar card saying what to type (src/lib/cardInstruction.js).
-  // Drills ("leer (pretérito) → yo") get theirs from their shape. The two
-  // choice sections name no word, so the line never shows the answer. Phrase
-  // and word cards carry no line.
-  instructions: {
-    paises: "Fill the gap with one of the two words given",
-    porpara: "Fill the gap with one of the two words given",
-    posesivos: "Fill the gap with the word given, changed to match the thing owned",
-    sinsustantivo: "Say it with el, la, los or las, without repeating the noun",
-  },
 };
 
 export default LESSON;

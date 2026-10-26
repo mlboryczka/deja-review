@@ -11,11 +11,9 @@
 // Spanish side.
 //
 // Card shapes:
-//   "hablar (imperfecto) → yo" / "hablaba"          drill; the line above comes from the shape
-//   "tener → Los niños ___ miedo"                   the verb given, in the imperfect (ex. 3)
-//   "hay → ___ cinco niños en la familia"           había, the same for one or many
-//   "llegar → Leía un libro cuando ___ mi hermano"  imperfect or preterite
 //   two-way word (V) and phrase (E) cards for the ex. 7 list, her ex. 8 and 9
+//   "¿Cómo eras en tu infancia?" / "What were you like in your childhood?"
+//                                                  an irregular verb form, in a phrase
 //
 // WHY IMPERFECT OR PRETERITE IS ON EXACT CARDS. A phrase card is marked with
 // typo tolerance, and in a sentence "jugué" and "jugaba" are a letter or two
@@ -84,42 +82,20 @@
 // flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
 // too"): the 5 cards that answered a question with yes or no in a full
 // sentence (sections "yes" and "no").
+//
+// Taken out on 2026-10-25, at the owner's word ("the flashcards module for the
+// spanish section should be all words and phrases, no grammar", "i have the
+// exercises for those"): every grammar card, 44 here, with their sections,
+// order and instruction lines. That is the drills, gaps and rewrites this
+// header describes. The grammar is practised on the Exercises page.
+//
+// Added: 10 phrases (section "verbforms"), one for each irregular verb form
+// the drills asked that no word or phrase card had, each with words of this
+// lesson that no phrase used yet, checked by an independent reader. On any
+// Spanish phrase, an irregular verb form must be typed exactly
+// (irregularForms.js).
 
 export const CARDS = [
-  // ── 1. The pattern: -aba for -ar verbs, -ía for -er and -ir verbs
-  ["hablar (imperfecto) → yo", "hablaba", "G", "forms"],
-  ["hablar (imperfecto) → tú", "hablabas", "G", "forms"],
-  ["hablar (imperfecto) → él/ella", "hablaba", "G", "forms"],
-  ["hablar (imperfecto) → nosotros", "hablábamos", "G", "forms"],
-  ["hablar (imperfecto) → ustedes", "hablaban", "G", "forms"],
-  ["hablar (imperfecto) → ellos/ellas", "hablaban", "G", "forms"],
-  ["vivir (imperfecto) → yo", "vivía", "G", "forms"],
-  ["vivir (imperfecto) → tú", "vivías", "G", "forms"],
-  ["vivir (imperfecto) → él/ella", "vivía", "G", "forms"],
-  ["vivir (imperfecto) → nosotros", "vivíamos", "G", "forms"],
-  ["vivir (imperfecto) → ustedes", "vivían", "G", "forms"],
-  ["vivir (imperfecto) → ellos/ellas", "vivían", "G", "forms"],
-
-  // ── 1. The only three irregular verbs
-  ["ser (imperfecto) → yo", "era", "G", "irregular"],
-  ["ser (imperfecto) → tú", "eras", "G", "irregular"],
-  ["ser (imperfecto) → él/ella", "era", "G", "irregular"],
-  ["ser (imperfecto) → nosotros", "éramos", "G", "irregular"],
-  ["ser (imperfecto) → ustedes", "eran", "G", "irregular"],
-  ["ser (imperfecto) → ellos/ellas", "eran", "G", "irregular"],
-  ["ir (imperfecto) → yo", "iba", "G", "irregular"],
-  ["ir (imperfecto) → tú", "ibas", "G", "irregular"],
-  ["ir (imperfecto) → él/ella", "iba", "G", "irregular"],
-  ["ir (imperfecto) → nosotros", "íbamos", "G", "irregular"],
-  ["ir (imperfecto) → ustedes", "iban", "G", "irregular"],
-  ["ir (imperfecto) → ellos/ellas", "iban", "G", "irregular"],
-  ["ver (imperfecto) → yo", "veía", "G", "irregular"],
-  ["ver (imperfecto) → tú", "veías", "G", "irregular"],
-  ["ver (imperfecto) → él/ella", "veía", "G", "irregular"],
-  ["ver (imperfecto) → nosotros", "veíamos", "G", "irregular"],
-  ["ver (imperfecto) → ustedes", "veían", "G", "irregular"],
-  ["ver (imperfecto) → ellos/ellas", "veían", "G", "irregular"],
-
   // ── Her ex. 7 list, before the cards that use its words
   ["un cuento", "a story (for children) / a tale", "V", "words"],
   ["llevarse bien con", "to get along with", "V", "words"],
@@ -141,28 +117,6 @@ export const CARDS = [
   ["¡Qué locura!", "That's crazy! / How crazy!", "V", "words"],
   ["¿En serio?", "Seriously? / Really? (not de verdad)", "V", "words"],
 
-  // ── Ex. 3: the verb given, in the imperfect. Irregular elsewhere,
-  //    regular here; a reflexive keeps its pronoun in front
-  ["tener → Los niños ___ miedo", "tenían", "G", "gaps"],
-  ["hacer → ¿Qué ___ ustedes los fines de semana?", "hacían", "G", "gaps"],
-  ["saber → Yo no ___ manejar cuando tenía veinte años", "sabía", "G", "gaps"],
-  ["poder → Yo no ___ jugar porque tenía mucho trabajo", "podía", "G", "gaps"],
-  ["jugar → Los niños ___ afuera hasta la noche", "jugaban", "G", "gaps"],
-  ["leer → Todas las noches, mi mamá nos ___ un cuento", "leía", "G", "gaps"],
-  ["divertirse → Mis hermanos y yo ___ mucho", "nos divertíamos", "G", "gaps"],
-  ["levantarse → Antes, yo ___ a las seis todos los días", "me levantaba", "G", "gaps"],
-
-  // ── 3. Había: there was, there were
-  ["hay → En esa época, no ___ tele en la casa", "había", "G", "habia"],
-  ["hay → ___ cinco niños en la familia", "había", "G", "habia"],        // not habían
-
-  // ── 2. Imperfect or preterite: the action in progress, or the one that
-  //    happens; the habit, or the one time
-  ["leer → ___ un libro cuando llegó mi hermano", "leía / estaba leyendo", "G", "progress"],
-  ["llegar → Leía un libro cuando ___ mi hermano", "llegó", "G", "progress"],
-  ["jugar → Cuando era niño, ___ afuera todos los días", "jugaba", "G", "progress"],
-  ["jugar → Ayer yo ___ afuera", "jugué", "G", "progress"],
-
   // ── 4. Solo (ex. 8)
   ["Solo había un salón", "There was only one classroom", "E", "solo"],
   ["Solo hablo español con mi mamá", "I only speak Spanish with my mom / I only speak Spanish with my mum", "E", "solo"],
@@ -173,6 +127,19 @@ export const CARDS = [
   ["Quería ser maestro cuando era niño", "I wanted to be a teacher when I was a child / I wanted to be a teacher when I was a kid (masc.)", "E", "phrases"],
   ["¡No sabía!", "I didn't know! (without lo)", "E", "phrases"],
   ["¿A qué se dedicaban tus papás?", "What did your parents do for a living? / What did your parents do? (tú)", "E", "phrases"],
+
+  // ── Irregular verb forms, each in a short phrase with this lesson's words
+  //    (2026-10-25). The verb must be typed exactly: irregularForms.js.
+  ["¿Cómo eras en tu infancia?", "What were you like in your childhood? / What were you like as a child? / What were you like as a kid? / What were you like when you were a child? (tú)", "E", "verbforms"],
+  ["Éramos buenos amigos en la primaria", "We used to be good friends in elementary school / We were good friends in elementary school / We used to be good friends in primary school / We were good friends in primary school", "E", "verbforms"],
+  ["¿Eran muy jóvenes en esa época?", "Were you very young back then? (ustedes) / Were you guys very young back then? / Were you very young at that time? (ustedes) / Were they very young back then? / Were they very young at that time?", "E", "verbforms"],
+  ["Iba a jugar afuera todos los días", "I used to go and play outside every day / I used to go play outside every day / I would go and play outside every day / I would go play outside every day / I went to play outside every day / He used to go and play outside every day / She used to go and play outside every day", "E", "verbforms"],
+  ["¿Tenías miedo cuando ibas al doctor?", "Did you use to be scared when you went to the doctor? / Were you scared when you went to the doctor? / Did you use to be afraid when you went to the doctor? / Were you afraid when you went to the doctor? (tú)", "E", "verbforms"],
+  ["¿Adónde iban a divertirse?", "Where did you use to go to have fun? (ustedes) / Where did you guys use to go to have fun? / Where would you go to have fun? (ustedes) / Where did you go to have fun? (ustedes) / Where did they use to go to have fun? / Where would they go to have fun? / Where did they go to have fun?", "E", "verbforms"],
+  ["Veía la tele antes de dormir", "I used to watch TV before bed / I used to watch TV before going to sleep / I would watch TV before bed / I watched TV before bed / I used to watch television before bed / He used to watch TV before bed / She used to watch TV before bed", "E", "verbforms"],
+  ["¿Veías mucho a tus abuelos?", "Did you use to see your grandparents a lot? / Did you see your grandparents a lot? / Did you use to see your grandparents often? / Did you see your grandparents often? (tú)", "E", "verbforms"],
+  ["Veíamos la tele como a las cuatro y media", "We used to watch TV at around four thirty / We used to watch TV around four thirty / We would watch TV at around four thirty / We watched TV at around four thirty / We used to watch TV at around half past four / We used to watch television at around four thirty", "E", "verbforms"],
+  ["¿Veían a sus amigos después de la escuela?", "Did you use to see your friends after school? (ustedes) / Did you guys use to see your friends after school? / Did you see your friends after school? (ustedes) / Would you see your friends after school? (ustedes) / Did they use to see their friends after school? / Did they see their friends after school?", "E", "verbforms"],
 ];
 
 // The notes: her grammar sections 1 to 4, in English, restructured to the
@@ -316,27 +283,14 @@ export const LESSON = {
   source: "Adapted from the LFL METHOD by Laura Caufour",
   cards: CARDS,
   notes: NOTES,
-  // The order a student meets NEW cards in (reviews are FSRS's). The
-  // pattern and the three irregular verbs first: they need no new words.
-  // Then her word list, before the first card that needs it (the gaps and
-  // answers are about don Rafael's childhood: miedo, afuera, un cuento, a
-  // pie). Then the exercises in her order: the verb gaps, había, the
-  // answers, imperfect or preterite, solo, and the phrases.
+  // The order a student meets NEW cards in. The grammar cards went on
+  // 2026-10-25, and what is left keeps the order it had: the sheet's own, each
+  // set of words before the phrases that use them, and the verb forms last, as
+  // their phrases use this lesson's words. Reviews are unaffected; FSRS
+  // schedules those.
   teachingOrder: [
-    "forms", "irregular",
-    "words",
-    "gaps", "habia",
-    "progress",
-    "solo", "phrases",
+    "words", "solo", "phrases", "verbforms",
   ],
-  // The line shown above a grammar card saying what to type
-  // (src/lib/cardInstruction.js). The drills get theirs from their shape.
-  instructions: {
-    gaps: "Fill the gap with the verb in the imperfect",
-    habia: "Fill the gap with hay in the imperfect",
-    // Names both tenses: choosing between them is the point.
-    progress: "Fill the gap with the verb in the imperfect or the preterite",
-  },
 };
 
 export default LESSON;

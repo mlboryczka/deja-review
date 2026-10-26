@@ -373,6 +373,22 @@ console.log("\n  reconcileLessons — the lesson is the authority, the edit is t
   ck("a card the lesson dropped is retired", afterWithdraw.stale.length === 1 && afterWithdraw.stale[0] === 9,
      afterWithdraw.stale.join(","));
 
+  // A grammar card the lesson now asks as a phrase keeps its row, and the row
+  // becomes a phrase (the Spanish sentences to translate, 2026-10-25). Only
+  // grammar rows move.
+  const asPhrase = { id: "test", cards: [["Él es aburrido", "He is boring", "E"], ["finir → tu", "finis", "G"]] };
+  const recatted = reconcileLessons([asPhrase], [
+    { ...stored("Él es aburrido", lessonCardKey("Él es aburrido"), 4), cat: "gram" },
+    { ...stored("finir → tu", lessonCardKey("finir → tu"), 5), cat: "gram" },
+  ]);
+  ck("a grammar row the lesson now asks as a phrase becomes one, kept",
+     recatted.recat.length === 1 && recatted.recat[0].row_id === 4 && recatted.recat[0].category === "E" &&
+     !recatted.stale.length && !recatted.missing.length, JSON.stringify(recatted.recat));
+  const kept = reconcileLessons([{ id: "test", cards: [["un mot", "a word", "G"]] }], [
+    { ...stored("un mot", lessonCardKey("un mot"), 6), cat: "vocab" },
+  ]);
+  ck("and a word or phrase row never becomes grammar", kept.recat.length === 0, JSON.stringify(kept.recat));
+
   // Rows written before keys existed.
   const legacy = [stored("parler → tu", null, 1), stored("who knows", null, 7)];
   const afterLegacy = reconcileLessons([LESSON], legacy);
@@ -472,6 +488,31 @@ console.log("\n  marking — Spanish articles and ¿ ¡, French unchanged");
   ck("French answers are still marked accents aside", ok("tres bien", "très bien") && ok("evidemment", "évidemment"));
   ck("French still forgives a left-off article", ok("chemin de fer", "le chemin de fer"));
   ck("and still checks its gender", matchAnswer("la vélo", "le vélo").wrongArticle === true);
+  // On a Spanish card the irregular verb forms, numbers and months are marked
+  // exactly (owner, 2026-10-25): the tolerance let "poní" through for puse,
+  // and "setenta" for sesenta.
+  const { SPANISH_EXACT, ENGLISH_EXACT } = await import("../../src/data/lessons/es/exactWords.js");
+  const verbs = { ...es, exactWords: SPANISH_EXACT };
+  const en = { articles: "en", exactWords: ENGLISH_EXACT };
+  ck("a wrong number or month is wrong, either way round",
+     !ok("setenta", "sesenta", verbs) && !ok("el treinta de julio", "el treinta de junio", verbs) &&
+     !ok("Son las cuatro y doce", "Son las cuatro y diez", verbs) && !ok("doscientos personas", "doscientas personas", verbs) &&
+     !ok("July 30th", "June 30th", en) && !ok("It's 8:45", "It's 8:15", en));
+  ck("which the tolerance let through before", ok("setenta", "sesenta", es) && ok("July 30th", "June 30th", { articles: "en" }));
+  ck("an English number may still be its figure", ok("I have 2 brothers", "I have two brothers", en));
+  const put = "Ayer puse la computadora en la sala";
+  ck("a wrong verb form in a phrase is wrong", !ok("Ayer poní la computadora en la sala", put, verbs) &&
+     !ok("La semana pasada tenemos que trabajar mucho", "La semana pasada tuvimos que trabajar mucho", verbs));
+  ck("so is ser for estar", !ok("Soy aquí con mi esposo", "Estoy aquí con mi esposo", verbs) &&
+     !ok("Él es aburrido", "Él está aburrido", verbs));
+  ck("which the tolerance let through before", ok("Ayer poní la computadora en la sala", put, es));
+  ck("a slip elsewhere in the phrase is still close enough",
+     matchAnswer("Ayer puse la computadora en la sla", put, [], verbs).close === true &&
+     matchAnswer("Conozco el centro bien", "Conozco bien el centro", [], verbs).close === true);
+  ck("a verb form right but for its accent is a wrong accent",
+     matchAnswer("Ayer pusé la computadora en la sala", put, [], verbs).wrongAccent === true &&
+     matchAnswer("No se", "No sé", [], verbs).wrongAccent === true);
+  ck("se, not on the list, is never asked for as sé", ok("Mi esposa se lama Linda", "Mi esposa se llama Linda", verbs));
 }
 
 // A Spanish card's row is found by its front (es_user_cards is unique on
@@ -488,6 +529,19 @@ console.log("\n  Spanish lessons — no front in two of them");
     }
   }
   ck("every Spanish front belongs to one lesson", twice.length === 0, twice.join(" | "));
+  // Words and phrases only (owner, 2026-10-25: "the flashcards module for the
+  // spanish section should be all words and phrases, no grammar"); the
+  // grammar is on the Exercises page.
+  const grammar = SPANISH.LESSONS.flatMap((l) => l.cards.filter(([, , c]) => c === "G").map(([f]) => `${l.id}: ${f}`));
+  ck("no Spanish lesson has a grammar card", grammar.length === 0, grammar.slice(0, 5).join(" | "));
+  // The verb tables' irregular forms live on in phrases, and marking holds
+  // them exact; a phrase made for one that has none of them is no use.
+  const { IRREGULAR_FORMS } = await import("../../src/data/lessons/es/irregularForms.js");
+  const words = (f) => f.toLowerCase().normalize("NFC").split(/[\s¿?¡!.,]+/);
+  const bare = SPANISH.LESSONS.flatMap((l) => l.cards
+    .filter(([f, , , s]) => s === "verbforms" && !words(f).some((w) => IRREGULAR_FORMS.has(w)))
+    .map(([f]) => `${l.id}: ${f}`));
+  ck("every verb-form phrase holds an irregular form", bare.length === 0, bare.join(" | "));
 }
 
 // "Replace my existing deck" deleted the whole deck before adding the upload,

@@ -14,12 +14,10 @@
 // Spanish.
 //
 // Card shapes:
-//   "creer (pretérito) → él/ella"                 the verb tables; the line above comes from the shape
-//   "el o al → Esperamos ___ doctor una hora"     esperar with a person or a thing
-//   "vivir → Mis papás ___ en Monterrey diez años"   preterite or imperfect (her ex. 8)
-//   "Le dije: «Tengo que salir ahora» → Le dije que…"   tell what was said (her ex. 10)
 //   "Quise abrir la puerta, pero no pude"         Spanish shown, English typed: what the tense means
 //   two-way phrase (E) and word (V) cards for the text and her translations
+//   "Afortunadamente me creyeron y abordé el vuelo" / "Luckily they believed me and I boarded the flight"
+//                                                  an irregular verb form, in a phrase
 //
 // WHY THE PRETERITE / IMPERFECT CHOICE IS ON EXACT CARDS. Phrase cards are
 // marked with typo tolerance, and the two tenses are often a letter or two
@@ -102,37 +100,31 @@
 // flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
 // too"): the 6 cards that answered a question with yes or no in a full
 // sentence (section "respuestas").
+//
+// Taken out on 2026-10-25, at the owner's word ("the flashcards module for the
+// spanish section should be all words and phrases, no grammar", "i have the
+// exercises for those"): every grammar card, 49 here, with their sections,
+// order and instruction lines. That is the drills, gaps and rewrites this
+// header describes. The grammar is practised on the Exercises page.
+//
+// Kept as words and phrases, asked both ways round: the 6 that were grammar
+// cards only in form (sentences to translate).
+//
+// Added: 1 phrase (section "verbforms"), one for each irregular verb form the
+// drills asked that no word or phrase card had, each with words of this lesson
+// that no phrase used yet, checked by an independent reader. On any Spanish
+// phrase, an irregular verb form must be typed exactly (irregularForms.js).
 
 export const CARDS = [
   // ── 1. Creer
-  ["creer (presente) → yo", "creo", "G", "creer"],
-  ["creer (presente) → tú", "crees", "G", "creer"],
-  ["creer (presente) → él/ella", "cree", "G", "creer"],
-  ["creer (presente) → nosotros", "creemos", "G", "creer"],
-  ["creer (presente) → ustedes", "creen", "G", "creer"],
-  ["creer (presente) → ellos/ellas", "creen", "G", "creer"],
-  ["creer (pretérito) → yo", "creí", "G", "creer"],
-  ["creer (pretérito) → él/ella", "creyó", "G", "creer"],           // i between two vowels → y
-  ["creer (pretérito) → ellos/ellas", "creyeron", "G", "creer"],
-  ["creer (imperfecto) → yo", "creía", "G", "creer"],
   ["Mi abuela siempre creyó en la suerte", "My grandmother always believed in luck", "E", "creerfrases"],
   ["¿Crees que va a venir?", "Do you think he's going to come? / Do you think she's going to come? / Do you think he'll come? / Do you think she'll come? (tú, with creer)", "E", "creerfrases"],
 
   // ── 1. Esperar
-  ["esperar (presente) → yo", "espero", "G", "esperar"],
-  ["esperar (presente) → tú", "esperas", "G", "esperar"],
-  ["esperar (presente) → él/ella", "espera", "G", "esperar"],
-  ["esperar (presente) → nosotros", "esperamos", "G", "esperar"],
-  ["esperar (presente) → ustedes", "esperan", "G", "esperar"],
-  ["esperar (presente) → ellos/ellas", "esperan", "G", "esperar"],
-  ["esperar (pretérito) → él/ella", "esperó", "G", "esperar"],
-  ["esperar (imperfecto) → yo", "esperaba", "G", "esperar"],
   ["Espero el taxi", "I'm waiting for the taxi / I'm waiting for the cab / I wait for the taxi", "E", "esperarfrases"],
   ["Espero llegar a tiempo", "I hope to get there on time / I hope I get there on time / I hope to arrive on time", "E", "esperarfrases"],
   ["¡Espero que sí!", "I hope so!", "E", "esperarfrases"],
   // a thing: no a; a person: a, and a + el = al
-  ["el o al → Esperé ___ autobús media hora", "el", "G", "elal"],
-  ["el o al → Esperamos ___ doctor una hora", "al", "G", "elal"],
 
   // ── The text's words, before the cards that use them
   ["creer", "to believe / to think", "V", "vocab"],
@@ -151,46 +143,25 @@ export const CARDS = [
   ["cambiar de opinión", "to change your mind / to change one's mind", "V", "vocab"],
 
   // ── 2–3. Preterite or imperfect (her ex. 8): one gap per rule
-  ["visitar → Ayer yo ___ a mis papás", "visité", "G", "pasado"],                       // an event
-  ["ir → En 2023, yo ___ a Guadalajara tres veces", "fui", "G", "pasado"],              // a number of times
-  ["vivir → Mis papás ___ en Monterrey diez años", "vivieron", "G", "pasado"],          // a set length of time
-  ["vivir → Cuando yo era niño, ___ en el campo", "vivía", "G", "pasado"],              // a habit
-  ["ir → Antes yo ___ al gimnasio los lunes, pero ahora voy los sábados", "iba", "G", "pasado"],
-  ["haber → Llovía y ___ mucha gente en el aeropuerto", "había", "G", "pasado"],        // the background
-  ["hacer → Yo ___ mi maleta cuando el taxista me llamó", "hacía / estaba haciendo", "G", "pasado"], // in progress
-  ["estar → Me dijo que ___ cansado", "estaba", "G", "pasado"],                         // after dijo que
-  ["salir → Creía que el vuelo ___ de la Terminal 1", "salía", "G", "pasado"],          // after creía que
-  ["ser → El hotel ___ muy bonito y estaba cerca de la playa", "era", "G", "pasado"],   // a description
-  ["ser → ___ las diez cuando Andrés llegó al aeropuerto", "eran", "G", "pasado"],      // the time
-  ["ser → El viaje ___ genial, ¡me encantó!", "fue", "G", "pasado"],                    // an opinion of a whole event
   // Spanish shown, English typed: the tense is what the English must show
-  ["Llovía cuando llegó", "It was raining when she arrived / It was raining when he arrived / It was raining when she got here / It was raining when he got here", "G", "pasadoingles"],
+  ["Llovía cuando llegó / Estaba lloviendo cuando llegó / Llovía cuando ella llegó / Estaba lloviendo cuando ella llegó", "It was raining when she arrived / It was raining when he arrived / It was raining when she got here / It was raining when he got here", "E", "pasadoingles", "Llovía cuando llegó"],
 
   // ── 4–5. Verbs that describe a situation, and change meaning in the preterite
-  ["saber → ¿De verdad? ¡No ___!", "sabía", "G", "sentido"],
-  ["saber → Ayer yo ___ la verdad", "supe", "G", "sentido"],
-  ["conocer → Yo ___ a mi esposa en una clase de español en 2015", "conocí", "G", "sentido"],
-  ["poder → Afortunadamente, nosotros ___ llegar a tiempo", "pudimos", "G", "sentido"],
   // Spanish shown, English typed: what the verb means in this tense
-  ["Ayer supe que Lucía estaba en Guadalajara", "Yesterday I found out that Lucía was in Guadalajara / Yesterday I found out Lucía was in Guadalajara / I found out yesterday that Lucía was in Guadalajara / Yesterday I learned that Lucía was in Guadalajara", "G", "sentidoingles"],
-  ["Quise abrir la puerta, pero no pude", "I tried to open the door, but I couldn't / I tried to open the door but couldn't", "G", "sentidoingles"],
-  ["No quiso ir a la ciudad", "He refused to go to the city / She refused to go to the city / He refused to go into town / She refused to go into town / He wouldn't go to the city / She wouldn't go to the city", "G", "sentidoingles"],
-  ["Tenía que levantarme temprano", "I was supposed to get up early / I had to get up early", "G", "sentidoingles"],
-  ["Tuve que correr para llegar a tiempo", "I had to run to get there on time / I had to run to arrive on time / I had to run to be on time", "G", "sentidoingles"],
-
-  // ── 6. Telling what someone said (her ex. 10)
-  ["Le dije: «Tengo que salir ahora» → Le dije que…", "Le dije que tenía que salir ahora / que tenía que salir ahora / tenía que salir ahora", "G", "contar"],
-  ["Le dije: «Tienes que regresar ahora» → Le dije que…", "Le dije que tenía que regresar ahora / que tenía que regresar ahora / tenía que regresar ahora", "G", "contar"],
-  ["Le dije: «No conozco a Camila» → Le dije que…", "Le dije que no conocía a Camila / que no conocía a Camila / no conocía a Camila", "G", "contar"],
-  ["Le pregunté: «¿Dónde estás?» → Le pregunté…", "Le pregunté dónde estaba / dónde estaba", "G", "contar"],
-  ["Te pregunté: «¿A qué hora sale el avión?» → Te pregunté…", "Te pregunté a qué hora salía el avión / a qué hora salía el avión", "G", "contar"],
-  ["Le pregunté: «¿Hay mucha gente allá?» → Le pregunté…", "Le pregunté si había mucha gente allá / si había mucha gente allá", "G", "contar"],
-  ["Le pregunté: «¿Ves mucho a tu novio?» → Le pregunté…", "Le pregunté si veía mucho a su novio / si veía mucho a su novio", "G", "contar"],
+  ["Ayer supe que Lucía estaba en Guadalajara", "Yesterday I found out that Lucía was in Guadalajara / Yesterday I found out Lucía was in Guadalajara / I found out yesterday that Lucía was in Guadalajara / Yesterday I learned that Lucía was in Guadalajara / Yesterday I learned Lucía was in Guadalajara", "E", "sentidoingles"],
+  ["Quise abrir la puerta, pero no pude", "I tried to open the door, but I couldn't / I tried to open the door but couldn't (with querer)", "E", "sentidoingles"],
+  ["No quiso ir a la ciudad", "He refused to go to the city / She refused to go to the city / He refused to go into town / She refused to go into town / He wouldn't go to the city / She wouldn't go to the city", "E", "sentidoingles"],
+  ["Tenía que levantarme temprano / Me tenía que levantar temprano", "I was supposed to get up early / I had to get up early / I used to have to get up early", "E", "sentidoingles", "Tenía que levantarme temprano"],
+  ["Tuve que correr para llegar a tiempo", "I had to run to get there on time / I had to run to arrive on time / I had to run to be on time / I had to run to make it on time (with tuve que)", "E", "sentidoingles"],
 
   // ── 7. In the text
   ["Tardamos más de una hora en llegar", "It took us more than an hour to get there / It took us over an hour to get there", "E", "texto"],
   ["Me dejó abordar", "She let me board / He let me board", "E", "texto"],
   ["Tuve que ir al aeropuerto por mi mamá", "I had to go to the airport to pick up my mom / I had to go to the airport to pick my mom up (with tuve que)", "E", "texto"],
+
+  // ── Irregular verb forms, each in a short phrase with this lesson's words
+  //    (2026-10-25). The verb must be typed exactly: irregularForms.js.
+  ["Afortunadamente me creyeron y abordé el vuelo", "Luckily they believed me and I boarded the flight / Fortunately they believed me and I boarded the flight / Luckily they believed me and I got on the flight / Luckily you believed me and I boarded the flight (ustedes) / Fortunately you believed me and I boarded the flight (ustedes)", "E", "verbforms"],
 ];
 
 // The notes: the lesson's seven sections, in English, rebuilt to the notes
@@ -368,31 +339,15 @@ export const LESSON = {
   source: "Adapted from the LFL METHOD by Laura Caufour",
   cards: CARDS,
   notes: NOTES,
-  // The order a student meets NEW cards in, following her sections: the two
-  // verbs and their uses, then the text's words (the gap cards use maleta,
-  // taxista, abajo), the preterite or imperfect choice, the verbs that change
-  // meaning, telling what was said, the yes answers that mix all of it, and
-  // the text's phrases last.
+  // The order a student meets NEW cards in. The grammar cards went on
+  // 2026-10-25, and what is left keeps the order it had: the sheet's own, each
+  // set of words before the phrases that use them, and the verb forms last, as
+  // their phrases use this lesson's words. Reviews are unaffected; FSRS
+  // schedules those.
   teachingOrder: [
-    "creer", "creerfrases",
-    "esperar", "esperarfrases", "elal",
-    "vocab",
-    "pasado", "pasadoingles",
-    "sentido", "sentidoingles",
-    "contar",
-    "texto",
+    "creerfrases", "esperarfrases", "vocab", "pasadoingles", "sentidoingles",
+    "texto", "verbforms",
   ],
-  // The line above a grammar card saying what to type (src/lib/cardInstruction.js).
-  // The verb tables get theirs from their shape. Phrase and word cards are
-  // translations and carry no line.
-  instructions: {
-    elal: "Fill the gap with the choice that fits",
-    pasado: "Fill the gap with the verb given, in the preterite or the imperfect",
-    sentido: "Fill the gap with the verb given, in the preterite or the imperfect",
-    pasadoingles: "Translate into English, minding the tense",
-    sentidoingles: "Translate into English, minding the tense",
-    contar: "Tell what was said, going on from the words given",
-  },
 };
 
 export default LESSON;

@@ -13,11 +13,9 @@
 // Spanish; see ../imperatif.js for why.
 //
 // Card shapes:
-//   "ser o estar → Mi abuelo ___ jubilado"     choose the verb, then put it in the present (ex. 1)
 //   "Él está aburrido" / "He is bored"          Spanish shown, English typed: the meaning changes
-//   "21 → en letras" / "veintiuno"              the numbers (ex. 2)
-//   "21 años → en letras" / "veintiún años"     21 before a masculine noun
 //   two-way phrase (E) and word (V) cards for the profile and the ex. 3 list
+//   "veintiuno" / "twenty-one"                     a number, as a word
 //
 // WHY SER OR ESTAR IS ON EXACT CARDS. Phrase cards are marked with typo
 // tolerance, and "es" is two letters from "está": "Es de mal humor" passes
@@ -91,6 +89,15 @@
 // out: accents are not marked, and the table shows them.
 //
 // Checked 2026-10-22 by an independent reader: 2 fixes
+//
+// Taken out on 2026-10-25, at the owner's word ("the flashcards module for the
+// spanish section should be all words and phrases, no grammar", "i have the
+// exercises for those"): every grammar card, 20 here, with their sections,
+// order and instruction lines. That is the drills, gaps and rewrites this
+// header describes. The grammar is practised on the Exercises page.
+//
+// Kept as words and phrases, asked both ways round: the 9 that were grammar
+// cards only in form (sentences to translate, the numbers).
 
 export const CARDS = [
   // ── Ex. 3: describing Don Rafael, before the ser or estar cards that use them
@@ -101,22 +108,9 @@ export const CARDS = [
   ["a veces", "sometimes", "V", "describe"],
   ["casi siempre", "most of the time / almost always", "V", "describe"],
 
-  // ── 1 and ex. 1: ser for what someone is like, estar for how they are now
-  ["ser o estar → Don Rafael ___ muy divertido", "es", "G", "serestar"],
-  ["ser o estar → Hoy don Rafael ___ de mal humor", "está", "G", "serestar"],
-  ["ser o estar → Mi abuelo ___ jubilado", "está / es", "G", "serestar"],      // estar usually; "es jubilado" is heard in Mexico too
-  ["ser o estar → Después del trabajo, Valeria ___ muy cansada", "está", "G", "serestar"],
-  ["ser o estar → Hacer deporte ___ muy cansado", "es", "G", "serestar"],      // "tiring"
-  ["ser o estar → Andrés siempre ___ de buen humor", "está", "G", "serestar"], // siempre doesn't make it ser
-  ["ser o estar → Mis nietos ___ muy activos", "son", "G", "serestar"],
-  ["ser o estar → ¿Por qué ___ solo, Rafael? (tú)", "estás", "G", "serestar"],
-  ["ser o estar → El profesor ___ aburrido: siempre habla de política", "es", "G", "serestar"], // "boring"
-  ["ser o estar → Los niños ___ aburridos en casa", "están", "G", "serestar"],  // "bored"
-  ["ser o estar → Nosotros ___ listos", "estamos", "G", "serestar"],           // listo always takes estar
-
   // ── 1, ¡Atención!: the meaning changes with the verb
-  ["Él es aburrido", "He is boring / He's boring", "G", "meaning"],
-  ["Él está aburrido", "He is bored / He's bored", "G", "meaning"],
+  ["Él es aburrido", "He is boring / He's boring", "E", "meaning"],
+  ["Él está aburrido", "He is bored / He's bored", "E", "meaning"],
 
   // ── Ex. 3: the rest of her list
   ["los lentes", "glasses / the glasses", "V", "words"],
@@ -138,13 +132,13 @@ export const CARDS = [
   ["Mi abuelo tiene el pelo blanco y lleva lentes", "My grandfather has white hair and wears glasses / My grandfather has white hair and he wears glasses / My grandpa has white hair and wears glasses (with llevar)", "E", "phrases"],
 
   // ── 2 and ex. 2: numbers 21 to 29
-  ["21 → en letras", "veintiuno", "G", "numbers"],
-  ["22 → en letras", "veintidós", "G", "numbers"],
-  ["23 → en letras", "veintitrés", "G", "numbers"],
-  ["26 → en letras", "veintiséis", "G", "numbers"],
-  ["27 → en letras", "veintisiete", "G", "numbers"],
-  ["29 → en letras", "veintinueve", "G", "numbers"],
-  ["21 años → en letras", "veintiún años", "G", "numnoun"],
+  ["veintiuno", "twenty-one / twenty one / 21", "V", "numbers"],
+  ["veintidós", "twenty-two / twenty two / 22", "V", "numbers"],
+  ["veintitrés", "twenty-three / twenty three / 23", "V", "numbers"],
+  ["veintiséis", "twenty-six / twenty six / 26", "V", "numbers"],
+  ["veintisiete", "twenty-seven / twenty seven / 27", "V", "numbers"],
+  ["veintinueve", "twenty-nine / twenty nine / 29", "V", "numbers"],
+  ["veintiún años", "twenty-one years / twenty one years / 21 years", "V", "numnoun"],
 ];
 
 export const NOTES = [
@@ -228,25 +222,13 @@ export const LESSON = {
   source: "Adapted from the LFL METHOD by Laura Caufour",
   cards: CARDS,
   notes: NOTES,
-  // The order a student meets NEW cards in. The describing words first,
-  // because the ser or estar cards can't be decided without knowing them (de
-  // mal humor, solo, listo); then ser or estar, and the two meaning cards
-  // straight after it; then the rest of her list and the phrases that use it;
-  // the numbers last, 21 años after the number itself. Reviews are
-  // unaffected; FSRS schedules those.
+  // The order a student meets NEW cards in. The grammar cards went on
+  // 2026-10-25, and what is left keeps the order it had: the sheet's own, each
+  // set of words before the phrases that use them. Reviews are unaffected;
+  // FSRS schedules those.
   teachingOrder: [
-    "describe", "serestar", "meaning",
-    "words", "phrases",
-    "numbers", "numnoun",
+    "describe", "meaning", "words", "phrases", "numbers", "numnoun",
   ],
-  // The line above a grammar card saying what to type
-  // (src/lib/cardInstruction.js).
-  instructions: {
-    serestar: "Fill the gap with ser or estar in the present",
-    meaning: "Translate into English",
-    numbers: "Write this number in Spanish, in words",
-    numnoun: "Write it all in Spanish, the number in words",
-  },
 };
 
 export default LESSON;

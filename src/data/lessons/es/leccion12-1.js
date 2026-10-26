@@ -12,15 +12,9 @@
 // Spanish side.
 //
 // Card shapes:
-//   "dormir (presente) → yo" / "duermo"            drill; the line above comes from the shape
-//   "acostarse (presente) → yo" / "me acuesto"      reflexive drill, pronoun kept
-//   "dormir o dormirse → Yo ___ ocho horas"         choose the verb, then conjugate it
-//   "despertar → Me despierto … y después ___ a mis hijos"
-//                                                  with the pronoun or without (ex. 4)
-//   "acostarse → Vamos a ___ temprano esta noche"   the pronoun on the end of the infinitive
-//   "Me estoy vistiendo → pronombre al final"       move the pronoun (Lección 11's shape)
-//   "mis o los → Me lavo ___ dientes"               el, la, los, las with a part of the body
 //   two-way word (V) and phrase (E) cards for the ex. 8 list and the dialogue
+//   "Con razón duermes en clase" / "No wonder you sleep in class"
+//                                                  an irregular verb form, in a phrase
 //
 // WHY REFLEXIVE-OR-NOT IS ON EXACT CARDS. A phrase card is marked with typo
 // tolerance, and "despierto a mis hijos" is three letters from "me despierto
@@ -98,6 +92,18 @@
 // flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
 // too"): the 4 cards that answered a question with yes or no in a full
 // sentence (section "answers").
+//
+// Taken out on 2026-10-25, at the owner's word ("the flashcards module for the
+// spanish section should be all words and phrases, no grammar", "i have the
+// exercises for those"): every grammar card, 33 here, with their sections,
+// order and instruction lines. That is the drills, gaps and rewrites this
+// header describes. The grammar is practised on the Exercises page.
+//
+// Added: 13 phrases (section "verbforms"), one for each irregular verb form
+// the drills asked that no word or phrase card had, each with words of this
+// lesson that no phrase used yet, checked by an independent reader. On any
+// Spanish phrase, an irregular verb form must be typed exactly
+// (irregularForms.js).
 
 export const CARDS = [
   // ── The routine verbs (ex. 8), before they are conjugated
@@ -110,53 +116,6 @@ export const CARDS = [
   ["aburrirse", "to get bored", "V", "verbs"],
   ["sentirse", "to feel", "V", "verbs"],
   ["descansar", "to rest", "V", "verbs"],
-
-  // ── 1. Dormir: o → ue in the present; o → u in the preterite only with
-  //    él / ella and ellos / ellas
-  ["dormir (presente) → yo", "duermo", "G", "dormir"],
-  ["dormir (presente) → tú", "duermes", "G", "dormir"],
-  ["dormir (presente) → él/ella", "duerme", "G", "dormir"],
-  ["dormir (presente) → nosotros", "dormimos", "G", "dormir"],
-  ["dormir (presente) → ustedes", "duermen", "G", "dormir"],
-  ["dormir (presente) → ellos/ellas", "duermen", "G", "dormir"],
-  ["dormir (pretérito) → yo", "dormí", "G", "dormir"],
-  ["dormir (pretérito) → él/ella", "durmió", "G", "dormir"],
-  ["dormir (pretérito) → ellos/ellas", "durmieron", "G", "dormir"],
-
-  // ── Dormir or dormirse: to sleep, or to fall asleep
-  ["dormir o dormirse → Me acuesto a las once y ___ rápido", "me duermo", "G", "dormirse"],
-  ["dormir o dormirse → Yo ___ ocho horas", "duermo", "G", "dormirse"],
-
-  // ── 2. Reflexive verbs in the present: her two model verbs
-  ["acostarse (presente) → yo", "me acuesto", "G", "reflexive"],
-  ["acostarse (presente) → tú", "te acuestas", "G", "reflexive"],
-  ["acostarse (presente) → él/ella", "se acuesta", "G", "reflexive"],
-  ["acostarse (presente) → nosotros", "nos acostamos", "G", "reflexive"],
-  ["acostarse (presente) → ustedes", "se acuestan", "G", "reflexive"],
-  ["acostarse (presente) → ellos/ellas", "se acuestan", "G", "reflexive"],
-  ["vestirse (presente) → yo", "me visto", "G", "reflexive"],
-  ["vestirse (presente) → tú", "te vistes", "G", "reflexive"],
-  ["vestirse (presente) → él/ella", "se viste", "G", "reflexive"],
-  ["vestirse (presente) → nosotros", "nos vestimos", "G", "reflexive"],
-  ["vestirse (presente) → ustedes", "se visten", "G", "reflexive"],
-  ["vestirse (presente) → ellos/ellas", "se visten", "G", "reflexive"],
-
-  // ── A part of the body takes el, la, los, las, not mi, mis
-  ["mis o los → Me lavo ___ dientes", "los", "G", "body"],
-
-  // ── Where the pronoun goes: on the end of the infinitive, matching the
-  //    person, or on the end of the -iendo form
-  ["acostarse → Vamos a ___ temprano esta noche", "acostarnos", "G", "place"],
-  ["vestirse → Tengo que ___ rápido", "vestirme", "G", "place"],
-  ["Me estoy vistiendo → pronombre al final", "Estoy vistiéndome", "G", "rewrite"],
-
-  // ── Ex. 4: with the pronoun, or without it
-  ["despertar → Yo ___ a las seis y después despierto a mis hijos", "me despierto", "G", "notreflexive"],
-  ["despertar → Me despierto a las seis y después ___ a mis hijos", "despierto", "G", "notreflexive"],
-  ["maquillar → Mi hermana ___ a mi mamá", "maquilla", "G", "notreflexive"],
-  ["bañar → Los niños ___ antes de dormir", "se bañan", "G", "notreflexive"],
-  ["descansar → Los domingos, yo ___ en la tarde", "descanso", "G", "notreflexive"], // her ¡Atención!: no me descanso
-  ["me, te, se o nos → Aquí ___ habla español", "se", "G", "impersonal"],
 
   // ── The rest of her ex. 8 list
   ["un despertador", "an alarm clock", "V", "words"],
@@ -171,6 +130,22 @@ export const CARDS = [
   ["Duermo muy mal estos días", "I'm sleeping very badly these days / I sleep very badly these days / I've been sleeping very badly these days (simple present)", "E", "phrases"],
   ["Se aburren", "They get bored / They're bored (with aburrirse)", "E", "phrases"],
   ["Volví a ver la película", "I watched the movie again / I saw the movie again / I watched the film again", "E", "phrases"],
+
+  // ── Irregular verb forms, each in a short phrase with this lesson's words
+  //    (2026-10-25). The verb must be typed exactly: irregularForms.js.
+  ["Con razón duermes en clase", "No wonder you sleep in class / No wonder you're sleeping in class / No wonder you sleep during class (tú)", "E", "verbforms"],
+  ["Lo que pasa es que duerme mal", "The thing is he sleeps badly / The thing is she sleeps badly / The thing is that he sleeps badly / The thing is that she sleeps badly / The thing is he doesn't sleep well / The thing is she doesn't sleep well / The thing is he sleeps poorly / The thing is she sleeps poorly", "E", "verbforms"],
+  ["¿Duermen bien con este frío?", "Do you sleep well in this cold? / Do you guys sleep well in this cold? / Are you sleeping well in this cold? / Do they sleep well in this cold? / Are they sleeping well in this cold? / Do you sleep well in this cold weather? (ustedes)", "E", "verbforms"],
+  ["Tal vez Lucía durmió mal / Quizás Lucía durmió mal / Quizá Lucía durmió mal / A lo mejor Lucía durmió mal", "Maybe Lucía slept badly / Perhaps Lucía slept badly / Maybe Lucía slept poorly / Perhaps Lucía slept poorly / Maybe Lucía didn't sleep well / Perhaps Lucía didn't sleep well", "E", "verbforms"],
+  ["Los niños durmieron y descansaron mucho", "The kids slept and rested a lot / The children slept and rested a lot / The boys slept and rested a lot", "E", "verbforms"],
+  ["Me lavo los dientes y me acuesto", "I brush my teeth and go to bed / I brush my teeth and I go to bed / I brush my teeth and then go to bed", "E", "verbforms"],
+  ["¿A qué hora te acuestas?", "What time do you go to bed? / At what time do you go to bed? / When do you go to bed? (tú)", "E", "verbforms"],
+  ["Diego se acuesta y prende la tele", "Diego goes to bed and turns on the TV / Diego goes to bed and turns the TV on / Diego goes to bed and switches on the TV / Diego goes to bed and switches the TV on / Diego goes to bed and turns on the television", "E", "verbforms"],
+  ["¿Se acuestan temprano los domingos?", "Do you go to bed early on Sundays? / Do they go to bed early on Sundays? / Do you guys go to bed early on Sundays? (ustedes)", "E", "verbforms"],
+  ["Me maquillo y me visto", "I put on make-up and get dressed / I put on makeup and get dressed / I put my make-up on and get dressed / I do my make-up and get dressed / I do my makeup and get dressed / I put on make-up and I get dressed", "E", "verbforms"],
+  ["¿Te vistes antes de desayunar?", "Do you get dressed before breakfast? / Do you get dressed before having breakfast? / Do you get dressed before you have breakfast? / Do you get dressed before eating breakfast? (tú)", "E", "verbforms"],
+  ["Jessica se levanta y se viste rápido / Jessica se levanta y se viste rápidamente", "Jessica gets up and gets dressed quickly / Jessica gets up and gets dressed fast / Jessica gets up and quickly gets dressed", "E", "verbforms"],
+  ["¿Por qué no se visten?", "Why don't you get dressed? / Why aren't you getting dressed? / Why don't they get dressed? / Why aren't they getting dressed? / Why don't you guys get dressed? (ustedes)", "E", "verbforms"],
 ];
 
 // The notes: her grammar sections 1 to 3, in English, restructured to the
@@ -314,32 +289,14 @@ export const LESSON = {
   source: "Adapted from the LFL METHOD by Laura Caufour",
   cards: CARDS,
   notes: NOTES,
-  // The order a student meets NEW cards in (reviews are FSRS's). The routine
-  // verbs first, so no drill conjugates a verb the student can't yet read.
-  // Then her grammar in her order, each section followed by the cards that
-  // practise it: dormir and dormirse; the reflexive present and answering
-  // yes with it; a part of the body; where the pronoun goes; reflexive or
-  // not, and se for people in general. The other words and the phrases
-  // come last.
+  // The order a student meets NEW cards in. The grammar cards went on
+  // 2026-10-25, and what is left keeps the order it had: the sheet's own, each
+  // set of words before the phrases that use them, and the verb forms last, as
+  // their phrases use this lesson's words. Reviews are unaffected; FSRS
+  // schedules those.
   teachingOrder: [
-    "verbs",
-    "dormir", "dormirse",
-    "reflexive", "body",
-    "place", "rewrite",
-    "notreflexive", "impersonal",
-    "words", "phrases",
+    "verbs", "words", "phrases", "verbforms",
   ],
-  // The line shown above a grammar card saying what to type
-  // (src/lib/cardInstruction.js). The drills get theirs from their shape.
-  instructions: {
-    dormirse: "Fill the gap with the right one of the two, in the present",
-    body: "Fill the gap with the right one of the two",
-    place: "Fill the gap with the verb and its pronoun",
-    rewrite: "Write it again with the pronoun where the arrow says",
-    // Doesn't say which verbs take one: that is what the cards test.
-    notreflexive: "Fill the gap with the verb in the present, adding me, te, se or nos if it needs one",
-    impersonal: "Fill the gap with the pronoun that fits",
-  },
 };
 
 export default LESSON;

@@ -16,9 +16,6 @@
 //
 // Card shapes:
 //   "yo" / "I"                                      the subject pronouns, both ways round
-//   "ser (presente) → yo" / "soy"                   ser, six persons; the line comes from the shape
-//   "ser → Mi esposa y yo ___ de Chicago"           ex. 1: ser after a name, a noun, usted
-//   "español → Ellos son ___"                       a nationality in the form that fits
 //   "pero" / "but"                                  ex. 3 word list, both ways round
 //   "¿De dónde eres?" / "Where are you from? …"     the dialogue and ex. 4, both ways round
 //
@@ -119,6 +116,12 @@
 // flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
 // too"): the 5 cards that answered a question with yes or no in a full
 // sentence (section "answers").
+//
+// Taken out on 2026-10-25, at the owner's word ("the flashcards module for the
+// spanish section should be all words and phrases, no grammar", "i have the
+// exercises for those"): every grammar card, 13 here, with their sections,
+// order and instruction lines. That is the drills, gaps and rewrites this
+// header describes. The grammar is practised on the Exercises page.
 
 export const CARDS = [
   // ── Section 3: the subject pronouns
@@ -132,21 +135,6 @@ export const CARDS = [
   ["ustedes", "you (several people)", "V", "pronouns"],
   ["ellos", "they (men, or men and women)", "V", "pronouns"],
   ["ellas", "they (women only)", "V", "pronouns"],
-
-  // ── Section 4: ser in the present
-  ["ser (presente) → yo", "soy", "G", "forms"],
-  ["ser (presente) → tú", "eres", "G", "forms"],
-  ["ser (presente) → él/ella", "es", "G", "forms"],
-  ["ser (presente) → nosotros", "somos", "G", "forms"],
-  ["ser (presente) → ustedes", "son", "G", "forms"],
-  ["ser (presente) → ellos/ellas", "son", "G", "forms"],
-
-  // ── Ex. 1, sampled: the subjects the drills don't show
-  ["ser → Lucía ___ mi profesora", "es", "G", "gaps"],                    // a name
-  ["ser → Jessica y James ___ estadounidenses", "son", "G", "gaps"],      // two names
-  ["ser → Mi esposa y yo ___ de Chicago", "somos", "G", "gaps"],         // someone and yo
-  ["ser → ¿Usted ___ de México?", "es", "G", "gaps"],                     // usted takes es
-  ["ser → ¿De dónde ___ ustedes?", "son", "G", "gaps"],                   // the verb before its subject
 
   // ── Ex. 3: the word list; nouns bare, as no article has been taught
   ["estadounidense", "American (from the United States)", "V", "words"],
@@ -171,10 +159,6 @@ export const CARDS = [
   ["me llamo", "my name is / I'm called (literally: I call myself)", "E", "words"],
   ["vivo en", "I live in", "E", "words"],
   ["¿Y tú?", "And you? / What about you? (tú)", "E", "words"],
-
-  // ── Nationalities: the sheet's section, in its sentences
-  ["estadounidense → Jessica es ___", "estadounidense", "G", "nationality"], // -e doesn't change
-  ["español → Ellos son ___", "españoles", "G", "nationality"],           // -es after a consonant
 
   // ── The dialogue, the ATENCIÓN box and ex. 4, sampled
   ["¿Cómo te llamas?", "What's your name? / What are you called? (tú)", "E", "phrases"],
@@ -313,20 +297,13 @@ export const LESSON = {
   source: "Adapted from the LFL METHOD by Laura Caufour",
   cards: CARDS,
   notes: NOTES,
-  // The order a student meets NEW cards in: the pronouns first, because each
-  // form of ser goes with one; then ser and ex. 1 on it, which needs only
-  // the verb. The word list comes next, before anything that needs its
-  // words: the nationality gaps need estadounidense, and ex. 2's tu → mi
-  // card needs profesora (the dialogue teaches them first; the app has no
-  // dialogue). The phrases made from all of it come last. Reviews are
-  // unaffected; FSRS schedules those.
-  teachingOrder: ["pronouns", "forms", "gaps", "words", "nationality", "phrases"],
-  // The line shown above a grammar card saying what to type (see
-  // src/lib/cardInstruction.js). The drills get theirs from their shape.
-  instructions: {
-    gaps: "Fill the gap with ser in the present tense",
-    nationality: "Fill the gap with the nationality, in the form that fits",
-  },
+  // The order a student meets NEW cards in. The grammar cards went on
+  // 2026-10-25, and what is left keeps the order it had: the sheet's own, each
+  // set of words before the phrases that use them. Reviews are unaffected;
+  // FSRS schedules those.
+  teachingOrder: [
+    "pronouns", "words", "phrases",
+  ],
 };
 
 export default LESSON;

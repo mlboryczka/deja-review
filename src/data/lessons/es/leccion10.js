@@ -16,12 +16,10 @@
 // Spanish.
 //
 // Card shapes:
-//   "ver (presente) → tú" / "ves"             drill; its line comes from its shape
-//   "a, al o nada → Vi ___ Hugo en la playa"  a before a person, or nothing (ex. 6)
-//   "hacer, estar o tener → Hoy ___ nublado"  the weather verb, in the present
-//   "Llueve → en pretérito" / "Llovió"        the weather in another tense
-//   "365 → en letras"                          the number in words (ex. 10)
 //   two-way word (V) and phrase (E) cards for ex. 8 and samples of ex. 7 and 9
+//   "ciento uno" / "one hundred one"               a number, as a word
+//   "Normalmente vengo en carro" / "I usually come by car"
+//                                                  an irregular verb form, in a phrase
 //
 // WHY THE WEATHER VERBS AND THE "A" ARE ON EXACT CARDS. Phrase cards are
 // marked fuzzily: "Voy a visitar mis abuelos en diciembre", with no a, is two
@@ -109,33 +107,22 @@
 // flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
 // too"): the 9 cards that answered a question with yes or no in a full
 // sentence (sections "nopast" and "nopresent").
+//
+// Taken out on 2026-10-25, at the owner's word ("the flashcards module for the
+// spanish section should be all words and phrases, no grammar", "i have the
+// exercises for those"): every grammar card, 43 here, with their sections,
+// order and instruction lines. That is the drills, gaps and rewrites this
+// header describes. The grammar is practised on the Exercises page.
+//
+// Kept as words and phrases, asked both ways round: the 8 that were grammar
+// cards only in form (the numbers).
+//
+// Added: 6 phrases (section "verbforms"), one for each irregular verb form the
+// drills asked that no word or phrase card had, each with words of this lesson
+// that no phrase used yet, checked by an independent reader. On any Spanish
+// phrase, an irregular verb form must be typed exactly (irregularForms.js).
 
 export const CARDS = [
-  // ── 1. Ver in the present and the preterite
-  ["ver (presente) → tú", "ves", "G", "ver"],
-  ["ver (presente) → él/ella", "ve", "G", "ver"],
-  ["ver (presente) → nosotros", "vemos", "G", "ver"],
-  ["ver (presente) → ustedes", "ven", "G", "ver"],
-  ["ver (presente) → ellos/ellas", "ven", "G", "ver"],
-  ["ver (pretérito) → yo", "vi", "G", "ver"],
-  ["ver (pretérito) → tú", "viste", "G", "ver"],
-  ["ver (pretérito) → él/ella", "vio", "G", "ver"],
-  ["ver (pretérito) → nosotros", "vimos", "G", "ver"],
-  ["ver (pretérito) → ellos/ellas", "vieron", "G", "ver"],
-
-  // ── 1. Venir in the present and the preterite
-  ["venir (presente) → yo", "vengo", "G", "venir"],
-  ["venir (presente) → tú", "vienes", "G", "venir"],
-  ["venir (presente) → él/ella", "viene", "G", "venir"],
-  ["venir (presente) → nosotros", "venimos", "G", "venir"],
-  ["venir (presente) → ustedes", "vienen", "G", "venir"],
-  ["venir (presente) → ellos/ellas", "vienen", "G", "venir"],
-  ["venir (pretérito) → yo", "vine", "G", "venir"],
-  ["venir (pretérito) → tú", "viniste", "G", "venir"],
-  ["venir (pretérito) → él/ella", "vino", "G", "venir"],
-  ["venir (pretérito) → nosotros", "vinimos", "G", "venir"],
-  ["venir (pretérito) → ellos/ellas", "vinieron", "G", "venir"],
-
   // ── Ex. 8: the word list (the weather phrases are their own section)
   ["este año", "this year", "V", "vocab"],
   ["en el sur", "in the south", "V", "vocab"],
@@ -152,14 +139,6 @@ export const CARDS = [
   ["los días libres", "days off / the days off", "V", "vocab"],
   ["visitar", "to visit", "V", "vocab"],
 
-  // ── 3. a before a person; nothing before a thing or a place
-  ["a, al o nada → Visitamos ___ unos amigos", "a", "G", "persona"],
-  ["a, al o nada → Visitamos ___ la ciudad", "nada", "G", "persona"],
-  ["a, al o nada → Vi ___ Hugo en la playa", "a", "G", "persona"],
-  ["a, al o nada → Busco ___ la estación de metro", "nada", "G", "persona"],
-  ["a, al o nada → Tengo ___ tres hermanos", "nada", "G", "persona"],   // tener never takes it
-  ["a, al o nada → Vimos ___ profesor en el restaurante", "al", "G", "persona"],
-
   // ── 4. To drive: manejar, or ir / venir en carro for a trip (ex. 7)
   ["Fuimos a Oaxaca en carro", "We drove to Oaxaca / We went to Oaxaca by car (with ir)", "E", "drive"],
   ["¿Viniste en carro?", "Did you drive here? / Did you come by car? (tú, with venir)", "E", "drive"],
@@ -174,32 +153,29 @@ export const CARDS = [
   ["Está nublado", "It's cloudy", "E", "weatherwords"],
   ["Tengo calor", "I'm hot (my body) / I feel hot", "E", "weatherwords"],
 
-  // ── 5. hacer for the weather, estar for nublado, tener for your body
-  ["hacer, estar o tener → Hoy ___ mucho calor", "hace", "G", "weather"],
-  ["hacer, estar o tener → Hoy ___ nublado", "está", "G", "weather"],
-  ["hacer, estar o tener → ¿Tú ___ frío?", "tienes", "G", "weather"],
-  ["hacer, estar o tener → ¡___ 35 grados!", "hace", "G", "weather"],
-
-  // ── 5. The weather in the preterite and the near future
-  ["Hace buen tiempo → en pretérito", "Hizo buen tiempo", "G", "weathertense"],
-  ["Llueve → en pretérito", "Llovió", "G", "weathertense"],
-  ["Hace calor → con ir a", "Va a hacer calor", "G", "weathertense"],
-  ["Llueve → con ir a", "Va a llover", "G", "weathertense"],
-
   // ── Ex. 9: sentences to learn whole
   ["Tuvimos suerte: hizo muy buen tiempo", "We were lucky: the weather was very nice / We were lucky: the weather was very good", "E", "phrases"],
   ["Ella no quiso visitar la ciudad", "She didn't want to visit the city / She refused to visit the city (with ella)", "E", "phrases"],
   ["Voy a visitar a mis abuelos en diciembre", "I'm going to visit my grandparents in December", "E", "phrases"],
 
   // ── 6. Numbers 100 to 999 (ex. 10)
-  ["101 → en letras", "ciento uno", "G", "numbers"],
-  ["200 → en letras", "doscientos", "G", "numbers"],
-  ["365 → en letras", "trescientos sesenta y cinco", "G", "numbers"],
-  ["500 → en letras", "quinientos", "G", "numbers"],
-  ["700 → en letras", "setecientos", "G", "numbers"],
-  ["900 → en letras", "novecientos", "G", "numbers"],
-  ["999 → en letras", "novecientos noventa y nueve", "G", "numbers"],
-  ["200 personas → en letras", "doscientas personas", "G", "numbers"],
+  ["ciento uno", "one hundred one / one hundred and one / a hundred and one / a hundred one / 101", "V", "numbers"],
+  ["doscientos", "two hundred / 200", "V", "numbers"],
+  ["trescientos sesenta y cinco", "three hundred sixty-five / three hundred and sixty-five / three hundred sixty five / three hundred and sixty five / 365", "V", "numbers"],
+  ["quinientos", "five hundred / 500", "V", "numbers"],
+  ["setecientos", "seven hundred / 700", "V", "numbers"],
+  ["novecientos", "nine hundred / 900", "V", "numbers"],
+  ["novecientos noventa y nueve", "nine hundred ninety-nine / nine hundred and ninety-nine / nine hundred ninety nine / nine hundred and ninety nine / 999", "V", "numbers"],
+  ["doscientas personas", "two hundred people / 200 people", "V", "numbers"],
+
+  // ── Irregular verb forms, each in a short phrase with this lesson's words
+  //    (2026-10-25). The verb must be typed exactly: irregularForms.js.
+  ["Normalmente vengo en carro", "I usually come by car / I normally come by car / I usually drive here / I normally drive here", "E", "verbforms"],
+  ["Mi hermano siempre viene en verano", "My brother always comes in the summer / My brother always comes in summer", "E", "verbforms"],
+  ["¿Vienen con nosotros al campo?", "Are you coming with us to the countryside? / Are you coming to the countryside with us? / Are you guys coming with us to the countryside? / Are they coming with us to the countryside? (ustedes)", "E", "verbforms"],
+  ["Vine a Oaxaca en mis días libres", "I came to Oaxaca on my days off / I came to Oaxaca during my days off", "E", "verbforms"],
+  ["Vinimos de un pueblo en el sur", "We came from a village in the south / We came from a small town in the south", "E", "verbforms"],
+  ["¿Por qué no vinieron tus papás?", "Why didn't your parents come? / Why did your parents not come? (tú)", "E", "verbforms"],
 ];
 
 // The notes: six tabs, Forms · Saying no · a + person · Drive · Weather ·
@@ -360,31 +336,14 @@ export const LESSON = {
   source: "Adapted from the LFL METHOD by Laura Caufour",
   cards: CARDS,
   notes: NOTES,
-  // The order a student meets NEW cards in. The two verbs first; then the
-  // word list, which the answers and phrases need (los días libres, manejar,
-  // en carro, tener suerte); the negative preterite, then a before a person
-  // (whose first sentences are from the same story), "to drive", and the
-  // weather: its phrases, then the gap cards that choose the verb, then its
-  // other tenses. The present-tense no answers come after the weather, as
-  // they use vengo, veo and vemos again once those are settled. Numbers
-  // stand alone. Reviews are unaffected; FSRS schedules those.
+  // The order a student meets NEW cards in. The grammar cards went on
+  // 2026-10-25, and what is left keeps the order it had: the sheet's own, each
+  // set of words before the phrases that use them, and the verb forms last, as
+  // their phrases use this lesson's words. Reviews are unaffected; FSRS
+  // schedules those.
   teachingOrder: [
-    "ver", "venir",
-    "vocab", "persona", "drive",
-    "weatherwords", "weather", "weathertense",
-    "phrases",
-    "numbers",
+    "vocab", "drive", "weatherwords", "phrases", "numbers", "verbforms",
   ],
-  // The line above a grammar card saying what to type (src/lib/cardInstruction.js).
-  // The drills get theirs from their shape. The persona and weather lines
-  // don't name the choices: the front does ("a, al o nada", "hacer, estar o
-  // tener"), and naming them here would put an answer (nada, hace) in the line.
-  instructions: {
-    persona: "Fill the gap with the right one of the three",
-    weather: "Fill the gap with one of the three verbs, in the present",
-    weathertense: "Rewrite it in the tense after the arrow",
-    numbers: "Write this number in Spanish, in words",
-  },
 };
 
 export default LESSON;

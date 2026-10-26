@@ -14,13 +14,8 @@
 // Spanish.
 //
 // Card shapes:
-//   "tener (presente) → yo" / "tengo"                 the paradigm; its line comes from its shape
-//   "tener → Lucía ___ una hermana"                   tener in the sheet's sentences (ex. 1)
-//   "Tengo 17 años → la pregunta, con tú"             ask the age question
-//   "ser, estar o tener → Mi hermana ___ nueve años"  choose the verb, then give its form
-//   "cerca de mí → ___ libro es muy bonito"           este, ese or aquel, for the distance (ex. 5)
-//   "6 → en letras" / "seis"                          the numbers
 //   "un regalo" / "a present"                         words and phrases, both ways round
+//   "seis" / "six"                                 a number, as a word
 //
 // WHY THE DEMONSTRATIVES AND THE AGE ARE ON EXACT CARDS. Word and phrase
 // cards are marked with typo tolerance. A word card does refuse the wrong
@@ -120,25 +115,21 @@
 // flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
 // too"): the 7 cards that answered a question with yes or no in a full
 // sentence (section "answers").
+//
+// Taken out on 2026-10-25, at the owner's word ("the flashcards module for the
+// spanish section should be all words and phrases, no grammar", "i have the
+// exercises for those"): every grammar card, 26 here, with their sections,
+// order and instruction lines. That is the drills, gaps and rewrites this
+// header describes. The grammar is practised on the Exercises page.
+//
+// Kept as words and phrases, asked both ways round: the 5 that were grammar
+// cards only in form (the numbers).
 
 export const CARDS = [
-  // ── 1. Tener in the present
-  ["tener (presente) → yo", "tengo", "G", "tener"],
-  ["tener (presente) → tú", "tienes", "G", "tener"],
-  ["tener (presente) → él/ella", "tiene", "G", "tener"],
-  ["tener (presente) → nosotros", "tenemos", "G", "tener"],
-  ["tener (presente) → ustedes", "tienen", "G", "tener"],
-  ["tener (presente) → ellos/ellas", "tienen", "G", "tener"],
-
-  // ── Ex. 1: a name and two names as the subject
-  ["tener → Lucía ___ una hermana", "tiene", "G", "tenergap"],
-  ["tener → James y Jessica ___ dos hijos", "tienen", "G", "tenergap"],
-
   // ── Age: the sheet's own pair, the answer and then the question. The
   //    question is asked exactly; the English of the answer lists both short
   //    forms, too short for the typo allowance to take one for the other.
   ["Tengo 17 años", "I'm 17 / I am 17 / I'm seventeen / I am seventeen / I'm 17 years old / I am 17 years old", "E", "age"],
-  ["Tengo 17 años → la pregunta, con tú", "¿Cuántos años tienes? / ¿Tú cuántos años tienes? / ¿Cuántos años tienes tú?", "G", "age"],
 
   // ── 2. Words, each noun with its article (ex. 6, and six from the dialogue)
   ["un regalo", "a present / a gift", "V", "vocab"],
@@ -167,24 +158,6 @@ export const CARDS = [
   ["por favor", "please", "E", "vocab"],
   ["¡Que tenga un buen día!", "Have a nice day! / Have a good day! (usted)", "E", "vocab"],
 
-  // ── Age is tener; how and where is estar; what something is like is ser.
-  //    Two cards for tener, two for estar, one for ser, so no verb can be
-  //    guessed every time.
-  ["ser, estar o tener → Mi hermana ___ nueve años", "tiene", "G", "serestartener"],
-  ["ser, estar o tener → Ellos ___ ocho y diez años", "tienen", "G", "serestartener"],
-  ["ser, estar o tener → ¿Por qué ___ cansados?", "están", "G", "serestartener"],
-  ["ser, estar o tener → Los audífonos ___ en el segundo piso", "están", "G", "serestartener"],
-  ["ser, estar o tener → Este libro ___ muy bonito", "es / está", "G", "serestartener"],
-
-  // ── 4. This and that (ex. 5): the distance, then the noun's form
-  ["cerca de mí → ___ libro es muy bonito", "este", "G", "demonstratives"],
-  ["cerca de mí → ___ librería es muy bonita", "esta", "G", "demonstratives"],
-  ["cerca de mí → Voy a llevar ___ dos libros", "estos", "G", "demonstratives"],
-  ["cerca de ti → ¿___ mapa es nuevo?", "ese", "G", "demonstratives"],
-  ["cerca de ti → ¿___ audífonos son nuevos?", "esos", "G", "demonstratives"],
-  ["lejos → Los libros están en ___ mesa", "aquella", "G", "demonstratives"],
-  ["lejos → ___ restaurantes son muy buenos", "aquellos", "G", "demonstratives"],
-
   // ── Sentences (ex. 7 and 8, and the dialogue), each for what no other card has
   ["¿Tienen libros sobre la historia de México?", "Do you have books about the history of Mexico? / Do you have any books about the history of Mexico? (ustedes)", "E", "phrases"],
   ["¿Qué tienen sobre México?", "What do you have about Mexico? / What do you have on Mexico? (ustedes) / What do they have about Mexico?", "E", "phrases"],
@@ -194,11 +167,11 @@ export const CARDS = [
   ["Está en aquella mesa", "It's on that table over there / It is on that table over there", "E", "phrases"],
 
   // ── 5. Numbers 6 to 10
-  ["6 → en letras", "seis", "G", "numbers"],
-  ["7 → en letras", "siete", "G", "numbers"],
-  ["8 → en letras", "ocho", "G", "numbers"],
-  ["9 → en letras", "nueve", "G", "numbers"],
-  ["10 → en letras", "diez", "G", "numbers"],
+  ["seis", "six / 6", "V", "numbers"],
+  ["siete", "seven / 7", "V", "numbers"],
+  ["ocho", "eight / 8", "V", "numbers"],
+  ["nueve", "nine / 9", "V", "numbers"],
+  ["diez", "ten / 10", "V", "numbers"],
 ];
 
 // The notes are the sheet's five grammar sections, in English (two of them
@@ -345,31 +318,13 @@ export const LESSON = {
   source: "Adapted from the LFL METHOD by Laura Caufour",
   cards: CARDS,
   notes: NOTES,
-  // The order a student meets NEW cards in, following the notes tabs. Tener
-  // first, as the sheet's objective 1, with ex. 1 and the age pair straight
-  // after. Then the words, each with its article, before the cards that need
-  // them: "Los audífonos ___ en el segundo piso" can't be decided without
-  // knowing what en el segundo piso means (the dialogue teaches it first;
-  // the app has no dialogue). Then ser, estar or tener, and the answers,
-  // which mix the three verbs. Then this and that; the sentences, which need all of it; the
-  // numbers last, as on the sheet. Reviews are unaffected; FSRS schedules
-  // those.
+  // The order a student meets NEW cards in. The grammar cards went on
+  // 2026-10-25, and what is left keeps the order it had: the sheet's own, each
+  // set of words before the phrases that use them. Reviews are unaffected;
+  // FSRS schedules those.
   teachingOrder: [
-    "tener", "tenergap", "age",
-    "vocab", "serestartener",
-    "demonstratives", "phrases",
-    "numbers",
+    "age", "vocab", "phrases", "numbers",
   ],
-  // The line shown above a grammar card saying what to type (see
-  // src/lib/cardInstruction.js). The drills get theirs from their own shape.
-  // In "age" only the question card is a grammar card, so the line is its.
-  instructions: {
-    tenergap: "Fill the gap with tener in the present tense",
-    age: "Write the question this answers (not a yes/no one)",
-    serestartener: "Fill the gap with ser, estar or tener in the present",
-    demonstratives: "Fill the gap with the word for this or that, for that distance",
-    numbers: "Write this number in Spanish, in words",
-  },
 };
 
 export default LESSON;

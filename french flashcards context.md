@@ -2304,8 +2304,9 @@ Flashcards / Podcasts switch is French only; Spanish has no Podcasts (owner,
   answer, not "Wrong article". French keeps both languages' together, as
   before. The phrase-card tolerance still lets a slightly shorter answer
   through as close enough, as in French ("Conozco" for "La conozco", "Hablé
-  por teléfono" for "Le hablé por teléfono"), so the lessons test pronouns on
-  exact cards. **Accents are checked on Spanish answers** (owner,
+  por teléfono" for "Le hablé por teléfono"). The lessons tested pronouns on
+  exact cards until the grammar cards went (2026-10-25); since then only an
+  irregular verb form is held exact (below). **Accents are checked on Spanish answers** (owner,
   2026-10-22: "accents must be checked"; `accentsRight` in
   `FlashcardApp.jsx`, `accents` in `matchAnswer`): the match is made with
   accents set aside, as before, then any typed word that is a word of the
@@ -2342,7 +2343,46 @@ Flashcards / Podcasts switch is French only; Spanish has no Podcasts (owner,
   acuerdo" reactions) stay. Each lesson's header says what went; the cards
   are under "retired" in `tests/released-lesson-cards.json`. The notes on
   answering yes and no stay. 1,629 Spanish cards are left.
-- **Drills** read "tener (presente) → yo" with the bare form as the answer,
+- **Words and phrases only** (owner, 2026-10-25: "i think the flashcards
+  module for the spanish section should be all words and phrases, no
+  grammar… i have the exercises for those"). Every grammar card left the
+  Spanish lessons, 937 in all, with their sections, order and instruction
+  lines; the grammar is on the Exercises page. 100 of them were grammar only
+  in form and stay as word and phrase cards, asked both ways round: the
+  numbers ("seis" = "six / 6"), the dates, the time, prices, first to tenth
+  in the sheets' sentences, and Lessons 7.3's and 16's 8 sentences to
+  translate. Those 8 keep their fronts, so their rows, and the lesson sync
+  now turns such a row from grammar into a phrase (`recat` in
+  `reconcileLessons`, only G to V or E). Exercises bring nothing back (owner:
+  "i do them once and move on, maybe twice"), so the verb tables' irregular
+  forms would have gone unrepeated. Each one that no word or phrase card had
+  got a short phrase in its lesson's "verbforms" section, 119 in all, with
+  one or two of that lesson's words that no phrase used yet ("Ayer puse la
+  computadora en la sala" = "Yesterday I put the computer in the living
+  room"). Helpers wrote them from a worksheet and independent readers checked
+  them.
+  **Irregular verb forms, numbers and months are marked exactly** on a
+  Spanish card. The phrase-card tolerance had let "Ayer poní la computadora
+  en la sala" pass for "Ayer puse…", "vi la tele" for "veía la tele", "Soy
+  aquí" for "Estoy aquí", "setenta" for sesenta, "julio" for junio and,
+  typing English, "July 30th" for "June 30th" and "It's 8:45" for 8:15: as
+  grammar cards the numbers, dates and times had been marked exactly.
+  `src/data/lessons/es/irregularForms.js` holds 180 verb words: every answer
+  the drills accepted that their infinitive's regular endings don't give,
+  accents counted, so estar's está too. `src/data/lessons/es/exactWords.js`
+  adds the numbers, first to tenth, the months and four verbs that
+  sentences to translate turn on (llovía, estaba, tenía, pude), for typed
+  Spanish, and the English numbers (each also as its figure), ordinals and
+  months for typed English. Any word with a figure in it counts too.
+  `exactWordsTyped` (`exactWords` in `matchAnswer`) fails an answer missing
+  one, and calls it a wrong accent when only the accent is off; a slip
+  anywhere else is still close enough. French is unchanged. In a deck, the
+  unanswered grammar cards are deleted (200 at a time) and the answered ones
+  put away with their answers, 14 on the owner's deck. The 8 sentences take
+  the lesson's English with their new category, as it now shows as a prompt
+  ("(with querer)"). 911 Spanish cards are left: 510 words and 401 phrases.
+- **Drills** (no Spanish lesson has one since 2026-10-25; the code still
+  reads them) read "tener (presente) → yo" with the bare form as the answer,
   "tengo"; "yo tengo" is accepted too, "él fue" and "ella fue" for an
   él/ella drill, and the line says "Present tense, yo form"
   (`src/lib/cardInstruction.js`: Spanish tenses presente, pretérito,
@@ -3338,6 +3378,19 @@ deck in tables of its own (migration_020, to be run by the owner), the study
 code made to take a course, and the 23 lessons (26 lesson files) as cards and
 notes, built from the HTML sources by parallel helpers following the
 building-lessons skill and then checked. See *Spanish*.
+
+### 2026-10-25 — Spanish flashcards: words and phrases only
+
+The owner, relearning Spanish and "closer to beginner", proposed that the
+Spanish flashcards be words and phrases only, with the grammar left to the
+Exercises, and asked Claude's view. Claude agreed, with three fixes. The owner
+turned one down: Exercises bringing back missed items ("i do them once and
+move on, maybe twice"). So the irregular verb forms, which only flashcards
+repeat, went into new phrases rather than an exercise. The owner then asked
+how the phrases would be designed ("to incorporate other vocab?") and said
+yes to the design: one form per phrase, with one or two of the lesson's words
+that no phrase used yet, and the verb marked exactly. See *Spanish*, "Words
+and phrases only".
 
 ---
 

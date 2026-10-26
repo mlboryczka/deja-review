@@ -12,12 +12,11 @@
 // Spanish side.
 //
 // Card shapes:
-//   "conocer (presente) → yo" / "conozco"           drill; the line above comes from the shape
-//   "saber o conocer → Yo no ___ Monterrey"        choose the verb, conjugate it, add a if needed
-//   "que o de → La sala tiene más ___ 20 metros cuadrados"   pick the word
-//   "malo → Esta cocina es ___ que la otra"         the word given, changed to compare
-//   "3 → El departamento está en el ___ piso"       first, second, third… (ex. 6)
 //   two-way word (V) and phrase (E) cards for the ex. 3 list and the dialogue
+//   "Enero es el primer mes del año" / "January is the first month of the year"
+//                                                  first to tenth, in a phrase
+//   "Conozco una buena inmobiliaria en el centro" / "I know a good real estate agency downtown"
+//                                                  an irregular verb form, in a phrase
 //
 // WHY SABER OR CONOCER, AND THE COMPARISONS, ARE ON EXACT CARDS. A phrase
 // card is marked with typo tolerance: "Conozco dónde está" is far enough from
@@ -92,26 +91,22 @@
 // flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
 // too"): the 5 cards that answered a question with yes or no in a full
 // sentence (sections "yes" and "no").
+//
+// Taken out on 2026-10-25, at the owner's word ("the flashcards module for the
+// spanish section should be all words and phrases, no grammar", "i have the
+// exercises for those"): every grammar card, 43 here, with their sections,
+// order and instruction lines. That is the drills, gaps and rewrites this
+// header describes. The grammar is practised on the Exercises page.
+//
+// Kept as words and phrases, asked both ways round: the 11 that were grammar
+// cards only in form (first to tenth).
+//
+// Added: 7 phrases (section "verbforms"), one for each irregular verb form the
+// drills asked that no word or phrase card had, each with words of this lesson
+// that no phrase used yet, checked by an independent reader. On any Spanish
+// phrase, an irregular verb form must be typed exactly (irregularForms.js).
 
 export const CARDS = [
-  // ── 1. Conocer: irregular only with yo
-  ["conocer (presente) → yo", "conozco", "G", "conocer"],
-  ["conocer (presente) → tú", "conoces", "G", "conocer"],
-  ["conocer (presente) → él/ella", "conoce", "G", "conocer"],
-  ["conocer (presente) → nosotros", "conocemos", "G", "conocer"],
-  ["conocer (presente) → ustedes", "conocen", "G", "conocer"],
-  ["conocer (presente) → ellos/ellas", "conocen", "G", "conocer"],
-  ["conocer (pretérito) → yo", "conocí", "G", "conocer"],
-
-  // ── 1. Poner: an irregular preterite, like tener and poder
-  ["poner (pretérito) → yo", "puse", "G", "poner"],
-  ["poner (pretérito) → tú", "pusiste", "G", "poner"],
-  ["poner (pretérito) → él/ella", "puso", "G", "poner"],
-  ["poner (pretérito) → nosotros", "pusimos", "G", "poner"],
-  ["poner (pretérito) → ustedes", "pusieron", "G", "poner"],
-  ["poner (pretérito) → ellos/ellas", "pusieron", "G", "poner"],
-  ["ponerse (pretérito) → yo", "me puse", "G", "poner"],
-
   // ── The apartment (ex. 3), before the cards that use its words
   ["un departamento de dos recámaras", "a two-bedroom apartment", "V", "home"],
   ["una recámara", "a bedroom", "V", "home"],
@@ -126,45 +121,18 @@ export const CARDS = [
   ["un agente inmobiliario", "a real estate agent (masc.) / a realtor (masc.)", "V", "home"],
   ["en renta", "for rent", "V", "home"],
 
-  // ── 2. Saber or conocer (ex. 2): saber for information, conocer for a
-  //    person, a place or a thing, with a before a person
-  ["saber o conocer → ¿Tú ___ dónde está la inmobiliaria?", "sabes", "G", "saberconocer"],
-  ["saber o conocer → Yo no ___ cuánto mide la sala", "sé", "G", "saberconocer"],
-  ["saber o conocer → Ellos no ___ que estoy aquí", "saben", "G", "saberconocer"],
-  ["saber o conocer → Mi hijo ___ manejar", "sabe", "G", "saberconocer"],
-  ["saber o conocer → Yo no ___ Monterrey", "conozco", "G", "saberconocer"],
-  ["saber o conocer → Nosotros ___ Lucía desde hace dos años", "conocemos a", "G", "saberconocer"],
-  ["saber o conocer → ¿Tú ___ la profesora de Jessica?", "conoces a", "G", "saberconocer"],
-
-  // ── 3. Comparing: the word that goes with más, menos and tan
-  ["que o de → Este departamento es menos caro ___ el otro", "que", "G", "compare"],
-  ["que o de → La sala tiene más ___ 20 metros cuadrados", "de", "G", "compare"],    // de before a number
-  ["que o como → La recámara es tan grande ___ la sala", "como", "G", "compare"],
-  ["yo o mí → Mi hermano es más alto que ___", "yo", "G", "compare"],
-  ["de o en → Es el mejor restaurante ___ la ciudad", "de", "G", "compare"],
-
-  // ── Better, worse, younger, and the bigger one
-  ["bueno → ¡Es mucho ___ que todo lo que vimos!", "mejor", "G", "irregular"],      // not más mejor
-  ["malo → Esta cocina es ___ que la otra", "peor", "G", "irregular"],
-  ["joven → Emilia es ___ que Hugo", "menor / más joven", "G", "irregular"],
-  ["pequeño → Esta es la más grande y esa es la ___", "más pequeña", "G", "irregular"],
-
-  // ── 4. To need: hay que for everyone, tener que for one person
-  ["tener que o hay que → Para aprender español, ___ estudiar todos los días", "hay que", "G", "need"],
-  ["tener que o hay que → Mañana yo ___ trabajar", "tengo que", "G", "need"],
-
   // ── 5. First to tenth (ex. 6)
-  ["1 → Enero es el ___ mes del año", "primer", "G", "ordinals"],
-  ["2 → Es la ___ vez que vengo a Guadalajara", "segunda", "G", "ordinals"],
-  ["3 → El departamento está en el ___ piso", "tercer", "G", "ordinals"],
-  ["3 → Es nuestra ___ semana en México", "tercera", "G", "ordinals"],
-  ["4 → Este es el ___ departamento que visitamos hoy", "cuarto", "G", "ordinals"],
-  ["5 → Mi oficina está en el ___ piso", "quinto", "G", "ordinals"],
-  ["6 → Junio es el ___ mes del año", "sexto", "G", "ordinals"],
-  ["7 → Julio es el ___ mes del año", "séptimo / sétimo", "G", "ordinals"],
-  ["8 → Agosto es el ___ mes del año", "octavo", "G", "ordinals"],
-  ["9 → Septiembre es el ___ mes del año", "noveno", "G", "ordinals"],
-  ["10 → Lucía vive en el ___ piso", "décimo", "G", "ordinals"],
+  ["Enero es el primer mes del año", "January is the first month of the year", "E", "ordinals"],
+  ["Es la segunda vez que vengo a Guadalajara", "It's the second time I've come to Guadalajara / It is the second time I've come to Guadalajara / It's the second time I have come to Guadalajara / This is the second time I've come to Guadalajara / It's the second time that I've come to Guadalajara / It's my second time in Guadalajara / This is my second time in Guadalajara", "E", "ordinals"],
+  ["El departamento está en el tercer piso", "The apartment is on the third floor / The apartment is on the fourth floor (US)", "E", "ordinals"],
+  ["Es nuestra tercera semana en México", "It's our third week in Mexico / It is our third week in Mexico / This is our third week in Mexico", "E", "ordinals"],
+  ["Este es el cuarto departamento que visitamos hoy", "This is the fourth apartment we've visited today / This is the fourth apartment we have visited today / This is the fourth apartment we visited today / This is the fourth apartment that we've visited today", "E", "ordinals"],
+  ["Mi oficina está en el quinto piso", "My office is on the fifth floor / My office is on the sixth floor (US)", "E", "ordinals"],
+  ["Junio es el sexto mes del año", "June is the sixth month of the year", "E", "ordinals"],
+  ["Julio es el séptimo mes del año / Julio es el sétimo mes del año", "July is the seventh month of the year", "E", "ordinals"],
+  ["Agosto es el octavo mes del año", "August is the eighth month of the year", "E", "ordinals"],
+  ["Septiembre es el noveno mes del año / Setiembre es el noveno mes del año", "September is the ninth month of the year", "E", "ordinals"],
+  ["Lucía vive en el décimo piso", "Lucía lives on the tenth floor / Lucia lives on the tenth floor / Lucía lives on the eleventh floor (US)", "E", "ordinals"],
 
   // ── The rest of her ex. 3 list
   ["la computadora", "the computer", "V", "words"],
@@ -184,6 +152,16 @@ export const CARDS = [
   ["Le marco más tarde", "I'll call you later (usted) / I'll call him later / I'll call her later", "E", "phrases"],
   ["No sé cuánto mide", "I don't know how big it is", "E", "phrases"],
   ["¿Conoces Guadalajara?", "Have you been to Guadalajara? / Do you know Guadalajara? (tú)", "E", "phrases"],
+
+  // ── Irregular verb forms, each in a short phrase with this lesson's words
+  //    (2026-10-25). The verb must be typed exactly: irregularForms.js.
+  ["Conozco una buena inmobiliaria en el centro", "I know a good real estate agency downtown / I know a good real estate agency in the city center / I know a good real estate agency in the town center / I know of a good real estate agency downtown", "E", "verbforms"],
+  ["Ayer puse la computadora en la sala", "Yesterday I put the computer in the living room / I put the computer in the living room yesterday", "E", "verbforms"],
+  ["¿Pusiste los muebles en la recámara?", "Did you put the furniture in the bedroom? / Have you put the furniture in the bedroom? (tú)", "E", "verbforms"],
+  ["Lucía puso sus zapatos en el clóset", "Lucía put her shoes in the closet", "E", "verbforms"],
+  ["Ayer pusimos una mesa en la cocina", "Yesterday we put a table in the kitchen / We put a table in the kitchen yesterday", "E", "verbforms"],
+  ["¿Ya pusieron el departamento en renta?", "Have you put the apartment up for rent yet? (ustedes) / Did you put the apartment up for rent yet? / Have you already put the apartment up for rent? / Did you already put the apartment up for rent? / Have you guys put the apartment up for rent yet? / Have they put the apartment up for rent yet? / Did they put the apartment up for rent yet?", "E", "verbforms"],
+  ["Esta mañana me puse la camisa que compré ayer", "This morning I put on the shirt I bought yesterday / This morning I put on the shirt that I bought yesterday / This morning I wore the shirt I bought yesterday / This morning I wore the shirt that I bought yesterday", "E", "verbforms"],
 ];
 
 // The notes: her grammar sections 1 to 5, in English, restructured to the
@@ -344,32 +322,14 @@ export const LESSON = {
   source: "Adapted from the LFL METHOD by Laura Caufour",
   cards: CARDS,
   notes: NOTES,
-  // The order a student meets NEW cards in (reviews are FSRS's). The two
-  // verbs first; then the apartment words, since nearly every card after
-  // them is about the apartment (la inmobiliaria, la sala, la recámara, el
-  // clóset). Then her grammar in her order, each section followed by the
-  // cards that practise it: saber or conocer, and the answers, which need
-  // both verbs and poner; comparing; to need; first to tenth. The other
-  // words and the phrases come last.
+  // The order a student meets NEW cards in. The grammar cards went on
+  // 2026-10-25, and what is left keeps the order it had: the sheet's own, each
+  // set of words before the phrases that use them, and the verb forms last, as
+  // their phrases use this lesson's words. Reviews are unaffected; FSRS
+  // schedules those.
   teachingOrder: [
-    "conocer", "poner",
-    "home",
-    "saberconocer",
-    "compare", "irregular",
-    "need",
-    "ordinals",
-    "words", "phrases",
+    "home", "ordinals", "words", "phrases", "verbforms",
   ],
-  // The line shown above a grammar card saying what to type
-  // (src/lib/cardInstruction.js). The drills get theirs from their shape.
-  instructions: {
-    // Doesn't name the two verbs: they are on the card.
-    saberconocer: "Fill the gap with the right verb in the present, adding a where it's needed",
-    compare: "Fill the gap with the right one of the two",
-    irregular: "Fill the gap with the word given, changed to compare",
-    need: "Fill the gap with the right one of the two, in the form that fits",
-    ordinals: "Fill the gap with the number as a word: first, second, third…",
-  },
 };
 
 export default LESSON;

@@ -9,11 +9,9 @@
 // Spanish; see imperatif.js for why.
 //
 // Card shapes:
-//   "vender (condicional) → yo" / "vendería"            drill; its line comes from its shape
-//   "estar abierto → Las tiendas ___" / "están abiertas" estar + the word, made to match
-//   "Debes descansar más → en condicional"               the same sentence in the conditional (her ex. 3)
-//   "ir → De niño, yo ___ a la playa todos los veranos"  conditional or imperfect? (her ex. 6)
 //   two-way phrase (E) and word (V) cards for the dialogue and her ex. 7–8
+//   "Tendríamos que pintar la sala" / "We'd have to paint the living room"
+//                                                  an irregular verb form, in a phrase
 //
 // WHY VENDER'S SIX PERSONS ARE IN THE CONDITIONAL. Vender is the lesson's
 // new verb, and in the present it is regular like comer, which the course
@@ -74,31 +72,19 @@
 //     are right.
 //   - "estar abierto → La puerta ___" and the other two are her ex. 1 frames
 //     with the answer written in; her sheet leaves them open.
+//
+// Taken out on 2026-10-25, at the owner's word ("the flashcards module for the
+// spanish section should be all words and phrases, no grammar", "i have the
+// exercises for those"): every grammar card, 34 here, with their sections,
+// order and instruction lines. That is the drills, gaps and rewrites this
+// header describes. The grammar is practised on the Exercises page.
+//
+// Added: 7 phrases (section "verbforms"), one for each irregular verb form the
+// drills asked that no word or phrase card had, each with words of this lesson
+// that no phrase used yet, checked by an independent reader. On any Spanish
+// phrase, an irregular verb form must be typed exactly (irregularForms.js).
 
 export const CARDS = [
-  // ── 2. The conditional: the whole verb + -ía. Vender through all six persons
-  ["vender (condicional) → yo", "vendería", "G", "formas"],
-  ["vender (condicional) → tú", "venderías", "G", "formas"],
-  ["vender (condicional) → él/ella", "vendería", "G", "formas"],
-  ["vender (condicional) → nosotros", "venderíamos", "G", "formas"],
-  ["vender (condicional) → ustedes", "venderían", "G", "formas"],
-  ["vender (condicional) → ellos/ellas", "venderían", "G", "formas"],
-  ["ser (condicional) → él/ella", "sería", "G", "formas"],
-  ["ir (condicional) → yo", "iría", "G", "formas"],
-  ["abrir (condicional) → usted", "abriría", "G", "formas"],              // her ex. 1: ¿Usted …?
-  ["acostarse (condicional) → nosotros", "nos acostaríamos", "G", "formas"], // her ex. 5 and 7
-
-  // ── 2. The irregular verbs, all nine in her table
-  ["tener (condicional) → nosotros", "tendríamos", "G", "irregulares"],
-  ["poder (condicional) → tú", "podrías", "G", "irregulares"],
-  ["hacer (condicional) → ustedes", "harían", "G", "irregulares"],     // "¿Y qué harían juntos?"
-  ["decir (condicional) → yo", "diría", "G", "irregulares"],
-  ["querer (condicional) → yo", "querría", "G", "irregulares"],
-  ["salir (condicional) → ellos/ellas", "saldrían", "G", "irregulares"],
-  ["poner (condicional) → él/ella", "pondría", "G", "irregulares"],
-  ["venir (condicional) → él/ella", "vendría", "G", "irregulares"],
-  ["saber (condicional) → tú", "sabrías", "G", "irregulares"],
-
   // ── The dialogue's words
   ["un genio", "a genie / a genius", "V", "vocab"],
   ["un deseo", "a wish", "V", "vocab"],
@@ -116,28 +102,11 @@ export const CARDS = [
   ["Me dijo que vendría", "He told me he would come / She told me she would come / He said he would come / She said she would come", "E", "usos"],
 
   // ── Ex. 3: put it in the conditional, to be polite
-  ["¿Me puede pasar la sal, por favor? → en condicional", "¿Me podría pasar la sal, por favor? / ¿Podría pasarme la sal, por favor?", "G", "cortesia"],
-  ["Quiero otro café → en condicional", "Me gustaría otro café", "G", "cortesia"],
-  ["Queremos comprar estos libros → en condicional", "Nos gustaría comprar estos libros", "G", "cortesia"],
-  ["Debes descansar más → en condicional", "Deberías descansar más / Tú deberías descansar más", "G", "cortesia"],
-  ["¿Es posible pagar con tarjeta? → en condicional", "¿Sería posible pagar con tarjeta?", "G", "cortesia"],
-  ["Hay más lugar → en condicional", "Habría más lugar", "G", "cortesia"],   // her section 2: hay → habría
   ["¿Podría abrir la puerta, por favor?", "Could you open the door, please? (usted)", "E", "cortesiafrases"],
   ["Me gustaría ir allá contigo", "I would like to go there with you / I'd like to go there with you", "E", "cortesiafrases"],
   ["¿Te gustaría un poco de agua?", "Would you like some water? (tú)", "E", "cortesiafrases"],
 
-  // ── Ex. 6: "would" for something imagined, or "would" for "used to"?
-  ["ir → De niño, yo ___ a la playa todos los veranos", "iba", "G", "imperfecto"],
-  ["ir → Con más dinero, yo ___ a la playa todos los veranos", "iría", "G", "imperfecto"],
-  ["decir → Yo en tu lugar, no le ___ nada", "diría", "G", "imperfecto"],
-  ["poder → ¿___ usted ayudarme, por favor?", "Podría", "G", "imperfecto"],
-  ["jugar → Cuando era niña, Valeria ___ en el jardín todas las tardes", "jugaba", "G", "imperfecto"],
-  ["salir → Con un carro, nosotros ___ todos los fines de semana", "saldríamos", "G", "imperfecto"],
-
   // ── 1. Abrir and vender; abierto and cerrado with estar
-  ["estar abierto → La puerta ___", "está abierta", "G", "abierto"],
-  ["estar abierto → Las tiendas ___", "están abiertas", "G", "abierto"],
-  ["estar cerrado → Los bancos ___", "están cerrados", "G", "abierto"],
   ["vender", "to sell", "V", "abrirfrases"],
   ["cerrado", "closed (masc.)", "V", "abrirfrases"],
   ["la ventana", "the window", "V", "abrirfrases"],
@@ -150,6 +119,16 @@ export const CARDS = [
   ["Nos acostaríamos más temprano", "We would go to bed earlier / We'd go to bed earlier", "E", "imaginar"],
   ["Imagínate", "Imagine (tú)", "E", "imaginar"],
   ["¡Así de simple!", "Simple as that! / It's that simple!", "E", "imaginar"],
+
+  // ── Irregular verb forms, each in a short phrase with this lesson's words
+  //    (2026-10-25). The verb must be typed exactly: irregularForms.js.
+  ["Tendríamos que pintar la sala", "We'd have to paint the living room / We would have to paint the living room", "E", "verbforms"],
+  ["¿Podrías recoger a los niños?", "Would you be able to pick up the kids? / Would you be able to pick the kids up? / Could you pick up the kids? / Could you pick the kids up? / Would you be able to pick up the children? / Could you pick up the children? (tú, with recoger)", "E", "verbforms"],
+  ["¿Qué harían para disfrutar de la vida?", "What would you do to enjoy life? (ustedes) / What would you guys do to enjoy life? / What would they do to enjoy life?", "E", "verbforms"],
+  ["Yo no querría dejar de trabajar", "I wouldn't want to stop working / I would not want to stop working (conditional)", "E", "verbforms"],
+  ["Mis hijos saldrían más sin la tele", "My kids would go out more without the TV / My children would go out more without the TV / My kids would go out more without TV / My children would go out more without TV / My kids would go out more without the television / My children would go out more without the television", "E", "verbforms"],
+  ["Lucía pondría la computadora en la sala", "Lucía would put the computer in the living room", "E", "verbforms"],
+  ["¿Sabrías llegar sin mapa? / ¿Sabrías cómo llegar sin mapa?", "Would you know how to get there without a map? (tú)", "E", "verbforms"],
 ];
 
 // The notes: her grammar sections 1 to 4, translated into English and
@@ -307,30 +286,14 @@ export const LESSON = {
   source: "Adapted from the LFL METHOD by Laura Caufour",
   cards: CARDS,
   notes: NOTES,
-  // The order a student meets NEW cards in: the forms first (the regular
-  // endings on vender, then the irregular verbs), then the dialogue's words,
-  // which the phrase cards ask for in Spanish (dejar de, un deseo). Then each
-  // use, followed by its practice: imagining, asking politely, and would or
-  // used to once both the conditional and its look-alike are in place. Abrir,
-  // vender and abierto come after the conditional, because vender's drills
-  // are conditional; her imagining section closes the lesson, as on her sheet.
+  // The order a student meets NEW cards in. The grammar cards went on
+  // 2026-10-25, and what is left keeps the order it had: the sheet's own, each
+  // set of words before the phrases that use them, and the verb forms last, as
+  // their phrases use this lesson's words. Reviews are unaffected; FSRS
+  // schedules those.
   teachingOrder: [
-    "formas", "irregulares",
-    "vocab",
-    "usos",
-    "cortesia", "cortesiafrases",
-    "imperfecto",
-    "abierto", "abrirfrases",
-    "imaginar",
+    "vocab", "usos", "cortesiafrases", "abrirfrases", "imaginar", "verbforms",
   ],
-  // The line above a grammar card saying what to type (src/lib/cardInstruction.js).
-  // Drills ("vender (condicional) → yo") get theirs from their shape. Phrase
-  // and word cards carry no line.
-  instructions: {
-    cortesia: "Put it in the conditional (for querer, use me gustaría)",
-    imperfecto: "Fill the gap with the verb given, in the conditional or the imperfect",
-    abierto: "Fill the gap with estar in the present and the word given, made to match",
-  },
 };
 
 export default LESSON;

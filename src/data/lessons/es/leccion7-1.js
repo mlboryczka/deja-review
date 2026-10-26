@@ -15,9 +15,6 @@
 // forms its own table shows (la próxima vez, muchos amigos, una buena idea).
 //
 // Card shapes:
-//   "saber (presente) → yo" / "sé"            drill; its line comes from its shape
-//   "bueno → un amigo" / "un buen amigo"      put the adjective in its place (ex. 2)
-//   "grande → una casa" / "una casa grande"   grande in the place for the meaning the line gives
 //   "viajar" / "to travel"                    words and phrases, both ways round
 //
 // WHY THE ADJECTIVE'S PLACE IS ON EXACT CARDS. On a word or phrase card the
@@ -109,6 +106,12 @@
 // flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
 // too"): the 4 cards that answered a question with yes or no in a full
 // sentence (section "yes").
+//
+// Taken out on 2026-10-25, at the owner's word ("the flashcards module for the
+// spanish section should be all words and phrases, no grammar", "i have the
+// exercises for those"): every grammar card, 17 here, with their sections,
+// order and instruction lines. That is the drills, gaps and rewrites this
+// header describes. The grammar is practised on the Exercises page.
 
 export const CARDS = [
   // ── Her word list (ex. 5), first: the profile and the cards are made of it
@@ -142,33 +145,12 @@ export const CARDS = [
   ["Lleva una camisa azul", "He's wearing a blue shirt / She's wearing a blue shirt", "E", "phrases"],
   ["Quiero conocer nuevos países", "I want to discover new countries / I want to get to know new countries", "E", "phrases"],
 
-  // ── 1. Saber
-  ["saber (presente) → yo", "sé", "G", "saber"],
-  ["saber (presente) → tú", "sabes", "G", "saber"],
-  ["saber (presente) → él/ella", "sabe", "G", "saber"],
-  ["saber (presente) → nosotros", "sabemos", "G", "saber"],
-  ["saber (presente) → ustedes", "saben", "G", "saber"],
-  ["saber (presente) → ellos/ellas", "saben", "G", "saber"],
-
-  // Ex. 3, asked as answer yes: tú → yo
-
   // ── 2. Where the adjective goes (ex. 2): after the noun, then the ones
   //    that go before it, one card per rule
-  ["azul → una camisa", "una camisa azul", "G", "place"],
-  ["cultural → un documental", "un documental cultural", "G", "place"],
-  ["bueno → un amigo", "un buen amigo", "G", "place"],
-  ["bueno → una idea", "una buena idea", "G", "place"],
-  ["primero → el día", "el primer día", "G", "place"],
-  ["otro → un país", "otro país", "G", "place"],
-  ["próximo → la vez", "la próxima vez", "G", "place"],
-  ["mismo → la cosa", "la misma cosa", "G", "place"],
-  ["mucho → amigos", "muchos amigos", "G", "place"],
 
   // Grande: great before the noun, big after it (ex. 2, her table, ex. 6
   // no. 14). Each line says which meaning is wanted; exact, because a phrase
   // card passed "una grande casa"
-  ["grande → un amigo", "un gran amigo", "G", "great"],
-  ["grande → una casa", "una casa grande", "G", "big"],
   ["¡Es una gran idea!", "It's a great idea! / That's a great idea!", "E", "grande"],
 ];
 
@@ -268,24 +250,13 @@ export const LESSON = {
   source: "Adapted from the LFL METHOD by Laura Caufour",
   cards: CARDS,
   notes: NOTES,
-  // The order a student meets NEW cards in (reviews are FSRS's). Her word
-  // list first, then the profile's phrases, which are made of it. Then her
-  // sections in her order, each followed by the cards that practise it:
-  // saber, then the answer-yes cards (two of them on saber); where the
-  // adjective goes, then grande (great, then big) and the gran idea phrase.
+  // The order a student meets NEW cards in. The grammar cards went on
+  // 2026-10-25, and what is left keeps the order it had: the sheet's own, each
+  // set of words before the phrases that use them. Reviews are unaffected;
+  // FSRS schedules those.
   teachingOrder: [
-    "words", "phrases",
-    "saber",
-    "place", "great", "big", "grande",
+    "words", "phrases", "grande",
   ],
-  // The line shown above a grammar card saying what to type
-  // (src/lib/cardInstruction.js). The saber drill gets its line from its
-  // shape; words and phrases carry none.
-  instructions: {
-    place: "Add the adjective to the phrase, in its usual place and form, changing anything else that has to change",
-    great: "Add grande to the phrase, so that it means great",
-    big: "Add grande to the phrase, so that it means big",
-  },
 };
 
 export default LESSON;

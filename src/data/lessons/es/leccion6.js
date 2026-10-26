@@ -14,13 +14,6 @@
 // No card asks for more than that plus this lesson.
 //
 // Card shapes:
-//   "gusta o gustan → ¿Te ___ los tacos?"           choose the form (ex. 1)
-//   "me, te, le, nos o les → A James ___ gusta…"     choose the pronoun (ex. 2)
-//   "yo + el cine → gustar"                          make the sentence (from ex. 8)
-//   "Me gustan los tacos → encantar"                 rewrite with the word given
-//   "Me gusta el cine → estoy de acuerdo"            react: a mí también, tampoco, sí, no (ex. 5)
-//   "domingo → ___ voy a ir al cine"                 on a day: no word for "on" (ex. 8)
-//   "domingo → el día siguiente"                     the next day (ex. 6)
 //   "el parque" / "the park"                         words and phrases, both ways round
 //
 // NO DRILL FOR GUSTAR. Gustar doesn't change with the person: the person is
@@ -128,6 +121,12 @@
 // flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
 // too"): the 8 cards that answered a question with yes or no in a full
 // sentence (sections "yes" and "no").
+//
+// Taken out on 2026-10-25, at the owner's word ("the flashcards module for the
+// spanish section should be all words and phrases, no grammar", "i have the
+// exercises for those"): every grammar card, 25 here, with their sections,
+// order and instruction lines. That is the drills, gaps and rewrites this
+// header describes. The grammar is practised on the Exercises page.
 
 export const CARDS = [
   // ── Her word list (ex. 7), first: the exercises are made of these words
@@ -140,39 +139,6 @@ export const CARDS = [
   ["picante", "spicy / hot", "V", "words"],
   ["mucha gente", "a lot of people / lots of people / many people", "V", "words"],
   ["¡Hasta el sábado!", "See you on Saturday! / See you Saturday!", "E", "words"],
-
-  // ── 1. Gusta or gustan (ex. 1): the thing liked decides, not the person
-  ["gusta o gustan → ¿Te ___ los tacos?", "gustan", "G", "gusta"],
-  ["gusta o gustan → Nos ___ andar en bicicleta", "gusta", "G", "gusta"],
-  ["gusta o gustan → A Mateo le ___ caminar y comer tacos", "gusta", "G", "gusta"],
-  ["gusta o gustan → A mis papás les ___ los mercados", "gustan", "G", "gusta"],
-  ["gusta o gustan → Me ___ mucho las playas de México", "gustan", "G", "gusta"],
-  ["gusta o gustan → A Jessica no le ___ el chile", "gusta", "G", "gusta"],
-
-  // ── 2. Me, te, le, nos or les (ex. 2)
-  ["me, te, le, nos o les → A mi esposa y a mí ___ encanta ir al mercado", "nos", "G", "pronouns"],
-  ["me, te, le, nos o les → A mis hijos ___ encanta la playa", "les", "G", "pronouns"],
-  ["me, te, le, nos o les → ¿A usted ___ gusta caminar?", "le", "G", "pronouns"],
-  ["me, te, le, nos o les → A James ___ gusta andar en bicicleta", "le", "G", "pronouns"],
-  ["me, te, le, nos o les → ¿A ustedes ___ gusta la comida picante?", "les", "G", "pronouns"],
-
-  // Making the sentence from nothing (her ex. 8 nos. 1, 3 and 8), so that
-  // "yo gusto" is marked exactly
-  ["yo + el cine → gustar", "Me gusta el cine / A mí me gusta el cine", "G", "build"],
-  ["nosotros + ir al mercado → encantar", "Nos encanta ir al mercado / A nosotros nos encanta ir al mercado", "G", "build"],
-  ["mis papás + la comida mexicana → encantar", "A mis papás les encanta la comida mexicana", "G", "build"],
-  ["él + leer → gustar", "Le gusta leer / A él le gusta leer", "G", "build"],
-
-  // ── 4. Encantar, no … nada and gustar más: her section 4 table
-  ["Me gusta el chile → no … nada", "No me gusta nada el chile / A mí no me gusta nada el chile", "G", "scale"],
-  ["Me gustan los tacos → encantar", "Me encantan los tacos / A mí me encantan los tacos", "G", "scale"],
-  ["Me gusta la playa → más", "Me gusta más la playa / A mí me gusta más la playa", "G", "scale"],
-
-  // ── 5. Agree or not (ex. 5): one card for each of her four reactions
-  ["Me gusta el cine → estoy de acuerdo", "A mí también / A mí también me gusta / A mí también me gusta el cine", "G", "react"],
-  ["No me gusta la comida picante → estoy de acuerdo", "A mí tampoco / A mí tampoco me gusta / A mí tampoco me gusta la comida picante", "G", "react"],
-  ["Me encantan los tacos → no estoy de acuerdo", "A mí no / A mí no me encantan / A mí no me encantan los tacos / A mí no me gustan / A mí no me gustan los tacos", "G", "react"],
-  ["No me gustan los lunes → no estoy de acuerdo", "A mí sí / A mí sí me gustan / A mí sí me gustan los lunes", "G", "react"],
 
   // ── 6. The days of the week
   ["lunes", "Monday", "V", "days"],
@@ -189,11 +155,8 @@ export const CARDS = [
 
   // No word for "on" (her ex. 8 no. 14), marked exactly so that "en el
   // domingo" and a bare "domingo" are wrong
-  ["domingo → ___ voy a ir al cine", "El domingo / Este domingo", "G", "on"],
 
   // Ex. 6: the next day
-  ["miércoles → el día siguiente", "jueves / el jueves", "G", "next"],
-  ["domingo → el día siguiente", "lunes / el lunes", "G", "next"],
 
   // ── Phrases from the dialogue and her ex. 8
   ["¿Qué te gusta hacer los fines de semana?", "What do you like to do on weekends? / What do you like doing on weekends? (tú)", "E", "phrases"],
@@ -341,32 +304,13 @@ export const LESSON = {
   source: "Adapted from the LFL METHOD by Laura Caufour",
   cards: CARDS,
   notes: NOTES,
-  // The order a student meets NEW cards in (reviews are FSRS's). Her word
-  // list first: the exercises are made of its words. Then her sections in
-  // her order, each followed by the cards that practise it: gusta or gustan,
-  // the pronouns, making the sentence, answering yes; the negative and
-  // answering no; encantar, no … nada and más; the four reactions; the days,
-  // then "on" a day and the next day. The phrase cards come last: two of them need the
-  // days.
+  // The order a student meets NEW cards in. The grammar cards went on
+  // 2026-10-25, and what is left keeps the order it had: the sheet's own, each
+  // set of words before the phrases that use them. Reviews are unaffected;
+  // FSRS schedules those.
   teachingOrder: [
-    "words",
-    "gusta", "pronouns", "build",
-    "scale",
-    "react",
-    "days", "on", "next",
-    "phrases",
+    "words", "days", "phrases",
   ],
-  // The line shown above a grammar card saying what to type
-  // (src/lib/cardInstruction.js). Words and phrases carry none.
-  instructions: {
-    gusta: "Fill the gap with the form that fits",
-    pronouns: "Fill the gap with the word that fits",
-    build: "Write one sentence: this person likes or loves this, with the verb given",
-    scale: "Rewrite the sentence using the word or words after the arrow",
-    react: "React to the sentence, agreeing or disagreeing as the arrow says",
-    on: "Fill the gap with the day given, meaning on that day this week",
-    next: "Write the next day of the week",
-  },
 };
 
 export default LESSON;

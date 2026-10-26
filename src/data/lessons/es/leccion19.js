@@ -10,11 +10,6 @@
 // Spanish; see imperatif.js for why.
 //
 // Card shapes:
-//   "beber (presente) → yo"                  the paradigm; the line above comes from the shape
-//   "salir o sacar → Ayer yo ___ la basura"  choose the verb, then its form (her ex. 7)
-//   "queso → Me encanta ___"                 the noun, with an article or without (her ex. 2–4)
-//   "Puse sal → demasiado"                   add the word, in the form that fits (her ex. 5)
-//   "muy o mucho → Tengo ___ hambre"         muy, or mucho matching its noun (her ex. 6)
 //   two-way phrase (E) and word (V) cards: her word list (ex. 1), tomar,
 //   hunger and ya no, and a sample of her level 3 translations (ex. 8)
 //
@@ -93,29 +88,14 @@
 // card "Hoy hace ___ frío" needs it with hacer). "The trap" is her
 // ATTENTION box. Cut as helping no card: jitomate, almuerzo in other
 // countries, "mucho mejor", and her pointers to earlier lessons.
+//
+// Taken out on 2026-10-25, at the owner's word ("the flashcards module for the
+// spanish section should be all words and phrases, no grammar", "i have the
+// exercises for those"): every grammar card, 42 here, with their sections,
+// order and instruction lines. That is the drills, gaps and rewrites this
+// header describes. The grammar is practised on the Exercises page.
 
 export const CARDS = [
-  // ── 1. Salir: the present (yo is Lesson 9's salgo) and the preterite
-  ["salir (presente) → tú", "sales", "G", "salir"],
-  ["salir (presente) → él/ella", "sale", "G", "salir"],
-  ["salir (presente) → nosotros", "salimos", "G", "salir"],
-  ["salir (presente) → ustedes", "salen", "G", "salir"],
-  ["salir (presente) → ellos/ellas", "salen", "G", "salir"],
-  ["salir (pretérito) → yo", "salí", "G", "salir"],
-  ["salir (pretérito) → él/ella", "salió", "G", "salir"],
-  ["salir (pretérito) → ellos/ellas", "salieron", "G", "salir"],
-
-  // ── 1. Beber, regular like comer
-  ["beber (presente) → yo", "bebo", "G", "beber"],
-  ["beber (presente) → tú", "bebes", "G", "beber"],
-  ["beber (presente) → él/ella", "bebe", "G", "beber"],
-  ["beber (presente) → nosotros", "bebemos", "G", "beber"],
-  ["beber (presente) → ustedes", "beben", "G", "beber"],
-  ["beber (presente) → ellos/ellas", "beben", "G", "beber"],
-  ["beber (pretérito) → yo", "bebí", "G", "beber"],
-  ["beber (pretérito) → él/ella", "bebió", "G", "beber"],
-  ["beber (pretérito) → ellos/ellas", "bebieron", "G", "beber"],
-
   // ── Ex. 1: her word list. The nouns come before the article cards,
   //    which need their el or la
   ["el desayuno", "breakfast / the breakfast", "V", "vocab"],
@@ -154,42 +134,9 @@ export const CARDS = [
   ["Ya no tenía hambre", "I wasn't hungry anymore / I was no longer hungry", "E", "hunger"],
   ["Ya no como carne", "I don't eat meat anymore / I no longer eat meat", "E", "hunger"],
 
-  // ── Ex. 7: salir or sacar, in the present or the preterite
-  ["salir o sacar → Todos los días, yo ___ al perro a las siete", "saco", "G", "salirsacar"],
-  ["salir o sacar → Anoche, Jessica no ___: cenó en casa", "salió", "G", "salirsacar"],
-  ["salir o sacar → Ayer yo ___ la basura", "saqué", "G", "salirsacar"],
-  ["salir o sacar → Normalmente, nosotros ___ de casa a las ocho", "salimos", "G", "salirsacar"],
-  ["salir o sacar → ¿Tú ___ la basura los miércoles?", "sacas", "G", "salirsacar"],
-
   // ── 1. Tomar for drinks
   ["¿Qué quieres tomar?", "What do you want to drink? / What would you like to drink? (tú, with tomar)", "E", "tomar"],
   ["No tomo", "I don't drink (alcohol, with tomar)", "E", "tomar"],
-
-  // ── 2. With an article or without (her ex. 2–4)
-  ["queso → Me encanta ___", "el queso", "G", "articles"],                 // in general, with encantar
-  ["verduras → No me gustan ___", "las verduras", "G", "articles"],        // in general, with gustar
-  ["agua → ___ es muy importante", "El agua", "G", "articles"],            // in general, and el with agua
-  ["sal → ¿Hay ___ en la mesa?", "sal", "G", "articles"],                  // never el after hay
-  ["pan → Como ___ y queso", "pan", "G", "articles"],                      // an amount
-  ["queso → Me gusta comer ___ en la mañana", "queso", "G", "articles"],   // after another verb, an amount
-  ["huevos → ___ están en la mesa", "Los huevos", "G", "articles"],        // particular ones
-  ["huevos → Compré ___ y tomates", "huevos / unos huevos", "G", "articles"],
-
-  // ── 3. Mucho, poco, demasiado, bastante before a noun (her ex. 5)
-  ["Hay gente en el aeropuerto → mucho", "Hay mucha gente en el aeropuerto", "G", "quantity"],
-  ["Tienes que poner sal → un poco", "Tienes que poner un poco de sal", "G", "quantity"],
-  ["Tiene amigos mexicanos → bastante", "Tiene bastantes amigos mexicanos", "G", "quantity"],
-  ["Como verduras → poco", "Como pocas verduras", "G", "quantity"],
-  ["Tomo agua → mucho", "Tomo mucha agua", "G", "quantity"],
-  ["Puse sal → demasiado", "Puse demasiada sal", "G", "quantity"],
-
-  // ── 4. Muy or mucho? (her ex. 6)
-  ["muy o mucho → Tengo ___ hambre", "mucha", "G", "muymucho"],
-  ["muy o mucho → El pescado está ___ rico", "muy", "G", "muymucho"],
-  ["muy o mucho → Me gusta ___ el queso", "mucho", "G", "muymucho"],
-  ["muy o mucho → Comimos ___ tacos", "muchos", "G", "muymucho"],
-  ["muy o mucho → Hoy hace ___ frío", "mucho", "G", "muymucho"],
-  ["muy o mucho → Hablas español ___ bien", "muy", "G", "muymucho"],
 
   // ── Ex. 8: her level 3 translations
   ["Prefiero comer cosas dulces en la mañana", "I prefer to eat sweet things in the morning / I prefer eating sweet things in the morning", "E", "translations"],
@@ -333,26 +280,13 @@ export const LESSON = {
   source: "Adapted from the LFL METHOD by Laura Caufour",
   cards: CARDS,
   notes: NOTES,
-  // The order a student meets NEW cards in: the two verbs first; then her
-  // word list, before any card that needs its words (the article cards need
-  // each noun's el or la, and mucha agua needs agua's gender); hunger before
-  // muy or mucho, which asks "Tengo ___ hambre"; then her grammar in order.
+  // The order a student meets NEW cards in. The grammar cards went on
+  // 2026-10-25, and what is left keeps the order it had: the sheet's own, each
+  // set of words before the phrases that use them. Reviews are unaffected;
+  // FSRS schedules those.
   teachingOrder: [
-    "salir", "beber",
-    "vocab",
-    "hunger",
-    "salirsacar", "tomar",
-    "articles", "quantity", "muymucho",
-    "translations",
+    "vocab", "hunger", "tomar", "translations",
   ],
-  // The drills get their line from their shape ("Present tense, yo form").
-  // Phrase and word cards carry no line.
-  instructions: {
-    salirsacar: "Fill the gap with salir or sacar, in the present or the preterite",
-    articles: "Fill the gap with the word given, adding an article only where one belongs",
-    quantity: "Add the word after the arrow to the sentence, in the form that fits",
-    muymucho: "Fill the gap with one of the two words, in the form that fits",
-  },
 };
 
 export default LESSON;

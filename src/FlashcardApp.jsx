@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { RAW } from "./data/cards"; // only used for the admin "seed demo deck" action
 import { lessonIdOf } from "./data/lessons";
 import { catalogueFor } from "./data/lessons/byCourse";
+import { SPANISH_EXACT, ENGLISH_EXACT } from "./data/lessons/es/exactWords.js";
 import { courseOf } from "./lib/course";
 import { reconcileLessons, ADOPTED_SOURCE } from "./lib/lessonSync";
 import { archivedSource, ARCHIVE_PREFIX } from "./lib/archive";
@@ -363,6 +364,29 @@ function accentsRight(typed, answer) {
   }
   return true;
 }
+// The words of the answer that must be typed exactly, accents included
+// (owner, 2026-10-25): those on `exactWords`, a Map from each to the
+// spellings that count as typing it (src/data/lessons/es/exactWords.js: the
+// Spanish lessons' irregular verb forms, numbers and months), and any word
+// with a figure in it. "right" when each was typed, "accent" when one was
+// typed but for its accents, and "missing" when one wasn't typed at all:
+// "poní" for puse, "setenta" for sesenta, "July" for June.
+function exactWordsTyped(typed, answer, exactWords) {
+  if (!exactWords) return "right";
+  const want = keepAccents(answer).split(" ").filter((w) => exactWords.has(w) || /\d/.test(w));
+  if (!want.length) return "right";
+  const words = keepAccents(typed).split(" ");
+  const asTyped = new Set(words);
+  const bare = new Set(words.map(withoutAccents));
+  let accent = false;
+  for (const w of want) {
+    const ways = exactWords.get(w) || [w];
+    if (ways.some((x) => asTyped.has(x))) continue;
+    if (!ways.some((x) => bare.has(withoutAccents(x)))) return "missing";
+    accent = true;
+  }
+  return accent ? "accent" : "right";
+}
 
 // Match typed answer against correct answer, handling alternatives and fuzz.
 //
@@ -392,7 +416,14 @@ function accentsRight(typed, answer) {
 // `accents`: the answer is Spanish, and its accents are checked (see
 // accentsRight). A match that is right but for an accent is
 // { match: false, wrongAccent: true }.
-function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings = false, articles = "fr", accents = false } = {}) {
+//
+// `exactWords`: words the tolerance must not touch, on a Spanish card the
+// irregular verb forms, numbers and months (see exactWordsTyped). A near miss
+// is still a match, but only with each of them typed as the answer has it:
+// "Ayer puse la computadora en la sla" is close enough, "Ayer poní la
+// computadora en la sala" is wrong, and "Ayer pusé…" is right but for its
+// accent.
+function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings = false, articles = "fr", accents = false, exactWords = null } = {}) {
   const t = normalize(typed);
   if (!t) return { match: false };
 
@@ -464,10 +495,15 @@ function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings =
       if (accents && !accentsRight(typed, alt)) { accentMiss = true; continue; }
       return { match: true };
     }
+    // Every match below forgives something, but never in one of exactWords:
+    // one typed wrong fails this answer, one wrong only in its accents is
+    // wrong for them.
+    const exactAre = exactWordsTyped(typed, alt, exactWords);
     // Substring match (user typed part of a longer answer)
     if ((aRest.includes(tRest) && tRest.length >= Math.max(4, aRest.length - 3)) ||
         (tRest.includes(aRest) && aRest.length >= 4)) {
-      if (accents && !accentsRight(typed, alt)) { accentMiss = true; continue; }
+      if (exactAre === "missing") continue;
+      if (exactAre === "accent" || (accents && !accentsRight(typed, alt))) { accentMiss = true; continue; }
       return { match: true, close: true };
     }
     // Token-set overlap: only accepts word-order changes, not wrong/missing words.
@@ -478,7 +514,8 @@ function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings =
       let shared = 0;
       for (const tok of tTokens) if (aTokens.has(tok)) shared++;
       if (shared === tTokens.size && shared === aTokens.size) {
-        if (accents && !accentsRight(typed, alt)) { accentMiss = true; continue; }
+        if (exactAre === "missing") continue;
+        if (exactAre === "accent" || (accents && !accentsRight(typed, alt))) { accentMiss = true; continue; }
         return { match: true, close: true };
       }
     }
@@ -487,7 +524,8 @@ function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings =
     const longest = Math.max(tRest.length, aRest.length);
     const threshold = longest <= 4 ? 0 : longest <= 8 ? 1 : longest <= 14 ? 2 : 3;
     if (dist <= threshold) {
-      if (accents && !accentsRight(typed, alt)) { accentMiss = true; continue; }
+      if (exactAre === "missing") continue;
+      if (exactAre === "accent" || (accents && !accentsRight(typed, alt))) { accentMiss = true; continue; }
       return { match: true, close: dist > 0 };
     }
   }
@@ -2266,7 +2304,11 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
     // Spanish answers have their accents checked: a drill's and any card's
     // asked English side up (owner, 2026-10-22).
     const accents = spanish && (card.shownDir === "en" || drill);
-    const result = matchAnswer(typedAnswer, correctText, extraAlts, { exact: drill, meanings, articles, accents });
+    // And on a Spanish card the irregular verb forms, numbers and months are
+    // marked exactly, whichever side is typed (owner, 2026-10-25; see
+    // matchAnswer).
+    const exactWords = !spanish ? null : card.shownDir === "en" ? SPANISH_EXACT : ENGLISH_EXACT;
+    const result = matchAnswer(typedAnswer, correctText, extraAlts, { exact: drill, meanings, articles, accents, exactWords });
     if (result.match) {
       setTypeResult(result.close ? "close" : "correct");
       setFlipped(true);
@@ -2664,7 +2706,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
     if (!user || !deckLoaded || !deckFreshSeq || lessonsSynced.current) return;
     lessonsSynced.current = true;
     (async () => {
-      const { missing, rekey, retext, stale, archive, adopt, unkeyed, taken, away } = reconcileLessons(LESSONS, userCards, archivedCards);
+      const { missing, rekey, retext, recat, stale, archive, adopt, unkeyed, taken, away } = reconcileLessons(LESSONS, userCards, archivedCards);
       if (away.length) {
         // Out of study: the student removed them, or they were put away as a
         // repeat. Putting them back would undo that. See reconcileLessons.
@@ -2684,7 +2726,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
           unkeyed.map((c) => c.f)
         );
       }
-      if (!missing.length && !rekey.length && !retext.length && !stale.length && !archive.length && !adopt.length) return;
+      if (!missing.length && !rekey.length && !retext.length && !recat.length && !stale.length && !archive.length && !adopt.length) return;
       const owned = (rows) => rows.map((r) => ({ ...r, user_id: user.id }));
       try {
         if (missing.length) {
@@ -2707,14 +2749,26 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
             .eq("user_id", user.id);
           if (error) throw error;
         }
+        // A grammar card the lesson now asks as a word or phrase. See
+        // reconcileLessons.
+        for (const r of recat) {
+          const { error } = await supabase
+            .from(tbl("user_cards"))
+            .update({ category: r.category, back: r.back })
+            .eq("id", r.row_id)
+            .eq("user_id", user.id);
+          if (error) throw error;
+        }
         // Deleted only if still never answered either way, checked by the
         // database itself: a card answered on another device since the deck
-        // was read is left, and archived on the next visit.
-        if (stale.length) {
+        // was read is left, and archived on the next visit. A few hundred at
+        // a time, as the ids go in the address: the Spanish grammar cards
+        // left a deck 900 at once (2026-10-25).
+        for (let i = 0; i < stale.length; i += 200) {
           const { error } = await supabase
             .from(tbl("user_cards"))
             .delete()
-            .in("id", stale)
+            .in("id", stale.slice(i, i + 200))
             .eq("user_id", user.id)
             .eq("fsrs_state", 0)
             .eq("en_fsrs_state", 0);
@@ -2742,7 +2796,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
           if (error) throw error;
         }
         console.info(
-          `[lessons] synced: +${missing.length} card(s), ${rekey.length} re-keyed, ${retext.length} renamed, ` +
+          `[lessons] synced: +${missing.length} card(s), ${rekey.length} re-keyed, ${retext.length} renamed, ${recat.length} now words or phrases, ` +
             `-${stale.length} never answered and removed, ${archive.length} answered and kept out of study, ` +
             `${adopt.length} kept as cards from your notes`
         );

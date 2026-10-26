@@ -12,14 +12,12 @@
 // Spanish; see ../imperatif.js for why.
 //
 // Card shapes:
-//   "hablar (pretérito) → yo" / "hablé"          the paradigm; the line above comes from the shape
-//   "buscar (pretérito) → yo" / "busqué"         the -car, -gar, -zar spelling change
-//   "vivir → Mis abuelos ___ en Montauk…"        the cue verb in the pretérito (ex. 1)
-//   "¿Qué hora es? → 8:15"                       say the time, in words
-//   "14/2 → en letras" / "el catorce de febrero" a date, day first (annex ex. 3)
-//   "47 → en letras" / "cuarenta y siete"        the numbers
-//   "anoche o en la noche → Siempre leo ___"     en la noche, not anoche, for nights in general
 //   two-way phrase (E) and word (V) cards for the dialogue and the ex. 6 list
+//   "Es la una" / "It's one o'clock"               the time, as a phrase
+//   "treinta" / "thirty"                           a number, as a word
+//   "el primero de enero" / "January 1st"          a date, as a word
+//   "Ayer busqué un gimnasio cerca del trabajo" / "Yesterday I looked for a gym near work"
+//                                                  an irregular verb form, in a phrase
 //
 // The drills are her three model verbs' two patterns: hablar for -ar, and
 // comer for -er and -ir, which share one set of endings; vivir is in the
@@ -123,27 +121,22 @@
 // flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
 // too"): the 6 cards that answered a question with yes or no in a full
 // sentence (section "yes").
+//
+// Taken out on 2026-10-25, at the owner's word ("the flashcards module for the
+// spanish section should be all words and phrases, no grammar", "i have the
+// exercises for those"): every grammar card, 47 here, with their sections,
+// order and instruction lines. That is the drills, gaps and rewrites this
+// header describes. The grammar is practised on the Exercises page.
+//
+// Kept as words and phrases, asked both ways round: the 25 that were grammar
+// cards only in form (the time, the numbers, the dates).
+//
+// Added: 3 phrases (section "verbforms"), one for each irregular verb form the
+// drills asked that no word or phrase card had, each with words of this lesson
+// that no phrase used yet, checked by an independent reader. On any Spanish
+// phrase, an irregular verb form must be typed exactly (irregularForms.js).
 
 export const CARDS = [
-  // ── 1. The pretérito of regular verbs: -ar, and -er / -ir
-  ["hablar (pretérito) → yo", "hablé", "G", "forms"],
-  ["hablar (pretérito) → tú", "hablaste", "G", "forms"],
-  ["hablar (pretérito) → él/ella", "habló", "G", "forms"],
-  ["hablar (pretérito) → nosotros", "hablamos", "G", "forms"],
-  ["hablar (pretérito) → ustedes", "hablaron", "G", "forms"],
-  ["hablar (pretérito) → ellos/ellas", "hablaron", "G", "forms"],
-  ["comer (pretérito) → yo", "comí", "G", "forms"],
-  ["comer (pretérito) → tú", "comiste", "G", "forms"],
-  ["comer (pretérito) → él/ella", "comió", "G", "forms"],
-  ["comer (pretérito) → nosotros", "comimos", "G", "forms"],
-  ["comer (pretérito) → ustedes", "comieron", "G", "forms"],
-  ["comer (pretérito) → ellos/ellas", "comieron", "G", "forms"],
-
-  // ── 2. -car, -gar, -zar: only yo changes its spelling
-  ["buscar (pretérito) → yo", "busqué", "G", "spelling"],
-  ["llegar (pretérito) → yo", "llegué", "G", "spelling"],
-  ["empezar (pretérito) → yo", "empecé", "G", "spelling"],
-
   // ── Ex. 6: the times of the day, before the cards that use them
   ["ayer", "yesterday", "V", "day"],
   ["en la mañana", "in the morning", "V", "day"],
@@ -152,10 +145,6 @@ export const CARDS = [
   ["en la noche", "in the evening / at night", "V", "day"],
   ["anoche / ayer en la noche", "last night", "V", "day"],
   ["la medianoche", "midnight", "V", "day"],
-
-  // ── Any night or last night: on the word cards above, "at night" and "last
-  //    night" pass for each other, so the choice is asked exactly here
-  ["anoche o en la noche → Siempre leo ___", "en la noche / por la noche / en las noches / por las noches", "G", "night"],
 
   // ── Ex. 6: the rest of her list
   ["desayunar", "to have breakfast / to eat breakfast", "V", "words"],
@@ -169,14 +158,6 @@ export const CARDS = [
   ["cerca del trabajo", "near work / close to work", "V", "words"],
   ["salir del trabajo", "to leave work", "V", "words"],
 
-  // ── Ex. 1: the cue verb in the pretérito. What each adds is in the comment
-  ["escuchar → ¿Tú ___ la radio esta mañana?", "escuchaste", "G", "gaps"],       // tú in a question
-  ["vivir → Mis abuelos ___ en Montauk muchos años", "vivieron", "G", "gaps"],    // -ir, a plural noun
-  ["salir → Ella ___ del trabajo a las seis", "salió", "G", "gaps"],
-  ["cocinar → Mi esposa y yo ___ juntos", "cocinamos", "G", "gaps"],            // "my wife and I" is nosotros
-  ["empezar → La reunión ___ a las diez", "empezó", "G", "gaps"],               // only yo changes spelling
-  ["escribir → Mis amigos ___ en español", "escribieron", "G", "gaps"],
-
   // ── Phrases from the dialogue and her ex. 7 and 8
   ["¿Pasaste un buen día?", "Did you have a good day? (tú)", "E", "phrases"],
   ["Comí con unos compañeros", "I had lunch with some coworkers / I ate with some coworkers / I had lunch with some colleagues", "E", "phrases"],
@@ -187,35 +168,41 @@ export const CARDS = [
   ["¿Qué hora es?", "What time is it? / What's the time?", "E", "phrases"],
 
   // ── Other grammar 1: telling the time
-  ["¿Qué hora es? → 1:00", "Es la una / Es la una en punto", "G", "time"],
-  ["¿Qué hora es? → 4:10", "Son las cuatro y diez / Son las cuatro diez", "G", "time"],
-  ["¿Qué hora es? → 8:15", "Son las ocho y cuarto / Son las ocho y quince / Son las ocho quince", "G", "time"],
-  ["¿Qué hora es? → 8:30", "Son las ocho y media / Son las ocho y treinta / Son las ocho treinta", "G", "time"],
-  ["¿Qué hora es? → 8:45", "Es un cuarto para las nueve / Es cuarto para las nueve / Son cuarto para las nueve / Falta un cuarto para las nueve / Faltan quince para las nueve / Faltan quince minutos para las nueve / Son quince para las nueve / Son las ocho cuarenta y cinco / Son las ocho y cuarenta y cinco / Son las nueve menos cuarto", "G", "time"],
-  ["¿Qué hora es? → 2:00 PM", "Son las dos de la tarde", "G", "time"],
-  ["¿A qué hora es la clase? → 1:00", "Es a la una / A la una / La clase es a la una / Es a la una en punto / A la una en punto / La clase es a la una en punto / Es a la una de la tarde / A la una de la tarde / La clase es a la una de la tarde", "G", "time"],
-  ["¿A qué hora saliste del trabajo? → 6:00", "Salí a las seis / Salí del trabajo a las seis / A las seis / Yo salí a las seis / Yo salí del trabajo a las seis / Salí a las seis de la tarde / Salí del trabajo a las seis de la tarde / A las seis de la tarde / Yo salí a las seis de la tarde / Yo salí del trabajo a las seis de la tarde", "G", "time"],
+  ["Es la una / Es la una en punto", "It's one o'clock / It is one o'clock / It's one / It is one / It's 1:00 / It is 1:00 / It's 1 o'clock", "E", "time"],
+  ["Son las cuatro y diez / Son las cuatro diez", "It's ten past four / It is ten past four / It's ten after four / It is ten after four / It's four ten / It is four ten / It's 4:10 / It is 4:10", "E", "time"],
+  ["Son las ocho y cuarto / Son las ocho y quince / Son las ocho quince", "It's a quarter past eight / It is a quarter past eight / It's quarter past eight / It's a quarter after eight / It's quarter after eight / It's eight fifteen / It is eight fifteen / It's 8:15 / It is 8:15", "E", "time"],
+  ["Son las ocho y media / Son las ocho y treinta / Son las ocho treinta", "It's half past eight / It is half past eight / It's eight thirty / It is eight thirty / It's 8:30 / It is 8:30", "E", "time"],
+  ["Es un cuarto para las nueve / Es cuarto para las nueve / Son cuarto para las nueve / Falta un cuarto para las nueve / Faltan quince para las nueve / Faltan quince minutos para las nueve / Son quince para las nueve / Son las ocho cuarenta y cinco / Son las ocho y cuarenta y cinco / Son las nueve menos cuarto", "It's a quarter to nine / It is a quarter to nine / It's quarter to nine / It's a quarter of nine / It's eight forty-five / It is eight forty-five / It's eight forty five / It's 8:45 / It is 8:45", "E", "time"],
+  ["Son las dos de la tarde", "It's two in the afternoon / It is two in the afternoon / It's two o'clock in the afternoon / It is two o'clock in the afternoon / It's 2 PM / It is 2 PM / It's 2:00 PM / It's two PM", "E", "time"],
+  ["La clase es a la una / La clase es a la una en punto / La clase es a la una de la tarde / Es a la una", "The class is at one o'clock / The class is at one / Class is at one o'clock / Class is at one / The lesson is at one o'clock / The lesson is at one / The class is at 1:00", "E", "time"],
+  ["Salí del trabajo a las seis / Salí del trabajo a las seis de la tarde / Yo salí del trabajo a las seis", "I left work at six / I left work at six o'clock / I left work at 6 / I left work at 6:00 / I got out of work at six", "E", "time"],
 
   // ── Other grammar 3: numbers 30 to 59
-  ["30 → en letras", "treinta", "G", "numbers"],
-  ["31 → en letras", "treinta y uno", "G", "numbers"],
-  ["40 → en letras", "cuarenta", "G", "numbers"],
-  ["47 → en letras", "cuarenta y siete", "G", "numbers"],
-  ["50 → en letras", "cincuenta", "G", "numbers"],
+  ["treinta", "thirty / 30", "V", "numbers"],
+  ["treinta y uno", "thirty-one / thirty one / 31", "V", "numbers"],
+  ["cuarenta", "forty / 40", "V", "numbers"],
+  ["cuarenta y siete", "forty-seven / forty seven / 47", "V", "numbers"],
+  ["cincuenta", "fifty / 50", "V", "numbers"],
 
   // ── Other grammar 2 and annex ex. 3: one date for each month, day first
-  ["1/1 → en letras", "el primero de enero / el uno de enero", "G", "dates"],
-  ["14/2 → en letras", "el catorce de febrero", "G", "dates"],
-  ["3/3 → en letras", "el tres de marzo", "G", "dates"],
-  ["22/4 → en letras", "el veintidós de abril", "G", "dates"],
-  ["5/5 → en letras", "el cinco de mayo", "G", "dates"],
-  ["30/6 → en letras", "el treinta de junio", "G", "dates"],
-  ["4/7 → en letras", "el cuatro de julio", "G", "dates"],
-  ["15/8 → en letras", "el quince de agosto", "G", "dates"],
-  ["16/9 → en letras", "el dieciséis de septiembre / el dieciséis de setiembre", "G", "dates"],
-  ["31/10 → en letras", "el treinta y uno de octubre", "G", "dates"],
-  ["2/11 → en letras", "el dos de noviembre", "G", "dates"],
-  ["25/12 → en letras", "el veinticinco de diciembre", "G", "dates"],
+  ["el primero de enero / el uno de enero", "January 1st / January first / January 1 / the first of January / 1st of January / 1 January", "V", "dates"],
+  ["el catorce de febrero", "February 14th / February fourteenth / February 14 / the fourteenth of February / 14th of February / 14 February", "V", "dates"],
+  ["el tres de marzo", "March 3rd / March third / March 3 / the third of March / 3rd of March / 3 March", "V", "dates"],
+  ["el veintidós de abril", "April 22nd / April twenty-second / April 22 / the twenty-second of April / 22nd of April / 22 April / April twenty second / the twenty second of April", "V", "dates"],
+  ["el cinco de mayo", "May 5th / May fifth / May 5 / the fifth of May / 5th of May / 5 May", "V", "dates"],
+  ["el treinta de junio", "June 30th / June thirtieth / June 30 / the thirtieth of June / 30th of June / 30 June", "V", "dates"],
+  ["el cuatro de julio", "July 4th / July fourth / July 4 / the fourth of July / 4th of July / 4 July", "V", "dates"],
+  ["el quince de agosto", "August 15th / August fifteenth / August 15 / the fifteenth of August / 15th of August / 15 August", "V", "dates"],
+  ["el dieciséis de septiembre / el dieciséis de setiembre", "September 16th / September sixteenth / September 16 / the sixteenth of September / 16th of September / 16 September", "V", "dates"],
+  ["el treinta y uno de octubre", "October 31st / October thirty-first / October 31 / the thirty-first of October / 31st of October / 31 October / October thirty first / the thirty first of October", "V", "dates"],
+  ["el dos de noviembre", "November 2nd / November second / November 2 / the second of November / 2nd of November / 2 November", "V", "dates"],
+  ["el veinticinco de diciembre", "December 25th / December twenty-fifth / December 25 / the twenty-fifth of December / 25th of December / 25 December / December twenty fifth / the twenty fifth of December", "V", "dates"],
+
+  // ── Irregular verb forms, each in a short phrase with this lesson's words
+  //    (2026-10-25). The verb must be typed exactly: irregularForms.js.
+  ["Ayer busqué un gimnasio cerca del trabajo", "Yesterday I looked for a gym near work / I looked for a gym near work yesterday / Yesterday I looked for a gym close to work / Yesterday I searched for a gym near work", "E", "verbforms"],
+  ["Anoche llegué a casa a la medianoche / Ayer en la noche llegué a casa a la medianoche", "Last night I got home at midnight / I got home at midnight last night / Last night I arrived home at midnight / I arrived home at midnight last night / Last night I came home at midnight", "E", "verbforms"],
+  ["Ayer en la tarde empecé un libro", "Yesterday afternoon I started a book / I started a book yesterday afternoon / Yesterday afternoon I began a book / Yesterday in the afternoon I started a book", "E", "verbforms"],
 ];
 
 export const NOTES = [
@@ -361,30 +348,14 @@ export const LESSON = {
   source: "Adapted from the LFL METHOD by Laura Caufour",
   cards: CARDS,
   notes: NOTES,
-  // The order a student meets NEW cards in. The two patterns first, then the
-  // yo spelling change; then the times of day and the rest of her list,
-  // before the gap and yes cards that use them (la radio, la reunión, a las
-  // seis); then her ex. 1 and the yes answers; the phrases from the dialogue
-  // after the verbs they use; the time once "¿Qué hora es?" is known; the
-  // numbers before the dates that use them (30/6, 31/10). Reviews are
-  // unaffected; FSRS schedules those.
+  // The order a student meets NEW cards in. The grammar cards went on
+  // 2026-10-25, and what is left keeps the order it had: the sheet's own, each
+  // set of words before the phrases that use them, and the verb forms last, as
+  // their phrases use this lesson's words. Reviews are unaffected; FSRS
+  // schedules those.
   teachingOrder: [
-    "forms", "spelling",
-    "day", "night", "words",
-    "gaps",
-    "phrases",
-    "time",
-    "numbers", "dates",
+    "day", "words", "phrases", "time", "numbers", "dates", "verbforms",
   ],
-  // The line above a grammar card saying what to type
-  // (src/lib/cardInstruction.js). The drills get theirs from their shape.
-  instructions: {
-    night: "Fill the gap with whichever of the two fits the sentence",
-    gaps: "Fill the gap with the verb given, in the preterite (simple past)",
-    time: "Answer in a full sentence, with the time in words",
-    numbers: "Write this number in Spanish, in words",
-    dates: "Write this date in words, starting with el (the day comes first)",
-  },
 };
 
 export default LESSON;

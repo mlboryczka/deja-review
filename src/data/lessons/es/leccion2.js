@@ -17,16 +17,10 @@
 // Spanish.
 //
 // Card shapes:
-//   "estar (presente) → yo" / "estoy"              the paradigm; the line above comes from the shape
-//   "hacer (ir a) → yo" / "voy a hacer"            the near future, same shape
-//   "estar → ¿Cómo ___ ustedes?"                   the verb given, in one of the sheet's sentences (ex. 1)
-//   "ser o estar → Lucía ___ en Los Ángeles"       choose the verb, then give its form (ex. 2)
-//   "estar o ir → Mis hijos ___ en la playa"       the same, for a and en (ex. 1 nos. 12–13)
-//   "Estoy cansado → con ir a"                     rewrite in the near future
-//   "3 → en letras" / "tres"                       the numbers
-//   "un hijo → dos", "la ciudad → en plural"       plural nouns
-//   "por qué o porque → ¿___ está cansada?"        why or because
 //   two-way phrase (E) and word (V) cards for the dialogue, ex. 4 and ex. 5
+//   "uno" / "one"                                  a number, as a word
+//   "¿Van al restaurante después de la playa?" / "Are you going to the restaurant after the beach?"
+//                                                  an irregular verb form, in a phrase
 //
 // WHY SER OR ESTAR, ESTAR OR IR, AND POR QUÉ OR PORQUE ARE ON EXACT CARDS.
 // Phrase cards are marked with typo tolerance, and the very mistakes this
@@ -126,29 +120,22 @@
 // flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
 // too"): the 6 cards that answered a question with yes or no in a full
 // sentence (section "answers").
+//
+// Taken out on 2026-10-25, at the owner's word ("the flashcards module for the
+// spanish section should be all words and phrases, no grammar", "i have the
+// exercises for those"): every grammar card, 45 here, with their sections,
+// order and instruction lines. That is the drills, gaps and rewrites this
+// header describes. The grammar is practised on the Exercises page.
+//
+// Kept as words and phrases, asked both ways round: the 5 that were grammar
+// cards only in form (the numbers).
+//
+// Added: 1 phrase (section "verbforms"), one for each irregular verb form the
+// drills asked that no word or phrase card had, each with words of this lesson
+// that no phrase used yet, checked by an independent reader. On any Spanish
+// phrase, an irregular verb form must be typed exactly (irregularForms.js).
 
 export const CARDS = [
-  // ── 1. Estar and ir in the present
-  ["estar (presente) → yo", "estoy", "G", "estar"],
-  ["estar (presente) → tú", "estás", "G", "estar"],
-  ["estar (presente) → él/ella", "está", "G", "estar"],
-  ["estar (presente) → nosotros", "estamos", "G", "estar"],
-  ["estar (presente) → ustedes", "están", "G", "estar"],
-  ["estar (presente) → ellos/ellas", "están", "G", "estar"],
-  ["ir (presente) → yo", "voy", "G", "ir"],
-  ["ir (presente) → tú", "vas", "G", "ir"],
-  ["ir (presente) → él/ella", "va", "G", "ir"],
-  ["ir (presente) → nosotros", "vamos", "G", "ir"],
-  ["ir (presente) → ustedes", "van", "G", "ir"],
-  ["ir (presente) → ellos/ellas", "van", "G", "ir"],
-
-  // ── Ex. 1, in the sheet's sentences: what each adds is in the comment
-  ["estar → Mi esposa ___ muy cansada, trabaja mucho", "está", "G", "gaps"], // a noun subject
-  ["estar → James y Jessica ___ en Los Ángeles", "están", "G", "gaps"],      // two names
-  ["estar → ¿Cómo ___ ustedes?", "están", "G", "gaps"],                      // the verb before its subject
-  ["ir → Sabrina ___ a vivir en México", "va", "G", "gaps"],                 // a name, before a second verb
-  ["ir → ¿Por qué ___ ustedes a Guadalajara?", "van", "G", "gaps"],          // ustedes after ir
-
   // ── Ex. 4: the word list, each noun with its article
   ["hoy", "today", "V", "words"],
   ["creo", "I think / I believe", "V", "words"],
@@ -176,51 +163,24 @@ export const CARDS = [
   ["¿Cómo está usted?", "How are you? (saying usted)", "E", "estarphrases"],
   ["Creo que están muy cansados", "I think that they are very tired / I think they are very tired / I think they're very tired / I think you are very tired (ustedes)", "E", "estarphrases"],
 
-  // ── 3. Ser or estar? Each sentence allows only one of them (ex. 2)
-  ["ser o estar → Lucía ___ mexicana", "es", "G", "serestar"],
-  ["ser o estar → Lucía ___ en Los Ángeles", "está", "G", "serestar"],
-  ["ser o estar → Yo ___ muy bien, gracias", "estoy", "G", "serestar"],     // never "soy bien"
-  ["ser o estar → La esposa de Diego ___ muy cansada", "está", "G", "serestar"],
-  ["ser o estar → Nosotros ___ profesores", "somos", "G", "serestar"],
-  ["ser o estar → ¡Hola! ¿Cómo ___ tú?", "estás", "G", "serestar"],  // a greeting: "¿Cómo eres tú?" is "what are you like?"
-  ["ser o estar → ¿De dónde ___ tú?", "eres", "G", "serestar"],
-  ["ser o estar → Ellos ___ aquí en Guadalajara", "están", "G", "serestar"], // ex. 5
-
   // ── 4. To go
   ["Voy a la playa", "I'm going to the beach / I am going to the beach / I go to the beach", "E", "irphrases"],
   ["¿Adónde vas?", "Where are you going? / Where are you going to? (tú)", "E", "irphrases"],
 
-  // ── a after ir, en after estar (ex. 1 nos. 12 and 13, verb not given)
-  ["estar o ir → Mis hijos ___ en la playa", "están", "G", "estaroir"],
-  ["estar o ir → Mis hijos ___ a la playa hoy", "van", "G", "estaroir"],
-
   // ── The near future: only ir changes, the second verb stays as it is
-  ["hacer (ir a) → yo", "voy a hacer", "G", "future"],
-  ["cenar (ir a) → nosotros", "vamos a cenar", "G", "future"],
-  ["aprender (ir a) → ellos/ellas", "van a aprender", "G", "future"],
-  ["estar (ir a) → él/ella", "va a estar", "G", "future"],
-  ["Estoy cansado → con ir a", "Voy a estar cansado / Voy a estar cansada / Yo voy a estar cansado / Yo voy a estar cansada", "G", "future"],
-  ["Voy a la playa → con ir a", "Voy a ir a la playa / Yo voy a ir a la playa", "G", "future"],
   ["¿Qué vas a hacer hoy?", "What are you going to do today? (tú)", "E", "futurephrases"],
   ["Voy a cenar en el restaurante", "I'm going to have dinner at the restaurant / I am going to have dinner at the restaurant / I'm going to eat dinner at the restaurant", "E", "futurephrases"],
 
   // ── 5. Numbers 1 to 5
-  ["1 → en letras", "uno / un / una", "G", "numbers"],
-  ["2 → en letras", "dos", "G", "numbers"],
-  ["3 → en letras", "tres", "G", "numbers"],
-  ["4 → en letras", "cuatro", "G", "numbers"],
-  ["5 → en letras", "cinco", "G", "numbers"],
+  ["uno / un / una", "one / 1", "V", "numbers"],
+  ["dos", "two / 2", "V", "numbers"],
+  ["tres", "three / 3", "V", "numbers"],
+  ["cuatro", "four / 4", "V", "numbers"],
+  ["cinco", "five / 5", "V", "numbers"],
 
-  // ── 6. Plural nouns: -s or -es, and the article that shows it
-  ["un hijo → dos", "dos hijos", "G", "pluralnum"],
-  ["una amiga → tres", "tres amigas", "G", "pluralnum"],
-  ["el restaurante → en plural", "los restaurantes", "G", "plural"],
-  ["la ciudad → en plural", "las ciudades", "G", "plural"],
-  ["el lápiz → en plural", "los lápices", "G", "plural"],
-
-  // ── 7. Why? Because: two words, or one
-  ["por qué o porque → ¿___ está cansada?", "por qué", "G", "why"],
-  ["por qué o porque → Está cansada ___ trabaja mucho", "porque", "G", "why"],
+  // ── Irregular verb forms, each in a short phrase with this lesson's words
+  //    (2026-10-25). The verb must be typed exactly: irregularForms.js.
+  ["¿Van al restaurante después de la playa?", "Are you going to the restaurant after the beach? / Are you guys going to the restaurant after the beach? / Are you all going to the restaurant after the beach? / Are they going to the restaurant after the beach? (ustedes)", "E", "verbforms"],
 ];
 
 // The notes: the sheet's grammar sections, in English, restructured to the
@@ -389,42 +349,15 @@ export const LESSON = {
   source: "Adapted from the LFL METHOD by Laura Caufour",
   cards: CARDS,
   notes: NOTES,
-  // The order a student meets NEW cards in: each practice section straight
-  // after the rule it drills, in the order of the sheet's grammar sections.
-  // The forms of estar and ir first, and ex. 1 on them, which needs only the
-  // verbs. The word list comes next, before the first card that needs its
-  // words (the phrase cards ask for cansado, la playa, hacer and cenar in
-  // Spanish, and "La esposa de Diego ___ muy cansada" can't be decided
-  // without knowing cansada; the dialogue teaches them first, and the app
-  // has no dialogue). Then estar's phrases and ser or estar; ir's phrases
-  // and estar or ir, once both verbs' uses have been met; the near
-  // future and its phrases; ex. 3 only after the near future, because two of
-  // its questions are in it. Numbers come before the plurals that count with
-  // them; por qué or porque last, as on the sheet. Reviews are unaffected;
-  // FSRS schedules those.
+  // The order a student meets NEW cards in. The grammar cards went on
+  // 2026-10-25, and what is left keeps the order it had: the sheet's own, each
+  // set of words before the phrases that use them, and the verb forms last, as
+  // their phrases use this lesson's words. Reviews are unaffected; FSRS
+  // schedules those.
   teachingOrder: [
-    "estar", "ir", "gaps",
-    "words",
-    "estarphrases", "serestar",
-    "irphrases", "estaroir",
-    "future", "futurephrases",
-    "numbers", "pluralnum", "plural",
-    "why",
+    "words", "estarphrases", "irphrases", "futurephrases", "numbers",
+    "verbforms",
   ],
-  // The line above a grammar card saying what to type (src/lib/cardInstruction.js).
-  // The drills, "estar (presente) → yo" and "hacer (ir a) → yo", get theirs
-  // from their shape, so the future line is for its two rewrites only.
-  // Phrase and word cards are translations and carry no line.
-  instructions: {
-    gaps: "Fill the gap with the verb given, in the present tense",
-    serestar: "Fill the gap with ser or estar in the present tense",
-    estaroir: "Fill the gap with estar or ir in the present tense",
-    future: "Put this in the near future (ir a + infinitive)",
-    numbers: "Write this number in Spanish, in words",
-    pluralnum: "Write it in the plural, with this number",
-    plural: "Write it in the plural",
-    why: "Fill the gap with the word for why or for because",
-  },
 };
 
 export default LESSON;

@@ -17,11 +17,10 @@
 // Spanish.
 //
 // Card shapes:
-//   "trabajar (presente) → yo" / "trabajo"             paradigm drill; its line comes from its shape
-//   "vivir → Mis papás ___ cerca de Nueva York"        the verb given, in the present (ex. 1)
-//   "mi o mis → ___ papás viven en Montauk"            pick the possessive (ex. 5)
-//   "12 → en letras" / "doce"
 //   "un hermano" / "a brother"                         words and phrases, both ways round
+//   "once" / "eleven"                              a number, as a word
+//   "Veo la tele con toda la familia" / "I watch TV with the whole family"
+//                                                  an irregular verb form, in a phrase
 //
 // THE DRILLS. Each of the sheet's three model verbs is drilled in full
 // (trabajar, comer, vivir), because each group has its own endings and -er
@@ -121,6 +120,20 @@
 // flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
 // too"): the 8 cards that answered a question with yes or no in a full
 // sentence (sections "ex2" and "ex3").
+//
+// Taken out on 2026-10-25, at the owner's word ("the flashcards module for the
+// spanish section should be all words and phrases, no grammar", "i have the
+// exercises for those"): every grammar card, 37 here, with their sections,
+// order and instruction lines. That is the drills, gaps and rewrites this
+// header describes. The grammar is practised on the Exercises page.
+//
+// Kept as words and phrases, asked both ways round: the 5 that were grammar
+// cards only in form (the numbers).
+//
+// Added: 1 phrase (section "verbforms"), one for each irregular verb form the
+// drills asked that no word or phrase card had, each with words of this lesson
+// that no phrase used yet, checked by an independent reader. On any Spanish
+// phrase, an irregular verb form must be typed exactly (irregularForms.js).
 
 export const CARDS = [
   // ── The verbs (ex. 4, and comer), before they are conjugated
@@ -133,36 +146,6 @@ export const CARDS = [
   ["andar en bicicleta", "to ride a bike / to cycle / to go cycling / to bike", "V", "verbs"],
   ["ver la tele", "to watch TV / to watch television", "V", "verbs"],
 
-  // ── The pattern on the sheet's three model verbs, and ver's one irregular form
-  ["trabajar (presente) → yo", "trabajo", "G", "present"],
-  ["trabajar (presente) → tú", "trabajas", "G", "present"],
-  ["trabajar (presente) → él/ella", "trabaja", "G", "present"],
-  ["trabajar (presente) → nosotros", "trabajamos", "G", "present"],
-  ["trabajar (presente) → ustedes", "trabajan", "G", "present"],
-  ["trabajar (presente) → ellos/ellas", "trabajan", "G", "present"],
-  ["comer (presente) → yo", "como", "G", "present"],
-  ["comer (presente) → tú", "comes", "G", "present"],
-  ["comer (presente) → él/ella", "come", "G", "present"],
-  ["comer (presente) → nosotros", "comemos", "G", "present"],
-  ["comer (presente) → ustedes", "comen", "G", "present"],
-  ["comer (presente) → ellos/ellas", "comen", "G", "present"],
-  ["vivir (presente) → yo", "vivo", "G", "present"],
-  ["vivir (presente) → tú", "vives", "G", "present"],
-  ["vivir (presente) → él/ella", "vive", "G", "present"],
-  ["vivir (presente) → nosotros", "vivimos", "G", "present"],
-  ["vivir (presente) → ustedes", "viven", "G", "present"],
-  ["vivir (presente) → ellos/ellas", "viven", "G", "present"],
-  ["ver (presente) → yo", "veo", "G", "present"],
-
-  // ── Ex. 1: the other regular verbs, one verb per card and every person at least once
-  ["caminar → Yo ___ mucho con mis amigos", "camino", "G", "ex1"],
-  ["leer → ¿Qué ___ tú?", "lees", "G", "ex1"],
-  ["enseñar → James le ___ una foto a su amigo", "enseña", "G", "ex1"],
-  ["cenar → Nosotros ___ en un restaurante hoy", "cenamos", "G", "ex1"],
-  ["escribir → Nosotros ___ libros sobre México", "escribimos", "G", "ex1"],
-  ["aprender → ¿Ustedes ___ español?", "aprenden", "G", "ex1"],
-  ["vivir → Mis papás ___ cerca de Nueva York", "viven", "G", "ex1"],
-
   // ── The family (ex. 4), before the possessives
   ["una familia", "a family", "V", "family"],
   ["una mamá / una madre", "a mom / a mother / a mum", "V", "family"],
@@ -173,21 +156,12 @@ export const CARDS = [
   ["los papás / los padres", "the parents", "V", "family"],
   ["toda la familia", "the whole family / all the family / the entire family", "V", "family"],
 
-  // ── Possessives (ex. 5): one or more for mi, tu and su, and nuestro's
-  //    feminine and plural
-  ["mi o mis → ¡Esta es ___ familia!", "mi", "G", "possessives"],
-  ["mi o mis → ___ papás viven en Montauk", "mis", "G", "possessives"],
-  ["tu o tus → ¿Dónde viven ___ papás?", "tus", "G", "possessives"],
-  ["tu o tus → ¿Cómo se llama la esposa de ___ hermano?", "tu", "G", "possessives"],
-  ["su o sus → Es mi hermano John con ___ esposa", "su", "G", "possessives"],
-  ["su o sus → Es mi hermano John con ___ dos hijos", "sus", "G", "possessives"],
-
   // ── Numbers 11 to 15
-  ["11 → en letras", "once", "G", "numbers"],
-  ["12 → en letras", "doce", "G", "numbers"],
-  ["13 → en letras", "trece", "G", "numbers"],
-  ["14 → en letras", "catorce", "G", "numbers"],
-  ["15 → en letras", "quince", "G", "numbers"],
+  ["once", "eleven / 11", "V", "numbers"],
+  ["doce", "twelve / 12", "V", "numbers"],
+  ["trece", "thirteen / 13", "V", "numbers"],
+  ["catorce", "fourteen / 14", "V", "numbers"],
+  ["quince", "fifteen / 15", "V", "numbers"],
 
   // ── The rest of the list (ex. 4)
   ["una foto", "a picture / a photo", "V", "words"],
@@ -209,6 +183,10 @@ export const CARDS = [
   ["Es enfermera", "She is a nurse / She's a nurse", "E", "phrases"],
   ["su libro", "his book / her book / its book / their book / your book (usted, ustedes)", "E", "phrases"],
   ["sus hijos", "his children / her children / their children / your children (usted, ustedes)", "E", "phrases"],
+
+  // ── Irregular verb forms, each in a short phrase with this lesson's words
+  //    (2026-10-25). The verb must be typed exactly: irregularForms.js.
+  ["Veo la tele con toda la familia", "I watch TV with the whole family / I watch TV with all the family / I watch TV with the entire family / I watch television with the whole family / I'm watching TV with the whole family / I am watching TV with the whole family", "E", "verbforms"],
 ];
 
 // The notes, for a student stuck on a card: the sheet's grammar sections 1
@@ -299,30 +277,14 @@ export const LESSON = {
   source: "Adapted from the LFL METHOD by Laura Caufour",
   cards: CARDS,
   notes: NOTES,
-  // The order a student meets NEW cards in. The sheet leaves the vocabulary
-  // to ex. 4, but here it is split and put in front of what needs it: the
-  // verbs before they are conjugated, so a drill never conjugates a word the
-  // student can't yet read; the family nouns before the possessives, which
-  // are said about them. Each exercise comes straight after the rule it
-  // practises: the pattern, ex. 1 and 2, then the possessives and ex. 3,
-  // which needs both. Numbers stand alone. The remaining words and the
-  // phrases come last; the phrases lean on them (Es enfermera after una
-  // enfermera). Reviews are unaffected; FSRS schedules those.
+  // The order a student meets NEW cards in. The grammar cards went on
+  // 2026-10-25, and what is left keeps the order it had: the sheet's own, each
+  // set of words before the phrases that use them, and the verb forms last, as
+  // their phrases use this lesson's words. Reviews are unaffected; FSRS
+  // schedules those.
   teachingOrder: [
-    "verbs", "present", "ex1",
-    "family", "possessives",
-    "numbers",
-    "words", "phrases",
+    "verbs", "family", "numbers", "words", "phrases", "verbforms",
   ],
-  // The line shown above a grammar card saying what to type (see
-  // src/lib/cardInstruction.js). The drills get theirs from their shape
-  // ("Present tense, yo form"), so only the other grammar sections are
-  // listed. Vocabulary and phrases are two-way and carry no line.
-  instructions: {
-    ex1: "Fill the gap with the verb given, in the present tense",
-    possessives: "Fill the gap with the form that fits the noun",
-    numbers: "Write this number in Spanish, in words",
-  },
 };
 
 export default LESSON;

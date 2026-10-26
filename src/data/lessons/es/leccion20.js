@@ -10,15 +10,12 @@
 // Spanish; see imperatif.js for why.
 //
 // Card shapes:
-//   "pedir (presente) → yo"                     the paradigm; the line above comes from the shape
-//   "pedir → gerundio"                          the -iendo form
-//   "pedir o preguntar → Jessica le ___ …"      choose the verb, then its form
-//   "Mis amigos piden la cuenta → en pretérito" her ex. 5
-//   "Quiero un café → más cortés"               ask politely (her ex. 4)
-//   "con + yo → ¿Quieres venir ___?"            a pronoun after para, con, sin (her ex. 3)
-//   "¿Cuánto es? → $270"                        answer with the price in words (her ex. 6)
 //   two-way phrase (E) and word (V) cards: her word list (ex. 1), a sample of
 //   her ex. 2 and ex. 4 sentences, and of her level 3 translations (ex. 7)
+//   "El café cuesta cuarenta y cinco pesos" / "The coffee costs forty-five pesos"
+//                                                  a price, as a phrase
+//   "¿Siempre pides tacos sin cebolla?" / "Do you always order tacos without onion?"
+//                                                  an irregular verb form, in a phrase
 //
 // WHY THESE ARE EXACT CARDS. A phrase card is marked with typo tolerance, and
 // the mistakes this lesson is about are a letter or two long: "Quiero un
@@ -83,19 +80,23 @@
 // takes de before pesos". Cut as helping no card: mí with an accent against
 // mi, entre tú y yo, ¿Cuánto le debo?, ¡Qué caro! and ¡Qué barato!, calling
 // the waiter ¡Joven!, the tip, and her pointers to earlier lessons.
+//
+// Taken out on 2026-10-25, at the owner's word ("the flashcards module for the
+// spanish section should be all words and phrases, no grammar", "i have the
+// exercises for those"): every grammar card, 38 here, with their sections,
+// order and instruction lines. That is the drills, gaps and rewrites this
+// header describes. The grammar is practised on the Exercises page.
+//
+// Kept as words and phrases, asked both ways round: the 6 that were grammar
+// cards only in form (prices).
+//
+// Added: 10 phrases (section "verbforms"), one for each irregular verb form
+// the drills asked that no word or phrase card had, each with words of this
+// lesson that no phrase used yet, checked by an independent reader. On any
+// Spanish phrase, an irregular verb form must be typed exactly
+// (irregularForms.js).
 
 export const CARDS = [
-  // ── 1. Pedir
-  ["pedir (presente) → yo", "pido", "G", "pedir"],
-  ["pedir (presente) → tú", "pides", "G", "pedir"],
-  ["pedir (presente) → él/ella", "pide", "G", "pedir"],
-  ["pedir (presente) → nosotros", "pedimos", "G", "pedir"],
-  ["pedir (presente) → ustedes", "piden", "G", "pedir"],
-  ["pedir (presente) → ellos/ellas", "piden", "G", "pedir"],
-  ["pedir (pretérito) → yo", "pedí", "G", "pedir"],
-  ["pedir (pretérito) → él/ella", "pidió", "G", "pedir"],
-  ["pedir (pretérito) → ellos/ellas", "pidieron", "G", "pedir"],
-
   // ── Ex. 1: her word list
   ["el mesero", "the waiter / the server", "V", "vocab"],
   ["el menú", "the menu (not la carta)", "V", "vocab"],
@@ -124,26 +125,6 @@ export const CARDS = [
   ["casi", "almost / nearly", "V", "vocab"],
   ["el diez por ciento", "ten percent", "V", "vocab"],
 
-  // ── 1. Pedir or preguntar? (her ATTENTION box)
-  ["pedir o preguntar → Jessica le ___ la hora al mesero", "pregunta", "G", "pedirpreguntar"],
-  ["pedir o preguntar → Jessica le ___ un café al mesero", "pide", "G", "pedirpreguntar"],
-
-  // ── 2. Verbs that change e → i like pedir
-  ["servir (presente) → yo", "sirvo", "G", "like"],
-  ["servir (presente) → nosotros", "servimos", "G", "like"],      // no change with nosotros
-  ["servir (pretérito) → él/ella", "sirvió", "G", "like"],
-  ["repetir (presente) → él/ella", "repite", "G", "like"],
-  ["repetir (pretérito) → ellos/ellas", "repitieron", "G", "like"],
-  ["seguir (presente) → yo", "sigo", "G", "like"],                 // no u
-  ["seguir (pretérito) → él/ella", "siguió", "G", "like"],
-  ["pedir → gerundio", "pidiendo", "G", "like"],
-
-  // ── Ex. 5: in the preterite
-  ["Mis amigos piden la cuenta → en pretérito", "Mis amigos pidieron la cuenta", "G", "past"],
-  ["Los niños se visten solos → en pretérito", "Los niños se vistieron solos", "G", "past"],
-  ["Yo me visto a las siete → en pretérito", "Yo me vestí a las siete / Me vestí a las siete", "G", "past"],
-  ["Siguen hablando → en pretérito", "Siguieron hablando", "G", "past"],
-
   // ── Ex. 2: pedir, seguir in sentences
   ["Siempre pido tacos al pastor", "I always order tacos al pastor", "E", "pedirphrases"],
   ["¿Qué vas a pedir?", "What are you going to order? (tú)", "E", "pedirphrases"],
@@ -151,36 +132,38 @@ export const CARDS = [
   ["Sigo aprendiendo español", "I'm still learning Spanish / I keep learning Spanish", "E", "pedirphrases"],
 
   // ── 3. Asking politely (her ex. 4)
-  ["Quiero un café → más cortés", "Quisiera un café / Quisiera un café, por favor / ¿Me trae un café? / ¿Me trae un café, por favor? / ¿Me da un café? / ¿Me da un café, por favor? / ¿Me puede traer un café? / ¿Me puede traer un café, por favor? / ¿Me puede dar un café? / ¿Me puede dar un café, por favor? / Voy a querer un café / Voy a querer un café, por favor / Un café, por favor / Para mí, un café / Para mí, un café, por favor", "G", "polite"],
-  ["Quiero pagar → más cortés", "Quisiera pagar / Quisiera pagar, por favor", "G", "polite"],
   ["¿Me trae el menú, por favor?", "Can you bring me the menu, please? (usted, without poder)", "E", "ordering"],
   ["¿Nos trae la cuenta, por favor?", "Can you bring us the check, please? / Can you bring us the bill, please? (usted, without poder)", "E", "ordering"],
   ["¿Me puede traer una servilleta?", "Could you bring me a napkin? / Can you bring me a napkin? (usted, with poder)", "E", "ordering"],
   ["Voy a querer unos tacos al pastor", "I'll have tacos al pastor / I'll have some tacos al pastor (with ir a)", "E", "ordering"],
   ["¿Me pasas la sal?", "Can you pass me the salt? (tú, without poder)", "E", "ordering"],
 
-  // ── 4. Pronouns after para, con, sin (her ex. 3)
-  ["para + yo → ___, una limonada, por favor", "Para mí", "G", "prep"],
-  ["para + tú → Este regalo es ___", "para ti", "G", "prep"],
-  ["sin + tú → No puedo vivir ___", "sin ti", "G", "prep"],
-  ["cerca de + yo → Ella vive ___", "cerca de mí", "G", "prep"],
-  ["con + yo → ¿Quieres venir ___?", "conmigo", "G", "prep"],
-  ["con + tú → Quiero ir ___", "contigo", "G", "prep"],
-  ["con + nosotros → Mis papás vinieron ___", "con nosotros", "G", "prep"],
-
   // ── 5. Prices (her ex. 6)
-  ["¿Cuánto cuesta el café? → $45", "Cuesta cuarenta y cinco pesos / El café cuesta cuarenta y cinco pesos / Cuesta cuarenta y cinco / El café cuesta cuarenta y cinco", "G", "prices"],
-  ["¿Cuánto cuestan los tacos? → $95", "Cuestan noventa y cinco pesos / Cuestan noventa y cinco pesos la orden / Los tacos cuestan noventa y cinco pesos / Los tacos cuestan noventa y cinco pesos la orden / Cuestan noventa y cinco / Cuestan noventa y cinco la orden / Los tacos cuestan noventa y cinco / Los tacos cuestan noventa y cinco la orden", "G", "prices"],
-  ["¿Cuánto cuestan las enchiladas? → $120", "Cuestan ciento veinte pesos / Las enchiladas cuestan ciento veinte pesos / Cuestan ciento veinte / Las enchiladas cuestan ciento veinte", "G", "prices"],
-  ["¿Cuánto es? → $270", "Son doscientos setenta pesos / Son doscientos setenta", "G", "prices"],
-  ["¿Cuánto es? → $12.50", "Son doce pesos con cincuenta centavos / Son doce pesos con cincuenta / Son doce cincuenta / Son doce con cincuenta centavos / Son doce con cincuenta", "G", "prices"],
-  ["¿Cuánto cuesta el departamento? → $2,000,000", "Cuesta dos millones de pesos / El departamento cuesta dos millones de pesos / Cuesta dos millones / El departamento cuesta dos millones", "G", "prices"],
+  ["El café cuesta cuarenta y cinco pesos / El café cuesta cuarenta y cinco", "The coffee costs forty-five pesos / The coffee costs forty five pesos / The coffee costs 45 pesos / The coffee is forty-five pesos / The coffee is 45 pesos / Coffee costs forty-five pesos / Coffee costs 45 pesos", "E", "prices"],
+  ["Los tacos cuestan noventa y cinco pesos / Los tacos cuestan noventa y cinco pesos la orden / Los tacos cuestan noventa y cinco / Los tacos cuestan noventa y cinco la orden", "The tacos cost ninety-five pesos / The tacos cost ninety five pesos / The tacos cost 95 pesos / The tacos are ninety-five pesos / The tacos are 95 pesos", "E", "prices"],
+  ["Las enchiladas cuestan ciento veinte pesos / Las enchiladas cuestan ciento veinte", "The enchiladas cost a hundred and twenty pesos / The enchiladas cost one hundred and twenty pesos / The enchiladas cost one hundred twenty pesos / The enchiladas cost 120 pesos / The enchiladas are a hundred and twenty pesos / The enchiladas are one hundred and twenty pesos / The enchiladas are one hundred twenty pesos / The enchiladas are 120 pesos", "E", "prices"],
+  ["Son doscientos setenta pesos / Son doscientos setenta", "That's two hundred seventy pesos / That is two hundred seventy pesos / That's two hundred and seventy pesos / It's two hundred seventy pesos / It's two hundred and seventy pesos / That's 270 pesos / It's 270 pesos / That comes to 270 pesos / That comes to two hundred seventy pesos / That comes to two hundred and seventy pesos", "E", "prices"],
+  ["Son doce pesos con cincuenta centavos / Son doce pesos con cincuenta / Son doce cincuenta / Son doce con cincuenta centavos / Son doce con cincuenta", "That's twelve pesos and fifty centavos / That is twelve pesos and fifty centavos / That's twelve pesos fifty / That's twelve fifty / It's twelve fifty / It's twelve pesos fifty / That's 12.50 pesos / It's 12.50 pesos", "E", "prices"],
+  ["El departamento cuesta dos millones de pesos / El departamento cuesta dos millones", "The apartment costs two million pesos / The apartment costs 2 million pesos / The apartment costs 2000000 pesos / The apartment is two million pesos / The apartment is 2 million pesos", "E", "prices"],
 
   // ── Ex. 7: her level 3 translations
   ["Hoy voy a probar algo nuevo", "Today I'm going to try something new / I'm going to try something new today", "E", "translations"],
   ["Hoy pago yo", "Today I'm paying / I'm paying today / Today I'll pay", "E", "translations"],
   ["Es un placer comer contigo", "It's a pleasure to eat with you (tú)", "E", "translations"],
   ["A mi amigo no le gusta mucho el chile", "My friend doesn't really like chili / My friend doesn't like chili much", "E", "translations"],
+
+  // ── Irregular verb forms, each in a short phrase with this lesson's words
+  //    (2026-10-25). The verb must be typed exactly: irregularForms.js.
+  ["¿Siempre pides tacos sin cebolla?", "Do you always order tacos without onion? / Do you always order tacos without onions? / Do you always ask for tacos without onion? / Do you always ask for tacos without onions? (tú)", "E", "verbforms"],
+  ["Jessica normalmente pide la bebida más barata", "Jessica usually orders the cheapest drink / Jessica normally orders the cheapest drink / Jessica usually asks for the cheapest drink / Jessica normally asks for the cheapest drink", "E", "verbforms"],
+  ["¿Por qué no piden carne de puerco?", "Why don't you order pork? (ustedes) / Why don't you guys order pork? / Why don't you order the pork? / Why don't you guys order the pork? / Why don't you ask for pork? / Why don't they order pork?", "E", "verbforms"],
+  ["James pidió otra orden de tacos", "James asked for another order of tacos / James ordered another order of tacos", "E", "verbforms"],
+  ["Los invitados pidieron el vino más caro", "The guests ordered the most expensive wine / The guests asked for the most expensive wine", "E", "verbforms"],
+  ["Siempre sirvo piña de postre", "I always serve pineapple for dessert / I always serve pineapple as dessert / I always serve pineapple as a dessert", "E", "verbforms"],
+  ["El mesero nos sirvió muy rápido", "The waiter served us very quickly / The waiter served us really quickly / The waiter served us very fast / The waiter served us really fast", "E", "verbforms"],
+  ["Lucía repite todo dos veces", "Lucía repeats everything twice / Lucía repeats everything two times", "E", "verbforms"],
+  ["Mis amigos repitieron la pregunta más despacio", "My friends repeated the question more slowly / My friends repeated the question slower", "E", "verbforms"],
+  ["Diego siguió trabajando casi toda la noche", "Diego kept working almost all night / Diego kept working nearly all night / Diego kept on working almost all night / Diego went on working almost all night / Diego carried on working almost all night / Diego continued working almost all night", "E", "verbforms"],
 ];
 
 export const NOTES = [
@@ -313,30 +296,15 @@ export const LESSON = {
   source: "Adapted from the LFL METHOD by Laura Caufour",
   cards: CARDS,
   notes: NOTES,
-  // The order a student meets NEW cards in, in the order of her grammar:
-  // pedir first, then her word list, before the cards that use its words
-  // (mesero, cuenta, servir); pedir or preguntar straight after pedir; the
-  // other e → i verbs and her ex. 5; then asking politely, the pronouns, the
-  // prices, and her translations last, as they mix everything.
+  // The order a student meets NEW cards in. The grammar cards went on
+  // 2026-10-25, and what is left keeps the order it had: the sheet's own, each
+  // set of words before the phrases that use them, and the verb forms last, as
+  // their phrases use this lesson's words. Reviews are unaffected; FSRS
+  // schedules those.
   teachingOrder: [
-    "pedir",
-    "vocab",
-    "pedirpreguntar",
-    "like", "past", "pedirphrases",
-    "polite", "ordering",
-    "prep",
-    "prices",
-    "translations",
+    "vocab", "pedirphrases", "ordering", "prices", "translations",
+    "verbforms",
   ],
-  // The drills get their line from their shape ("Present tense, yo form",
-  // "Gerund (-ando / -iendo form)"). Phrase and word cards carry no line.
-  instructions: {
-    pedirpreguntar: "Fill the gap with one of the two verbs, in the present",
-    past: "Put this sentence in the preterite",
-    polite: "Make this more polite, keeping its meaning",
-    prep: "Fill the gap with the word and the pronoun given, in the form they take together",
-    prices: "Answer in a full sentence, writing the price in words",
-  },
 };
 
 export default LESSON;

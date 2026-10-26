@@ -158,9 +158,13 @@ async function tryOne(file, front, typed, shown = "fr") {
   // matchAnswer's `articles`).
   const spanish = /\/lessons\/es\//.test(path.resolve(file));
   const articles = !spanish ? "fr" : shown === "fr" ? "en" : card[2] === "V" ? "es" : "none";
-  // Spanish answers have their accents checked (owner, 2026-10-22).
+  // Spanish answers have their accents checked (owner, 2026-10-22), and on a
+  // Spanish card the irregular verb forms, numbers and months are exact
+  // either way round (2026-10-25).
   const accents = spanish && (shown === "en" || exact);
-  const r = matchAnswer(typed, correct, extra, { exact, articles, accents });
+  const words = spanish ? await imp("src/data/lessons/es/exactWords.js") : null;
+  const exactWords = !words ? null : shown === "en" ? words.SPANISH_EXACT : words.ENGLISH_EXACT;
+  const r = matchAnswer(typed, correct, extra, { exact, articles, accents, exactWords });
   console.log(JSON.stringify({ front, shown, typed, exact, result: r.match ? (r.close ? "close enough (right)" : "right") : r.wrongArticle ? "wrong article" : r.wrongAccent ? "wrong accent" : "wrong" }));
 }
 

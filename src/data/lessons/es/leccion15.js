@@ -12,11 +12,6 @@
 // Spanish.
 //
 // Card shapes:
-//   "¿Hablas inglés? → con ustedes"            ask the same question to usted or ustedes
-//   "Tus papás viven en Monterrey → ¿dónde?"   make the question; the subject goes after the verb
-//   "qué o cuál → ¿___ es esto?"               pick the question word
-//   "cuánto → ¿___ gente hay en el restaurante?"   the question word in the form that fits
-//   "qué o lo que → Sí, eso es ___ quiero"     "what" in a question or not
 //   two-way phrase (E) and word (V) cards for her examples and translations
 //
 // WHY THE CHOICES ARE EXACT CARDS. Phrase cards are marked with typo
@@ -99,27 +94,20 @@
 // flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
 // too"): the 10 cards that answered a question with yes or no in a full
 // sentence (sections "negsi" and "negno").
+//
+// Taken out on 2026-10-25, at the owner's word ("the flashcards module for the
+// spanish section should be all words and phrases, no grammar", "i have the
+// exercises for those"): every grammar card, 21 here, with their sections,
+// order and instruction lines. That is the drills, gaps and rewrites this
+// header describes. The grammar is practised on the Exercises page.
 
 export const CARDS = [
-  // ── 1. The register: only the verb changes (and te becomes le)
-  ["¿Hablas inglés? → con ustedes", "¿Hablan inglés? / ¿Hablan ustedes inglés? / ¿Ustedes hablan inglés?", "G", "registro"],
-  ["¿Te gusta el café? → con usted", "¿Le gusta el café? / ¿A usted le gusta el café? / ¿Le gusta a usted el café?", "G", "registro"],
-  ["¿Por qué sales mañana? → con usted", "¿Por qué sale mañana? / ¿Por qué sale usted mañana?", "G", "registro"],
-  ["¿Me puedes ayudar? → con ustedes", "¿Me pueden ayudar? / ¿Pueden ayudarme? / ¿Ustedes me pueden ayudar? / ¿Me pueden ayudar ustedes? / ¿Ustedes pueden ayudarme? / ¿Pueden ustedes ayudarme?", "G", "registro"],
-
   // ── 3. Her new question words, before the cards that use them
   ["¿cuál?", "which one? / which?", "V", "palabras"],
   ["¿cuánto tiempo?", "how long?", "V", "palabras"],
   ["¿desde cuándo?", "since when?", "V", "palabras"],
   ["la fiesta", "the party", "V", "palabras"],
   ["la leche", "the milk", "V", "palabras"],
-
-  // ── 2. Question word, then verb, then subject; a preposition goes first
-  ["Tus papás viven en Monterrey → ¿dónde?", "¿Dónde viven tus papás?", "G", "orden"],
-  ["Andrés quiere un café → ¿qué?", "¿Qué quiere Andrés?", "G", "orden"],
-  ["Lucía llega a las ocho → ¿a qué hora?", "¿A qué hora llega Lucía?", "G", "orden"],
-  ["El regalo es para Natalia → ¿para quién?", "¿Para quién es el regalo?", "G", "orden"],
-  ["Vino con su hermana → ¿con quién?", "¿Con quién vino? / ¿Con quién vino ella? / ¿Con quién vino él?", "G", "orden"],
 
   // ── Questions with a question word, both ways
   ["¿Cómo te gusta el café?", "How do you like your coffee? (tú)", "E", "preguntas"],
@@ -133,23 +121,7 @@ export const CARDS = [
   ["¿Cuánto tiempo estuviste en Colombia?", "How long were you in Colombia? (tú)", "E", "preguntas"],
   ["¿Cuánto tiempo vas a estar aquí?", "How long are you going to be here? / How long will you be here? (tú)", "E", "preguntas"],
 
-  // ── Ex. 6: qué or cuál
-  ["qué o cuál → ¿___ es esto?", "qué", "G", "quecual"],                          // a definition
-  ["qué o cuál → ¿___ es tu número de celular?", "cuál", "G", "quecual"],        // a piece of information
-  ["qué o cuál → ¿___ hora es?", "qué", "G", "quecual"],                          // before a noun
-  ["qué o cuál → ¿___ haces hoy?", "qué", "G", "quecual"],                        // any verb but ser
-  ["cuál o cuáles → ¿___ son tus lentes, los azules o los cafés?", "cuáles", "G", "quecual"],
-
-  // ── Ex. 6: cuánto and quién in the form that fits
-  ["cuánto → ¿___ hermanos tienes?", "cuántos", "G", "forma"],
-  ["cuánto → ¿___ cuesta el carro?", "cuánto", "G", "forma"],                     // with a verb, no noun
-  ["quién → ¿___ son esas personas?", "quiénes", "G", "forma"],
-  ["quién → ¿___ es el señor de la derecha?", "quién", "G", "forma"],
-
   // ── Ex. 6: "what" outside a question is lo que
-  ["qué o lo que → Sí, eso es ___ quiero", "lo que", "G", "loque"],
-  ["qué o lo que → ¿___ hiciste ayer?", "qué", "G", "loque"],
-  ["qué o lo que → ___ me encanta de México es la comida", "lo que", "G", "loque"],
   ["No entendí lo que dijiste", "I didn't understand what you said (tú)", "E", "loquefrases"],
   ["No sé dónde está", "I don't know where it is / I don't know where he is / I don't know where she is", "E", "loquefrases"],
 
@@ -323,27 +295,13 @@ export const LESSON = {
   source: "Adapted from the LFL METHOD by Laura Caufour",
   cards: CARDS,
   notes: NOTES,
-  // The order a student meets NEW cards in, following her sections: the
-  // register, then the new question words before the cards that use them,
-  // word order and its phrases, the choices of section 3, lo que, then the
-  // negative questions and their answers.
+  // The order a student meets NEW cards in. The grammar cards went on
+  // 2026-10-25, and what is left keeps the order it had: the sheet's own, each
+  // set of words before the phrases that use them. Reviews are unaffected;
+  // FSRS schedules those.
   teachingOrder: [
-    "registro",
-    "palabras",
-    "orden", "preguntas",
-    "quecual", "forma",
-    "loque", "loquefrases",
-    "negativas", "respuestas",
+    "palabras", "preguntas", "loquefrases", "negativas", "respuestas",
   ],
-  // The line above a grammar card saying what to type (src/lib/cardInstruction.js).
-  // Phrase and word cards are translations and carry no line.
-  instructions: {
-    registro: "Ask the same question, speaking to the person or people given",
-    orden: "Turn it into a question starting with the words given",
-    quecual: "Fill the gap with the choice that fits",
-    forma: "Fill the gap with the word given, in the form that fits",
-    loque: "Fill the gap with the choice that fits",
-  },
 };
 
 export default LESSON;

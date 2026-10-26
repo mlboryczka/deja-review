@@ -15,13 +15,10 @@
 // Spanish.
 //
 // Card shapes:
-//   "hacer (presente) → yo" / "hago"          drill; its line comes from its shape
-//   "tener (pretérito) → yo" / "tuve"         the same, in the preterite
-//   "venir → Mis papás ___ a Oaxaca…"         the cue verb, in the preterite, goes in the gap (ex. 3)
-//   "a, de o nada → Trato ___ hablar…"        the word between two verbs (ex. 7); "nada" when
-//                                             nothing goes there, as the sheet's own "nada (—)"
-//   "76 → en letras" / "setenta y seis"
 //   two-way word (V) and phrase (E) cards for ex. 8 and a sample of ex. 9
+//   "sesenta" / "sixty"                            a number, as a word
+//   "Hago deporte dos veces por semana" / "I do sports twice a week"
+//                                                  an irregular verb form, in a phrase
 //
 // WHY "A, DE O NADA" IS ON EXACT CARDS. A phrase card is marked fuzzily, and
 // "Acabo a llegar" is two letters from "Acabo de llegar": it would pass as
@@ -111,60 +108,26 @@
 // flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
 // too"): the 6 cards that answered a question with yes or no in a full
 // sentence (section "answers").
+//
+// Taken out on 2026-10-25, at the owner's word ("the flashcards module for the
+// spanish section should be all words and phrases, no grammar", "i have the
+// exercises for those"): every grammar card, 51 here, with their sections,
+// order and instruction lines. That is the drills, gaps and rewrites this
+// header describes. The grammar is practised on the Exercises page.
+//
+// Kept as words and phrases, asked both ways round: the 7 that were grammar
+// cards only in form (the numbers).
+//
+// Added: 12 phrases (section "verbforms"), one for each irregular verb form
+// the drills asked that no word or phrase card had, each with words of this
+// lesson that no phrase used yet, checked by an independent reader. On any
+// Spanish phrase, an irregular verb form must be typed exactly
+// (irregularForms.js).
 
 export const CARDS = [
   // ── New verbs, before they are conjugated
   ["poner", "to put", "V", "verbs"],
   ["traer", "to bring", "V", "verbs"],
-
-  // ── 1. Hacer in the present
-  ["hacer (presente) → yo", "hago", "G", "hacer"],
-  ["hacer (presente) → tú", "haces", "G", "hacer"],
-  ["hacer (presente) → él/ella", "hace", "G", "hacer"],
-  ["hacer (presente) → nosotros", "hacemos", "G", "hacer"],
-  ["hacer (presente) → ustedes", "hacen", "G", "hacer"],
-  ["hacer (presente) → ellos/ellas", "hacen", "G", "hacer"],
-
-  // ── 2. Irregular with yo only: -go, and the rest is regular
-  ["poner (presente) → yo", "pongo", "G", "go"],
-  ["salir (presente) → yo", "salgo", "G", "go"],
-  ["traer (presente) → yo", "traigo", "G", "go"],
-  ["poner (presente) → tú", "pones", "G", "go"],          // the other forms are regular
-
-  // ── 1. Hacer in the preterite
-  ["hacer (pretérito) → yo", "hice", "G", "hacerpast"],
-  ["hacer (pretérito) → tú", "hiciste", "G", "hacerpast"],
-  ["hacer (pretérito) → él/ella", "hizo", "G", "hacerpast"],   // the z
-  ["hacer (pretérito) → nosotros", "hicimos", "G", "hacerpast"],
-  ["hacer (pretérito) → ustedes", "hicieron", "G", "hacerpast"],
-  ["hacer (pretérito) → ellos/ellas", "hicieron", "G", "hacerpast"],
-
-  // ── 3. Irregular preterites: a special first part, then -e, -iste, -o, -imos, -ieron
-  ["tener (pretérito) → yo", "tuve", "G", "past"],
-  ["tener (pretérito) → nosotros", "tuvimos", "G", "past"],
-  ["estar (pretérito) → yo", "estuve", "G", "past"],
-  ["estar (pretérito) → él/ella", "estuvo", "G", "past"],
-  ["poder (pretérito) → tú", "pudiste", "G", "past"],
-  ["poder (pretérito) → nosotros", "pudimos", "G", "past"],
-  ["querer (pretérito) → yo", "quise", "G", "past"],
-  ["querer (pretérito) → él/ella", "quiso", "G", "past"],
-  ["saber (pretérito) → yo", "supe", "G", "past"],
-  ["saber (pretérito) → ellos/ellas", "supieron", "G", "past"],
-
-  // ── 3. Ser and ir share one preterite
-  ["ir (pretérito) → yo", "fui", "G", "serir"],
-  ["ir (pretérito) → nosotros", "fuimos", "G", "serir"],
-  ["ir (pretérito) → ellos/ellas", "fueron", "G", "serir"],
-  ["ser (pretérito) → tú", "fuiste", "G", "serir"],
-
-  // ── Ex. 3: the persons the drills leave out, in the sheet's sentences
-  ["ser → Al principio, ___ un poco difícil", "fue", "G", "gaps"],
-  ["tener → Andrés ___ una reunión con unos clientes", "tuvo", "G", "gaps"],
-  ["venir → Mis papás ___ a Oaxaca con nosotros", "vinieron", "G", "gaps"],
-  ["poder → Yo no ___ ir al gimnasio", "pude", "G", "gaps"],
-  ["estar → Ustedes ___ dos semanas en Oaxaca", "estuvieron", "G", "gaps"],
-  ["querer → Ellos no ___ venir", "quisieron", "G", "gaps"],             // no quisieron: they refused
-  ["saber → Ayer ella ___ la verdad", "supo", "G", "gaps"],              // supo: she found out
 
   // ── Ex. 8: the word list
   ["al principio", "in the beginning / at first", "V", "vocab"],
@@ -188,28 +151,34 @@ export const CARDS = [
   ["volver", "to come back / to return (not regresar)", "V", "vocab"],
   ["Acabo de llegar", "I've just arrived / I just arrived / I have just arrived", "E", "vocab"],
 
-  // ── Ex. 7: a, de or nothing between two verbs
-  ["a, de o nada → Empecé ___ tomar clases en 2012", "a", "G", "verbverb"],
-  ["a, de o nada → Decidimos ___ aprender el idioma", "nada", "G", "verbverb"],
-  ["a, de o nada → Trato ___ hablar español todos los días", "de", "G", "verbverb"],
-  ["a, de o nada → Acabo ___ llegar", "de", "G", "verbverb"],
-  ["a, de o nada → Aprendí ___ cocinar con mi abuela", "a", "G", "verbverb"],
-  ["a, de o nada → Prefiero ___ caminar", "nada", "G", "verbverb"],
-  ["a, de o nada → Necesito ___ trabajar mañana", "nada", "G", "verbverb"],
-
   // ── Ex. 9: sentences to learn whole
   ["Decidimos aprender español cuando fuimos a México", "We decided to learn Spanish when we went to Mexico", "E", "phrases"],
   ["¿Cómo lo hiciste?", "How did you do it? / How did you do that? (tú, with lo)", "E", "phrases"],
   ["Ella no pudo venir ayer", "She couldn't come yesterday / She wasn't able to come yesterday (with ella)", "E", "phrases"],
 
   // ── 5. Numbers 60 to 100
-  ["60 → en letras", "sesenta", "G", "numbers"],
-  ["70 → en letras", "setenta", "G", "numbers"],
-  ["80 → en letras", "ochenta", "G", "numbers"],
-  ["90 → en letras", "noventa", "G", "numbers"],
-  ["100 → en letras", "cien", "G", "numbers"],
-  ["76 → en letras", "setenta y seis", "G", "numbers"],
-  ["99 → en letras", "noventa y nueve", "G", "numbers"],
+  ["sesenta", "sixty / 60", "V", "numbers"],
+  ["setenta", "seventy / 70", "V", "numbers"],
+  ["ochenta", "eighty / 80", "V", "numbers"],
+  ["noventa", "ninety / 90", "V", "numbers"],
+  ["cien", "one hundred / a hundred / hundred / 100", "V", "numbers"],
+  ["setenta y seis", "seventy-six / seventy six / 76", "V", "numbers"],
+  ["noventa y nueve", "ninety-nine / ninety nine / 99", "V", "numbers"],
+
+  // ── Irregular verb forms, each in a short phrase with this lesson's words
+  //    (2026-10-25). The verb must be typed exactly: irregularForms.js.
+  ["Hago deporte dos veces por semana / Hago deporte dos veces a la semana", "I do sports twice a week / I play sports twice a week / I do sports two times a week / I play sports two times a week", "E", "verbforms"],
+  ["Esta vez traigo la comida", "This time I'm bringing the food / This time I am bringing the food / This time I'll bring the food / This time I will bring the food / This time I bring the food (in the present)", "E", "verbforms"],
+  ["Con el tiempo hice muchos amigos", "Over time I made a lot of friends / With time I made a lot of friends / In time I made a lot of friends / Over time I made many friends / Over time I made lots of friends", "E", "verbforms"],
+  ["Ayer hicimos una comida fácil", "Yesterday we made an easy meal / We made an easy meal yesterday / Yesterday we cooked an easy meal", "E", "verbforms"],
+  ["¿Qué hicieron la primera vez?", "What did you do the first time? / What did you guys do the first time? / What did they do the first time? (ustedes)", "E", "verbforms"],
+  ["Estuve muchas veces en Guadalajara", "I was in Guadalajara many times / I was in Guadalajara a lot of times / I've been to Guadalajara many times / I have been to Guadalajara many times", "E", "verbforms"],
+  ["Lucía estuvo dos semanas en Oaxaca / Lucía estuvo por dos semanas en Oaxaca", "Lucía was in Oaxaca for two weeks / Lucía spent two weeks in Oaxaca / Lucía was in Oaxaca two weeks", "E", "verbforms"],
+  ["¿Pudiste encontrar un profesor particular? / ¿Pudiste encontrar un maestro particular?", "Were you able to find a tutor? / Did you manage to find a tutor? / Could you find a tutor? / Were you able to find a private teacher? (tú)", "E", "verbforms"],
+  ["Este año no pudimos ir de vacaciones", "This year we couldn't go on vacation / This year we could not go on vacation / This year we weren't able to go on vacation / We couldn't go on vacation this year / This year we couldn't go on holiday", "E", "verbforms"],
+  ["Al principio no quise tomar clases", "At first I refused to take classes / At first I didn't want to take classes / At first I did not want to take classes / In the beginning I refused to take classes / In the beginning I didn't want to take classes / At first I refused to take lessons / At first I didn't want to take lessons / In the beginning I refused to take lessons / In the beginning I didn't want to take lessons", "E", "verbforms"],
+  ["Ayer supe que Lucía habla tres idiomas", "Yesterday I found out that Lucía speaks three languages / Yesterday I found out Lucía speaks three languages / I found out yesterday that Lucía speaks three languages / Yesterday I learned that Lucía speaks three languages", "E", "verbforms"],
+  ["Mis papás supieron la verdad", "My parents found out the truth / My parents learned the truth / My parents discovered the truth", "E", "verbforms"],
 ];
 
 // The notes: four tabs, Present · Past · Verb + verb · Numbers. Hacer's two
@@ -346,29 +315,14 @@ export const LESSON = {
   source: "Adapted from the LFL METHOD by Laura Caufour",
   cards: CARDS,
   notes: NOTES,
-  // The order a student meets NEW cards in. The two new verbs first, then
-  // hacer in the present with the other -go verbs; hacer in the preterite,
-  // then the other irregular preterites and ser / ir, then the ex. 3 gaps that
-  // use them all. The word list comes before the answers and the phrases,
-  // which need its words (la primera vez, el idioma, encontrar). Verb + verb
-  // after the answers, since its sentences use the preterite. Numbers stand
-  // alone. Reviews are unaffected; FSRS schedules those.
+  // The order a student meets NEW cards in. The grammar cards went on
+  // 2026-10-25, and what is left keeps the order it had: the sheet's own, each
+  // set of words before the phrases that use them, and the verb forms last, as
+  // their phrases use this lesson's words. Reviews are unaffected; FSRS
+  // schedules those.
   teachingOrder: [
-    "verbs", "hacer", "go",
-    "hacerpast", "past", "serir", "gaps",
-    "vocab", "verbverb", "phrases",
-    "numbers",
+    "verbs", "vocab", "phrases", "numbers", "verbforms",
   ],
-  // The line above a grammar card saying what to type (src/lib/cardInstruction.js).
-  // The drills get theirs from their shape ("Preterite (simple past), yo
-  // form"), so only the other grammar sections are listed. The verbverb line
-  // doesn't name the choices: its front does ("a, de o nada"), and naming
-  // nada here would put an answer in the line.
-  instructions: {
-    gaps: "Fill the gap with the verb in the preterite",
-    verbverb: "Fill the gap with the right one of the three",
-    numbers: "Write this number in Spanish, in words",
-  },
 };
 
 export default LESSON;

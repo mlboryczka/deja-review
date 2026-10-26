@@ -101,12 +101,25 @@ model for structure.
     Avoid short comma pieces on either side of a `V` or `E` card.
 14. **Typo tolerance on phrase cards lets a one-letter verb swap through**:
     "Je suis bien" passes for "Je vais bien", the être / aller mistake Leçon 2
-    is about. Put a contrast like that on exact (arrow) cards.
+    is about. Put a contrast like that on exact (arrow) cards. In Spanish,
+    the words in `src/data/lessons/es/exactWords.js` are exact instead
+    (2026-10-25): every irregular verb form (`irregularForms.js`), the
+    numbers, first to tenth and the months, and in English the numbers and
+    months, so "Soy aquí" fails for "Estoy aquí" and "julio" for junio.
 15. **A front belongs to one lesson only.** The sync writes cards by student
     and front, so two lessons with the same front overwrite each other's row.
     Check every lesson file before adding; a word in two of Laura's lists goes
     to the earlier lesson.
 16. **No full stop at the end of a card face** (2026-09-12).
+17. **Spanish lessons are words and phrases only** (owner, 2026-10-25: "the
+    flashcards module for the spanish section should be all words and
+    phrases, no grammar"). No `G` card: the grammar is on the Exercises page.
+    Numbers, dates, the time and prices are word or phrase cards. An
+    irregular verb form worth practising goes in a short phrase in its
+    lesson's "verbforms" section, with one or two of the lesson's words that
+    no phrase uses yet, and English that leaves only one right Spanish form
+    ("Yesterday I put…"). Add the form to `irregularForms.js` if it isn't
+    there.
 
 ## Instruction lines
 

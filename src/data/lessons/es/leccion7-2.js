@@ -12,11 +12,9 @@
 // Spanish; see ../imperatif.js for why.
 //
 // Card shapes:
-//   "entender (presente) → yo" / "entiendo"     the paradigm; the line above comes from the shape
-//   "aprender → Nosotros ___ cocinar"            aprender a + a second verb (her ex. 8)
-//   "azul → Tiene los ojos ___"                  the adjective in the form that fits (ex. 3)
-//   "periodista → Mi esposa es ___"              a job after ser: no un / una
 //   two-way phrase (E) and word (V) cards for the profile and the ex. 7 list
+//   "¿Entiendes cuando lees en español?" / "Do you understand when you read in Spanish?"
+//                                                  an irregular verb form, in a phrase
 //
 // WHY THE ADJECTIVES AND JOBS ARE ON EXACT CARDS. Phrase cards are marked with
 // typo tolerance: "Es una médica" passes for "Es médica" in a long sentence,
@@ -101,20 +99,19 @@
 // flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
 // too"): the 6 cards that answered a question with yes or no in a full
 // sentence (sections "yes" and "no").
+//
+// Taken out on 2026-10-25, at the owner's word ("the flashcards module for the
+// spanish section should be all words and phrases, no grammar", "i have the
+// exercises for those"): every grammar card, 17 here, with their sections,
+// order and instruction lines. That is the drills, gaps and rewrites this
+// header describes. The grammar is practised on the Exercises page.
+//
+// Added: 3 phrases (section "verbforms"), one for each irregular verb form the
+// drills asked that no word or phrase card had, each with words of this lesson
+// that no phrase used yet, checked by an independent reader. On any Spanish
+// phrase, an irregular verb form must be typed exactly (irregularForms.js).
 
 export const CARDS = [
-  // ── 1. Entender (e → ie) and aprender (regular) in the present
-  ["entender (presente) → yo", "entiendo", "G", "forms"],
-  ["entender (presente) → tú", "entiendes", "G", "forms"],
-  ["entender (presente) → él/ella", "entiende", "G", "forms"],
-  ["entender (presente) → nosotros", "entendemos", "G", "forms"],
-  ["entender (presente) → ustedes", "entienden", "G", "forms"],
-  ["entender (presente) → ellos/ellas", "entienden", "G", "forms"],
-  ["aprender (presente) → yo", "aprendo", "G", "forms"],
-  ["aprender (presente) → tú", "aprendes", "G", "forms"],
-  ["aprender (presente) → nosotros", "aprendemos", "G", "forms"],
-  ["aprender (presente) → ellos/ellas", "aprenden", "G", "forms"],
-
   // ── Ex. 7: describing Valeria. Adjectives in the masculine; ex. 3 drills
   //    the other forms
   ["tímido", "shy (masc.)", "V", "describe"],
@@ -141,20 +138,15 @@ export const CARDS = [
   ["No entiendo la pregunta", "I don't understand the question", "E", "phrases"],
   ["Es rubia y tiene los ojos azules", "She is blond and has blue eyes / She's blond and she has blue eyes", "E", "phrases"],
 
-  // ── Aprender a + a second verb (her ex. 8, "We are learning to cook")
-  ["aprender → Nosotros ___ cocinar", "aprendemos a", "G", "aprendera"],
-
-  // ── 2 and ex. 3: the adjective takes the gender and number of its noun
-  ["inteligente → Sus hijos son muy ___", "inteligentes", "G", "agreement"],   // -e: plural -s
-  ["amable → Es una mujer muy ___", "amable", "G", "agreement"],               // -e: no change for a woman
-  ["azul → Tiene los ojos ___", "azules", "G", "agreement"],                   // consonant: plural -es
-  ["feliz → Los niños están ___", "felices", "G", "agreement"],                // -z → -ces
-  ["generoso → Valeria y su esposo son ___", "generosos", "G", "agreement"],  // a man and a woman: masculine plural
-
   // ── 3. Jobs: no un / una after ser, and the form for a woman
-  ["periodista → Mi esposa es ___", "periodista", "G", "jobs"],
   ["Su hija es médica", "Her daughter is a doctor / His daughter is a doctor", "E", "jobphrases"],
   ["Valeria es una médica amable y trabajadora", "Valeria is a kind and hard-working doctor", "E", "jobphrases"],
+
+  // ── Irregular verb forms, each in a short phrase with this lesson's words
+  //    (2026-10-25). The verb must be typed exactly: irregularForms.js.
+  ["¿Entiendes cuando lees en español?", "Do you understand when you read in Spanish? / Do you understand when you read Spanish? (tú)", "E", "verbforms"],
+  ["El paciente no entiende bien el español", "The patient doesn't understand Spanish well / The patient does not understand Spanish well", "E", "verbforms"],
+  ["¿Entienden la pregunta?", "Do you understand the question? / Do you guys understand the question? / Do they understand the question? (ustedes)", "E", "verbforms"],
 ];
 
 export const NOTES = [
@@ -260,27 +252,14 @@ export const LESSON = {
   source: "Adapted from the LFL METHOD by Laura Caufour",
   cards: CARDS,
   notes: NOTES,
-  // The order a student meets NEW cards in. The two verbs first; then the
-  // words for describing Valeria and the rest of her list, before the cards
-  // that need them (ex. 4 and 5 ask about cooking, reading and a shy
-  // sister); then aprender a and the yes / no answers, which practise the
-  // verbs; then the adjective forms, once the adjectives are known; jobs
-  // last, since they lean on the woman's form. Reviews are unaffected; FSRS
+  // The order a student meets NEW cards in. The grammar cards went on
+  // 2026-10-25, and what is left keeps the order it had: the sheet's own, each
+  // set of words before the phrases that use them, and the verb forms last, as
+  // their phrases use this lesson's words. Reviews are unaffected; FSRS
   // schedules those.
   teachingOrder: [
-    "forms",
-    "describe", "words", "phrases",
-    "aprendera",
-    "agreement",
-    "jobs", "jobphrases",
+    "describe", "words", "phrases", "jobphrases", "verbforms",
   ],
-  // The line above a grammar card saying what to type
-  // (src/lib/cardInstruction.js). The drills get theirs from their shape.
-  instructions: {
-    aprendera: "Fill the gap with aprender in the present, and the word that joins it to the next verb",
-    agreement: "Write the word given in the form that fits the sentence",
-    jobs: "Fill the gap with the job given, in the form that fits the sentence",
-  },
 };
 
 export default LESSON;
