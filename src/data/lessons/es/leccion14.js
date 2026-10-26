@@ -15,7 +15,6 @@
 //   "tener → Los niños ___ miedo"                   the verb given, in the imperfect (ex. 3)
 //   "hay → ___ cinco niños en la familia"           había, the same for one or many
 //   "llegar → Leía un libro cuando ___ mi hermano"  imperfect or preterite
-//   "¿Vivías en el campo cuando eras niño? → sí"    answer yes or no in a full sentence (ex. 4, 5)
 //   two-way word (V) and phrase (E) cards for the ex. 7 list, her ex. 8 and 9
 //
 // WHY IMPERFECT OR PRETERITE IS ON EXACT CARDS. A phrase card is marked with
@@ -80,6 +79,11 @@
 //     phrase.
 //
 // Checked 2026-10-22 by an independent reader: 2 fixes.
+//
+// Taken out on 2026-10-25, at the owner's word ("Yes, take the yes-or-no
+// flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
+// too"): the 5 cards that answered a question with yes or no in a full
+// sentence (sections "yes" and "no").
 
 export const CARDS = [
   // ── 1. The pattern: -aba for -ar verbs, -ía for -er and -ir verbs
@@ -151,13 +155,6 @@ export const CARDS = [
   // ── 3. Había: there was, there were
   ["hay → En esa época, no ___ tele en la casa", "había", "G", "habia"],
   ["hay → ___ cinco niños en la familia", "había", "G", "habia"],        // not habían
-
-  // ── Ex. 4 and 5: answer yes or no
-  ["¿Vivías en el campo cuando eras niño? → sí", "Sí, vivía en el campo cuando era niño / Sí, vivía en el campo cuando era niña / Vivía en el campo cuando era niño / Vivía en el campo cuando era niña / Sí, yo vivía en el campo cuando era niño / Sí, yo vivía en el campo cuando era niña / Yo vivía en el campo cuando era niño / Yo vivía en el campo cuando era niña / Sí, cuando era niño vivía en el campo / Sí, cuando era niña vivía en el campo / Sí, vivía en el campo / Vivía en el campo", "G", "yes"],
-  ["En esa época, ¿ustedes iban a la escuela a pie? → sí", "Sí, en esa época íbamos a la escuela a pie / Sí, íbamos a la escuela a pie / En esa época íbamos a la escuela a pie / Íbamos a la escuela a pie / Sí, en esa época nosotros íbamos a la escuela a pie / Sí, nosotros íbamos a la escuela a pie / Sí, en esa época nosotras íbamos a la escuela a pie / Sí, nosotras íbamos a la escuela a pie / En esa época nosotros íbamos a la escuela a pie / Nosotros íbamos a la escuela a pie / En esa época nosotras íbamos a la escuela a pie / Nosotras íbamos a la escuela a pie", "G", "yes"],
-  ["¿Te llevabas bien con tus hermanos? → sí", "Sí, me llevaba bien con mis hermanos / Me llevaba bien con mis hermanos / Sí, yo me llevaba bien con mis hermanos / Yo me llevaba bien con mis hermanos", "G", "yes"],
-  ["¿Había una tele en la casa? → no", "No, no había una tele en la casa / No, no había tele en la casa / No había una tele en la casa / No había tele en la casa / No, no había tele / No, no había", "G", "no"],
-  ["¿Tu mamá te leía un cuento antes de dormir? → no", "No, mi mamá no me leía un cuento antes de dormir / No, no me leía un cuento antes de dormir / No, ella no me leía un cuento antes de dormir / Mi mamá no me leía un cuento antes de dormir / No me leía un cuento antes de dormir / No, mi mamá no me leía cuentos antes de dormir / No, no me leía cuentos antes de dormir", "G", "no"],
 
   // ── 2. Imperfect or preterite: the action in progress, or the one that
   //    happens; the habit, or the one time
@@ -329,7 +326,6 @@ export const LESSON = {
     "forms", "irregular",
     "words",
     "gaps", "habia",
-    "yes", "no",
     "progress",
     "solo", "phrases",
   ],
@@ -338,8 +334,6 @@ export const LESSON = {
   instructions: {
     gaps: "Fill the gap with the verb in the imperfect",
     habia: "Fill the gap with hay in the imperfect",
-    yes: "Answer yes, in a full sentence",
-    no: "Answer no, in a full sentence",
     // Names both tenses: choosing between them is the point.
     progress: "Fill the gap with the verb in the imperfect or the preterite",
   },

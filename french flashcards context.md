@@ -2327,6 +2327,16 @@ Flashcards / Podcasts switch is French only; Spanish has no Podcasts (owner,
   de la, cuánta gente). Each is listed in its lesson's header and under
   "retired" in `tests/released-lesson-cards.json`. Word cards still give
   each noun with its article.
+- **No yes-or-no answer cards** (owner, 2026-10-25: "Yes, take the
+  yes-or-no flashcards like "¿Eres estadounidense? → Sí, …" out of the
+  Spanish lessons too", after the same exercises left Exercises): every card
+  whose front is a question and → sí or → no, 145 in 21 lessons, with their
+  sections (answers, yes, no, respuestas, negsi, todaviano and the like),
+  whatever else they practised (pronouns, todavía no, nunca). Cards that
+  only start with Sí or No ("verduras → No me gustan ___", the "no estoy de
+  acuerdo" reactions) stay. Each lesson's header says what went; the cards
+  are under "retired" in `tests/released-lesson-cards.json`. The notes on
+  answering yes and no stay. 1,629 Spanish cards are left.
 - **Drills** read "tener (presente) → yo" with the bare form as the answer,
   "tengo"; "yo tengo" is accepted too, "él fue" and "ella fue" for an
   él/ella drill, and the line says "Present tense, yo form"

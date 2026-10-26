@@ -17,8 +17,6 @@
 //   "qué o cuál → ¿___ es esto?"               pick the question word
 //   "cuánto → ¿___ gente hay en el restaurante?"   the question word in the form that fits
 //   "qué o lo que → Sí, eso es ___ quiero"     "what" in a question or not
-//   "¿No te levantas a las seis? → sí"         answer a negative question yes (her ex. 2)
-//   "¿No te gusta el café? → no"               ... and no
 //   two-way phrase (E) and word (V) cards for her examples and translations
 //
 // WHY THE CHOICES ARE EXACT CARDS. Phrase cards are marked with typo
@@ -96,6 +94,11 @@
 // masculine/fem matching it's too easy", then "remove the noun-gender cards
 // too"): "cuánto → ¿___ recámaras tiene el departamento?" and "cuánto →
 // ¿___ gente hay en el restaurante?", which only made cuánto feminine.
+//
+// Taken out on 2026-10-25, at the owner's word ("Yes, take the yes-or-no
+// flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
+// too"): the 10 cards that answered a question with yes or no in a full
+// sentence (sections "negsi" and "negno").
 
 export const CARDS = [
   // ── 1. The register: only the verb changes (and te becomes le)
@@ -158,21 +161,6 @@ export const CARDS = [
 
   // ── 5. Answering with an opinion
   ["Creo que sí", "I think so", "E", "respuestas"],
-
-  // ── Ex. 2 (and ex. 7): answer a negative question yes. One card per thing
-  //    it adds; the second sí is optional, the verb is repeated
-  ["¿No te levantas a las seis? → sí", "Sí, sí me levanto a las seis / Sí, me levanto a las seis / Sí, yo sí me levanto a las seis / Yo sí me levanto a las seis / Me levanto a las seis / Sí, sí me levanto", "G", "negsi"],
-  ["¿Ustedes no se ven mucho? → sí", "Sí, sí nos vemos mucho / Sí, nos vemos mucho / Sí, nosotros sí nos vemos mucho / Nosotros sí nos vemos mucho / Nos vemos mucho / Sí, sí nos vemos", "G", "negsi"],
-  ["¿La gente no entendió por qué? → sí", "Sí, sí entendió por qué / Sí, entendió por qué / Sí, la gente sí entendió por qué / La gente sí entendió por qué / Sí, la gente entendió por qué / La gente entendió por qué / Sí, sí entendió", "G", "negsi"],
-  ["¿No vas a volver a hablarle? → sí", "Sí, sí voy a volver a hablarle / Sí, sí le voy a volver a hablar / Sí, voy a volver a hablarle / Sí, le voy a volver a hablar / Voy a volver a hablarle / Le voy a volver a hablar", "G", "negsi"],
-  ["¿No hay un restaurante cerca de aquí? → sí", "Sí, sí hay un restaurante cerca de aquí / Sí, hay un restaurante cerca de aquí / Hay un restaurante cerca de aquí / Sí, sí hay uno cerca de aquí / Sí, hay uno cerca de aquí / Sí, sí hay uno / Sí, hay uno / Sí, sí hay", "G", "negsi"],
-  ["¿No pusiste los libros en la mesa? → sí", "Sí, sí puse los libros en la mesa / Sí, puse los libros en la mesa / Puse los libros en la mesa / Sí, yo sí puse los libros en la mesa / Sí, sí los puse en la mesa / Sí, los puse en la mesa / Sí, sí los puse / Sí, los puse", "G", "negsi"],
-  ["¿No fuiste de vacaciones este año? → sí", "Sí, sí fui / Sí, fui / Sí, sí fui de vacaciones / Sí, fui de vacaciones / Sí, sí fui de vacaciones este año / Sí, fui de vacaciones este año / Fui de vacaciones este año", "G", "negsi"],
-
-  // ── Answer a negative question no: no twice
-  ["¿No te gusta el café? → no", "No, no me gusta / No, no me gusta el café / No me gusta / No me gusta el café", "G", "negno"],
-  ["¿No trabajas los sábados? → no", "No, no trabajo los sábados / No, no trabajo / No trabajo los sábados / No, yo no trabajo los sábados", "G", "negno"],
-  ["¿Ustedes no quieren ir a Australia este verano? → no", "No, no queremos ir a Australia este verano / No, no queremos ir a Australia / No, no queremos ir / No, no queremos / No queremos ir a Australia este verano / No, nosotros no queremos ir a Australia este verano", "G", "negno"],
 ];
 
 // The notes: the lesson's five sections, in English, rebuilt to the notes
@@ -346,7 +334,6 @@ export const LESSON = {
     "quecual", "forma",
     "loque", "loquefrases",
     "negativas", "respuestas",
-    "negsi", "negno",
   ],
   // The line above a grammar card saying what to type (src/lib/cardInstruction.js).
   // Phrase and word cards are translations and carry no line.
@@ -356,8 +343,6 @@ export const LESSON = {
     quecual: "Fill the gap with the choice that fits",
     forma: "Fill the gap with the word given, in the form that fits",
     loque: "Fill the gap with the choice that fits",
-    negsi: "Answer yes, repeating the verb",
-    negno: "Answer no, repeating the verb",
   },
 };
 

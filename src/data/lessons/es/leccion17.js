@@ -16,7 +16,6 @@
 //   "oír (presente) → yo"                          the verb tables; the line above comes from the shape
 //   "Quiero mucho a mi abuela → con pronombre"     replace the person or thing (her ex. 4 and 8)
 //   "Le di el libro a Natalia → con dos pronombres"   replace both (her ex. 10)
-//   "¿Ves mucho a tus papás? → sí"                 answer yes with pronouns (her ex. 5, 9 and 11)
 //   two-way phrase (E) and word (V) cards for the dialogue and her translations
 //
 // WHY LO / LE IS ONLY ON EXACT CARDS. Phrase cards are marked with typo
@@ -80,6 +79,11 @@
 // Then the two se lo answers ("¿Le dijiste eso a tu jefe? → sí", "¿Le
 // preguntaste la hora al mesero? → sí") got a section of their own,
 // respuestasdos, dealt after the two-pronoun cards that teach se lo.
+//
+// Taken out on 2026-10-25, at the owner's word ("Yes, take the yes-or-no
+// flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
+// too"): the 15 cards that answered a question with yes or no in a full
+// sentence (sections "respuestas", "respuestasdos" and "metenos").
 
 export const CARDS = [
   // ── 1. Recibir: regular, like vivir
@@ -134,25 +138,6 @@ export const CARDS = [
   ["Estoy buscando mis lentes → con pronombre", "Los estoy buscando / Estoy buscándolos", "G", "pronombre"],
   ["Hay que hacer los ejercicios hoy → con pronombre", "Hay que hacerlos hoy", "G", "pronombre"],
   ["Les hablo a mis papás todos los días por teléfono → con pronombre", "Les hablo todos los días por teléfono", "G", "pronombre"], // les is already there
-
-  // ── Ex. 5, 9: answer yes with lo, la, los, las, le, les or se
-  ["¿Viste a tu abuela antes de salir? → sí", "Sí, la vi antes de salir / Sí, la vi / La vi antes de salir / La vi", "G", "respuestas"],
-  ["¿Tu jefe entendió tu explicación? → sí", "Sí, la entendió / Sí, mi jefe la entendió / La entendió / Mi jefe la entendió", "G", "respuestas"],
-  ["¿Vas a ver a tu hermana en dos semanas? → sí", "Sí, la voy a ver en dos semanas / Sí, voy a verla en dos semanas / Sí, la voy a ver / Sí, voy a verla / La voy a ver en dos semanas / Voy a verla en dos semanas", "G", "respuestas"],
-  ["¿Ustedes esperaron a los niños en la escuela? → sí", "Sí, los esperamos en la escuela / Sí, los esperamos / Los esperamos en la escuela / Los esperamos / Sí, nosotros los esperamos en la escuela / Sí, nosotras los esperamos en la escuela", "G", "respuestas"],
-  ["¿Oíste a los niños en la noche? → sí", "Sí, los oí en la noche / Sí, los oí / Los oí en la noche / Los oí", "G", "respuestas"],
-  ["¿Ves mucho a tus papás? → sí", "Sí, los veo mucho / Los veo mucho", "G", "respuestas"],
-  ["¿Les escribes mucho a tus papás? → sí", "Sí, les escribo mucho / Les escribo mucho", "G", "respuestas"],
-  ["¿Les hablaste a tus abuelos hoy? → sí", "Sí, les hablé hoy / Sí, les hablé / Les hablé hoy / Les hablé", "G", "respuestas"],
-  ["¿Le contestaste a tu jefe? → sí", "Sí, le contesté / Le contesté", "G", "respuestas"],
-  ["¿Le dijiste eso a tu jefe? → sí", "Sí, se lo dije / Se lo dije", "G", "respuestasdos"],
-  ["¿Le preguntaste la hora al mesero? → sí", "Sí, se la pregunté / Se la pregunté", "G", "respuestasdos"],
-
-  // ── Ex. 11: me, te and nos swap in the answer
-  ["¿Me oyes? → sí", "Sí, te oigo / Te oigo", "G", "metenos"],
-  ["¿Nos ves? → sí", "Sí, los veo / Sí, las veo / Los veo / Las veo", "G", "metenos"],
-  ["¿El profesor les contestó a ustedes? → sí", "Sí, nos contestó / Sí, el profesor nos contestó / Nos contestó / El profesor nos contestó", "G", "metenos"],
-  ["¿Jessica te creyó? → sí", "Sí, me creyó / Sí, Jessica me creyó / Me creyó / Jessica me creyó", "G", "metenos"],
 
   // ── 5. Two pronouns (her ex. 10): the person first, and le, les → se
   ["Mi mamá me compró estos lentes → con dos pronombres", "Mi mamá me los compró / Me los compró mi mamá", "G", "dos"],
@@ -352,8 +337,7 @@ export const LESSON = {
     "recibir", "oir",
     "vocab", "verbos",
     "pronombre",
-    "respuestas", "metenos",
-    "dos", "respuestasdos",
+    "dos",
     "dialogo",
   ],
   // The line above a grammar card saying what to type (src/lib/cardInstruction.js).
@@ -361,11 +345,7 @@ export const LESSON = {
   // translations and carry no line.
   instructions: {
     pronombre: "Rewrite it with a pronoun instead of the person or thing",
-    respuestas: "Answer yes, with pronouns instead of the people and things",
-    metenos: "Answer yes, in a full sentence",
     dos: "Rewrite it with two pronouns, one for the thing and one for the person",
-    // The two se lo answers, dealt after the cards that teach se lo.
-    respuestasdos: "Answer yes, with pronouns instead of the people and things",
   },
 };
 

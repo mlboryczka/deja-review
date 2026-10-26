@@ -23,7 +23,6 @@
 //   "ser o estar → Lucía ___ en Los Ángeles"       choose the verb, then give its form (ex. 2)
 //   "estar o ir → Mis hijos ___ en la playa"       the same, for a and en (ex. 1 nos. 12–13)
 //   "Estoy cansado → con ir a"                     rewrite in the near future
-//   "¿Vas al restaurante? → Sí, …"                 answer yes in a full sentence (ex. 3)
 //   "3 → en letras" / "tres"                       the numbers
 //   "un hijo → dos", "la ciudad → en plural"       plural nouns
 //   "por qué o porque → ¿___ está cansada?"        why or because
@@ -122,6 +121,11 @@
 // Cut from the sheet as helping no card: "Listen to the audio!" (numbers),
 // "The final s is always pronounced" (plurals), and the accent on por qué,
 // which the marker ignores (the space is what the cards check).
+//
+// Taken out on 2026-10-25, at the owner's word ("Yes, take the yes-or-no
+// flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
+// too"): the 6 cards that answered a question with yes or no in a full
+// sentence (section "answers").
 
 export const CARDS = [
   // ── 1. Estar and ir in the present
@@ -199,14 +203,6 @@ export const CARDS = [
   ["Voy a la playa → con ir a", "Voy a ir a la playa / Yo voy a ir a la playa", "G", "future"],
   ["¿Qué vas a hacer hoy?", "What are you going to do today? (tú)", "E", "futurephrases"],
   ["Voy a cenar en el restaurante", "I'm going to have dinner at the restaurant / I am going to have dinner at the restaurant / I'm going to eat dinner at the restaurant", "E", "futurephrases"],
-
-  // ── Ex. 3: answer yes. One card per switch of person
-  ["¿Vas al restaurante? → Sí, …", "Sí, voy al restaurante / Sí, yo voy al restaurante / Voy al restaurante / Yo voy al restaurante", "G", "answers"],
-  ["¿Ustedes van a Guadalajara juntos? → Sí, …", "Sí, vamos a Guadalajara juntos / Sí, vamos juntos a Guadalajara / Sí, vamos a Guadalajara / Sí, nosotros vamos a Guadalajara juntos / Sí, nosotros vamos juntos a Guadalajara / Sí, nosotros vamos a Guadalajara / Vamos a Guadalajara juntos / Vamos juntos a Guadalajara / Vamos a Guadalajara / Nosotros vamos a Guadalajara juntos / Nosotros vamos juntos a Guadalajara / Nosotros vamos a Guadalajara", "G", "answers"],
-  ["¿Estás cansado? → Sí, …", "Sí, estoy cansado / Sí, estoy cansada / Sí, yo estoy cansado / Sí, yo estoy cansada / Estoy cansado / Estoy cansada / Yo estoy cansado / Yo estoy cansada", "G", "answers"],
-  ["¿Jessica está en Los Ángeles? → Sí, …", "Sí, está en Los Ángeles / Sí, ella está en Los Ángeles / Sí, Jessica está en Los Ángeles / Está en Los Ángeles / Ella está en Los Ángeles / Jessica está en Los Ángeles", "G", "answers"],
-  ["¿Vas a ir a la playa con tus hijos? → Sí, …", "Sí, voy a ir a la playa con mis hijos / Sí, yo voy a ir a la playa con mis hijos / Voy a ir a la playa con mis hijos / Yo voy a ir a la playa con mis hijos", "G", "answers"],
-  ["¿Tus hijos van a aprender español? → Sí, …", "Sí, mis hijos van a aprender español / Sí, van a aprender español / Sí, ellos van a aprender español / Mis hijos van a aprender español / Van a aprender español / Ellos van a aprender español", "G", "answers"],
 
   // ── 5. Numbers 1 to 5
   ["1 → en letras", "uno / un / una", "G", "numbers"],
@@ -411,7 +407,7 @@ export const LESSON = {
     "words",
     "estarphrases", "serestar",
     "irphrases", "estaroir",
-    "future", "futurephrases", "answers",
+    "future", "futurephrases",
     "numbers", "pluralnum", "plural",
     "why",
   ],
@@ -424,7 +420,6 @@ export const LESSON = {
     serestar: "Fill the gap with ser or estar in the present tense",
     estaroir: "Fill the gap with estar or ir in the present tense",
     future: "Put this in the near future (ir a + infinitive)",
-    answers: "Answer yes, in a full sentence",
     numbers: "Write this number in Spanish, in words",
     pluralnum: "Write it in the plural, with this number",
     plural: "Write it in the plural",

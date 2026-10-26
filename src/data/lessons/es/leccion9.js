@@ -18,7 +18,6 @@
 //   "hacer (presente) → yo" / "hago"          drill; its line comes from its shape
 //   "tener (pretérito) → yo" / "tuve"         the same, in the preterite
 //   "venir → Mis papás ___ a Oaxaca…"         the cue verb, in the preterite, goes in the gap (ex. 3)
-//   "¿Ustedes fueron a México? → Sí, …"       answer yes in a full sentence (ex. 4 and 5)
 //   "a, de o nada → Trato ___ hablar…"        the word between two verbs (ex. 7); "nada" when
 //                                             nothing goes there, as the sheet's own "nada (—)"
 //   "76 → en letras" / "setenta y seis"
@@ -107,6 +106,11 @@
 //     "infinitivo").
 //   - Numbers: "Between the tens and the units, write y", which the sheet
 //     shows only in its table.
+//
+// Taken out on 2026-10-25, at the owner's word ("Yes, take the yes-or-no
+// flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
+// too"): the 6 cards that answered a question with yes or no in a full
+// sentence (section "answers").
 
 export const CARDS = [
   // ── New verbs, before they are conjugated
@@ -183,14 +187,6 @@ export const CARDS = [
   ["encontrar", "to find", "V", "vocab"],
   ["volver", "to come back / to return (not regresar)", "V", "vocab"],
   ["Acabo de llegar", "I've just arrived / I just arrived / I have just arrived", "E", "vocab"],
-
-  // ── Ex. 4 and 5: answer yes. One card per switch of person
-  ["¿Ustedes fueron a México? → Sí, …", "Sí, fuimos a México / Sí, nosotros fuimos a México / Fuimos a México / Nosotros fuimos a México", "G", "answers"],
-  ["¿Ustedes vinieron con sus hijos? → Sí, …", "Sí, vinimos con nuestros hijos / Sí, nosotros vinimos con nuestros hijos / Vinimos con nuestros hijos / Nosotros vinimos con nuestros hijos", "G", "answers"],
-  ["¿A ustedes les encantó el país? → Sí, …", "Sí, nos encantó el país / Sí, a nosotros nos encantó el país / Sí, nos encantó / Nos encantó el país / A nosotros nos encantó el país", "G", "answers"],
-  ["¿Haces algo esta noche? → Sí, …", "Sí, hago algo esta noche / Sí, esta noche hago algo / Sí, yo hago algo esta noche / Hago algo esta noche / Esta noche hago algo / Yo hago algo esta noche", "G", "answers"],
-  ["¿Estuviste en Oaxaca el año pasado? → Sí, …", "Sí, estuve en Oaxaca el año pasado / Sí, el año pasado estuve en Oaxaca / Sí, yo estuve en Oaxaca el año pasado / Estuve en Oaxaca el año pasado / El año pasado estuve en Oaxaca / Yo estuve en Oaxaca el año pasado", "G", "answers"],
-  ["¿Te gustó la cultura mexicana? → Sí, …", "Sí, me gustó la cultura mexicana / Sí, a mí me gustó la cultura mexicana / Sí, me gustó / Me gustó la cultura mexicana / A mí me gustó la cultura mexicana", "G", "answers"],
 
   // ── Ex. 7: a, de or nothing between two verbs
   ["a, de o nada → Empecé ___ tomar clases en 2012", "a", "G", "verbverb"],
@@ -360,7 +356,7 @@ export const LESSON = {
   teachingOrder: [
     "verbs", "hacer", "go",
     "hacerpast", "past", "serir", "gaps",
-    "vocab", "answers", "verbverb", "phrases",
+    "vocab", "verbverb", "phrases",
     "numbers",
   ],
   // The line above a grammar card saying what to type (src/lib/cardInstruction.js).
@@ -370,7 +366,6 @@ export const LESSON = {
   // nada here would put an answer in the line.
   instructions: {
     gaps: "Fill the gap with the verb in the preterite",
-    answers: "Answer yes, in a full sentence",
     verbverb: "Fill the gap with the right one of the three",
     numbers: "Write this number in Spanish, in words",
   },

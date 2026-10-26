@@ -18,7 +18,6 @@
 //   "saber (presente) → yo" / "sé"            drill; its line comes from its shape
 //   "bueno → un amigo" / "un buen amigo"      put the adjective in its place (ex. 2)
 //   "grande → una casa" / "una casa grande"   grande in the place for the meaning the line gives
-//   "¿Sabes cocinar? → Sí, …"                 answer yes in a full sentence (ex. 3)
 //   "viajar" / "to travel"                    words and phrases, both ways round
 //
 // WHY THE ADJECTIVE'S PLACE IS ON EXACT CARDS. On a word or phrase card the
@@ -105,6 +104,11 @@
 // others.
 //
 // Checked 2026-10-22 by an independent reader: 7 fixes
+//
+// Taken out on 2026-10-25, at the owner's word ("Yes, take the yes-or-no
+// flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
+// too"): the 4 cards that answered a question with yes or no in a full
+// sentence (section "yes").
 
 export const CARDS = [
   // ── Her word list (ex. 5), first: the profile and the cards are made of it
@@ -147,10 +151,6 @@ export const CARDS = [
   ["saber (presente) → ellos/ellas", "saben", "G", "saber"],
 
   // Ex. 3, asked as answer yes: tú → yo
-  ["¿Sabes cocinar? → Sí, …", "Sí, sé cocinar / Sí, yo sé cocinar / Sé cocinar / Yo sé cocinar", "G", "yes"],
-  ["¿Sabes dónde está el Zócalo? → Sí, …", "Sí, sé dónde está el Zócalo / Sí, yo sé dónde está el Zócalo / Sí, sé dónde está / Sí, yo sé dónde está / Sé dónde está el Zócalo / Yo sé dónde está el Zócalo / Sé dónde está / Yo sé dónde está", "G", "yes"],
-  ["¿Tomas mucho el metro? → Sí, …", "Sí, tomo mucho el metro / Sí, yo tomo mucho el metro / Sí, lo tomo mucho / Sí, yo lo tomo mucho / Tomo mucho el metro / Yo tomo mucho el metro / Lo tomo mucho / Yo lo tomo mucho", "G", "yes"],
-  ["¿Estás de buen humor hoy? → Sí, …", "Sí, estoy de buen humor hoy / Sí, hoy estoy de buen humor / Sí, estoy de buen humor / Sí, yo estoy de buen humor hoy / Sí, yo estoy de buen humor / Estoy de buen humor hoy / Hoy estoy de buen humor / Estoy de buen humor / Yo estoy de buen humor hoy / Yo estoy de buen humor", "G", "yes"],
 
   // ── 2. Where the adjective goes (ex. 2): after the noun, then the ones
   //    that go before it, one card per rule
@@ -275,14 +275,13 @@ export const LESSON = {
   // adjective goes, then grande (great, then big) and the gran idea phrase.
   teachingOrder: [
     "words", "phrases",
-    "saber", "yes",
+    "saber",
     "place", "great", "big", "grande",
   ],
   // The line shown above a grammar card saying what to type
   // (src/lib/cardInstruction.js). The saber drill gets its line from its
   // shape; words and phrases carry none.
   instructions: {
-    yes: "Answer yes, in a full sentence",
     place: "Add the adjective to the phrase, in its usual place and form, changing anything else that has to change",
     great: "Add grande to the phrase, so that it means great",
     big: "Add grande to the phrase, so that it means big",

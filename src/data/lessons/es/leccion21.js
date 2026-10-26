@@ -14,8 +14,6 @@
 //   "comer (pretérito perfecto) → tú" / "has comido"  haber + participle, same shape
 //   "hacer → participio" / "hecho"                    the irregular participles
 //   "ir → ¿Tú ya ___ al médico?"                      preterite or haber + participle?
-//   "¿Ya comiste? → no"                               answer no with todavía no (her ex. 3)
-//   "¿Alguna vez has estado en Francia? → no"         answer no with nunca (her ex. 4)
 //   "Nadie contestó → con no"                         the same sentence with no before the verb
 //   "alguien o nadie → No vi a ___ en el gimnasio"    pick the word (her ex. 6)
 //   "doler → ¿A ti ___ los pies?"                     pronoun + duele / duelen (her ex. 7)
@@ -87,6 +85,11 @@
 //     nunca), with or without No, and with or without yo.
 //   - Her ex. 7 last item is in the preterite on the sheet, so its line asks
 //     for the preterite and "le dolía" is not accepted.
+//
+// Taken out on 2026-10-25, at the owner's word ("Yes, take the yes-or-no
+// flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
+// too"): the 8 cards that answered a question with yes or no in a full
+// sentence (sections "todaviano" and "nunca").
 
 export const CARDS = [
   // ── 1. Responder: regular -er, like comer
@@ -156,18 +159,6 @@ export const CARDS = [
   ["¿Ya fuiste a la farmacia?", "Have you been to the pharmacy yet? / Did you go to the pharmacy yet? (tú, with ya)", "E", "yafrases"],
   ["¿Todavía estás resfriado?", "Do you still have a cold? (tú)", "E", "yafrases"],
   ["alguna vez", "ever (in a question)", "V", "yafrases"],
-
-  // ── Ex. 3: answer no with todavía no
-  ["¿Ya comiste? → no", "No, todavía no he comido / Todavía no he comido / No, yo todavía no he comido / Yo todavía no he comido / No, no he comido todavía / No he comido todavía / No, yo no he comido todavía / Yo no he comido todavía", "G", "todaviano"],
-  ["¿Ya hiciste la cita con el médico? → no", "No, todavía no he hecho la cita con el médico / Todavía no he hecho la cita con el médico / No, yo todavía no he hecho la cita con el médico / Yo todavía no he hecho la cita con el médico / No, no he hecho la cita con el médico todavía / No he hecho la cita con el médico todavía / No, yo no he hecho la cita con el médico todavía / Yo no he hecho la cita con el médico todavía / No, todavía no he hecho la cita / Todavía no he hecho la cita", "G", "todaviano"],
-  ["¿Ya le escribiste a tu mamá? → no", "No, todavía no le he escrito a mi mamá / Todavía no le he escrito a mi mamá / No, yo todavía no le he escrito a mi mamá / Yo todavía no le he escrito a mi mamá / No, no le he escrito a mi mamá todavía / No le he escrito a mi mamá todavía / No, yo no le he escrito a mi mamá todavía / Yo no le he escrito a mi mamá todavía / No, todavía no le he escrito / Todavía no le he escrito", "G", "todaviano"],
-  ["¿Ya tomaste tus medicinas? → no", "No, todavía no he tomado mis medicinas / Todavía no he tomado mis medicinas / No, yo todavía no he tomado mis medicinas / Yo todavía no he tomado mis medicinas / No, no he tomado mis medicinas todavía / No he tomado mis medicinas todavía / No, yo no he tomado mis medicinas todavía / Yo no he tomado mis medicinas todavía", "G", "todaviano"],
-
-  // ── Ex. 4: answer no with nunca
-  ["¿Alguna vez has visto la película Coco? → no", "No, nunca he visto la película Coco / Nunca he visto la película Coco / No, yo nunca he visto la película Coco / Yo nunca he visto la película Coco / No, no he visto nunca la película Coco / No he visto nunca la película Coco / No, yo no he visto nunca la película Coco / No, no he visto la película Coco nunca / No he visto la película Coco nunca / No, nunca he visto Coco / Nunca he visto Coco", "G", "nunca"],
-  ["¿Alguna vez te has puesto a dieta? → no", "No, nunca me he puesto a dieta / Nunca me he puesto a dieta / No, yo nunca me he puesto a dieta / Yo nunca me he puesto a dieta / No, no me he puesto nunca a dieta / No me he puesto nunca a dieta / No, yo no me he puesto nunca a dieta / No, no me he puesto a dieta nunca / No me he puesto a dieta nunca", "G", "nunca"],
-  ["¿Alguna vez le has dicho una mentira a tu mamá? → no", "No, nunca le he dicho una mentira a mi mamá / Nunca le he dicho una mentira a mi mamá / No, yo nunca le he dicho una mentira a mi mamá / Yo nunca le he dicho una mentira a mi mamá / No, no le he dicho nunca una mentira a mi mamá / No le he dicho nunca una mentira a mi mamá / No, yo no le he dicho nunca una mentira a mi mamá / No, nunca le he dicho una mentira / Nunca le he dicho una mentira", "G", "nunca"],
-  ["¿Alguna vez has estado en Francia? → no", "No, nunca he estado en Francia / Nunca he estado en Francia / No, yo nunca he estado en Francia / Yo nunca he estado en Francia / No, no he estado nunca en Francia / No he estado nunca en Francia / No, yo no he estado nunca en Francia / No, no he estado en Francia nunca / No he estado en Francia nunca", "G", "nunca"],
 
   // ── 5. Nunca, nada, nadie: before the verb alone, or after it with no
   ["Nunca voy al cine → con no", "No voy nunca al cine / No voy al cine nunca", "G", "conno"],
@@ -392,7 +383,6 @@ export const LESSON = {
     "responder", "irse", "irsefrases",
     "salud",
     "perfecto", "participios", "cuando", "yafrases",
-    "todaviano", "nunca",
     "conno", "negacion", "negfrases",
     "doler", "dolerpast", "cuerpo", "dolerfrases",
   ],
@@ -401,8 +391,6 @@ export const LESSON = {
   // their shape. Phrase and word cards carry no line.
   instructions: {
     cuando: "Fill the gap with the verb given, in the preterite or with haber",
-    todaviano: "Answer no with todavía no and haber, in a full sentence without lo, la, los or las",
-    nunca: "Answer no with nunca and haber, in a full sentence without lo, la, los or las",
     conno: "Write the same sentence with no before the verb",
     negacion: "Fill the gap with one of the two words given",
     doler: "Fill the gap with doler in the present, and the pronoun before it",

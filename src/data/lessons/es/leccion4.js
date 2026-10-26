@@ -19,9 +19,7 @@
 // Card shapes:
 //   "trabajar (presente) → yo" / "trabajo"             paradigm drill; its line comes from its shape
 //   "vivir → Mis papás ___ cerca de Nueva York"        the verb given, in the present (ex. 1)
-//   "¿Hablas español? → Sí, …"                         answer yes in a full sentence (ex. 2)
 //   "mi o mis → ___ papás viven en Montauk"            pick the possessive (ex. 5)
-//   "¿Tu hermano vive en Nueva York? → Sí, …"          answer yes keeping the noun (ex. 3)
 //   "12 → en letras" / "doce"
 //   "un hermano" / "a brother"                         words and phrases, both ways round
 //
@@ -118,6 +116,11 @@
 // masculine/fem matching it's too easy"): the two
 // "nuestro, nuestra, nuestros o nuestras" gap cards (nuestra hermana,
 // nuestros hijos), whose noun shows the form.
+//
+// Taken out on 2026-10-25, at the owner's word ("Yes, take the yes-or-no
+// flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
+// too"): the 8 cards that answered a question with yes or no in a full
+// sentence (sections "ex2" and "ex3").
 
 export const CARDS = [
   // ── The verbs (ex. 4, and comer), before they are conjugated
@@ -160,12 +163,6 @@ export const CARDS = [
   ["aprender → ¿Ustedes ___ español?", "aprenden", "G", "ex1"],
   ["vivir → Mis papás ___ cerca de Nueva York", "viven", "G", "ex1"],
 
-  // ── Ex. 2: the answer changes person (tú → yo, ustedes → nosotros)
-  ["¿Hablas español? → Sí, …", "Sí, hablo español / Sí, yo hablo español / Hablo español / Yo hablo español", "G", "ex2"],
-  ["¿Ustedes surfean juntos? → Sí, …", "Sí, surfeamos juntos / Sí, nosotros surfeamos juntos / Surfeamos juntos / Nosotros surfeamos juntos", "G", "ex2"],
-  ["¿Ellas viven en Guadalajara? → Sí, …", "Sí, viven en Guadalajara / Sí, ellas viven en Guadalajara / Viven en Guadalajara / Ellas viven en Guadalajara", "G", "ex2"],
-  ["¿James y Jessica caminan mucho? → Sí, …", "Sí, caminan mucho / Sí, ellos caminan mucho / Sí, James y Jessica caminan mucho / Caminan mucho / Ellos caminan mucho / James y Jessica caminan mucho", "G", "ex2"],
-
   // ── The family (ex. 4), before the possessives
   ["una familia", "a family", "V", "family"],
   ["una mamá / una madre", "a mom / a mother / a mum", "V", "family"],
@@ -184,12 +181,6 @@ export const CARDS = [
   ["tu o tus → ¿Cómo se llama la esposa de ___ hermano?", "tu", "G", "possessives"],
   ["su o sus → Es mi hermano John con ___ esposa", "su", "G", "possessives"],
   ["su o sus → Es mi hermano John con ___ dos hijos", "sus", "G", "possessives"],
-
-  // ── Ex. 3: answer yes, so tu becomes mi and tus becomes mis
-  ["¿Tu hermano vive en Nueva York? → Sí, …", "Sí, mi hermano vive en Nueva York / Mi hermano vive en Nueva York", "G", "ex3"],
-  ["¿Tu mamá camina mucho? → Sí, …", "Sí, mi mamá camina mucho / Mi mamá camina mucho", "G", "ex3"],
-  ["¿Tus papás están jubilados? → Sí, …", "Sí, mis papás están jubilados / Mis papás están jubilados", "G", "ex3"],
-  ["¿Invitas mucho a tus papás? → Sí, …", "Sí, invito mucho a mis papás / Sí, yo invito mucho a mis papás / Invito mucho a mis papás / Yo invito mucho a mis papás", "G", "ex3"],
 
   // ── Numbers 11 to 15
   ["11 → en letras", "once", "G", "numbers"],
@@ -318,8 +309,8 @@ export const LESSON = {
   // phrases come last; the phrases lean on them (Es enfermera after una
   // enfermera). Reviews are unaffected; FSRS schedules those.
   teachingOrder: [
-    "verbs", "present", "ex1", "ex2",
-    "family", "possessives", "ex3",
+    "verbs", "present", "ex1",
+    "family", "possessives",
     "numbers",
     "words", "phrases",
   ],
@@ -329,10 +320,6 @@ export const LESSON = {
   // listed. Vocabulary and phrases are two-way and carry no line.
   instructions: {
     ex1: "Fill the gap with the verb given, in the present tense",
-    ex2: "Answer yes, in a full sentence",
-    // Asks for the noun because "Sí, vive en Nueva York" is right but
-    // skips the possessive the card is for.
-    ex3: "Answer yes in full, keeping the noun (not él, ella…)",
     possessives: "Fill the gap with the form that fits the noun",
     numbers: "Write this number in Spanish, in words",
   },

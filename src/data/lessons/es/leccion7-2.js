@@ -14,8 +14,6 @@
 // Card shapes:
 //   "entender (presente) → yo" / "entiendo"     the paradigm; the line above comes from the shape
 //   "aprender → Nosotros ___ cocinar"            aprender a + a second verb (her ex. 8)
-//   "¿Entiendes la pregunta? → sí"               answer yes in a full sentence (ex. 4)
-//   "¿Entiendes la pregunta? → no"               answer no in a full sentence (ex. 5)
 //   "azul → Tiene los ojos ___"                  the adjective in the form that fits (ex. 3)
 //   "periodista → Mi esposa es ___"              a job after ser: no un / una
 //   two-way phrase (E) and word (V) cards for the profile and the ex. 7 list
@@ -98,6 +96,11 @@
 // and the job cards médica and profesora. The ex. 3 cards left are the ones
 // where the ending doesn't simply follow the woman: inteligentes, amable,
 // azules, felices and generosos.
+//
+// Taken out on 2026-10-25, at the owner's word ("Yes, take the yes-or-no
+// flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
+// too"): the 6 cards that answered a question with yes or no in a full
+// sentence (sections "yes" and "no").
 
 export const CARDS = [
   // ── 1. Entender (e → ie) and aprender (regular) in the present
@@ -140,16 +143,6 @@ export const CARDS = [
 
   // ── Aprender a + a second verb (her ex. 8, "We are learning to cook")
   ["aprender → Nosotros ___ cocinar", "aprendemos a", "G", "aprendera"],
-
-  // ── Ex. 4: answer yes. One card per switch of person
-  ["¿Entiendes la pregunta? → sí", "Sí, entiendo la pregunta / Entiendo la pregunta / Sí, yo entiendo la pregunta / Yo entiendo la pregunta", "G", "yes"],
-  ["¿Ustedes cocinan juntos? → sí", "Sí, cocinamos juntos / Cocinamos juntos / Sí, nosotros cocinamos juntos / Nosotros cocinamos juntos / Sí, cocinamos juntas / Cocinamos juntas / Sí, nosotras cocinamos juntas / Nosotras cocinamos juntas", "G", "yes"],
-  ["¿Aprendes bien tus lecciones? → sí", "Sí, aprendo bien mis lecciones / Aprendo bien mis lecciones / Sí, yo aprendo bien mis lecciones / Yo aprendo bien mis lecciones / Sí, aprendo mis lecciones bien / Aprendo mis lecciones bien / Sí, yo aprendo mis lecciones bien / Yo aprendo mis lecciones bien", "G", "yes"],
-
-  // ── Ex. 5: answer no, saying no twice
-  ["¿Entiendes la pregunta? → no", "No, no entiendo la pregunta / No entiendo la pregunta / No, yo no entiendo la pregunta / Yo no entiendo la pregunta", "G", "no"],
-  ["¿Valeria es estadounidense? → no", "No, no es estadounidense / No es estadounidense / No, Valeria no es estadounidense / Valeria no es estadounidense / No, ella no es estadounidense / Ella no es estadounidense", "G", "no"],
-  ["¿Su hermana es muy tímida? → no", "No, no es muy tímida / No es muy tímida / No, su hermana no es muy tímida / Su hermana no es muy tímida / No, mi hermana no es muy tímida / Mi hermana no es muy tímida / No, ella no es muy tímida / Ella no es muy tímida", "G", "no"],
 
   // ── 2 and ex. 3: the adjective takes the gender and number of its noun
   ["inteligente → Sus hijos son muy ___", "inteligentes", "G", "agreement"],   // -e: plural -s
@@ -277,7 +270,7 @@ export const LESSON = {
   teachingOrder: [
     "forms",
     "describe", "words", "phrases",
-    "aprendera", "yes", "no",
+    "aprendera",
     "agreement",
     "jobs", "jobphrases",
   ],
@@ -285,8 +278,6 @@ export const LESSON = {
   // (src/lib/cardInstruction.js). The drills get theirs from their shape.
   instructions: {
     aprendera: "Fill the gap with aprender in the present, and the word that joins it to the next verb",
-    yes: "Answer yes, in a full sentence",
-    no: "Answer no, in a full sentence",
     agreement: "Write the word given in the form that fits the sentence",
     jobs: "Fill the gap with the job given, in the form that fits the sentence",
   },

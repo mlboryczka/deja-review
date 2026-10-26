@@ -18,7 +18,6 @@
 //   "el o al → Esperamos ___ doctor una hora"     esperar with a person or a thing
 //   "vivir → Mis papás ___ en Monterrey diez años"   preterite or imperfect (her ex. 8)
 //   "Le dije: «Tengo que salir ahora» → Le dije que…"   tell what was said (her ex. 10)
-//   "¿Creías que yo era estadounidense? → sí"     answer yes in a full sentence (her ex. 6)
 //   "Quise abrir la puerta, pero no pude"         Spanish shown, English typed: what the tense means
 //   two-way phrase (E) and word (V) cards for the text and her translations
 //
@@ -98,6 +97,11 @@
 // Then cut: "Teníamos una casa en el campo" (translate, minding the tense).
 // Typed English is marked with typo tolerance, and "We have a house…" passed
 // as close enough, so it couldn't catch the slip it was there for.
+//
+// Taken out on 2026-10-25, at the owner's word ("Yes, take the yes-or-no
+// flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
+// too"): the 6 cards that answered a question with yes or no in a full
+// sentence (section "respuestas").
 
 export const CARDS = [
   // ── 1. Creer
@@ -182,14 +186,6 @@ export const CARDS = [
   ["Te pregunté: «¿A qué hora sale el avión?» → Te pregunté…", "Te pregunté a qué hora salía el avión / a qué hora salía el avión", "G", "contar"],
   ["Le pregunté: «¿Hay mucha gente allá?» → Le pregunté…", "Le pregunté si había mucha gente allá / si había mucha gente allá", "G", "contar"],
   ["Le pregunté: «¿Ves mucho a tu novio?» → Le pregunté…", "Le pregunté si veía mucho a su novio / si veía mucho a su novio", "G", "contar"],
-
-  // ── Ex. 6: answer yes. The tense stays; the person changes
-  ["¿Estabas en tu casa cuando llegó el taxista? → sí", "Sí, estaba en mi casa cuando llegó el taxista / Estaba en mi casa cuando llegó el taxista / Sí, yo estaba en mi casa cuando llegó el taxista / Sí, estaba en mi casa cuando el taxista llegó / Sí, estaba en mi casa", "G", "respuestas"],
-  ["¿Creías que yo era estadounidense? → sí", "Sí, creía que eras estadounidense / Creía que eras estadounidense / Sí, yo creía que eras estadounidense / Sí, creí que eras estadounidense / Creí que eras estadounidense / Sí, creía que tú eras estadounidense / Creía que tú eras estadounidense", "G", "respuestas"],
-  ["¿Pensabas que yo te esperaba allá? → sí", "Sí, pensaba que me esperabas allá / Pensaba que me esperabas allá / Sí, yo pensaba que me esperabas allá / Sí, pensé que me esperabas allá / Pensé que me esperabas allá / Sí, pensaba que tú me esperabas allá / Pensaba que tú me esperabas allá", "G", "respuestas"],
-  ["¿La empleada te dijo que tenías que apurarte? → sí", "Sí, me dijo que tenía que apurarme / Me dijo que tenía que apurarme / Sí, la empleada me dijo que tenía que apurarme / La empleada me dijo que tenía que apurarme / Sí, me dijo que me tenía que apurar / Me dijo que me tenía que apurar / Sí, la empleada me dijo que me tenía que apurar / La empleada me dijo que me tenía que apurar", "G", "respuestas"],
-  ["¿Ustedes esperaron a Rebeca para salir? → sí", "Sí, esperamos a Rebeca para salir / Esperamos a Rebeca para salir / Sí, nosotros esperamos a Rebeca para salir / Sí, nosotras esperamos a Rebeca para salir / Sí, la esperamos para salir / La esperamos para salir", "G", "respuestas"],
-  ["¿Tardaste más de una hora en llegar? → sí", "Sí, tardé más de una hora en llegar / Tardé más de una hora en llegar / Sí, yo tardé más de una hora en llegar / Sí, tardé más de una hora", "G", "respuestas"],
 
   // ── 7. In the text
   ["Tardamos más de una hora en llegar", "It took us more than an hour to get there / It took us over an hour to get there", "E", "texto"],
@@ -384,7 +380,6 @@ export const LESSON = {
     "pasado", "pasadoingles",
     "sentido", "sentidoingles",
     "contar",
-    "respuestas",
     "texto",
   ],
   // The line above a grammar card saying what to type (src/lib/cardInstruction.js).
@@ -397,7 +392,6 @@ export const LESSON = {
     pasadoingles: "Translate into English, minding the tense",
     sentidoingles: "Translate into English, minding the tense",
     contar: "Tell what was said, going on from the words given",
-    respuestas: "Answer yes, in a full sentence",
   },
 };
 

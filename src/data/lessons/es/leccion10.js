@@ -17,7 +17,6 @@
 //
 // Card shapes:
 //   "ver (presente) → tú" / "ves"             drill; its line comes from its shape
-//   "¿Trabajaste en julio? → No, …"           answer no in a full sentence (ex. 3 and 4)
 //   "a, al o nada → Vi ___ Hugo en la playa"  a before a person, or nothing (ex. 6)
 //   "hacer, estar o tener → Hoy ___ nublado"  the weather verb, in the present
 //   "Llueve → en pretérito" / "Llovió"        the weather in another tense
@@ -105,6 +104,11 @@
 // Left out of the notes, as helping no card: "vi and vio have no accent"
 // (accents aren't marked); "¿Sabes manejar una moto?"; "Hace sol" is kept in
 // the table though no card asks it, as the sheet's commonest weather line.
+//
+// Taken out on 2026-10-25, at the owner's word ("Yes, take the yes-or-no
+// flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
+// too"): the 9 cards that answered a question with yes or no in a full
+// sentence (sections "nopast" and "nopresent").
 
 export const CARDS = [
   // ── 1. Ver in the present and the preterite
@@ -148,14 +152,6 @@ export const CARDS = [
   ["los días libres", "days off / the days off", "V", "vocab"],
   ["visitar", "to visit", "V", "vocab"],
 
-  // ── Ex. 3: answer no, in the preterite
-  ["¿Trabajaste en julio? → No, …", "No, no trabajé en julio / No, en julio no trabajé / No, yo no trabajé en julio / En julio no trabajé / Yo no trabajé en julio", "G", "nopast"],
-  ["¿Ustedes visitaron la ciudad? → No, …", "No, no visitamos la ciudad / No, nosotros no visitamos la ciudad / Nosotros no visitamos la ciudad", "G", "nopast"],
-  ["¿Hizo buen tiempo? → No, …", "No, no hizo buen tiempo", "G", "nopast"],
-  ["¿Viste a tus amigos? → No, …", "No, no vi a mis amigos / No, yo no vi a mis amigos / Yo no vi a mis amigos", "G", "nopast"],
-  ["¿Te gustó Oaxaca? → No, …", "No, no me gustó Oaxaca / No, a mí no me gustó Oaxaca / No, no me gustó / A mí no me gustó Oaxaca", "G", "nopast"],
-  ["¿Pudiste tomar tus días libres? → No, …", "No, no pude tomar mis días libres / No, yo no pude tomar mis días libres / Yo no pude tomar mis días libres", "G", "nopast"],
-
   // ── 3. a before a person; nothing before a thing or a place
   ["a, al o nada → Visitamos ___ unos amigos", "a", "G", "persona"],
   ["a, al o nada → Visitamos ___ la ciudad", "nada", "G", "persona"],
@@ -189,11 +185,6 @@ export const CARDS = [
   ["Llueve → en pretérito", "Llovió", "G", "weathertense"],
   ["Hace calor → con ir a", "Va a hacer calor", "G", "weathertense"],
   ["Llueve → con ir a", "Va a llover", "G", "weathertense"],
-
-  // ── Ex. 4: answer no, in the present
-  ["¿Vienes mañana? → No, …", "No, no vengo mañana / No, mañana no vengo / No, yo no vengo mañana / Mañana no vengo / Yo no vengo mañana", "G", "nopresent"],
-  ["¿Ves bien sin lentes? → No, …", "No, no veo bien sin lentes / No, yo no veo bien sin lentes / Yo no veo bien sin lentes", "G", "nopresent"],
-  ["¿Ustedes ven mucho a sus papás? → No, …", "No, no vemos mucho a nuestros papás / No, nosotros no vemos mucho a nuestros papás / Nosotros no vemos mucho a nuestros papás", "G", "nopresent"],
 
   // ── Ex. 9: sentences to learn whole
   ["Tuvimos suerte: hizo muy buen tiempo", "We were lucky: the weather was very nice / We were lucky: the weather was very good", "E", "phrases"],
@@ -379,9 +370,9 @@ export const LESSON = {
   // stand alone. Reviews are unaffected; FSRS schedules those.
   teachingOrder: [
     "ver", "venir",
-    "vocab", "nopast", "persona", "drive",
+    "vocab", "persona", "drive",
     "weatherwords", "weather", "weathertense",
-    "nopresent", "phrases",
+    "phrases",
     "numbers",
   ],
   // The line above a grammar card saying what to type (src/lib/cardInstruction.js).
@@ -389,8 +380,6 @@ export const LESSON = {
   // don't name the choices: the front does ("a, al o nada", "hacer, estar o
   // tener"), and naming them here would put an answer (nada, hace) in the line.
   instructions: {
-    nopast: "Answer no, in a full sentence",
-    nopresent: "Answer no, in a full sentence",
     persona: "Fill the gap with the right one of the three",
     weather: "Fill the gap with one of the three verbs, in the present",
     weathertense: "Rewrite it in the tense after the arrow",

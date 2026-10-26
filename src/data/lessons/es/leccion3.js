@@ -18,7 +18,6 @@
 //   "tener → Lucía ___ una hermana"                   tener in the sheet's sentences (ex. 1)
 //   "Tengo 17 años → la pregunta, con tú"             ask the age question
 //   "ser, estar o tener → Mi hermana ___ nueve años"  choose the verb, then give its form
-//   "¿Tienes una idea? → Sí, …"                       answer yes in a full sentence (ex. 2, 3)
 //   "cerca de mí → ___ libro es muy bonito"           este, ese or aquel, for the distance (ex. 5)
 //   "6 → en letras" / "seis"                          the numbers
 //   "un regalo" / "a present"                         words and phrases, both ways round
@@ -116,6 +115,11 @@
 //     as English beside each row in the sheet.
 // The dictionary tip is the sheet's own and goes last under "Detail ·
 // advanced". No word list: the word cards are how the words are learned.
+//
+// Taken out on 2026-10-25, at the owner's word ("Yes, take the yes-or-no
+// flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
+// too"): the 7 cards that answered a question with yes or no in a full
+// sentence (section "answers").
 
 export const CARDS = [
   // ── 1. Tener in the present
@@ -171,15 +175,6 @@ export const CARDS = [
   ["ser, estar o tener → ¿Por qué ___ cansados?", "están", "G", "serestartener"],
   ["ser, estar o tener → Los audífonos ___ en el segundo piso", "están", "G", "serestartener"],
   ["ser, estar o tener → Este libro ___ muy bonito", "es / está", "G", "serestartener"],
-
-  // ── Answering yes (ex. 2 and 3): each card a different switch
-  ["¿Tienes una idea? → Sí, …", "Sí, tengo una idea / Sí, yo tengo una idea / Tengo una idea / Yo tengo una idea", "G", "answers"],
-  ["¿Usted tiene un mapa? → Sí, …", "Sí, tengo un mapa / Sí, yo tengo un mapa / Tengo un mapa / Yo tengo un mapa", "G", "answers"],
-  ["¿Ustedes tienen hijos? → Sí, …", "Sí, tenemos hijos / Sí, nosotros tenemos hijos / Sí, nosotras tenemos hijos / Tenemos hijos / Nosotros tenemos hijos / Nosotras tenemos hijos", "G", "answers"],
-  ["¿Tu hermana tiene diez años? → Sí, …", "Sí, mi hermana tiene diez años / Sí, tiene diez años / Sí, ella tiene diez años / Mi hermana tiene diez años / Tiene diez años / Ella tiene diez años / Sí, mi hermana tiene 10 años / Sí, tiene 10 años / Sí, ella tiene 10 años / Mi hermana tiene 10 años / Tiene 10 años / Ella tiene 10 años", "G", "answers"],
-  ["¿Los vendedores tienen una idea? → Sí, …", "Sí, tienen una idea / Sí, ellos tienen una idea / Sí, los vendedores tienen una idea / Tienen una idea / Ellos tienen una idea / Los vendedores tienen una idea", "G", "answers"],
-  ["¿Eres mexicano? → Sí, …", "Sí, soy mexicano / Sí, soy mexicana / Sí, yo soy mexicano / Sí, yo soy mexicana / Soy mexicano / Soy mexicana / Yo soy mexicano / Yo soy mexicana", "G", "answers"],
-  ["¿Los libros están en la mesa? → Sí, …", "Sí, están en la mesa / Sí, los libros están en la mesa / Están en la mesa / Los libros están en la mesa", "G", "answers"],
 
   // ── 4. This and that (ex. 5): the distance, then the noun's form
   ["cerca de mí → ___ libro es muy bonito", "este", "G", "demonstratives"],
@@ -361,7 +356,7 @@ export const LESSON = {
   // those.
   teachingOrder: [
     "tener", "tenergap", "age",
-    "vocab", "serestartener", "answers",
+    "vocab", "serestartener",
     "demonstratives", "phrases",
     "numbers",
   ],
@@ -372,7 +367,6 @@ export const LESSON = {
     tenergap: "Fill the gap with tener in the present tense",
     age: "Write the question this answers (not a yes/no one)",
     serestartener: "Fill the gap with ser, estar or tener in the present",
-    answers: "Answer yes, in a full sentence",
     demonstratives: "Fill the gap with the word for this or that, for that distance",
     numbers: "Write this number in Spanish, in words",
   },

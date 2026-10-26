@@ -24,7 +24,6 @@
 //   "le o les → Martín ___ mandó un correo a…"        the pronoun (ex. 3)
 //   "a o al → … el problema ___ paciente"             a or al before the person (ex. 3)
 //   "Ella contestó al periodista → con le o les"      replace a + person with le or les (ex. 5)
-//   "¿Me diste el expediente? → Sí, …"                answer yes with the pronoun switched (ex. 6–7)
 //   "Te voy a escribir → pronombre al final"          the pronoun's other place
 //   "1,000,000 → en letras" / "un millón"             numbers and years (ex. 13), written with
 //                                                     the sheet's commas, as in Mexico
@@ -99,6 +98,11 @@
 //   - Right now: "Estar changes with the person…", for the drills.
 // Left out of the notes, as helping no card: pedir (a later lesson), lo and
 // la with llamar and ayudar (Lesson 17), and the accent on escribiéndole.
+//
+// Taken out on 2026-10-25, at the owner's word ("Yes, take the yes-or-no
+// flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
+// too"): the 6 cards that answered a question with yes or no in a full
+// sentence (section "answers").
 
 export const CARDS = [
   // ── The new verbs, before they are conjugated or used
@@ -169,14 +173,6 @@ export const CARDS = [
   ["La doctora dio los expedientes a Martín → con le o les", "La doctora le dio los expedientes", "G", "rewrite"],
   ["Ella contestó al periodista → con le o les", "Ella le contestó", "G", "rewrite"],
   ["Martín mandó un mensaje a los señores Ramírez → con le o les", "Martín les mandó un mensaje", "G", "rewrite"],
-
-  // ── Ex. 6 and 7: answer yes, switching the pronoun
-  ["¿Me diste el expediente? → Sí, …", "Sí, te di el expediente / Sí, yo te di el expediente / Te di el expediente / Yo te di el expediente", "G", "answers"],
-  ["¿Te dije la verdad? → Sí, …", "Sí, me dijiste la verdad / Sí, tú me dijiste la verdad / Me dijiste la verdad / Tú me dijiste la verdad", "G", "answers"],
-  ["¿Le mandaste un correo a tu secretaria? → Sí, …", "Sí, le mandé un correo a mi secretaria / Sí, le mandé un correo / Sí, yo le mandé un correo a mi secretaria / Sí, yo le mandé un correo / Le mandé un correo a mi secretaria / Le mandé un correo / Yo le mandé un correo a mi secretaria / Yo le mandé un correo", "G", "answers"],
-  ["¿Les explicaste eso a los niños? → Sí, …", "Sí, les expliqué eso a los niños / Sí, les expliqué eso / Sí, yo les expliqué eso a los niños / Sí, yo les expliqué eso / Les expliqué eso a los niños / Les expliqué eso / Yo les expliqué eso a los niños / Yo les expliqué eso", "G", "answers"],
-  ["¿Nos contestaste? → Sí, …", "Sí, les contesté / Sí, yo les contesté / Les contesté / Yo les contesté", "G", "answers"],
-  ["¿Tienes que decirle algo a Martín? → Sí, …", "Sí, tengo que decirle algo a Martín / Sí, le tengo que decir algo a Martín / Sí, tengo que decirle algo / Sí, le tengo que decir algo / Tengo que decirle algo a Martín / Le tengo que decir algo a Martín / Tengo que decirle algo / Le tengo que decir algo", "G", "answers"],
 
   // ── 3. The pronoun's two places with a second verb
   ["Le tengo que decir la verdad → pronombre al final", "Tengo que decirle la verdad", "G", "place"],
@@ -375,7 +371,7 @@ export const LESSON = {
   teachingOrder: [
     "verbs", "decir", "deber", "must", "tenerque", "dar",
     "vocab",
-    "lele", "aal", "rewrite", "answers", "place", "phrases",
+    "lele", "aal", "rewrite", "place", "phrases",
     "gerund", "progressive", "progphrases",
     "numbers",
   ],
@@ -388,7 +384,6 @@ export const LESSON = {
     lele: "Fill the gap with the right pronoun",
     aal: "Fill the gap with the right one of the two",
     rewrite: "Write it again, with le or les in place of a and the person",
-    answers: "Answer yes, in a full sentence with me, te, le, nos or les",
     place: "Write it again with the pronoun where the arrow says",
     numbers: "Write this number in Spanish, in words",
   },

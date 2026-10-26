@@ -17,7 +17,6 @@
 //   "que o de → La sala tiene más ___ 20 metros cuadrados"   pick the word
 //   "malo → Esta cocina es ___ que la otra"         the word given, changed to compare
 //   "3 → El departamento está en el ___ piso"       first, second, third… (ex. 6)
-//   "¿Te equivocaste? → no"                         answer yes or no in a full sentence (ex. 7, 8)
 //   two-way word (V) and phrase (E) cards for the ex. 3 list and the dialogue
 //
 // WHY SABER OR CONOCER, AND THE COMPARISONS, ARE ON EXACT CARDS. A phrase
@@ -88,6 +87,11 @@
 //     puse; No, no lo saben), which a teacher would accept.
 //
 // Checked 2026-10-22 by an independent reader: 6 fixes.
+//
+// Taken out on 2026-10-25, at the owner's word ("Yes, take the yes-or-no
+// flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
+// too"): the 5 cards that answered a question with yes or no in a full
+// sentence (sections "yes" and "no").
 
 export const CARDS = [
   // ── 1. Conocer: irregular only with yo
@@ -131,13 +135,6 @@ export const CARDS = [
   ["saber o conocer → Yo no ___ Monterrey", "conozco", "G", "saberconocer"],
   ["saber o conocer → Nosotros ___ Lucía desde hace dos años", "conocemos a", "G", "saberconocer"],
   ["saber o conocer → ¿Tú ___ la profesora de Jessica?", "conoces a", "G", "saberconocer"],
-
-  // ── Ex. 7 and 8: answer yes or no
-  ["¿Conoces a la madrina de Camila? → sí", "Sí, conozco a la madrina de Camila / Conozco a la madrina de Camila / Sí, yo conozco a la madrina de Camila / Yo conozco a la madrina de Camila / Sí, la conozco / La conozco", "G", "yes"],
-  ["¿Normalmente pones tus zapatos en el clóset? → sí", "Sí, normalmente pongo mis zapatos en el clóset / Normalmente pongo mis zapatos en el clóset / Sí, pongo mis zapatos en el clóset / Pongo mis zapatos en el clóset / Sí, yo normalmente pongo mis zapatos en el clóset / Sí, normalmente yo pongo mis zapatos en el clóset / Yo normalmente pongo mis zapatos en el clóset / Sí, yo pongo mis zapatos en el clóset / Yo pongo mis zapatos en el clóset / Sí, normalmente los pongo en el clóset / Normalmente los pongo en el clóset / Sí, los pongo en el clóset", "G", "yes"],
-  ["¿Te pusiste el vestido rojo para la boda? → sí", "Sí, me puse el vestido rojo para la boda / Me puse el vestido rojo para la boda / Sí, yo me puse el vestido rojo para la boda / Yo me puse el vestido rojo para la boda / Sí, me lo puse para la boda / Sí, me lo puse / Me lo puse para la boda / Me lo puse", "G", "yes"],
-  ["¿Te equivocaste? → no", "No, no me equivoqué / No me equivoqué / No, yo no me equivoqué / Yo no me equivoqué", "G", "no"],
-  ["¿Ellos saben dónde está la inmobiliaria? → no", "No, no saben dónde está la inmobiliaria / No saben dónde está la inmobiliaria / No, ellos no saben dónde está la inmobiliaria / Ellos no saben dónde está la inmobiliaria / No, no saben / No, no lo saben / No, ellos no saben / No, ellos no lo saben", "G", "no"],
 
   // ── 3. Comparing: the word that goes with más, menos and tan
   ["que o de → Este departamento es menos caro ___ el otro", "que", "G", "compare"],
@@ -357,7 +354,7 @@ export const LESSON = {
   teachingOrder: [
     "conocer", "poner",
     "home",
-    "saberconocer", "yes", "no",
+    "saberconocer",
     "compare", "irregular",
     "need",
     "ordinals",
@@ -368,8 +365,6 @@ export const LESSON = {
   instructions: {
     // Doesn't name the two verbs: they are on the card.
     saberconocer: "Fill the gap with the right verb in the present, adding a where it's needed",
-    yes: "Answer yes, in a full sentence",
-    no: "Answer no, in a full sentence",
     compare: "Fill the gap with the right one of the two",
     irregular: "Fill the gap with the word given, changed to compare",
     need: "Fill the gap with the right one of the two, in the form that fits",

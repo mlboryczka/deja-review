@@ -17,7 +17,6 @@
 //   "acordarse → ¿Te acuerdas ___ nuestra primera cita?"   the missing de / de que
 //   "Me acuerdo de tu nombre → con recordar"          say it with the other verb
 //   "hace o desde hace → Nos conocimos ___ seis meses"     ago, or for
-//   "¿Te despertaste temprano? → sí"                  answer yes in a full sentence (ex. 4–6)
 //   two-way word (V) and phrase (E) cards for the ex. 8 list and the dialogue
 //
 // WHY HACE OR DESDE HACE IS ON EXACT CARDS. A phrase card is marked with typo
@@ -77,6 +76,11 @@
 //     answer would be marked wrong here.
 //
 // Checked 2026-10-22 by an independent reader: 1 fix.
+//
+// Taken out on 2026-10-25, at the owner's word ("Yes, take the yes-or-no
+// flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
+// too"): the 5 cards that answered a question with yes or no in a full
+// sentence (section "answers").
 
 export const CARDS = [
   // ── Her verbs (ex. 8), before they are conjugated
@@ -122,13 +126,6 @@ export const CARDS = [
   ["vestirse (pretérito) → ellos/ellas", "se vistieron", "G", "preterite"],
   ["sentirse (pretérito) → yo", "me sentí", "G", "preterite"],
   ["sentarse (pretérito) → yo", "me senté", "G", "preterite"],
-
-  // ── Ex. 4, 5, 6: answer yes. One card per switch
-  ["¿Ustedes se conocieron en el hospital? → sí", "Sí, nos conocimos en el hospital / Nos conocimos en el hospital / Sí, nosotros nos conocimos en el hospital / Nosotros nos conocimos en el hospital / Sí, nosotras nos conocimos en el hospital / Nosotras nos conocimos en el hospital", "G", "answers"],
-  ["¿Te despertaste temprano? → sí", "Sí, me desperté temprano / Me desperté temprano / Sí, yo me desperté temprano / Yo me desperté temprano", "G", "answers"],
-  ["¿Él se peleó con su novia? → sí", "Sí, se peleó con su novia / Se peleó con su novia / Sí, él se peleó con su novia / Él se peleó con su novia", "G", "answers"],
-  ["¿Te acuerdas de mi madrina? → sí", "Sí, me acuerdo de tu madrina / Me acuerdo de tu madrina / Sí, yo me acuerdo de tu madrina / Yo me acuerdo de tu madrina / Sí, me acuerdo de ella / Me acuerdo de ella / Sí, yo me acuerdo de ella / Sí, recuerdo a tu madrina / Recuerdo a tu madrina / Sí, yo recuerdo a tu madrina / Yo recuerdo a tu madrina", "G", "answers"],
-  ["¿Ustedes se sentaron en la primera mesa? → sí", "Sí, nos sentamos en la primera mesa / Nos sentamos en la primera mesa / Sí, nosotros nos sentamos en la primera mesa / Nosotros nos sentamos en la primera mesa / Sí, nosotras nos sentamos en la primera mesa / Nosotras nos sentamos en la primera mesa", "G", "answers"],
 
   // ── 4. Hace (ago) or desde hace (for), ex. 7
   ["hace o desde hace → Nos conocimos ___ seis meses", "hace", "G", "hace"],
@@ -298,7 +295,7 @@ export const LESSON = {
     "verbs",
     "acordarse", "acordarsede", "recordar",
     "reciprocal",
-    "preterite", "answers",
+    "preterite",
     "hace",
     "words", "phrases",
   ],
@@ -308,7 +305,6 @@ export const LESSON = {
     acordarsede: "Fill the gap with the missing word or words",
     recordar: "Say the same thing with the verb given",
     reciprocal: "Fill the gap with the verb in the preterite",
-    answers: "Answer yes, in a full sentence",
     // Doesn't name the two: they are on the card.
     hace: "Fill the gap with the right one of the two",
   },

@@ -17,8 +17,6 @@
 //   "gusta o gustan → ¿Te ___ los tacos?"           choose the form (ex. 1)
 //   "me, te, le, nos o les → A James ___ gusta…"     choose the pronoun (ex. 2)
 //   "yo + el cine → gustar"                          make the sentence (from ex. 8)
-//   "¿Te gustan los tacos? → Sí, …"                  answer yes in a full sentence (ex. 3)
-//   "¿Te gustan los mercados? → No, …"               answer no in a full sentence (ex. 4)
 //   "Me gustan los tacos → encantar"                 rewrite with the word given
 //   "Me gusta el cine → estoy de acuerdo"            react: a mí también, tampoco, sí, no (ex. 5)
 //   "domingo → ___ voy a ir al cine"                 on a day: no word for "on" (ex. 8)
@@ -125,6 +123,11 @@
 // The lesson's one "The trap:" is her ¡Atención! box: never yo gusto.
 //
 // Checked 2026-10-22 by an independent reader: 5 fixes
+//
+// Taken out on 2026-10-25, at the owner's word ("Yes, take the yes-or-no
+// flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
+// too"): the 8 cards that answered a question with yes or no in a full
+// sentence (sections "yes" and "no").
 
 export const CARDS = [
   // ── Her word list (ex. 7), first: the exercises are made of these words
@@ -159,18 +162,6 @@ export const CARDS = [
   ["nosotros + ir al mercado → encantar", "Nos encanta ir al mercado / A nosotros nos encanta ir al mercado", "G", "build"],
   ["mis papás + la comida mexicana → encantar", "A mis papás les encanta la comida mexicana", "G", "build"],
   ["él + leer → gustar", "Le gusta leer / A él le gusta leer", "G", "build"],
-
-  // ── Ex. 3: answer yes
-  ["¿Te gustan los tacos? → Sí, …", "Sí, me gustan los tacos / Sí, a mí me gustan los tacos / Sí, me gustan / Me gustan los tacos / A mí me gustan los tacos", "G", "yes"],
-  ["¿A ustedes les gusta andar en bicicleta? → Sí, …", "Sí, nos gusta andar en bicicleta / Sí, a nosotros nos gusta andar en bicicleta / Sí, nos gusta / Nos gusta andar en bicicleta / A nosotros nos gusta andar en bicicleta", "G", "yes"],
-  ["¿A tus papás les gusta caminar? → Sí, …", "Sí, a mis papás les gusta caminar / Sí, a ellos les gusta caminar / Sí, les gusta caminar / Sí, les gusta / A mis papás les gusta caminar / A ellos les gusta caminar / Les gusta caminar", "G", "yes"],
-  ["¿A usted le gusta el chile? → Sí, …", "Sí, me gusta el chile / Sí, a mí me gusta el chile / Sí, me gusta / Me gusta el chile / A mí me gusta el chile", "G", "yes"],
-
-  // ── 3. Ex. 4: answer no, so no twice
-  ["¿A Jessica le gusta el chile? → No, …", "No, a Jessica no le gusta el chile / No, a ella no le gusta el chile / No, no le gusta el chile / No, no le gusta / A Jessica no le gusta el chile / A ella no le gusta el chile", "G", "no"],
-  ["¿Te gustan los mercados? → No, …", "No, no me gustan los mercados / No, a mí no me gustan los mercados / No, no me gustan / A mí no me gustan los mercados", "G", "no"],
-  ["¿A ustedes les gusta el cine? → No, …", "No, no nos gusta el cine / No, a nosotros no nos gusta el cine / No, no nos gusta / A nosotros no nos gusta el cine", "G", "no"],
-  ["¿A tu hermano le gusta surfear? → No, …", "No, a mi hermano no le gusta surfear / No, a él no le gusta surfear / No, no le gusta surfear / No, no le gusta / A mi hermano no le gusta surfear / A él no le gusta surfear", "G", "no"],
 
   // ── 4. Encantar, no … nada and gustar más: her section 4 table
   ["Me gusta el chile → no … nada", "No me gusta nada el chile / A mí no me gusta nada el chile", "G", "scale"],
@@ -359,8 +350,7 @@ export const LESSON = {
   // days.
   teachingOrder: [
     "words",
-    "gusta", "pronouns", "build", "yes",
-    "no",
+    "gusta", "pronouns", "build",
     "scale",
     "react",
     "days", "on", "next",
@@ -372,10 +362,6 @@ export const LESSON = {
     gusta: "Fill the gap with the form that fits",
     pronouns: "Fill the gap with the word that fits",
     build: "Write one sentence: this person likes or loves this, with the verb given",
-    yes: "Answer yes, in a full sentence",
-    // Says to type the first No: without it, "no me gustan…" can't be told
-    // from "No, me gustan…" (see the header).
-    no: "Answer no, in a full sentence starting with No",
     scale: "Rewrite the sentence using the word or words after the arrow",
     react: "React to the sentence, agreeing or disagreeing as the arrow says",
     on: "Fill the gap with the day given, meaning on that day this week",

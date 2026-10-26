@@ -15,7 +15,6 @@
 //   "hablar (pretérito) → yo" / "hablé"          the paradigm; the line above comes from the shape
 //   "buscar (pretérito) → yo" / "busqué"         the -car, -gar, -zar spelling change
 //   "vivir → Mis abuelos ___ en Montauk…"        the cue verb in the pretérito (ex. 1)
-//   "¿Desayunaste esta mañana? → sí"             answer yes in a full sentence (ex. 3 and 4)
 //   "¿Qué hora es? → 8:15"                       say the time, in words
 //   "14/2 → en letras" / "el catorce de febrero" a date, day first (annex ex. 3)
 //   "47 → en letras" / "cuarenta y siete"        the numbers
@@ -119,6 +118,11 @@
 // for the same English, and its card says "(not regresar)".
 //
 // Checked 2026-10-22 by an independent reader: 7 fixes
+//
+// Taken out on 2026-10-25, at the owner's word ("Yes, take the yes-or-no
+// flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
+// too"): the 6 cards that answered a question with yes or no in a full
+// sentence (section "yes").
 
 export const CARDS = [
   // ── 1. The pretérito of regular verbs: -ar, and -er / -ir
@@ -172,14 +176,6 @@ export const CARDS = [
   ["cocinar → Mi esposa y yo ___ juntos", "cocinamos", "G", "gaps"],            // "my wife and I" is nosotros
   ["empezar → La reunión ___ a las diez", "empezó", "G", "gaps"],               // only yo changes spelling
   ["escribir → Mis amigos ___ en español", "escribieron", "G", "gaps"],
-
-  // ── Ex. 3 and 4: answer yes. One card per switch of person
-  ["¿Desayunaste esta mañana? → sí", "Sí, desayuné esta mañana / Desayuné esta mañana / Sí, yo desayuné esta mañana / Yo desayuné esta mañana", "G", "yes"],
-  ["¿Llegaste al trabajo a las nueve? → sí", "Sí, llegué al trabajo a las nueve / Llegué al trabajo a las nueve / Sí, yo llegué al trabajo a las nueve / Yo llegué al trabajo a las nueve", "G", "yes"],
-  ["¿Te levantaste a las siete? → sí", "Sí, me levanté a las siete / Me levanté a las siete / Sí, yo me levanté a las siete / Yo me levanté a las siete", "G", "yes"],
-  ["¿Ustedes cocinaron juntos? → sí", "Sí, cocinamos juntos / Cocinamos juntos / Sí, nosotros cocinamos juntos / Nosotros cocinamos juntos / Sí, cocinamos juntas / Cocinamos juntas / Sí, nosotras cocinamos juntas / Nosotras cocinamos juntas", "G", "yes"],
-  ["¿Tus compañeros comieron en el restaurante? → sí", "Sí, mis compañeros comieron en el restaurante / Mis compañeros comieron en el restaurante / Sí, comieron en el restaurante / Comieron en el restaurante / Sí, ellos comieron en el restaurante / Ellos comieron en el restaurante", "G", "yes"],
-  ["¿A tu amigo le gustó el restaurante? → sí", "Sí, a mi amigo le gustó el restaurante / A mi amigo le gustó el restaurante / Sí, le gustó el restaurante / Le gustó el restaurante / Sí, a él le gustó el restaurante / A él le gustó el restaurante", "G", "yes"],
 
   // ── Phrases from the dialogue and her ex. 7 and 8
   ["¿Pasaste un buen día?", "Did you have a good day? (tú)", "E", "phrases"],
@@ -375,7 +371,7 @@ export const LESSON = {
   teachingOrder: [
     "forms", "spelling",
     "day", "night", "words",
-    "gaps", "yes",
+    "gaps",
     "phrases",
     "time",
     "numbers", "dates",
@@ -385,7 +381,6 @@ export const LESSON = {
   instructions: {
     night: "Fill the gap with whichever of the two fits the sentence",
     gaps: "Fill the gap with the verb given, in the preterite (simple past)",
-    yes: "Answer yes, in a full sentence",
     time: "Answer in a full sentence, with the time in words",
     numbers: "Write this number in Spanish, in words",
     dates: "Write this date in words, starting with el (the day comes first)",

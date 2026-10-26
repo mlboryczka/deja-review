@@ -17,8 +17,6 @@
 //   "querer (presente) → yo" / "quiero"          drill; its line comes from its shape
 //   "pensar → ¿Tú ___ que es una buena idea?"     the verb given, in the present (ex. 3)
 //   "Quiero ir a la catedral → en negativo"       make the sentence negative (ex. 5)
-//   "¿Quieres caminar hoy? → Sí, …"               answer yes in a full sentence (ex. 4)
-//   "¿Hablas muy bien español? → No, …"           answer no in a full sentence (ex. 6)
 //   "hay, está o están → ¿Dónde ___ la catedral?" choose and fill the gap (ex. 7)
 //   "¿Me puedes ayudar? → con usted"              say it with usted (ex. 8)
 //   "16 → en letras" / "dieciséis"                the number in words
@@ -127,6 +125,11 @@
 // twice.
 //
 // Checked 2026-10-22 by an independent reader: 5 fixes
+//
+// Taken out on 2026-10-25, at the owner's word ("Yes, take the yes-or-no
+// flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
+// too"): the 8 cards that answered a question with yes or no in a full
+// sentence (sections "yes" and "no").
 
 export const CARDS = [
   // ── Her word list (ex. 9) and the dialogue's set phrases, first: every
@@ -193,10 +196,6 @@ export const CARDS = [
   ["volver → Nosotros ___ a México este año", "volvemos", "G", "vowels"],
   ["poder → ¿Usted ___ repetir, por favor?", "puede", "G", "vowels"],
 
-  // ── Ex. 4: answer yes, with querer
-  ["¿Quieres caminar hoy? → Sí, …", "Sí, quiero caminar hoy / Sí, yo quiero caminar hoy / Sí, hoy quiero caminar / Quiero caminar hoy / Yo quiero caminar hoy / Hoy quiero caminar", "G", "yes"],
-  ["¿Los niños quieren ir a la playa? → Sí, …", "Sí, los niños quieren ir a la playa / Sí, quieren ir a la playa / Sí, ellos quieren ir a la playa / Los niños quieren ir a la playa / Quieren ir a la playa / Ellos quieren ir a la playa", "G", "yes"],
-
   // ── 3. The negation (ex. 5): one card per thing that can go wrong
   ["Me gusta caminar en la Ciudad de México → en negativo", "No me gusta caminar en la Ciudad de México", "G", "negation"],
   ["Quiero ir a la catedral → en negativo", "No quiero ir a la catedral", "G", "negation"],
@@ -205,12 +204,6 @@ export const CARDS = [
   ["Hay audífonos en la librería → en negativo", "No hay audífonos en la librería", "G", "negation"],
 
   // Ex. 6: answer no, so say no twice; one card per change of person
-  ["¿Hablas muy bien español? → No, …", "No, no hablo muy bien español / No, no hablo muy bien el español / No, no hablo español muy bien / No, yo no hablo muy bien español / No, yo no hablo muy bien el español / No, yo no hablo español muy bien / Yo no hablo muy bien español / Yo no hablo muy bien el español / Yo no hablo español muy bien", "G", "no"],
-  ["¿Ustedes quieren ir a la Ciudad de México juntos? → No, …", "No, no queremos ir a la Ciudad de México juntos / No, no queremos ir juntos a la Ciudad de México / No, nosotros no queremos ir a la Ciudad de México juntos / No, nosotros no queremos ir juntos a la Ciudad de México / Nosotros no queremos ir a la Ciudad de México juntos / Nosotros no queremos ir juntos a la Ciudad de México", "G", "no"],
-  ["¿Natalie está perdida? → No, …", "No, Natalie no está perdida / No, ella no está perdida / No, no está perdida / Natalie no está perdida / Ella no está perdida", "G", "no"],
-  ["¿Te gusta tomar el metro? → No, …", "No, no me gusta tomar el metro / No, a mí no me gusta tomar el metro / No, no me gusta / A mí no me gusta tomar el metro", "G", "no"],
-  ["¿Usted tiene un mapa? → No, …", "No, no tengo un mapa / No, no tengo mapa / No, yo no tengo un mapa / No, yo no tengo mapa / Yo no tengo un mapa / Yo no tengo mapa", "G", "no"],
-  ["¿Es una buena idea? → No, …", "No, no es una buena idea / No, no es buena idea", "G", "no"],
 
   // ── 4. Hay, está or están (ex. 7)
   ["hay, está o están → ¿Dónde ___ la catedral?", "está", "G", "hay"],
@@ -388,9 +381,9 @@ export const LESSON = {
   // hay or está; tú or usted; the numbers.
   teachingOrder: [
     "words",
-    "querer", "poder", "questions", "yes",
+    "querer", "poder", "questions",
     "preferir", "vowels",
-    "negation", "no",
+    "negation",
     "hay",
     "usted",
     "numbers",
@@ -400,11 +393,7 @@ export const LESSON = {
   // words and questions are two-way phrase cards and carry none.
   instructions: {
     vowels: "Fill the gap with the verb in the present tense",
-    yes: "Answer yes, in a full sentence",
     negation: "Make this sentence negative",
-    // Says to type the first No: without it, "no hablo…" can't be told
-    // from "No, hablo…" (see the header).
-    no: "Answer no, in a full sentence starting with No",
     // Doesn't name the three words: they are on the card.
     hay: "Fill the gap with the one that fits",
     // Not "politely": that invites adding por favor, and the cards want

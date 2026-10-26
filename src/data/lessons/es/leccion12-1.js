@@ -19,7 +19,6 @@
 //                                                  with the pronoun or without (ex. 4)
 //   "acostarse → Vamos a ___ temprano esta noche"   the pronoun on the end of the infinitive
 //   "Me estoy vistiendo → pronombre al final"       move the pronoun (Lección 11's shape)
-//   "¿Te duermes rápido en la noche? → sí"          answer yes in a full sentence (ex. 2, 3, 7)
 //   "mis o los → Me lavo ___ dientes"               el, la, los, las with a part of the body
 //   two-way word (V) and phrase (E) cards for the ex. 8 list and the dialogue
 //
@@ -94,6 +93,11 @@
 //     ("Sí, me duermo rápido").
 //
 // Checked 2026-10-22 by an independent reader: 2 fixes.
+//
+// Taken out on 2026-10-25, at the owner's word ("Yes, take the yes-or-no
+// flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
+// too"): the 4 cards that answered a question with yes or no in a full
+// sentence (section "answers").
 
 export const CARDS = [
   // ── The routine verbs (ex. 8), before they are conjugated
@@ -136,12 +140,6 @@ export const CARDS = [
   ["vestirse (presente) → nosotros", "nos vestimos", "G", "reflexive"],
   ["vestirse (presente) → ustedes", "se visten", "G", "reflexive"],
   ["vestirse (presente) → ellos/ellas", "se visten", "G", "reflexive"],
-
-  // ── Ex. 2, 3, 7: answer yes. One card per switch of person
-  ["¿Te duermes rápido en la noche? → sí", "Sí, me duermo rápido en la noche / Sí, me duermo rápido / Sí, yo me duermo rápido en la noche / Sí, yo me duermo rápido / Me duermo rápido en la noche / Me duermo rápido / Yo me duermo rápido en la noche / Yo me duermo rápido", "G", "answers"],
-  ["¿Te vuelves a dormir rápido cuando te despiertas en la noche? → sí", "Sí, me vuelvo a dormir rápido cuando me despierto en la noche / Sí, vuelvo a dormirme rápido cuando me despierto en la noche / Me vuelvo a dormir rápido cuando me despierto en la noche / Vuelvo a dormirme rápido cuando me despierto en la noche / Sí, yo me vuelvo a dormir rápido cuando me despierto en la noche / Sí, yo vuelvo a dormirme rápido cuando me despierto en la noche / Yo me vuelvo a dormir rápido cuando me despierto en la noche / Yo vuelvo a dormirme rápido cuando me despierto en la noche / Sí, me vuelvo a dormir rápido / Sí, vuelvo a dormirme rápido / Me vuelvo a dormir rápido / Vuelvo a dormirme rápido / Sí, yo me vuelvo a dormir rápido / Yo me vuelvo a dormir rápido", "G", "answers"],
-  ["¿Ustedes se acuestan antes que los niños? → sí", "Sí, nos acostamos antes que los niños / Nos acostamos antes que los niños / Sí, nosotros nos acostamos antes que los niños / Nosotros nos acostamos antes que los niños / Sí, nosotras nos acostamos antes que los niños / Nosotras nos acostamos antes que los niños", "G", "answers"],
-  ["¿Tus hijos se duermen rápido? → sí", "Sí, mis hijos se duermen rápido / Sí, se duermen rápido / Sí, ellos se duermen rápido / Mis hijos se duermen rápido / Se duermen rápido / Ellos se duermen rápido", "G", "answers"],
 
   // ── A part of the body takes el, la, los, las, not mi, mis
   ["mis o los → Me lavo ___ dientes", "los", "G", "body"],
@@ -326,7 +324,7 @@ export const LESSON = {
   teachingOrder: [
     "verbs",
     "dormir", "dormirse",
-    "reflexive", "answers", "body",
+    "reflexive", "body",
     "place", "rewrite",
     "notreflexive", "impersonal",
     "words", "phrases",
@@ -335,7 +333,6 @@ export const LESSON = {
   // (src/lib/cardInstruction.js). The drills get theirs from their shape.
   instructions: {
     dormirse: "Fill the gap with the right one of the two, in the present",
-    answers: "Answer yes, in a full sentence",
     body: "Fill the gap with the right one of the two",
     place: "Fill the gap with the verb and its pronoun",
     rewrite: "Write it again with the pronoun where the arrow says",

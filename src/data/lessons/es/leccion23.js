@@ -15,7 +15,6 @@
 //   "por o para → Hugo fue a Denver ___ trabajo"        pick the word (her ex. 4)
 //   "nuestro → Estos boletos son ___" / "nuestros"      the possessive made to match (her ex. 5)
 //   "mi pasaporte → sin el sustantivo" / "el mío"       the possessive standing for the noun
-//   "¿Ya leíste el libro de Lucía? → sí"                answer yes or no in a full sentence (her ex. 1–2)
 //   two-way phrase (E) and word (V) cards for the dialogue and her ex. 3 list
 //
 // WHY LEER'S SIX PERSONS ARE IN THE PRETERITE. Leer and escribir are both in
@@ -79,6 +78,11 @@
 // Taken out on 2026-10-25, at the owner's word ("don't test simple
 // masculine/fem matching it's too easy"): mía, tuya and
 // suya, the ex. 5 gaps after ser that only made the possessive feminine.
+//
+// Taken out on 2026-10-25, at the owner's word ("Yes, take the yes-or-no
+// flashcards like "¿Eres estadounidense? → Sí, …" out of the Spanish lessons
+// too"): the 8 cards that answered a question with yes or no in a full
+// sentence (section "respuestas").
 
 export const CARDS = [
   // ── 1. Leer: regular, but y in the preterite
@@ -141,16 +145,6 @@ export const CARDS = [
   ["Siempre nos ha encantado viajar", "We've always loved traveling / We have always loved to travel / We've always loved to travel", "E", "repaso"],
   ["Íbamos a ir a Brasil", "We were going to go to Brazil", "E", "repaso"],
   ["Deberían echarle un ojo", "You should take a look (ustedes) / You guys should take a look", "E", "repaso"],
-
-  // ── Ex. 1 and 2: answer yes or no, keeping the noun
-  ["¿Alguna vez has ido a Nueva York? → sí", "Sí, he ido a Nueva York / He ido a Nueva York / Sí, yo he ido a Nueva York / Yo he ido a Nueva York / Sí, ya he ido a Nueva York / Ya he ido a Nueva York / Sí, he estado en Nueva York / He estado en Nueva York / Sí, yo he estado en Nueva York / Yo he estado en Nueva York / Sí, fui a Nueva York / Fui a Nueva York / Sí, ya fui a Nueva York", "G", "respuestas"],
-  ["¿Siempre les ha encantado viajar? → sí", "Sí, siempre nos ha encantado viajar / Siempre nos ha encantado viajar / Sí, a nosotros siempre nos ha encantado viajar / A nosotros siempre nos ha encantado viajar", "G", "respuestas"],
-  ["Con boletos más baratos, ¿irías a Brasil? → sí", "Sí, iría a Brasil / Iría a Brasil / Sí, yo iría a Brasil / Yo iría a Brasil / Sí, con boletos más baratos iría a Brasil / Con boletos más baratos iría a Brasil / Sí, con boletos más baratos yo iría a Brasil / Con boletos más baratos yo iría a Brasil / Sí, iría a Brasil con boletos más baratos / Iría a Brasil con boletos más baratos", "G", "respuestas"],
-  ["¿Ya leíste el libro de Lucía? → sí", "Sí, ya leí el libro de Lucía / Ya leí el libro de Lucía / Sí, yo ya leí el libro de Lucía / Yo ya leí el libro de Lucía / Sí, leí el libro de Lucía / Leí el libro de Lucía / Sí, ya he leído el libro de Lucía / Ya he leído el libro de Lucía", "G", "respuestas"],
-  ["¿Alguna vez has escrito un libro? → no", "No, nunca he escrito un libro / Nunca he escrito un libro / No, yo nunca he escrito un libro / Yo nunca he escrito un libro / No, no he escrito nunca un libro / No he escrito nunca un libro / No, nunca he escrito ningún libro / Nunca he escrito ningún libro / No, no he escrito ningún libro", "G", "respuestas"],
-  ["¿Ya compraste tus boletos para Italia? → no", "No, todavía no he comprado mis boletos para Italia / Todavía no he comprado mis boletos para Italia / No, yo todavía no he comprado mis boletos para Italia / No, no he comprado mis boletos para Italia todavía / No, todavía no he comprado mis boletos / Todavía no he comprado mis boletos / No, todavía no compro mis boletos para Italia / Todavía no compro mis boletos para Italia / No, todavía no compro mis boletos", "G", "respuestas"],
-  ["¿Conocías a alguien cuando llegaste allá? → no", "No, no conocía a nadie cuando llegué allá / No conocía a nadie cuando llegué allá / No, yo no conocía a nadie cuando llegué allá / No, cuando llegué allá no conocía a nadie / Cuando llegué allá no conocía a nadie / No, no conocía a nadie / No conocía a nadie", "G", "respuestas"],
-  ["¿Tu hija iba a ir con ustedes? → no", "No, mi hija no iba a ir con nosotros / Mi hija no iba a ir con nosotros / No, no iba a ir con nosotros / No iba a ir con nosotros / No, ella no iba a ir con nosotros / Ella no iba a ir con nosotros / No, mi hija no iba a ir / No, ella no iba a ir / No, no iba a ir", "G", "respuestas"],
 ];
 
 // The notes: her grammar sections 1 to 5, translated into English and
@@ -314,7 +308,7 @@ export const LESSON = {
     "vocab",
     "paises", "porpara",
     "posesivos", "sinsustantivo", "posfrases",
-    "repaso", "respuestas",
+    "repaso",
   ],
   // The line above a grammar card saying what to type (src/lib/cardInstruction.js).
   // Drills ("leer (pretérito) → yo") get theirs from their shape. The two
@@ -325,7 +319,6 @@ export const LESSON = {
     porpara: "Fill the gap with one of the two words given",
     posesivos: "Fill the gap with the word given, changed to match the thing owned",
     sinsustantivo: "Say it with el, la, los or las, without repeating the noun",
-    respuestas: "Answer in a full sentence, keeping the noun, without lo, la, los or las",
   },
 };
 
