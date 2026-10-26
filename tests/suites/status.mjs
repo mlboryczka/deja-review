@@ -327,6 +327,56 @@ console.log("\n  following the app's rules");
   set.items[i] = { ...set.items[i], c: lessonCard.id, d: "fr" };
   const r = failsOnly(check(rec), "new-order", "a set taking a lesson card ahead of the student's own notes fails");
   ck("  and says which card it passed over", /ahead of/.test(r.details[0] || ""), r.details[0]);
+  // The lessons no longer having that card changes nothing here: a notes
+  // card comes before any lesson card.
+  const dropped = (card) => (card.row_id === lessonCard.id ? null : lessonRank(card));
+  failsOnly(check(rec, { lessonRank: dropped }), "new-order", "  and still does once the lessons no longer have that card");
+}
+{
+  // A lesson card the lessons have since taken out (2026-10-25: two of the
+  // owner's sets were faulted for giving Spanish Lesson 1 drills, taken out
+  // that day, ahead of Lesson 2 cards). Where it stood when the set was
+  // dealt can't be read now. Inside a lesson, a set that took the lesson's
+  // last card ahead of earlier ones fails; it passes once the lessons no
+  // longer have the card it took, and once the deck has put that card away
+  // with its answers, or deleted it unanswered.
+  const rankOf = (row) => lessonRank({ f: row.front, source: row.source });
+  let found = null;
+  for (const set of base.deals.filter((d) => d.scope !== "all|all" && d.items.some((x) => x.b === "new"))) {
+    const lesson = set.scope.split("|")[1];
+    const at = Date.parse(set.dealt_at);
+    const met = new Set(base.answers.filter((r) => Date.parse(r.answered_at) < at).map((r) => r.card_id));
+    const inSet = new Set([...set.items, ...(set.kept || [])].map((x) => x.c));
+    const unmet = base.cards.filter((c) => String(c.source).startsWith(`lesson:${lesson}#`) && !met.has(c.id) && !inSet.has(c.id));
+    if (!unmet.length) continue;
+    const latest = unmet.reduce((a, b) => (rankOf(b) > rankOf(a) ? b : a));
+    // The latest of the new cards it took gives way to the lesson's last.
+    const dealtNew = set.items.filter((x) => x.b === "new");
+    const top = dealtNew.reduce((a, b) => (rankOf(base.cards.find((c) => c.id === b.c)) > rankOf(base.cards.find((c) => c.id === a.c)) ? b : a));
+    if (!(rankOf(latest) > rankOf(base.cards.find((c) => c.id === top.c)))) continue;
+    const rec = clone(base);
+    const into = rec.deals.find((d) => d.id === set.id);
+    const i = into.items.findIndex((x) => x.b === "new" && x.c === top.c && x.d === top.d);
+    into.items[i] = { ...into.items[i], c: latest.id, d: "fr" };
+    found = { rec, card: latest };
+    break;
+  }
+  ck("(a set inside a lesson took new cards while later ones of the lesson waited)", !!found);
+  if (found) {
+    failsOnly(check(found.rec), "new-order", "a set inside a lesson taking its last card ahead of earlier ones fails");
+    const dropped = (card) => (card.row_id === found.card.id ? null : lessonRank(card));
+    const r = result(check(found.rec, { lessonRank: dropped }), "new-order");
+    ck("  but not once the lessons no longer have the card it took", r.status === "pass", `${r.status}: ${r.summary} ${r.details[0] || ""}`);
+    const away = clone(found.rec);
+    const row = away.cards.find((c) => c.id === found.card.id);
+    row.source = `archived:${row.source}`;
+    const gone = clone(found.rec);
+    gone.cards = gone.cards.filter((c) => c.id !== found.card.id);
+    const ra = result(check(away, { lessonRank: dropped }), "new-order");
+    const rg = result(check(gone, { lessonRank: dropped }), "new-order");
+    ck("  nor once the deck has put that card away, or deleted it unanswered", ra.status === "pass" && rg.status === "pass",
+       `${ra.status}/${rg.status}: ${ra.details[0] || rg.details[0] || ""}`);
+  }
 }
 {
   // A card the student added themselves is dated by the day they added it,

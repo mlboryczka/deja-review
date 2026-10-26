@@ -619,6 +619,13 @@ function checkNewOrder(idx, ctx) {
     // A card whose class dates may have changed since the set was dealt (a
     // repeat put away into it, datesMoved) can't be placed as it stood then.
     const changed = (card) => (idx.datesMoved.get(card.row_id) || []).some((m) => m.at > at && card.dates.some((d) => m.dates.has(d)));
+    // A lesson card the lessons no longer have had its place in the lesson
+    // when the set was dealt, but that place can't be read now (2026-10-25:
+    // two of the owner's sets were faulted for giving Spanish Lesson 1 drills,
+    // taken out that day, ahead of Lesson 2 cards). An order between it and
+    // another lesson card isn't judged; a notes card still comes before it,
+    // as before any lesson card.
+    const unplaced = (card) => !!ctx.lessonRank && !!lessonIdOf(card) && !Number.isFinite(ctx.lessonRank(card));
     // How often each card is said, as the app knew it (2026-10-14). A set
     // dealt before the app ordered by it records no count, and is judged by
     // the old order alone. Otherwise a card dealt has its count in the
@@ -630,6 +637,7 @@ function checkNewOrder(idx, ctx) {
       card,
       said: saidThen(card, x),
       changed: changed(card),
+      unplaced: unplaced(card),
       unsure: addedByStudent(card) ? [] : classDaysOf(card).filter((iso) => known(iso) === "maybe"),
       key: newCardKey(card, opts, sure),
     });
@@ -648,6 +656,7 @@ function checkNewOrder(idx, ctx) {
     // `w` comes before `x` however the uncertain dates stood.
     const surelyBefore = (w, x) => {
       if (w.changed || x.changed) return false;
+      if ((w.unplaced || x.unplaced) && lessonIdOf(w.card) && lessonIdOf(x.card)) return false;
       if (!w.unsure.length && !x.unsure.length) return comesBefore(w, x, sure);
       const unsure = [...new Set([...w.unsure, ...x.unsure])];
       if (unsure.length > 4) return false;
