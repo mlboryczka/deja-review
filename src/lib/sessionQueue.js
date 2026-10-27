@@ -347,10 +347,24 @@ export function countBuckets(entries) {
 // card still to come is itself a retry. It isn't lost — a miss is due again
 // tomorrow and goes to the front of that day's first block.
 //
-// `deck` is the block, `idx` the position of the card just missed. Returns a
-// new array of the same length, or the same array if there is no room. The
-// retry carries the card it pushed out (`_displaced`), for withdrawRetry.
-export function placeRetry(deck, idx, card, offset = 20) {
+// A block shorter than the set size (`room`) is the exception: the retry is
+// added and nothing is pushed out, until the block reaches the set size. A
+// lesson with 52 cards to give, dealt into a set of 100, used to lose a card
+// to the next set with every miss: 14 misses, 14 of its cards never reached
+// (the owner's Lesson 8, 2026-10-27). Such a retry is marked `_added`, so
+// withdrawRetry takes it out without putting anything back.
+//
+// `deck` is the block, `idx` the position of the card just missed, `room` the
+// set size (the block's own length when not given). Returns a new array, or
+// the same array if there is no room. A retry that pushed a card out carries
+// it (`_displaced`), for withdrawRetry.
+export function placeRetry(deck, idx, card, offset = 20, room = deck.length) {
+  // Still one other card between the miss and its retry, as below.
+  if (deck.length < room && deck.length - 1 - idx >= 1) {
+    const next = [...deck];
+    next.splice(Math.min(idx + 1 + offset, next.length), 0, { ...card, _retry: true, _bucket: "lapse", _added: true, _displaced: undefined });
+    return next;
+  }
   let displace = -1;
   for (let j = deck.length - 1; j > idx; j--) {
     if (!deck[j]._retry) { displace = j; break; }
@@ -371,13 +385,15 @@ export function placeRetry(deck, idx, card, offset = 20) {
 // retry pushed out goes back in, at the end, so the block keeps its length.
 // With nothing to put back — a block kept from before retries recorded it, or
 // that card already back in the block — the retry stays, as it always did,
-// rather than the block coming up a card short.
+// rather than the block coming up a card short. A retry added to a block with
+// room (`_added`, see placeRetry) pushed nothing out: it just comes out.
 //
 // `key` is the itemKey of the card at `idx`; only a retry still to come is
 // taken out. Returns a new array, or the same array if nothing changes.
 export function withdrawRetry(deck, idx, key) {
   const at = deck.findIndex((c, j) => j > idx && c._retry && itemKey(c) === key);
   if (at === -1) return deck;
+  if (deck[at]._added) return deck.filter((_, j) => j !== at);
   const back = deck[at]._displaced;
   if (!back || deck.some((c) => !c._retry && itemKey(c) === itemKey(back))) return deck;
   return [...deck.filter((_, j) => j !== at), back];

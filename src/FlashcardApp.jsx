@@ -1433,7 +1433,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
           // A card edited into grammar is asked only as written: its English-
           // side entry would record to a state the card no longer uses.
           if (!u || (c.shownDir === "en" && !isTwoWay(u))) return null;
-          return { ...u, shownDir: c.shownDir, flippable: isTwoWay(u), _bucket: c._bucket, _retry: c._retry, _rid: c._rid, _displaced: c._displaced };
+          return { ...u, shownDir: c.shownDir, flippable: isTwoWay(u), _bucket: c._bucket, _retry: c._retry, _rid: c._rid, _added: c._added, _displaced: c._displaced };
         })
         .filter(Boolean);
       let next = patched;
@@ -2204,15 +2204,16 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
         : null),
     }));
     // Wrong answers: the card comes back RE_QUEUE_OFFSET cards later, INSIDE
-    // the block, taking the place of the block's last unseen card — see
-    // placeRetry. The block never grows past its length. Splice runs after
+    // the block — added on top while the block is shorter than the set size,
+    // otherwise taking the place of the block's last unseen card (see
+    // placeRetry). The block never grows past the set size. Splice runs after
     // setDeck above so we use the post-SR-patch deck.
     if (!got && !(isCorrection && earlier.got === false)) {
       setDeck(prev =>
         // A correction to a miss gets a retry only if the card has none coming.
         prev.slice(idx + 1).some((c) => c._retry && itemKey(c) === itemKey(card))
           ? prev
-          : placeRetry(prev, idx, { ...card, ...(sr || {}), _rid: Math.random().toString(36).slice(2) }, RE_QUEUE_OFFSET)
+          : placeRetry(prev, idx, { ...card, ...(sr || {}), _rid: Math.random().toString(36).slice(2) }, RE_QUEUE_OFFSET, setSizeRef.current)
       );
     }
     // A miss changed to right: its retry is taken back out, and the card that
@@ -2227,8 +2228,8 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
     setTypeResult(null);
     setTypedAnswer("");
     disputeRef.current = null; setFeedbackState(null); setFeedbackVerdict(null);
-    // Cap at last index. The block's length never changes (a retry replaces
-    // an unseen card), so the last card stays put, and `sessionDone` below is
+    // Cap at last index. A miss on the last card adds nothing after it (a
+    // retry needs a card between), so the last card stays put, and `sessionDone` below is
     // what turns that into a visible end — the clamp alone can't, since idx
     // reads the same before and after the last card is answered.
     setIdx(i => Math.min(i + 1, deck.length - 1));
@@ -2252,7 +2253,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
     const missedBefore = blockAnswersRef.current.get(slotKeyOf(card))?.got === false;
     const comesBackInSet =
       deck.slice(idx + 1).some((c) => c._retry && itemKey(c) === key) ||
-      (!missedBefore && placeRetry(deck, idx, card, RE_QUEUE_OFFSET) !== deck);
+      (!missedBefore && placeRetry(deck, idx, card, RE_QUEUE_OFFSET, setSizeRef.current) !== deck);
     const sr = answer(false, "typed");
     let when = "later in this set";
     if (!comesBackInSet) {

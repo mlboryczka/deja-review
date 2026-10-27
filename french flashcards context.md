@@ -249,14 +249,23 @@ the time, for the status check. The app never waits for this write. Its
 off (`dealScopeOf`), which the status check reads to rebuild what the set
 could have been dealt from.
 
-**A block is as many answers as its size, retries included** (`placeRetry`).
+**A block is never more answers than the set size, retries included**
+(`placeRetry`).
 
 - A missed card comes back 20 cards later (`RE_QUEUE_OFFSET`), or at the end
-  of the block if fewer are left. It takes the place of the block's last card
-  not yet shown, which moves to a later block, so the block never grows.
-- No retry when the miss is one of the last two cards, or only retries are left
-  to come. The miss is recorded, and the card comes first on the day it is
-  next due.
+  of the block if fewer are left.
+- While the block is shorter than the set size, the retry is added and the
+  block grows by one; no card makes way. Before 2026-10-27 a retry always took
+  the place of the block's last card not yet shown: the owner's Lesson 8, 52
+  cards dealt into a set of 100, lost 14 of them to a second set to 14 misses.
+  Such a retry is marked `_added` (kept across a reload), and a miss changed to
+  right takes it out without putting a card back.
+- Once the block is the set size, a retry takes the place of the block's last
+  card not yet shown, which moves to a later block, so the block grows no
+  further.
+- No retry when the miss is the last card, or, in a full block, one of the
+  last two or only retries are left to come. The miss is recorded, and the
+  card comes first on the day it is next due.
 - A retry is practice: FSRS already has the day's answer.
 - A miss changed to right with Previous card withdraws its retry
   (`withdrawRetry`) and puts back, at the end, the card that retry replaced

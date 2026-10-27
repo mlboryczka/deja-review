@@ -485,6 +485,24 @@ console.log("\n  a missed card is retried inside the block, never after it");
   const allRetries = [...block(10), { id: "x", _retry: true }, { id: "y", _retry: true }];
   ck("a retry never displaces another retry",
      placeRetry(allRetries, 9, { id: "b9" }, 20) === allRetries);
+
+  // A block shorter than the set size: the owner's Lesson 8 had 52 cards to
+  // give in a set of 100, and every miss pushed one of them out (2026-10-27).
+  const r1 = placeRetry(block(52), 5, { id: "b5" }, 20, 100);
+  ck("with room, the retry is added and the block grows by one", r1.length === 53 && at(r1, "b5") === 26, `${r1.length} long, retry at ${at(r1, "b5")}`);
+  ck("and no card makes way for it", block(52).every((c) => r1.some((x) => x.id === c.id && !x._retry)));
+  let g = block(52), added = 0;
+  for (let i = 0; i < g.length && added < 60; i++) {
+    const before = g;
+    g = placeRetry(g, i, g[i], 20, 100);
+    if (g !== before) added++;
+  }
+  ck("it grows only to the set size, then retries push cards out as before", g.length === 100 && added > 48, `${g.length} long, ${added} retries`);
+  ck("a miss on the last card still gets no retry", placeRetry(block(52), 51, { id: "b51" }, 20, 100).length === 52);
+  ck("a miss on the second-to-last comes back after the last card",
+     at(placeRetry(block(52), 50, { id: "b50" }, 20, 100), "b50") === 52);
+  ck("changing that miss to right takes the retry out, and the block is as it was",
+     JSON.stringify(withdrawRetry(r1, 5, itemKey({ id: "b5" }))) === JSON.stringify(block(52)));
 }
 
 // ── A miss changed to right takes its retry back out ──────────────────────
@@ -522,6 +540,15 @@ console.log("\n  a miss changed to right takes its retry back out");
      withdrawRetry(entries, 0, itemKey(entries[0])).at(-1)?.row_id === 6);
   const older = { ...kept, entries: kept.entries.map(({ x, ...e }) => e) };
   ck("a set kept before this still loads, whole", unpackEntries(older, rows).entries.length === 6);
+  const grown = JSON.parse(JSON.stringify(packSet({
+    deck: placeRetry(dealt, 0, { ...dealt[0], _rid: "r2" }, 20, 50), idx: 1, stats: {}, done: false,
+    answers: new Map(), face: null, day: "2026-10-27", dir: "mix",
+  })));
+  const back2 = unpackEntries(grown, rows).entries;
+  ck("a retry added to a set with room is kept as added, across a reload",
+     back2.length === 7 && back2.find((c) => c._retry)?._added === true);
+  ck("so changing the miss after a reload takes it out, and nothing else",
+     withdrawRetry(back2, 0, itemKey(back2[0])).length === 6);
 }
 
 // ── A fetch never undoes an answer this page has given ─────────────────────

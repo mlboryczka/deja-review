@@ -88,7 +88,11 @@ const ck = checker();
 // Retries used to be appended after the block. With blocks of 50, every miss
 // after card 30 landed past the end: a block with 21 misses ran to 71 cards
 // and read "Retry 1 of 21" before its checkpoint. The requirement is that the
-// block is its own length in answers, retries included.
+// block is its own length in answers, retries included — or, when it was
+// dealt shorter than the set size, that a retry is added on top and pushes no
+// card out (the owner's Lesson 8, 2026-10-27). This block is shorter than the
+// set size, so the one miss makes it one answer longer; the serving suite
+// checks a block never grows past the set size.
 {
   const { browser, page } = await openApp({ width: 1400, height: 900 });
   const counter = () =>
@@ -105,7 +109,7 @@ const ck = checker();
   await page.keyboard.press("ArrowLeft"); // miss card 1 — the only miss
   await settled(page);
   const afterMiss = await counter();
-  ck("a miss does not lengthen the block", afterMiss.total === total, `${start.text} → ${afterMiss.text}`);
+  ck("a miss in a block with room adds its retry: one answer longer", afterMiss.total === total + 1, `${start.text} → ${afterMiss.text}`);
   let answers = 1;
   while (!(await page.$("[data-checkpoint]")) && answers < total * 3) {
     await page.keyboard.press("ArrowRight");
@@ -114,7 +118,7 @@ const ck = checker();
     await page.waitForTimeout(60);
     answers++;
   }
-  ck("the checkpoint comes after exactly the block's length in answers", answers === total,
+  ck("the checkpoint comes after every card and the retry", answers === total + 1,
      `${answers} answers for a ${total}-card block`);
   ck("and no counter ever read Retry", !/Retry \d+ of/i.test(await page.evaluate(() => document.body.innerText)));
   await browser.close();
