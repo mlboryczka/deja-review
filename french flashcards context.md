@@ -1085,6 +1085,13 @@ uploads it. Bundle id `com.dejareview.app`, icon and launch screen in
   that file on `main` first.
 - **Signing in** is by the emailed code. The email's link opens the site, not
   the app.
+- **Chrome** is the owner's browser, on the computer and the phone. The page
+  tells Chrome not to translate it (`index.html`), because the French is the
+  exercise. The answer boxes switch off autocomplete, autocorrect, capitals and
+  spellcheck, so neither Chrome nor the phone keyboard changes or hints at an
+  answer. Chrome on an iPhone draws pages with Apple's engine, like Safari.
+  Pulling down at the top reloads the page there, and no page setting stops it
+  (WebKit bug 275947).
 
 Each rule below stops a bug that really happened. The card's size, the space
 above and below it, and the panel animation work as one system: change one and
@@ -3514,7 +3521,9 @@ App Store: "i want it to be a proper application, so will need to go through
 the app store". The phone layout came back, as a drawer rather than the old
 bottom bar so every item, Upload and Sign out included, is reachable, and
 the iPhone app was set up around the same pages. See *The iPhone app*. Still
-needed: the owner's Apple developer account and Xcode on the Mac.
+needed: the owner's Apple developer account and Xcode on the Mac. Then
+"optimize for chrome, that's the browser i use": Chrome no longer offers to
+translate the pages, and the answer boxes get no autocorrect or spelling help.
 
 ---
 

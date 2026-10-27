@@ -4743,6 +4743,10 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
                         }}
                         placeholder={`Type ${answerLang(card)}…`}
                         autoFocus
+                        // No help with the answer: Chrome's red underline and
+                        // spelling suggestions, its list of earlier entries,
+                        // and the phone keyboard turning French into English.
+                        autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
                       />
                       <button style={S.typeSubmit} onClick={submitTyped}>Check</button>
                     </div>

@@ -570,7 +570,7 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
                     onChange={(e) => setTyped(e.target.value)}
                     onKeyDown={onEnter}
                     lang="es"
-                    spellCheck={false}
+                    autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
                     aria-label="Your answer"
                   />
                 ) : (
