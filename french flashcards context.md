@@ -301,10 +301,12 @@ include such answers.
 After a block's last card, the checkpoint (`data-checkpoint`) replaces the
 card. It says how the block went, "50 answers, 43 right first time": answers
 include retries, and right first time counts the answers FSRS counted. It
-shows what each area moved (`progressChanges`), and inside a lesson how many
-cards elsewhere are due. Then comes Continue, or "You're all caught up" when
-nothing is due or new. The owner had the headline's full stop and a "reviews
-only" message removed (2026-09-14).
+shows what each area moved (`progressChanges`). Then comes Continue, or
+"You're all caught up" when nothing is due or new. The owner had the
+headline's full stop and a "reviews only" message removed (2026-09-14), and
+the line saying, inside a lesson, how many cards elsewhere were due ("9 cards
+from the rest of your deck are due. They come first when you go back to all
+cards.") removed (2026-10-27).
 
 **Continue deals from the deck in memory, never from a refetch,** which
 straight after the last answer can return that card's old state and deal it

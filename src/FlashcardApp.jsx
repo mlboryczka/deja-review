@@ -1587,7 +1587,9 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   //   changes   the areas the block moved: seen and about-remembered deltas
   //   next      the block Continue would deal, to say "reviews only" or
   //             "all caught up" before the student presses anything
-  //   waiting   inside a lesson, cards due today elsewhere in the deck
+  // Inside a lesson it used to add how many cards were due elsewhere in the
+  // deck ("9 cards from the rest of your deck are due"); the owner had that
+  // line removed (2026-10-27).
   const checkpoint = useMemo(() => {
     if (!sessionDone) return null;
     const now = Date.now();
@@ -1599,25 +1601,8 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
       lessonMode: lessonFilter !== "all",
       lessonRank,
     });
-    const endToday = endOfLocalDay(new Date(now));
-    // Counted the way the student is studying: in EN→FR, a word due only
-    // French side up is not waiting for them.
-    const dueToday = (side) => (side.fsrs_state ?? State.New) !== State.New && !!side.next_due_at &&
-      new Date(side.next_due_at).getTime() <= endToday;
-    // Elsewhere is what Cards would deal: not the lessons switched off, and
-    // under My cahier no lesson at all.
-    let waiting = 0;
-    if (lessonFilter !== "all") {
-      for (const c of userCards) {
-        if (lessonIdOf(c) === lessonFilter || !onCards(c, { scope, lessonsOn, lessonIds })) continue;
-        for (const d of directionsOf(c)) {
-          if (isTwoWay(c) && dir !== "mix" && d !== dir) continue;
-          if (dueToday(sideOf(c, d))) waiting++;
-        }
-      }
-    }
-    return { after, changes, next, waiting };
-  }, [sessionDone, userCards, candidatesFrom, lessonFilter, scope, lessonsOn, lessonIds, dir]);
+    return { after, changes, next };
+  }, [sessionDone, userCards, candidatesFrom, lessonFilter, dir]);
   // Keep the ref in sync so deck rebuilds can find the current card.
   useEffect(() => { currentCardIdRef.current = card ? itemKey(card) : null; }, [card]);
   // The card on screen as the tutor needs it: what it asks, and whether its
@@ -4480,12 +4465,6 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
                   <p style={S.checkpointNote}>
                     <strong>You're all caught up.</strong> Nothing is due, and there are no new cards
                     {lessonFilter !== "all" ? " left in this lesson" : scope === "cahier" ? " left in your cahier" : ""}.
-                  </p>
-                )}
-                {checkpoint?.waiting > 0 && (
-                  <p style={S.checkpointNote}>
-                    {checkpoint.waiting.toLocaleString()} {checkpoint.waiting === 1 ? "card" : "cards"} from the rest of your deck {checkpoint.waiting === 1 ? "is" : "are"} due.
-                    They come first when you go back to all cards.
                   </p>
                 )}
                 {checkpoint && checkpoint.next.queue.length > 0 && (
