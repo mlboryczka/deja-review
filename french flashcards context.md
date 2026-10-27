@@ -2586,6 +2586,10 @@ page you were on (kept in this browser, `es-exercises-place:<user id>`).
   note and correction. Written by the server; a student reads only their
   own. Until migration_022 is run the page still marks answers and says they
   aren't being kept.
+- **Fresh each day** (owner, 2026-10-27: "reset all exercise answers at the
+  end of a day"): the page shows only answers given today, the app's study day
+  from 4am (`shownAnswer`). Older ones stay in `es_exercise_answers`; every
+  item, count and the tutor's view of the page starts empty the next day.
 - **Who has it**: the same people as Spanish. The server refuses anyone else
   (403). Claude is paid for as everywhere else: the owner's account for the
   owner (and Laura on the test app), anyone else's own key.

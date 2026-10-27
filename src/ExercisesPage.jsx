@@ -8,8 +8,10 @@
 // marks it at once (src/lib/exerciseMarking.js), Claude marks anything the
 // key doesn't have (api/_lib/exercises.js), and the next item is ready to
 // type. Every answer is kept (es_exercise_answers, migration_022); an item
-// shows its latest one. "Try again" and "Start again" add answers, they never
-// remove any. "Hint" on an item still to answer shows the key's answer a
+// shows its latest one from today, so every exercise starts fresh each day
+// (owner, 2026-10-27: "reset all exercise answers at the end of a day"). The
+// day is the app's study day, from 4am. "Try again" and "Start again" add
+// answers, they never remove any. "Hint" on an item still to answer shows the key's answer a
 // letter at a time (hintText in exerciseMarking.js); it isn't kept and
 // doesn't change the marking.
 //
@@ -27,6 +29,7 @@ import { LESSON_TEXTS } from "./data/exercises/es/texts.js";
 import { itemKey, kindOf, isAnswered, markByKey, typedText, keyAnswer, keyReason, hintText, hintLevels, markedNow, findItem } from "./lib/exerciseMarking.js";
 import { markAnswer, loadAnswers } from "./lib/exerciseApi.js";
 import { BYOK_REQUIRED, BAD_KEY } from "./lib/anthropicKey";
+import { startOfLocalDay } from "./lib/studyDay";
 
 // ── The answers, kept per user for as long as the page is open ───────────
 // Outside React, so a mark still on its way lands when it comes back, even if
@@ -116,13 +119,16 @@ function writeAgain(userId, value) {
   try { localStorage.setItem(AGAIN_KEY + userId, JSON.stringify(value)); } catch {}
 }
 
-// An item's answer as the page shows it: its latest, unless the exercise was
-// started again after it.
+// An item's answer as the page shows it: its latest, unless it was given
+// before today (the page starts fresh each day) or the exercise was started
+// again after it. One still being marked is always shown.
 const at = (iso) => Date.parse(iso) || 0;
-const shownAnswer = (latest, again, lessonId, n, key) => {
+const shownAnswer = (latest, again, lessonId, n, key, today = startOfLocalDay()) => {
   const a = latest[key];
+  if (!a) return null;
+  if (a.pending) return a;
   const from = again[`${lessonId}/${n}`];
-  return a && !(from && !a.pending && at(a.answeredAt) <= at(from)) ? a : null;
+  return at(a.answeredAt) < today || (from && at(a.answeredAt) <= at(from)) ? null : a;
 };
 
 function tally(lesson, latest, again) {
