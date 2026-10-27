@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
+import { SERVER } from "./lib/nativeApp";
 
 // A sign-in link works once. Opened again (a second click, an older email
 // after a newer one, or a work email system that opens links to scan them)
@@ -34,7 +35,10 @@ export default function Auth() {
       // to has the test app as dejareview-mlb.vercel.app/**, which the bare
       // origin doesn't match, so its link opened the students' app instead
       // (2026-10-19).
-      options: { emailRedirectTo: `${window.location.origin}/` },
+      // In the iPhone app the page's own address is the app's, which no
+      // email link can open: the link goes to the site, and the code is
+      // typed into the app.
+      options: { emailRedirectTo: `${SERVER || window.location.origin}/` },
     });
     setLoading(false);
     if (authError) setError(authError.message);

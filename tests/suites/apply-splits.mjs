@@ -106,7 +106,8 @@ console.log('\n  the corrections log saves a correction');
   globalThis.__fakeAdminUser = { id: 'admin-1', email: 'owner@example.com' };
   const src = readFileSync(new URL('../../api/parse-corrections.js', import.meta.url), 'utf8')
     .replace('import { createClient } from "@supabase/supabase-js";', 'const createClient = () => globalThis.__fakeCorrections;')
-    .replace('import { requireAdmin } from "./_lib/auth.js";', 'const requireAdmin = async () => globalThis.__fakeAdminUser;');
+    .replace('import { requireAdmin } from "./_lib/auth.js";', 'const requireAdmin = async () => globalThis.__fakeAdminUser;')
+    .replace('import { allowIphoneApp } from "./_lib/cors.js";', 'const allowIphoneApp = () => false;');
   const { default: corrections } = await import('data:text/javascript;base64,' + Buffer.from(src).toString('base64'));
   const r = mkRes();
   await corrections({ method: 'POST', headers: { authorization: 'Bearer good' }, query: {},

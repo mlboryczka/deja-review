@@ -29,10 +29,12 @@ import { requireUser } from "./_lib/auth.js";
 import { buildHistories, fittingSequences, replayHistory } from "../src/lib/fsrsHistory.js";
 import { makeScheduler } from "../src/lib/spacedRepetition.js";
 import { STARTING_WEIGHTS, STARTING_VERSION, FIRST_FIT, fitDue, usableWeights, withFirstGaps, settingsKind } from "../src/lib/fsrsSettings.js";
+import { allowIphoneApp } from "./_lib/cors.js";
 
 export const config = { maxDuration: 60 };
 
 export default async function handler(req, res) {
+  if (allowIphoneApp(req, res)) return;
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   const user = await requireUser(req, res);
   if (!user) return;

@@ -11,6 +11,7 @@ import { createClient } from "@supabase/supabase-js";
 import { requireAdmin } from "./_lib/auth.js";
 import { checkEveryone, saveReports, latestReports } from "./_lib/statusDaily.js";
 import { evalStatus } from "./_lib/evalStatus.js";
+import { allowIphoneApp } from "./_lib/cors.js";
 
 // Checking every student takes a few seconds each.
 export const config = { maxDuration: 120 };
@@ -38,6 +39,7 @@ async function fetchAllRows(baseUrl, headers, pageSize = 1000) {
 }
 
 export default async function handler(req, res) {
+  if (allowIphoneApp(req, res)) return;
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
   }

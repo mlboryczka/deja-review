@@ -29,11 +29,17 @@ import ApiKeyModal from "./ApiKeyModal";
 import FsrsSettingsModal from "./FsrsSettingsModal";
 import { useFsrsSettings } from "./useFsrsSettings";
 import { keyHeaders, hasKey } from "./lib/anthropicKey";
+import { IN_IPHONE_APP, appHost } from "./lib/nativeApp";
 
 const SIDEBAR_WIDTH = 256;
 // The sidebar can be minimized to a rail of icons. Remembered per browser.
 const SIDEBAR_MIN_WIDTH = 64;
 const SIDEBAR_MIN_KEY = "sidebar:minimized";
+// The phone layout: the iPhone app, and any window narrower than this, which
+// no computer's window is in practice. One column, with the sidebar a drawer
+// behind a menu button in a bar across the top.
+const PHONE_MAX_WIDTH = 600;
+const PHONE_BAR_HEIGHT = 52;
 const SIDEBAR_TOGGLE_ICON = (minimized) => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <rect x="3" y="4" width="18" height="16" rx="2" />
@@ -111,7 +117,7 @@ const isAdminUser = (user) => !!(user?.email && user.email.toLowerCase() === ADM
 const podcastsUser = (user) => podcastsOpenTo({
   isOwner: isAdminUser(user),
   signedIn: !!user?.id,
-  host: typeof window !== "undefined" ? window.location.hostname : "",
+  host: appHost(),
 });
 // The Spanish module (2026-10-22): the same people, who switch between French
 // and Spanish with the flag in the top-right corner (LanguageFlag, below).
@@ -795,7 +801,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   // panel opens INSIDE the sidebar and needs its full width to write in, so
   // opening it widens the sidebar, and closing it puts the sidebar back the
   // way it was.
-  const [sidebarMin, setSidebarMin] = useState(() => {
+  const [sidebarMinPref, setSidebarMin] = useState(() => {
     try { return localStorage.getItem(SIDEBAR_MIN_KEY) === "1"; } catch { return false; }
   });
   const widenedForFeedback = useRef(false);
@@ -942,8 +948,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   const [editingCard, setEditingCard] = useState(null); // null | card object
 
   // The window's width, because whether a panel can sit beside the card is a
-  // question about how much room is left. There is no phone layout: the app
-  // is for a computer's browser (the owner, 2026-09-29).
+  // question about how much room is left, and whether this is a phone.
   const [winWidth, setWinWidth] = useState(
     typeof window !== "undefined" ? window.innerWidth : 1400
   );
@@ -965,6 +970,18 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
       if (frame !== null) cancelAnimationFrame(frame);
     };
   }, []);
+  // A phone, the iPhone app above all (owner, 2026-10-27: "i want it to be a
+  // proper application, so will need to go through the app store"). The
+  // sidebar is a drawer there, always at full width: the rail is a choice
+  // for a computer, kept for when the window is wide again.
+  const phone = IN_IPHONE_APP || winWidth < PHONE_MAX_WIDTH;
+  const sidebarMin = sidebarMinPref && !phone;
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  // For styles.css, and for the panels and modals, which render outside the
+  // app's own box.
+  useEffect(() => {
+    document.documentElement.classList.toggle("phone", phone);
+  }, [phone]);
   // Review dates for streak tracking, loaded from Supabase.
   // Set of ISO date strings (e.g. "2026-04-16") on which the user reviewed
   // at least one card. Populated on mount and appended to in answer().
@@ -1048,6 +1065,17 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   const exercisesOn = hasExercises && mode === "exercises";
   useEffect(() => { if (mode === "exercises" && !hasExercises) setMode("study"); }, [mode, hasExercises]);
   const [exView, setExView] = useState(() => ({ lesson: exPlaceRef.current?.lesson || null }));
+  // Going anywhere from the drawer puts it away: a page, a lesson, the tutor,
+  // anything from the account menu. Folding Lessons goes nowhere, so the
+  // drawer stays.
+  useEffect(() => { setDrawerOpen(false); }, [
+    mode, lessonFilter, podView, exView, showChat, showUpload, showKeyModal,
+    showFsrsSettings, showFeedbackModal, showUsersModal, courseId,
+  ]);
+  // Feedback opens inside the sidebar, so on a phone it opens the drawer
+  // (the flag on a card does this too). After the effect above, so that
+  // opening it from the tutor, which closes the tutor, still opens the drawer.
+  useEffect(() => { if (phone && showFeedback) setDrawerOpen(true); }, [phone, showFeedback]);
   const goExercises = useCallback(() => {
     if (hasExercises) setMode("exercises");
   }, [hasExercises]);
@@ -1667,6 +1695,9 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
     setTourOpen(true);
   }, [markTourSeen, goFlashcards]);
   useEffect(() => {
+    // Not on a phone: the steps point at the computer's sidebar, which is in
+    // the drawer there. Nothing is marked, so it opens on a computer instead.
+    if (phone) return;
     if (tourChecked.current || !user || !loaded || !deckFreshSeq || !tourLesson || accountTourSeen === null) return;
     let seenHere = false;
     try { seenHere = !!localStorage.getItem(tourSeenKey); } catch {}
@@ -1675,7 +1706,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
     if (!userCards.some((c) => lessonIdOf(c) === TOUR_LESSON)) return;
     tourChecked.current = true;
     startTour();
-  }, [user, loaded, deckFreshSeq, userCards, tourLesson, tourSeenKey, accountTourSeen, startTour]);
+  }, [phone, user, loaded, deckFreshSeq, userCards, tourLesson, tourSeenKey, accountTourSeen, startTour]);
   // What the steps do to set the page up. Read through a ref, so the steps
   // are made once and still act on the page as it is now.
   const tourActsRef = useRef(null);
@@ -2431,7 +2462,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   // with Tab. Not a clicked one: Chrome leaves focus on a tab you click, and
   // that held the keys the same way. (Nor :focus-visible, which Chrome turns
   // on for a clicked button at the very keypress being asked about.)
-  const sidebarWidth = sidebarMin ? SIDEBAR_MIN_WIDTH : SIDEBAR_WIDTH;
+  const sidebarWidth = phone ? 0 : sidebarMin ? SIDEBAR_MIN_WIDTH : SIDEBAR_WIDTH;
   const roomToReflow = (panelWidth, floor = MIN_REFLOW_CONTENT) =>
     winWidth - sidebarWidth - panelWidth >= floor;
   const chatReflow =
@@ -3030,7 +3061,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
           </div>
         )}
 
-        <div style={S.onbInner}>
+        <div style={S.onbInner} className="page-pad">
           {/* Hero — left text + right typographic preview */}
           <section style={S.onbHero}>
             <div style={S.onbHeroLeft}>
@@ -3215,7 +3246,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   // See MIN_REFLOW_CONTENT for where the floor comes from.
   // (roomToReflow, chatReflow and lessonReflow are computed further up, before
   // the keyboard handlers, which need to know whether the tutor covers the card.)
-  const shellStyle = S.shell;
+  const shellStyle = phone ? { ...S.shell, ...S.shellPhone } : S.shell;
   // The room is made by MAIN, not by the shell. Padding the shell shrank the
   // sidebar too — its account block jumped up the page and left a gap —
   // when the sidebar is not what either panel covers. Only the content column
@@ -3224,19 +3255,50 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
     ...S.main,
     boxSizing: "border-box",
     paddingRight: chatReflow ? CHAT_PANEL_WIDTH : lessonReflow ? LESSON_PANEL_WIDTH : 0,
+    // Clear of the phone's bar across the top.
+    paddingTop: phone ? `calc(${PHONE_BAR_HEIGHT}px + env(safe-area-inset-top))` : 0,
     // Same duration and curve as the panel's own slide, so the page and the
     // panel move together instead of as two separate animations. (There is no
     // padding-bottom any more: the feedback panel moved into the sidebar.)
     transition: `padding-right ${PANEL_ANIM_MS}ms ${PANEL_EASING}`,
   };
   
+  // On a phone the corner flag sits below the bar across the top.
+  const cornerFlagTopPhone = `calc(${PHONE_BAR_HEIGHT + 14}px + env(safe-area-inset-top))`;
   const sidebar = (
+    <>
+    {/* On a phone: the bar across the top, with the menu button that opens the
+        sidebar as a drawer, and the dim behind the open drawer that closes it. */}
+    {phone && (
+      <>
+        <header data-phone-bar style={S.phoneBar}>
+          <button
+            data-drawer-toggle
+            style={S.phoneMenuBtn}
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Menu"
+            aria-expanded={drawerOpen}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+          </button>
+          <span style={S.phoneBarTitle}>Déjà Review</span>
+        </header>
+        <div
+          data-drawer-scrim
+          style={{ ...S.drawerScrim, opacity: drawerOpen ? 1 : 0, pointerEvents: drawerOpen ? "auto" : "none" }}
+          onClick={() => setDrawerOpen(false)}
+        />
+      </>
+    )}
     <aside
       data-sidebar
       data-minimized={sidebarMin ? "" : undefined}
-      style={sidebarMin ? { ...S.sideBar, ...S.sideBarMin } : S.sideBar}
+      data-drawer={phone ? (drawerOpen ? "open" : "closed") : undefined}
+      style={phone
+        ? { ...S.sideBar, ...S.sideBarPhone, transform: drawerOpen ? "translateX(0)" : "translateX(-100%)", boxShadow: drawerOpen ? S.sideBarPhone.boxShadow : "none" }
+        : sidebarMin ? { ...S.sideBar, ...S.sideBarMin } : S.sideBar}
     >
-      {!sidebarMin && (
+      {!sidebarMin && !phone && (
         // Full width: in the corner of the sidebar's top padding, clear of the nav.
         <button
           data-sidebar-toggle
@@ -3571,7 +3633,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
                   >
                     How much to remember
                   </button>
-                  {tourStepList.length > 0 && !spanish && (
+                  {tourStepList.length > 0 && !spanish && !phone && (
                     <button data-tour-again style={S.profileMenuItem} onClick={startTour}>
                       Take the tour again
                     </button>
@@ -3619,6 +3681,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
         </>
       )}
     </aside>
+    </>
   );
 
   // ── SHARED MODALS ───────────────────────────────────────────────────
@@ -3818,7 +3881,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
           {/* The French / Spanish flag, in the corner it has on every page. */}
           {onCourse && (
             // Clear of the tutor or notes panel, which main makes room for.
-            <div style={{ ...S.cornerFlag, right: (mainStyle.paddingRight || 0) + 24 }}>
+            <div style={{ ...S.cornerFlag, right: (mainStyle.paddingRight || 0) + 24, top: phone ? cornerFlagTopPhone : S.cornerFlag.top }}>
               <LanguageFlag course={course.id} onCourse={onCourse} />
             </div>
           )}
@@ -3850,7 +3913,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
         {sidebar}
         <main style={{ ...mainStyle, position: "relative" }}>
           {onCourse && (
-            <div style={{ ...S.cornerFlag, right: (mainStyle.paddingRight || 0) + 24 }}>
+            <div style={{ ...S.cornerFlag, right: (mainStyle.paddingRight || 0) + 24, top: phone ? cornerFlagTopPhone : S.cornerFlag.top }}>
               <LanguageFlag course={course.id} onCourse={onCourse} />
             </div>
           )}
@@ -3878,7 +3941,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
       <div style={shellStyle}>
         {sidebar}
         <main style={mainStyle}>
-          <div style={S.mainInnerScroll}>
+          <div style={S.mainInnerScroll} className="page-pad">
             <div style={S.pageHead}>
               <h1 style={S.statsHeading}>Lessons</h1>
               {onCourse && <LanguageFlag course={course.id} onCourse={onCourse} style={S.pageHeadFlag} />}
@@ -4092,7 +4155,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
       <div style={shellStyle}>
         {sidebar}
         <main style={mainStyle}>
-          <div style={S.mainInnerScroll}>
+          <div style={S.mainInnerScroll} className="page-pad">
             <div style={S.pageHead}>
               <h1 style={S.statsHeading}>Progress</h1>
               {onCourse && <LanguageFlag course={course.id} onCourse={onCourse} style={S.pageHeadFlag} />}
@@ -4248,7 +4311,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
       {sidebar}
       <main style={mainStyle}>
         {/* Top app bar — kind of card, settings menu, sticky glass */}
-        <div style={S.topBar}>
+        <div style={S.topBar} className="page-pad">
           <div style={S.topBarInner}>
           {/* The row scrolls in a narrow window rather than squeezing; the gear
               sits outside it, as the scrolling would clip its menu. */}
@@ -5823,6 +5886,12 @@ const S = {
   // together. Anything that legitimately runs long (Stats) scrolls inside
   // main via mainInnerScroll rather than scrolling the whole page.
   shell: { display:"flex", height:"100vh", overflow:"hidden", boxSizing:"border-box", background:T.color.background },
+  // The height a phone can see: 100vh in Safari runs on under its toolbar.
+  shellPhone: { height:"100dvh" },
+  phoneBar: { position:"fixed", top:0, left:0, right:0, zIndex:40, display:"flex", alignItems:"center", gap:4, height:`calc(${PHONE_BAR_HEIGHT}px + env(safe-area-inset-top))`, paddingTop:"env(safe-area-inset-top)", paddingLeft:6, paddingRight:16, boxSizing:"border-box", background:T.color.background, borderBottom:"1px solid rgba(3,22,50,0.07)" },
+  phoneMenuBtn: { display:"flex", alignItems:"center", justifyContent:"center", width:44, height:44, padding:0, border:"none", background:"transparent", color:T.color.onSurface, cursor:"pointer", borderRadius:T.radius.md },
+  phoneBarTitle: { fontFamily:T.font.serif, fontSize:17, fontWeight:700, color:T.color.onSurface },
+  drawerScrim: { position:"fixed", top:0, right:0, bottom:0, left:0, zIndex:50, background:"rgba(3,22,50,0.32)", transition:`opacity ${PANEL_ANIM_MS}ms ${PANEL_EASING}` },
   // minHeight:0 is what lets the flex children actually shrink; without it a
   // flex item refuses to go below its content size and the card pushes the
   // buttons off the bottom instead of getting smaller.
@@ -5843,6 +5912,8 @@ const S = {
   // back from the rail's paddingTop:8 removed paddingTop without re-applying the
   // shorthand, the top padding fell to 0 and Cards slid up under the button.
   sideBarMin: { width:SIDEBAR_MIN_WIDTH, overflowY:"visible", paddingTop:8 },
+  // The phone's drawer: over the page, slid in from the left by `transform`.
+  sideBarPhone: { position:"fixed", top:0, left:0, bottom:0, zIndex:60, width:"min(300px, 86vw)", height:"100dvh", paddingTop:"calc(20px + env(safe-area-inset-top))", paddingBottom:"calc(16px + env(safe-area-inset-bottom))", boxShadow:"8px 0 32px rgba(3,22,50,0.16)", transition:`transform ${PANEL_ANIM_MS}ms ${PANEL_EASING}` },
   sideBar: { width:SIDEBAR_WIDTH, background:T.color.surfaceLow, borderRight:"1px solid rgba(3,22,50,0.07)", paddingTop:40, paddingRight:0, paddingBottom:24, paddingLeft:0, display:"flex", flexDirection:"column", flexShrink:0, position:"sticky", top:0, height:"100vh", overflowY:"auto", boxSizing:"border-box", transition:`width ${PANEL_ANIM_MS}ms ${PANEL_EASING}` },
   // Not flex:1 any more — the feedback dock below takes the free height, so the
   // panel can sit in it. The nav looks the same either way.

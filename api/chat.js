@@ -87,6 +87,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { requireUser } from "./_lib/auth.js";
 import { requireAnthropicKey } from "./_lib/anthropicKey.js";
+import { allowIphoneApp } from "./_lib/cors.js";
 
 // The answer streams, so the wall-clock limit is no longer a cliff — but the
 // function still needs room. Vercel's default is 10s.
@@ -829,6 +830,7 @@ export function buildRequestMessages(body) {
 }
 
 export default async function handler(req, res) {
+  if (allowIphoneApp(req, res)) return;
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }

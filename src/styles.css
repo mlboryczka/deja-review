@@ -233,3 +233,28 @@ textarea:focus-visible {
 .mod-btn[aria-pressed="false"]:hover {
   color: #031632 !important;
 }
+
+/* ───────────────────────────────────────────────────────────────────────
+   The phone layout (the iPhone app, and a phone's browser)
+
+   FlashcardApp puts the class `phone` on <html> below 600px, and always in
+   the iPhone app. The pages keep their computer layout; only their 40px side
+   margins narrow, so the card and the answer row get the width.
+   !important because the rest of each element's style is inline.
+   ─────────────────────────────────────────────────────────────────────── */
+html.phone .page-pad,
+html.phone .study-column {
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+}
+
+/* The tutor and the lesson notes cover the whole phone. In the iPhone app
+   the page runs under the clock and the home bar, so they keep clear. */
+html.phone [data-tutor-panel],
+html.phone [data-lesson-panel] > [data-tour="notes"] {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+html.phone main {
+  padding-bottom: env(safe-area-inset-bottom);
+}

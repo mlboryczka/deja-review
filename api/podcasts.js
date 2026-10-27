@@ -35,12 +35,14 @@ import { requireUser, isAdmin } from "./_lib/auth.js";
 import { resolveAnthropicKey } from "./_lib/anthropicKey.js";
 import { handlePodcastRequest, supabasePodcastStore, claudeError } from "./_lib/podcasts.js";
 import { podcastsOpenTo } from "../src/lib/testApp.js";
+import { allowIphoneApp } from "./_lib/cors.js";
 
 // Writing an episode's questions can take a couple of minutes (its own limit
 // is 150 s, api/_lib/podcastQuestions.js), after reading RFI's page.
 export const config = { maxDuration: 300 };
 
 export default async function handler(req, res) {
+  if (allowIphoneApp(req, res)) return;
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }

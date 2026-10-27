@@ -50,6 +50,7 @@ import { cardIndex, isListPart } from "../src/lib/sameCard.js";
 import { planReading, datesCovered } from "../src/lib/notesLines.js";
 import { claimReading, releaseReading, readDeck, saveRun, seedingFrom } from "./_lib/notesReading.js";
 import { askSameCard } from "./_lib/sameCardQuestion.js";
+import { allowIphoneApp } from "./_lib/cors.js";
 export const config = {
   api: {
     bodyParser: { sizeLimit: "10mb" },
@@ -83,6 +84,7 @@ const SUBJECT_PRONOUNS = ["je", "tu", "il/elle", "nous", "vous", "ils/elles"];
 // ═══════════════════════════════════════════════════════════════════════════
 
 export default async function handler(req, res) {
+  if (allowIphoneApp(req, res)) return;
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }

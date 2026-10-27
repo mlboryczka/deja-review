@@ -32,6 +32,7 @@ import {
   cleanFrenchFront,
   splitSlashPairs,
 } from "./parse-cahier.js";
+import { allowIphoneApp } from "./_lib/cors.js";
 export const config = {
   api: {
     bodyParser: { sizeLimit: "10mb" },
@@ -40,6 +41,7 @@ export const config = {
 };
 
 export default async function handler(req, res) {
+  if (allowIphoneApp(req, res)) return;
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }

@@ -9,8 +9,10 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { requireAdmin } from "./_lib/auth.js";
+import { allowIphoneApp } from "./_lib/cors.js";
 
 export default async function handler(req, res) {
+  if (allowIphoneApp(req, res)) return;
   const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     return res.status(500).json({ error: "Missing env vars" });

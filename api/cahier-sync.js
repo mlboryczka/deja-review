@@ -59,6 +59,7 @@ import {
   extractCardsFromBlock,
   cardsFromExtracted,
 } from "./parse-cahier.js";
+import { allowIphoneApp } from "./_lib/cors.js";
 
 export const config = { maxDuration: 300 };
 
@@ -77,6 +78,7 @@ export const docIdFrom = (url) => String(url || "").match(/\/document\/d\/([a-zA
 export const fingerprint = classFingerprint;
 
 export default async function handler(req, res) {
+  if (allowIphoneApp(req, res)) return;
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }

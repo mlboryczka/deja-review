@@ -35,6 +35,7 @@ import { handleFeedbackRequest, supabaseFeedbackStore } from "./_lib/feedbackRev
 import { askClaude, verdictRow, handleAnswerChecks, supabaseAnswerStore } from "./_lib/answerChecks.js";
 import { handleExerciseRequest, supabaseExerciseStore } from "./_lib/exercises.js";
 import { podcastsOpenTo } from "../src/lib/testApp.js";
+import { allowIphoneApp } from "./_lib/cors.js";
 
 export const config = { maxDuration: 60 };
 
@@ -66,6 +67,7 @@ async function recordAlternate({ userId, card_id, direction, user_answer, table 
 }
 
 export default async function handler(req, res) {
+  if (allowIphoneApp(req, res)) return;
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }

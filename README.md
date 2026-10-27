@@ -90,6 +90,7 @@ known both ways round.
 ## How it's built
 
 - React 18 and Vite, with no router and no CSS framework.
+- Capacitor, which wraps the same pages as an iPhone app (`ios/`).
 - Supabase: Postgres with row-level security, and sign-in by emailed link.
 - Vercel: 11 server functions, one fewer than its free plan allows, and four
   scheduled runs a day.

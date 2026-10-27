@@ -1055,8 +1055,36 @@ and fonts in `T` (`src/theme.js`). `src/styles.css` holds fonts, base styles,
 rules and `.study-column`, below), and repeats some colours as CSS variables
 (keep the two in step).
 
-There is no mobile version: the app is for a computer's browser, and has no
-phone layout (owner, 2026-09-29).
+There was no mobile version from 2026-09-29 until 2026-10-27, when the owner
+asked for an iPhone app in the App Store ("i want it to be a proper
+application"). See *The iPhone app*, below.
+
+### The iPhone app
+
+`ios/` is the iPhone app: Capacitor wraps the same built pages (`dist/`) in an
+iPhone app, iPhone only and upright only. `npm run ios` builds it for the test
+app and `npm run ios:students` for the students' app; Xcode then builds and
+uploads it. Bundle id `com.dejareview.app`, icon and launch screen in
+`ios/App/App/Assets.xcassets`.
+
+- **The phone layout.** Below 600px wide, and always in the iPhone app,
+  `phone` is true in FlashcardApp and `<html>` has the class `phone`. A bar
+  across the top holds a menu button; the sidebar is a drawer over the page,
+  always full width (the rail is a computer setting), and going anywhere from
+  it closes it. Feedback opens inside the sidebar, so it opens the drawer.
+  The pages keep their layout with 16px side margins (`styles.css`), and the
+  tutor and lesson notes cover the phone. 600 because no computer's window is
+  narrower in practice, so the computer layout never changes.
+- **The first-visit tour doesn't run on a phone.** Its steps point at the
+  computer's sidebar. Nothing is marked, so it runs on the first computer.
+- **Calls to the server.** In the app the page's address is
+  `capacitor://localhost`, so `src/lib/nativeApp.js` sends every `/api/` fetch
+  to the site the app was built for, and counts as that site wherever the app
+  asks which one it is on (Podcasts, whose Claude account pays). Each route
+  lets that one address in (`api/_lib/cors.js`). The students' build needs
+  that file on `main` first.
+- **Signing in** is by the emailed code. The email's link opens the site, not
+  the app.
 
 Each rule below stops a bug that really happened. The card's size, the space
 above and below it, and the panel animation work as one system: change one and
@@ -3473,6 +3501,16 @@ how the phrases would be designed ("to incorporate other vocab?") and said
 yes to the design: one form per phrase, with one or two of the lesson's words
 that no phrase used yet, and the verb marked exactly. See *Spanish*, "Words
 and phrases only".
+
+### 2026-10-27 — The iPhone app
+
+The owner asked whether the app could be a mobile app, heard the two ways
+(added to the Home Screen from Safari, or a real App Store app), and chose the
+App Store: "i want it to be a proper application, so will need to go through
+the app store". The phone layout came back, as a drawer rather than the old
+bottom bar so every item, Upload and Sign out included, is reachable, and
+the iPhone app was set up around the same pages. See *The iPhone app*. Still
+needed: the owner's Apple developer account and Xcode on the Mac.
 
 ---
 

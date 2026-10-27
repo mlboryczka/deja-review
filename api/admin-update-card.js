@@ -12,6 +12,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { removeCard } from "./_lib/removeCard.js";
+import { allowIphoneApp } from "./_lib/cors.js";
 
 // Force Vercel to parse JSON bodies for us. Without this, some runtime
 // combinations deliver req.body as undefined or a raw stream.
@@ -22,6 +23,7 @@ export const config = {
 };
 
 export default async function handler(req, res) {
+  if (allowIphoneApp(req, res)) return;
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
