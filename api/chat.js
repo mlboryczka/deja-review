@@ -5,7 +5,10 @@
 // proposes flashcards via a tool call. The client renders those proposals
 // as "Add to deck" chips; nothing is written to user_cards here. Asked to
 // change a card the student already has, it calls edit_flashcard, and the
-// client makes the change through the card editor's own endpoint.
+// client makes the change through the card editor's own endpoint. Asked to
+// remove one, it calls remove_flashcard, and the client removes it as the
+// card editor's Remove does (owner, 2026-10-28: "the tutor should be able to
+// remove cards").
 //
 // Keeping the write on the client matters: user_cards is RLS-protected
 // (migration_003), so the insert runs as the signed-in user with their own
@@ -25,7 +28,7 @@
 //         // a user turn may also carry image?: { media_type, data } (a pasted
 //         // picture, base64) or imageDropped?: true (one too old to resend)
 //       { role: "assistant", content: "...", cards?: [{ front, back }],
-//         edits?: [{ was, now, status }] },        // cards it changed: "front — back" each
+//         edits?: [{ was, now, status, removed? }] }, // cards it changed or removed: "front — back" each
 //     ],
 //     context?: {
 //       currentCard?: {                           // the card on screen
@@ -64,7 +67,7 @@
 // Response: an SSE stream of JSON events, one per `data:` line —
 //   { type: "text",  delta: "..." }              prose, as it is generated
 //   { type: "cards", cards: [...] }              card proposals, once complete
-//   { type: "edits", edits: [...] }              changes to cards they have
+//   { type: "edits", edits: [...] }              changes to cards they have, and removals
 //   { type: "done" }                            the answer is complete
 //   { type: "error", error: "...", code?: "..." }
 // A stream that ends without "done" was cut off — the function ran out of
@@ -184,13 +187,13 @@ Call propose_flashcards when the exchange contains something worth drilling.
 - If a card in their deck already covers it, say so instead of proposing a duplicate.
 - If they're just chatting, or nothing in the answer is drillable, don't call the tool at all.
 
-## Changing a card they already have
+## Changing or removing a card they already have
 
-You can change the cards in their deck. When they ask you to — "take 'just as' off that card", "make it 'to unload'", "fix the spelling" — call edit_flashcard. The change is made as soon as you call it and they can undo it, so never tell them to make it themselves, and don't ask them to confirm what they just asked for.
-- Say in one line what you are changing, then call the tool.
+You can change the cards in their deck, and remove them. When they ask you to change one — "take 'just as' off that card", "make it 'to unload'", "fix the spelling" — call edit_flashcard. When they ask you to remove one — "remove it", "take that card out", "I don't want this card" — call remove_flashcard: the card leaves their study, and the answers they gave on it are kept. Either is made as soon as you call it and they can undo it, so never tell them to do it themselves, and don't ask them to confirm what they just asked for.
+- Say in one line what you are changing or removing, then call the tool.
 - front is the card's French side exactly as their deck has it: the card on screen, a related card, a recent miss, or one they added from this chat.
 - new_back and new_front are written whole — the complete new side, keeping everything they didn't ask to change exactly as it was. Leave out the side that stays the same.
-- Only when they ask. If you notice a card of theirs is wrong, say so and offer to change it.
+- Only when they ask. If you notice a card of theirs is wrong, say so and offer to change it; if one seems out of place, say why and offer to remove it.
 - If you can't tell which card they mean, ask which.`;
 
 const EDIT_TOOL = {
@@ -212,6 +215,22 @@ const EDIT_TOOL = {
         type: "string",
         description:
           "The whole new English side (on a grammar drill, the French answer). Leave out to keep it.",
+      },
+    },
+    required: ["front"],
+  },
+};
+
+const REMOVE_TOOL = {
+  name: "remove_flashcard",
+  description:
+    "Take a card out of the learner's deck, when they ask you to. It leaves their study at once, the answers they gave on it are kept, and they can undo it.",
+  input_schema: {
+    type: "object",
+    properties: {
+      front: {
+        type: "string",
+        description: "The card's French side exactly as it is in their deck now.",
       },
     },
     required: ["front"],
@@ -316,13 +335,13 @@ Call propose_flashcards when the exchange contains something worth drilling.
 - If a card in their deck already covers it, say so instead of proposing a duplicate.
 - If they're just chatting, or nothing in the answer is drillable, don't call the tool at all.
 
-## Changing a card they already have
+## Changing or removing a card they already have
 
-You can change the cards in their deck. When they ask you to — "take 'to climb' off that card", "make it 'to go up'", "fix the accent" — call edit_flashcard. The change is made as soon as you call it and they can undo it, so never tell them to make it themselves, and don't ask them to confirm what they just asked for.
-- Say in one line what you are changing, then call the tool.
+You can change the cards in their deck, and remove them. When they ask you to change one — "take 'to climb' off that card", "make it 'to go up'", "fix the accent" — call edit_flashcard. When they ask you to remove one — "remove it", "take that card out", "I don't want this card" — call remove_flashcard: the card leaves their study, and the answers they gave on it are kept. Either is made as soon as you call it and they can undo it, so never tell them to do it themselves, and don't ask them to confirm what they just asked for.
+- Say in one line what you are changing or removing, then call the tool.
 - front is the card's Spanish side exactly as their deck has it: the card on screen, a related card, a recent miss, or one they added from this chat.
 - new_back and new_front are written whole — the complete new side, keeping everything they didn't ask to change exactly as it was. Leave out the side that stays the same.
-- Only when they ask. If you notice a card of theirs is wrong, say so and offer to change it.
+- Only when they ask. If you notice a card of theirs is wrong, say so and offer to change it; if one seems out of place, say why and offer to remove it.
 - If you can't tell which card they mean, ask which.`;
 
 const SPANISH_EDIT_TOOL = {
@@ -343,6 +362,22 @@ const SPANISH_EDIT_TOOL = {
       new_back: {
         type: "string",
         description: "The whole new English side. Leave out to keep it.",
+      },
+    },
+    required: ["front"],
+  },
+};
+
+const SPANISH_REMOVE_TOOL = {
+  name: "remove_flashcard",
+  description:
+    "Take a card out of the learner's deck, when they ask you to. It leaves their study at once, the answers they gave on it are kept, and they can undo it.",
+  input_schema: {
+    type: "object",
+    properties: {
+      front: {
+        type: "string",
+        description: "The card's Spanish side exactly as it is in their deck now.",
       },
     },
     required: ["front"],
@@ -391,8 +426,8 @@ const SPANISH_PROPOSE_TOOL = {
 
 // Which tutor a request gets, by its course.
 const TUTORS = {
-  fr: { system: SYSTEM_PROMPT, tools: [PROPOSE_TOOL, EDIT_TOOL], categories: ["vocab", "expr", "gram"] },
-  es: { system: SPANISH_PROMPT, tools: [SPANISH_PROPOSE_TOOL, SPANISH_EDIT_TOOL], categories: ["vocab", "expr"] },
+  fr: { system: SYSTEM_PROMPT, tools: [PROPOSE_TOOL, EDIT_TOOL, REMOVE_TOOL], categories: ["vocab", "expr", "gram"] },
+  es: { system: SPANISH_PROMPT, tools: [SPANISH_PROPOSE_TOOL, SPANISH_EDIT_TOOL, SPANISH_REMOVE_TOOL], categories: ["vocab", "expr"] },
 };
 export const tutorFor = (body) => (body?.course === "es" ? TUTORS.es : TUTORS.fr);
 
@@ -482,15 +517,15 @@ const EDIT_OUTCOME = {
   failed: " (this could not be made; the card is unchanged)",
 };
 
-// An edit as the client reports it back: what the card was, what it became,
-// and whether it stuck.
+// An edit as the client reports it back: what the card was, what it became
+// (or that it was removed), and whether it stuck.
 function editList(raw) {
   if (!Array.isArray(raw)) return [];
   return raw
     .slice(0, 4)
     .map((e) => {
       const was = clip(e?.was);
-      const now = clip(e?.now);
+      const now = e?.removed ? "removed from their deck" : clip(e?.now);
       if (!was && !now) return "";
       return `${was || "?"} → ${now || "?"}${EDIT_OUTCOME[e?.status] || ""}`;
     })
@@ -802,21 +837,23 @@ export function normalizeCards(input, categories = TUTORS.fr.categories) {
     .filter((c) => c.front && c.back && c.category && (c.category !== "gram" || c.front.includes("→")));
 }
 
-// The same floor for a change to a card the student has. Which card it is,
-// and whether the change is real, is the client's to settle against the deck.
+// The same floor for a change to a card the student has, or its removal
+// (`remove`, set by the handler for remove_flashcard). Which card it is, and
+// whether the change is real, is the client's to settle against the deck.
 export function normalizeEdits(inputs) {
   const text = (v) => (typeof v === "string" ? v.trim() : "");
   const seen = new Set();
   const out = [];
   for (const input of Array.isArray(inputs) ? inputs : []) {
     const front = text(input?.front);
-    const newFront = text(input?.new_front);
-    const newBack = text(input?.new_back);
-    if (!front || (!newFront && !newBack)) continue;
+    const remove = input?.remove === true;
+    const newFront = remove ? "" : text(input?.new_front);
+    const newBack = remove ? "" : text(input?.new_back);
+    if (!front || (!remove && !newFront && !newBack)) continue;
     const key = front.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push({ front, newFront, newBack });
+    out.push(remove ? { front, remove: true } : { front, newFront, newBack });
   }
   return out.slice(0, 4);
 }
@@ -919,7 +956,9 @@ export default async function handler(req, res) {
       if (block.type === "tool_use" && block.name === "propose_flashcards") {
         cards = normalizeCards(block.input, tutor.categories);
       } else if (block.type === "tool_use" && block.name === "edit_flashcard") {
-        editInputs.push(block.input);
+        editInputs.push({ ...block.input, remove: false });
+      } else if (block.type === "tool_use" && block.name === "remove_flashcard") {
+        editInputs.push({ front: block.input?.front, remove: true });
       }
     }
     if (cards.length) send({ type: "cards", cards });

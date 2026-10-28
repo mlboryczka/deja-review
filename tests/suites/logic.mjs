@@ -315,6 +315,32 @@ console.log("\n  /api/chat — what a conversation becomes");
   ck("an earlier answer keeps the cards it changed", /Cards you changed: ainsi que — as well as \/ just as → ainsi que — as well as\]/.test(text(edited[1])), text(edited[1]));
   ck("an edit the student undid says so", /they undid this/.test(text(edited[3])), text(edited[3]));
   ck("the card on screen is named as the deck stores it", /In their deck it is the card "ainsi que" — "as well as"/.test(text(edited.at(-1))), text(edited.at(-1)));
+
+  // Removing a card the student has (owner, 2026-10-28: "the tutor should be
+  // able to remove cards"): both tutors can, and are told when to, and the
+  // next turn knows what went and whether it was put back.
+  ck("both tutors can remove a card, and are told when to",
+     [tutorFor({}), tutorFor({ course: "es" })].every((t) => t.tools.some((x) => x.name === "remove_flashcard") && /call remove_flashcard/.test(t.system)));
+  const removals = normalizeEdits([
+    { front: "haber", remove: true },
+    { front: "haber", new_back: "to have" },
+    { front: "", remove: true },
+    { front: "ainsi que", new_back: "as well as", remove: false },
+  ]);
+  ck("a removal names its card and nothing else, and a second call on the same card is dropped",
+     removals.length === 2 && JSON.stringify(removals[0]) === '{"front":"haber","remove":true}' && removals[1].front === "ainsi que" && !removals[1].remove,
+     JSON.stringify(removals));
+  const removed = buildRequestMessages({
+    messages: [
+      { role: "user", content: "remove it" },
+      { role: "assistant", content: "Removed.", edits: [{ was: "haber — to have", now: "", status: "done", removed: true }] },
+      { role: "user", content: "put it back" },
+      { role: "assistant", content: "Done.", edits: [{ was: "haber — to have", now: "", status: "undone", removed: true }] },
+      { role: "user", content: "thanks" },
+    ],
+  });
+  ck("an earlier answer keeps the card it removed", /\[Cards you changed: haber — to have → removed from their deck\]/.test(text(removed[1])), text(removed[1]));
+  ck("a removal the student undid says so", /removed from their deck \(they undid this\)/.test(text(removed[3])), text(removed[3]));
 }
 
 // The Spanish module's tutor (owner, 2026-10-26: "tutor needs to be added to

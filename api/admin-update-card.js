@@ -6,12 +6,13 @@
 // returned success with 0 rows affected, the modal would close, and the
 // change would quietly never persist).
 //
-// Request body: { row_id, front, back }, or { action: "remove", row_id }
-// Response:     { ok: true, row: <updated row> }, or { ok: true, removed: true }
+// Request body: { row_id, front, back }, or { action: "remove" | "restore", row_id }
+// Response:     { ok: true, row: <updated row> }, or { ok: true, removed: true },
+//               or { ok: true, restored: true, row: <the card, back in study> }
 //               or { error: "..." } on 4xx/5xx
 
 import { createClient } from "@supabase/supabase-js";
-import { removeCard } from "./_lib/removeCard.js";
+import { removeCard, restoreCard } from "./_lib/removeCard.js";
 import { allowIphoneApp } from "./_lib/cors.js";
 
 // Force Vercel to parse JSON bodies for us. Without this, some runtime
@@ -81,6 +82,11 @@ export async function updateCard(admin, req, res) {
   // most 12 routes and there are 12.
   if (body.action === "remove") {
     const { status, json } = await removeCard({ admin, userId, rowId: body.row_id, table });
+    return res.status(status).json(json);
+  }
+  // Undo on a card the tutor removed: back in study as it was.
+  if (body.action === "restore") {
+    const { status, json } = await restoreCard({ admin, userId, rowId: body.row_id, table });
     return res.status(status).json(json);
   }
 

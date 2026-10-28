@@ -630,7 +630,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   // The browser voice reads this course's language.
   setSpeechLanguage(course.speech);
   const { progress, loaded: progressLoaded, updateCard, resetAll: resetAllProgress } = useProgress(user, { table: tbl("card_progress"), store: storeId });
-  const { cards: userCards, archived: archivedCards, loaded: deckLoaded, missing: deckMissing, reload: reloadDeck, patch: patchDeckCard, patchAll: patchAllDeckCards, add: addDeckCard, freshSeq: deckFreshSeq, fetchedAt: deckFetchedAt } = useUserDeck(user, { table: tbl("user_cards"), store: storeId });
+  const { cards: userCards, archived: archivedCards, loaded: deckLoaded, missing: deckMissing, reload: reloadDeck, patch: patchDeckCard, patchAll: patchAllDeckCards, add: addDeckCard, drop: dropDeckCard, freshSeq: deckFreshSeq, fetchedAt: deckFetchedAt } = useUserDeck(user, { table: tbl("user_cards"), store: storeId });
   // The linked cahier, read again when the app opens: a class taught after
   // the last visit is already cards by the time the student studies. French
   // only: the cahier is French notes.
@@ -3834,6 +3834,10 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
         // write that returned nothing falls back to a refetch.
         onCardAdded={(row) => (row ? addDeckCard(row) : reloadDeck())}
         onCardUpdated={patchDeckCard}
+        // A card the tutor removed leaves the deck in place, as the editor's
+        // Remove leaves it: the set keeps its place, and if it was the card on
+        // screen, the next one comes up unanswered.
+        onCardRemoved={dropDeckCard}
         onNeedKey={() => { setShowChat(false); setShowKeyModal(true); }}
         reflow={chatReflow}
         sidebarWidth={sidebarWidth}

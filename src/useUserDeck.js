@@ -324,6 +324,14 @@ export function useUserDeck(user, { table = "user_cards", store = user?.id } = {
     setCards((prev) => [...prev.filter((c) => c.row_id !== card.row_id), card]);
   }, []);
 
+  // Take out one card the app has just removed, without refetching, for the
+  // same reasons as add: the tutor's Remove (2026-10-28). The next load lists
+  // it among the cards out of study.
+  const drop = useCallback((rowId) => {
+    if (rowId == null) return;
+    setCards((prev) => prev.filter((c) => c.row_id !== rowId));
+  }, []);
+
   // Apply the same fields to every card: "Reset all progress", once its write
   // has succeeded. The cache is dropped rather than rewritten — the next load
   // writes it from the server.
@@ -334,5 +342,5 @@ export function useUserDeck(user, { table = "user_cards", store = user?.id } = {
     try { if (storeId) localStorage.removeItem(CACHE_PREFIX + storeId); } catch {}
   }, [storeId]);
 
-  return { cards, archived, loaded, missing, reload, patch, patchAll, add, freshSeq: fetched.seq, fetchedAt: fetched.at };
+  return { cards, archived, loaded, missing, reload, patch, patchAll, add, drop, freshSeq: fetched.seq, fetchedAt: fetched.at };
 }

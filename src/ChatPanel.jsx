@@ -38,6 +38,10 @@ import { logCorrection, CORRECTION_CATEGORIES, CORRECTION_ACTIONS } from "./lib/
 //     with an Undo beside it. It used to answer that it had no way to edit
 //     cards and send you to the editor (owner, 2026-10-18): asking was the
 //     decision, so it is not put to you again as a button.
+//   • Asked to remove a card, the tutor removes it as the card editor's
+//     Remove does — out of study, its answers kept — with an Undo beside it.
+//     It used to answer that it could only edit cards (owner, 2026-10-28:
+//     "the tutor should be able to remove cards").
 //   • The Spanish module has the same panel (owner, 2026-10-26: "tutor needs
 //     to be added to spanish module"), with course="es": it asks the Spanish
 //     tutor (api/chat.js), adds and changes cards in the Spanish deck, keeps
@@ -47,7 +51,8 @@ import { logCorrection, CORRECTION_CATEGORIES, CORRECTION_ACTIONS } from "./lib/
 //   <ChatPanel open={showChat} onClose={...} user={user} cards={userCards}
 //              currentCard={...} podcast={...} exercise={...} course="fr"
 //              thread={{ id, rowId }}
-//              onCardAdded={addDeckCard} onCardUpdated={patchDeckCard} />
+//              onCardAdded={addDeckCard} onCardUpdated={patchDeckCard}
+//              onCardRemoved={dropDeckCard} />
 
 // Panel width. Exported because FlashcardApp reflows the app by exactly this
 // much when the panel is open on a wide screen, so the two must agree.
@@ -275,6 +280,15 @@ function ProposedCard({ card, added, deckByFront, onAdd, onReplace, language = "
 
 // What a change did, for the line under it.
 function editOutcome(edit) {
+  if (edit.remove) {
+    switch (edit.status) {
+      case "pending": return "Removing the card…";
+      case "done":
+      case "undoing": return "Removed from your deck. Your answers on it are kept.";
+      case "undone": return "Undone. The card is back in your deck.";
+      default: return `Not removed: ${edit.error || "something went wrong."}`;
+    }
+  }
   const was = edit.oldFront && edit.oldFront !== edit.front
     ? `${edit.oldFront} — ${edit.oldBack}`
     : edit.oldBack;
@@ -295,7 +309,7 @@ function EditedCard({ edit, onUndo }) {
   const back = edit.front ? edit.back : edit.newBack;
   const undoable = edit.status === "done" || edit.status === "undoing";
   return (
-    <div style={S.cardChip} data-edited-card data-edit-status={edit.status}>
+    <div style={S.cardChip} data-edited-card data-edit-status={edit.status} data-edit-kind={edit.remove ? "remove" : "change"}>
       <div style={S.chipMain}>
         <div style={S.chipFront}>{front}</div>
         {back ? <div style={S.chipBack}>{back}</div> : null}
@@ -307,7 +321,7 @@ function EditedCard({ edit, onUndo }) {
             style={S.chipReplace}
             onClick={() => onUndo(edit)}
             disabled={edit.status === "undoing"}
-            title="Put the card back as it was"
+            title={edit.remove ? "Put the card back in your deck" : "Put the card back as it was"}
           >
             Undo
           </button>
@@ -321,10 +335,11 @@ function EditedCard({ edit, onUndo }) {
 // turn knows what it changed and whether the change stuck.
 function editReport(e) {
   const was = e.oldFront ? `${e.oldFront} — ${e.oldBack}` : e.target;
+  const status = e.status === "undone" ? "undone" : e.status === "failed" ? "failed" : "done";
+  if (e.remove) return { was, now: "", status, removed: true };
   const now = e.front
     ? `${e.front} — ${e.back}`
     : [e.newFront || e.target, e.newBack].filter(Boolean).join(" — ");
-  const status = e.status === "undone" ? "undone" : e.status === "failed" ? "failed" : "done";
   return { was, now, status };
 }
 
@@ -364,6 +379,9 @@ export default function ChatPanel({
   onCardAdded,
   // An existing card's back was replaced: (rowId, fields).
   onCardUpdated,
+  // A card was taken out of the deck at the tutor's hand: (rowId). Undo puts
+  // it back through onCardAdded, with its row.
+  onCardRemoved,
   // Opens the "connect your Claude account" dialog. The tutor spends money
   // per question and the server refuses without a key, so the error needs a
   // way out of itself rather than just an explanation.
@@ -592,7 +610,9 @@ export default function ChatPanel({
   // the corrections ledger. Only the French and English change; the card's
   // answers and schedule are its own and stay. A Spanish card is changed in
   // the Spanish deck, and logged in its ledger, as the card editor does.
-  const writeCard = useCallback(async (rowId, originalFront, front, back) => {
+  // Removing a card, and putting it back, go to the same endpoint as an
+  // `action`.
+  const postCard = useCallback(async (body) => {
     const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch("/api/admin-update-card", {
       method: "POST",
@@ -600,14 +620,19 @@ export default function ChatPanel({
         "Content-Type": "application/json",
         Authorization: `Bearer ${session?.access_token || ""}`,
       },
-      body: JSON.stringify({ row_id: rowId, original_front: originalFront, front, back, ...(spanish ? { course: "es" } : null) }),
+      body: JSON.stringify({ ...body, ...(spanish ? { course: "es" } : null) }),
     });
     if (!res.ok) {
       let msg = `HTTP ${res.status}`;
       try { msg = (await res.json()).error || msg; } catch { /* not JSON */ }
       throw new Error(msg);
     }
+    return res.json().catch(() => ({}));
   }, [spanish]);
+  const writeCard = useCallback(
+    (rowId, originalFront, front, back) => postCard({ row_id: rowId, original_front: originalFront, front, back }),
+    [postCard]
+  );
 
   const applyEdit = useCallback(
     async (edit) => {
@@ -622,6 +647,23 @@ export default function ChatPanel({
         null;
       if (!card || card.row_id == null) {
         return patchEdit(edit.key, { status: "failed", error: "that card isn't in your deck." });
+      }
+      // Removed as the card editor's Remove removes it (api/_lib/removeCard.js).
+      // Not logged in the corrections ledger, as a change is: the notes checks
+      // read every logged deletion as a class Claude misread, and a card taken
+      // out here may be a lesson's, or one from this chat, or not wanted yet.
+      // The card itself remembers that it was removed.
+      if (edit.remove) {
+        const was = { rowId: card.row_id, oldFront: card.f, oldBack: card.b, front: card.f, back: card.b };
+        try {
+          await postCard({ action: "remove", row_id: card.row_id });
+          onCardRemoved?.(card.row_id);
+          patchEdit(edit.key, { ...was, status: "done" });
+        } catch (e) {
+          console.error("Tutor removal failed:", e);
+          patchEdit(edit.key, { ...was, status: "failed", error: e.message || "something went wrong." });
+        }
+        return;
       }
       const front = edit.newFront || card.f;
       const back = edit.newBack || card.b;
@@ -650,7 +692,7 @@ export default function ChatPanel({
         patchEdit(edit.key, { ...was, status: "failed", error: e.message || "something went wrong." });
       }
     },
-    [patchEdit, writeCard, onCardUpdated, spanish]
+    [patchEdit, postCard, writeCard, onCardUpdated, onCardRemoved, spanish]
   );
 
   const undoEdit = useCallback(
@@ -658,6 +700,18 @@ export default function ChatPanel({
       if (edit.rowId == null) return;
       setError("");
       patchEdit(edit.key, { status: "undoing" });
+      if (edit.remove) {
+        try {
+          const { row } = await postCard({ action: "restore", row_id: edit.rowId });
+          onCardAdded?.(row || null);
+          patchEdit(edit.key, { status: "undone" });
+        } catch (e) {
+          console.error("Undoing tutor removal failed:", e);
+          patchEdit(edit.key, { status: "done" });
+          setError(`Couldn't put "${edit.front}" back: ${e.message || "unknown error"}`);
+        }
+        return;
+      }
       try {
         await writeCard(edit.rowId, edit.front, edit.oldFront, edit.oldBack);
         onCardUpdated?.(edit.rowId, { f: edit.oldFront, b: edit.oldBack, id: frontKey(edit.oldFront) });
@@ -679,7 +733,7 @@ export default function ChatPanel({
         setError(`Couldn't undo the change to "${edit.front}": ${e.message || "unknown error"}`);
       }
     },
-    [patchEdit, writeCard, onCardUpdated, spanish]
+    [patchEdit, postCard, writeCard, onCardAdded, onCardUpdated, spanish]
   );
 
   const send = useCallback(
@@ -866,6 +920,7 @@ export default function ChatPanel({
             target: String(e.front || ""),
             newFront: String(e.newFront || ""),
             newBack: String(e.newBack || ""),
+            ...(e.remove === true ? { remove: true } : null),
             status: "pending",
           }));
           updateLast((m) => ({ ...m, edits: made }));

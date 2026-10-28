@@ -1247,6 +1247,19 @@ console.log("\n  a removed card is kept, out of study, and never comes back");
   const anon = await call({ action: "remove", row_id: 42 }, null);
   ck("no session: refused (401)", anon.code === 401, String(anon.code));
   ck("no row is ever deleted", db.tables.user_cards.length === 2);
+
+  // Undo on a card the tutor removed (2026-10-28): { action: "restore", row_id }.
+  const back = await call({ action: "restore", row_id: 41 });
+  const row41b = db.tables.user_cards.find((r) => r.id === 41);
+  ck("Undo puts the removed card back in study as it was, with its schedule and answers",
+     back.code === 200 && back.body?.ok && back.body.row?.id === 41 && !isOut(row41b) && row41b.source === "cahier-upload" &&
+       !row41b.archived_reason && !row41b.archived_at && row41b.stability === 3.5 && JSON.stringify(db.tables.card_reviews) === reviewsBefore,
+     `${back.code} ${JSON.stringify(back.body)}`);
+  db.tables.user_cards.push({ id: 43, user_id: USER, front: "un banc", back: "a bench", source: "archived:cahier-upload", archived_reason: "duplicate", dates: [] });
+  const repeat = await call({ action: "restore", row_id: 43 });
+  ck("a card taken out for another reason (a repeat) stays out (409)", repeat.code === 409 && isOut(db.tables.user_cards.find((r) => r.id === 43)), String(repeat.code));
+  const notTheirs = await call({ action: "restore", row_id: 42 });
+  ck("another student's card can't be put back (403)", notTheirs.code === 403, String(notTheirs.code));
 }
 
 console.log("\n  the lesson sync uses the same rule");
