@@ -87,7 +87,7 @@ import { localISODate, reviewedToday, endOfLocalDay, browserTimeZone } from "./l
 import { progressByArea, progressChanges, aboutRemembered, areaDates } from "./lib/progress";
 import { statsOverTime, HISTORY_COLUMNS, endOfDayAgo, allSeenBy } from "./lib/progressHistory";
 import { RememberedChart, StudyCalendar, ProgressByLesson, Bands, splitText } from "./StatsSections";
-import { buildSession, applyAnswer, placeRetry, countBuckets, countsAnswer, BLOCK_SIZE } from "./lib/sessionQueue";
+import { buildSession, practiceSession, applyAnswer, placeRetry, countBuckets, countsAnswer, BLOCK_SIZE } from "./lib/sessionQueue";
 import { RE_QUEUE_OFFSET, State, settingsInUse } from "./lib/spacedRepetition";
 import { sideOf, sideColumns, directionsOf, isTwoWay, itemKey, resetColumns } from "./lib/directions";
 import { newReviewId, reviewRow, withoutExtras, missingColumn } from "./lib/reviewLog";
@@ -690,6 +690,21 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   // What the last deal or return of a set was made from — see the guard at the
   // top of the deck-build effect.
   const scheduledRef = useRef(null);
+  // The cards of each lesson gone through again today (practiceSession), by
+  // the set's key, so a lesson bigger than the set is gone through a set at a
+  // time. This page's only: a reload starts the lesson again from the top.
+  // "Go through the lesson again" asks for the top (practiceFreshRef), and the
+  // card answered last never starts the next set (lastAnsweredRef).
+  const practicedRef = useRef({ day: null, bySig: {} });
+  const practicedIn = (sig) => {
+    const today = localISODate();
+    if (practicedRef.current.day !== today) practicedRef.current = { day: today, bySig: {} };
+    const by = practicedRef.current.bySig;
+    if (!by[sig]) by[sig] = new Set();
+    return by[sig];
+  };
+  const practiceFreshRef = useRef(false);
+  const lastAnsweredRef = useRef(null);
   // The owner's place in Podcasts, read once (see readPodcastsPlace). Never
   // read for anyone without Podcasts, so a student's app opens exactly as it
   // always has.
@@ -1339,7 +1354,9 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
       const head = entries.slice(0, at + 1);
       const tail = entries.slice(at + 1);
       const answered = (c) => blockAnswersRef.current.has(slotKeyOf(c));
-      const staying = tail.filter((c) => c._retry || answered(c));
+      // A lesson gone through again keeps its cards: none of them is due, and
+      // dealing again would drop them.
+      const staying = tail.filter((c) => c._retry || answered(c) || c._bucket === "practice");
       for (let over = head.length + staying.length - size, j = staying.length - 1; over > 0 && j >= 0; j--) {
         if (!answered(staying[j])) { staying.splice(j, 1); over--; }
       }
@@ -1378,8 +1395,16 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
           size: dealtSizeRef.current,
         });
       }
+      // Except a lesson's set that was finished: coming back to the lesson, or
+      // opening the app on it, deals its next set, or goes through the lesson
+      // again once nothing in it is left (the owner, 2026-10-27: "should
+      // reload automatically when you navigate away from the lesson").
+      // Its last card, on screen at its checkpoint, was answered last, and
+      // doesn't start the next set, after a reload too.
       const saved = placeRef.current.sets[filterSig];
-      const back = saved && saved.day === today ? unpackEntries(saved, pool) : null;
+      const finishedLesson = !!saved?.done && lessonFilter !== "all";
+      if (finishedLesson && lastAnsweredRef.current == null) lastAnsweredRef.current = saved.entries?.[saved.idx]?.r ?? null;
+      const back = saved && saved.day === today && !finishedLesson ? unpackEntries(saved, pool) : null;
       if (back && back.entries.length > 0) {
         blockAnswersRef.current = new Map(saved.answers || []);
         for (const [, a] of blockAnswersRef.current) if (a?.reviewId) knownReviewIdsRef.current.add(a.reviewId);
@@ -1484,12 +1509,26 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
     // which ways of words and phrases are dealt. Grammar and pronunciation
     // cards are rules with examples, not translations — always shown as
     // written, whatever the setting.
-    const dealt = buildSession(candidates, {
+    let dealt = buildSession(candidates, {
       direction: dirRef.current,
       target: setSizeRef.current,
       lessonMode: lessonFilter !== "all",
       lessonRank,
     });
+    // A lesson with nothing due and nothing new is gone through again
+    // (practiceSession): the rest of the time round, or from the top once
+    // every card has been gone through, or when the student asked for it.
+    if (dealt.queue.length === 0 && lessonFilter !== "all") {
+      const done = practicedIn(filterSig);
+      if (practiceFreshRef.current || !candidates.some((c) => !done.has(c.row_id ?? c.id))) done.clear();
+      practiceFreshRef.current = false;
+      dealt = practiceSession(candidates, {
+        direction: dirRef.current,
+        target: setSizeRef.current,
+        done,
+        avoid: lastAnsweredRef.current,
+      });
+    }
     const { queue: cards, counts } = dealt;
     recordDeal({ kind: "new", scope: dealScope, direction: dirRef.current, slots: setSizeRef.current, dealt });
     blockStartRef.current = progressByArea(userCards);
@@ -1618,19 +1657,26 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   // Inside a lesson it used to add how many cards were due elsewhere in the
   // deck ("9 cards from the rest of your deck are due"); the owner had that
   // line removed (2026-10-27).
+  //   practiceLeft  a lesson being gone through again has cards still to
+  //             come (practiceSession), which Continue deals
   const checkpoint = useMemo(() => {
     if (!sessionDone) return null;
     const now = Date.now();
     const after = progressByArea(userCards, now);
     const changes = blockStartRef.current ? progressChanges(blockStartRef.current, after) : [];
-    const next = buildSession(candidatesFrom(userCards), {
+    const candidates = candidatesFrom(userCards);
+    const next = buildSession(candidates, {
       now,
       direction: dir,
       lessonMode: lessonFilter !== "all",
       lessonRank,
     });
-    return { after, changes, next };
-  }, [sessionDone, userCards, candidatesFrom, lessonFilter, dir]);
+    const done = lessonFilter !== "all" && deckSig ? practicedIn(deckSig) : null;
+    const practiceLeft = !!done && done.size > 0 && next.queue.length === 0 &&
+      candidates.some((c) => !done.has(c.row_id ?? c.id));
+    return { after, changes, next, practiceLeft };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionDone, userCards, candidatesFrom, lessonFilter, dir, deckSig]);
   // Keep the ref in sync so deck rebuilds can find the current card.
   useEffect(() => { currentCardIdRef.current = card ? itemKey(card) : null; }, [card]);
   // The card on screen as the tutor needs it: what it asks, and whether its
@@ -2146,10 +2192,14 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
     // one, and the other is never touched. applyAnswer returns only the shown
     // direction's columns, so patching every entry for this card with them is
     // right even when the block holds it both ways.
+    //
+    // A lesson gone through again is practice, and never counted
+    // (practiceSession): its answers are recorded and change no schedule.
     const cardDir = card.shownDir ?? "fr";
     const slotKey = slotKeyOf(card);
     const earlier = blockAnswersRef.current.get(slotKey);
     const isCorrection = !!earlier;
+    const practice = card._bucket === "practice";
     const answeredAt = Date.now();
     let recordsReview = false;
     let sr = null;
@@ -2158,9 +2208,11 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
         sr = applyAnswer({ ...card, ...earlier.before }, got, answeredAt, cardDir);
       }
     } else {
-      recordsReview = countsAnswer(sideOf(card, cardDir), { retry: !!card._retry }, answeredAt);
+      recordsReview = !practice && countsAnswer(sideOf(card, cardDir), { retry: !!card._retry }, answeredAt);
       if (recordsReview) sr = applyAnswer(card, got, answeredAt, cardDir);
     }
+    if (practice) practicedIn(deckSig).add(card.row_id ?? card.id);
+    lastAnsweredRef.current = card.row_id ?? card.id;
     const before = isCorrection ? earlier.before : recordsReview ? sideColumns(sideOf(card, cardDir), cardDir) : null;
     const reviewId = isCorrection ? earlier.reviewId : newReviewId();
     knownReviewIdsRef.current.add(reviewId);
@@ -2222,8 +2274,10 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
     // A correction changes the block's count of right answers, never its count
     // of answers: the checkpoint's "50 answers" is the block's own length.
     // "Right first time" is about first answers: a counted retry isn't one.
-    const recordedBefore = isCorrection && !!earlier.before && !card._retry;
-    const firstAnswer = recordsReview && !card._retry;
+    // In a lesson gone through again, where nothing counts, it is each card's
+    // first answer in the set.
+    const recordedBefore = isCorrection && !card._retry && (practice || !!earlier.before);
+    const firstAnswer = (practice ? !isCorrection : recordsReview) && !card._retry;
     setStats(s => ({
       ...s,
       answered: s.answered + (isCorrection ? 0 : 1),
@@ -2424,6 +2478,24 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
     // block dealt again from it.
     checkElsewhere();
   };
+
+  // "Go through the lesson again", from the checkpoint of a lesson with
+  // nothing left in it: every card of it, from the top (practiceSession).
+  const goThroughAgain = () => {
+    practiceFreshRef.current = true;
+    startNextBlock();
+  };
+
+  // Leaving a lesson's finished set for another page (Stats, the Lessons page,
+  // Exercises) deals the lesson's next set, so that one is waiting on the way
+  // back (the owner, 2026-10-27: "should reload automatically when you
+  // navigate away from the lesson"). Going to another lesson or to Cards does
+  // the same in the deck-build effect, which doesn't bring a finished lesson
+  // set back.
+  useEffect(() => {
+    if (mode !== "study" && sessionDone && lessonFilter !== "all") startNextBlock();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
 
   // Keyboard shortcuts (study mode). Uses refs so the handler always
   // calls the latest version of each function without needing them in
@@ -4476,6 +4548,9 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
                     {card._retry && (
                       <span style={S.counterBreakdown} data-retry>{" · retry"}</span>
                     )}
+                    {!card._retry && card._bucket === "practice" && (
+                      <span style={S.counterBreakdown} data-practice>{" · practice"}</span>
+                    )}
                     {!card._retry && hasBreakdown && (
                       <span style={S.counterBreakdown}>
                         {" · "}
@@ -4525,14 +4600,19 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
                     ))}
                   </div>
                 )}
-                {checkpoint && checkpoint.next.queue.length === 0 && (
+                {checkpoint && checkpoint.next.queue.length === 0 && !checkpoint.practiceLeft && (
                   <p style={S.checkpointNote}>
                     <strong>You're all caught up.</strong> Nothing is due, and there are no new cards
                     {lessonFilter !== "all" ? " left in this lesson" : scope === "cahier" ? " left in your cahier" : ""}.
                   </p>
                 )}
-                {checkpoint && checkpoint.next.queue.length > 0 && (
+                {checkpoint && (checkpoint.next.queue.length > 0 || checkpoint.practiceLeft) && (
                   <button style={S.resetSBtn} onClick={startNextBlock}>Continue</button>
+                )}
+                {/* Every card of the lesson once more, as practice that
+                    changes no schedule (practiceSession). */}
+                {checkpoint && checkpoint.next.queue.length === 0 && !checkpoint.practiceLeft && lessonFilter !== "all" && (
+                  <button style={S.resetSBtn} onClick={goThroughAgain} data-go-again>Go through the lesson again</button>
                 )}
               </div>
             </div>

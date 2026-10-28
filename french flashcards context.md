@@ -325,6 +325,43 @@ Continue then runs `checkElsewhere` (below). Guarded by `session`.
 **A new block starts at card 1.** If the card on screen is in it, that card
 moves to the front.
 
+### Going through a lesson again
+
+The owner, 2026-10-27: "should be able to reset after getting through all
+cards", then "and should reload automatically when you navigate away from the
+lesson". Inside a lesson whose checkpoint says "You're all caught up", a "Go
+through the lesson again" button (`data-go-again`) deals every card of the
+lesson once more (`practiceSession` in `src/lib/sessionQueue.js`), whatever
+FSRS says about when each is due; the counter reads "Card 1 of 30 ·
+practice".
+
+- **Practice, never counted.** Each entry is `_bucket: "practice"`, and so is
+  its retry. `answer()` records the answer (`card_reviews`, `counted: false`)
+  and writes no schedule, so going through again neither undoes nor speeds up
+  any card. Counting them would have FSRS take answers to cards that weren't
+  due, which "Nothing was asked before it was due" rightly fails; the set's
+  record (`dealt_sets`, each item `b: "practice"`) is how the checks know. The
+  `kind` column's constraint allows only new, rest and direction, so the
+  bucket carries it, and no database change was needed.
+- **One way each.** The direction setting's way; under Mixed, the way last
+  answered, the one the student has just been learning. The card answered
+  last never comes first (the same word twice running).
+- **A set at a time.** A lesson bigger than the set size is gone through a set
+  at a time, as the first time: the checkpoint offers Continue while cards of
+  the time round are left (`practiceLeft`), then the button again. Which cards
+  have been gone through is kept by the page only (`practicedRef`), so a
+  reload starts from the top.
+- **Starting again on the way back.** A lesson's set that was finished is never
+  brought back (`finishedLesson` in the deck-build effect): coming back from
+  another lesson or Cards, or opening the app on it, deals the lesson's next
+  set; leaving for another page (Stats, Lessons, Exercises) deals it on the way
+  out (the effect on `mode`). A lesson with nothing due and nothing new deals
+  its cards as practice at once, so inside a lesson "You're all caught up ...
+  Check again" shows only when the lesson has no cards. A set under way, a
+  practice one included, carries on as before. Cards is unchanged.
+
+Guarded by `practice`, `serving` and `status`.
+
 ### The deck a block is dealt from
 
 The deck in memory can be out of date. On opening the app it is the copy saved
@@ -370,7 +407,8 @@ count and retries.
   so it can't be graded as if new.
 - Going to another set and back brings the first one back, if it was dealt
   today. Its cards not yet reached are dealt again from the deck as it is now,
-  unless nothing has changed.
+  unless nothing has changed. Not a lesson's set that was finished: the lesson
+  starts again (see *Going through a lesson again*, 2026-10-27).
 - A set lasts for the day it was dealt, in that browser: each browser keeps
   its own place, for now (owner, 2026-09-26).
 - Signing out clears it. Reset all progress clears the sets but keeps the
@@ -1623,6 +1661,9 @@ says what to wait for when a page has no "Previous card".
 - `set-size`: a new "Cards in a set" changing the set on screen, against a
   routed deck of 160 cards, since the stand-in deck is too small for a set of
   30.
+- `practice`: a lesson gone through again once it is caught up, against a
+  routed lesson of eight cards: every card as practice, nothing written to a
+  schedule, and the lesson starting again after Stats, Cards and a reload.
 - `stats`: the Stats page, every figure counted from the suite's own fixture.
 - `types`: the Grammar / Vocab / Phrases filter, and no By type on Stats.
 - `statusline`: the admin's Status line, on a second Vite (port 5176) with the

@@ -351,7 +351,7 @@ function checkOnePerDay(idx, ctx) {
         // counted miss, the last answer counted before it that day.
         let lastCounted = null;
         rs.forEach((r, i) => {
-          if (!i && !r.counted && !earlierToday(idx, list, r)) bad.push(`${name}: its first answer on ${dayLabel(d)} wasn't counted.`);
+          if (!i && !r.counted && !earlierToday(idx, list, r) && !inPractice(idx, r)) bad.push(`${name}: its first answer on ${dayLabel(d)} wasn't counted.`);
           if (i && r.counted && lastCounted?.correct !== false) bad.push(`${name}: on ${dayLabel(d)} a later answer was counted, though the last one counted before it was right.`);
           if (r.counted) lastCounted = r;
         });
@@ -359,7 +359,7 @@ function checkOnePerDay(idx, ctx) {
       }
       if (counted.length > 1) bad.push(`${name} had ${counted.length} answers counted on ${dayLabel(d)}.`);
       else if (counted.length === 1 && rs[0] !== counted[0]) bad.push(`${name}: on ${dayLabel(d)} a later answer was counted instead of the first.`);
-      else if (counted.length === 0 && !rs[0].counted && !earlierToday(idx, list, rs[0])) {
+      else if (counted.length === 0 && !rs[0].counted && !earlierToday(idx, list, rs[0]) && !inPractice(idx, rs[0])) {
         bad.push(`${name}: its first answer on ${dayLabel(d)} wasn't counted.`);
       }
     }
@@ -368,6 +368,19 @@ function checkOnePerDay(idx, ctx) {
   return bad.length
     ? { ...out, status: "fail", summary: `${plural(bad.length, "problem")} found.`, details: bad }
     : { ...out, status: "pass", summary: "Each way's first answer of the day counted, and the repeat after a miss.", details: [] };
+}
+
+// An answer to a card dealt that day for practice, in a lesson gone through
+// again once nothing in it was left (2026-10-27, the owner; lib/sessionQueue.js
+// practiceSession): such answers are never counted, and the set's record says
+// which cards it dealt for practice.
+function inPractice(idx, row) {
+  const at = ms(row.answered_at);
+  const tz = idx.tzOf(row);
+  const day = dayNo(at, tz);
+  const k = keyOf(row.card_id, row.direction);
+  return idx.sets.some((s) => ms(s.dealt_at) <= at + 1000 && dayNo(ms(s.dealt_at), idx.tzOf(s)) === day &&
+    [...(s.items || []), ...(s.kept || [])].some((x) => x.b === "practice" && keyOf(x.c, x.d) === k));
 }
 
 // A counted answer earlier the same study day, before the window: the first
@@ -468,6 +481,8 @@ function checkNotEarly(idx, ctx) {
     const at = ms(d.dealt_at);
     const tz = idx.tzOf(d);
     for (const it of d.items || []) {
+      // Dealt for practice, whatever its due date (practiceSession).
+      if (it.b === "practice") continue;
       const s = stateAt(idx, it.c, it.d, at);
       if (!s.known) continue;
       dealtChecked++;
@@ -517,6 +532,8 @@ function checkDueFirst(idx, ctx) {
   let checked = 0;
   for (const d of idx.sets) {
     if (!ctx.dealJudged(d)) continue;
+    // A lesson gone through again is dealt once nothing in it is due.
+    if ((d.items || []).length && d.items.every((x) => x.b === "practice")) continue;
     const at = ms(d.dealt_at);
     const tz = idx.tzOf(d);
     const today = dayNo(at, tz);

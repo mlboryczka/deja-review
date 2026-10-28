@@ -449,6 +449,37 @@ console.log("\n  following the app's rules");
   }
   ck("  and nothing is failed for it", r.results.every((x) => LUCK.has(x.id) || x.status !== "fail"), r.results.filter((x) => x.status === "fail").map((x) => x.id).join(", "));
 }
+{
+  // A lesson gone through again once nothing in it was left (2026-10-27, the
+  // owner; lib/sessionQueue.js practiceSession): cards dealt whatever their due
+  // date, each answer recorded and never counted. The set's record says they
+  // were dealt for practice, and no check faults them.
+  const rec = clone(base);
+  const last = rec.answers.at(-1);
+  const at = Date.parse(last.answered_at) + 10 * 60000;
+  const dayOf = (t) => new Date(t).toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
+  const answeredThatDay = new Set(rec.answers.filter((r) => dayOf(Date.parse(r.answered_at)) === dayOf(at)).map((r) => r.card_id));
+  const lastCounted = new Map();
+  for (const r of rec.answers) if (r.counted) lastCounted.set(`${r.card_id}:${r.direction}`, r);
+  const picks = [];
+  for (const r of lastCounted.values()) {
+    if (picks.length === 5) break;
+    if (answeredThatDay.has(r.card_id) || picks.some((p) => p.card_id === r.card_id) || Date.parse(r.due_after) < at + 2 * DAY) continue;
+    picks.push(r);
+  }
+  ck("(cards not due, and not answered that day)", picks.length === 5, `${picks.length}`);
+  const queue = picks.map((r) => ({ ...rec.cards.find((c) => c.id === r.card_id), shownDir: r.direction === "en" ? "en" : "fr", _bucket: "practice" }));
+  rec.deals.push(dealRow({ id: "practice-1", userId: "u", kind: "new", scope: last.scope || "all|all", direction: "mix", slots: 50, dealt: { queue, dueRemaining: 0, newAvailable: 0 }, at, timeZone: TIME_ZONE }));
+  rec.answers.push(...picks.map((r, i) => reviewRow({ id: `practice-a${i}`, userId: "u", cardId: r.card_id, dir: r.direction, got: i % 2 === 0, before: null, after: null, at: at + (i + 1) * 60000 })));
+  const report = check(rec);
+  for (const r of report.results) {
+    if (LUCK.has(r.id)) continue;
+    ck(`gone through again: "${r.title}" passes`, r.status === "pass", `${r.status}: ${r.summary}${r.details.length ? " — " + r.details[0] : ""}`);
+  }
+  const bare = clone(rec);
+  bare.deals = bare.deals.filter((d) => d.id !== "practice-1");
+  failsOnly(check(bare), "one-a-day", "the same answers with no set on record dealing them for practice fail, as before");
+}
 
 // ── How well it's working ──────────────────────────────────────────────
 console.log("\n  FSRS's predictions against results");

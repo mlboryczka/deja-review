@@ -63,8 +63,10 @@
 // has been answered.
 //
 // Each entry is { ...card, shownDir: "fr" | "en", flippable, _bucket: "lapse" |
-// "review" | "new" }. FlashcardApp uses _bucket only for the counter;
-// scoring is driven entirely by FSRS state in applyAnswer().
+// "review" | "new" }, or "practice" in a lesson gone through again
+// (practiceSession, below). FlashcardApp uses _bucket for the counter, and
+// never counts a practice answer; otherwise scoring is driven entirely by FSRS
+// state in applyAnswer().
 
 import { State, scheduleAnswer } from "./spacedRepetition.js";
 import { endOfLocalDay, localISODate, localISODateDaysAgo, reviewedToday } from "./studyDay.js";
@@ -321,6 +323,53 @@ export function buildSession(cards, opts = {}) {
   };
 }
 
+// Going through a lesson again, once nothing in it is due and none of its
+// cards is new (the owner, 2026-10-27: "should be able to reset after getting
+// through all cards"). Every card of the lesson, one way round each, whatever
+// FSRS says about when it is next due.
+//
+// These answers are practice (`_bucket: "practice"`, which a retry keeps): they
+// are recorded, and never counted, so going through a lesson again changes no
+// card's schedule. Counting them would have FSRS take answers to cards that
+// weren't due, which the status check rightly faults ("Nothing was asked
+// before it was due"); its other checks read the set's record and know these
+// cards were practice (lib/statusChecks.js).
+//
+// A lesson bigger than the set is gone through a set at a time, as it was the
+// first time: `done` is the cards already gone through again, which wait for
+// the next time round. A card shows the way round the direction setting says;
+// under Mixed, the way it was last answered, which is the one the student has
+// just been learning. `avoid` is the card answered last, which never comes
+// first: the same word twice running.
+export function practiceSession(cards, opts = {}) {
+  const target = opts.target ?? BLOCK_SIZE;
+  const rng = opts.rng ?? Math.random;
+  const direction = opts.direction ?? "mix";
+  const done = opts.done || new Set();
+  const cardKey = (c) => c.row_id ?? c.id;
+  const lastAt = (card, dir) => {
+    const t = Date.parse(sideOf(card, dir).last_review ?? "");
+    return Number.isFinite(t) ? t : -Infinity;
+  };
+  const items = [];
+  for (const card of cards) {
+    if (done.has(cardKey(card))) continue;
+    const dirs = itemDirections(card, direction);
+    let dir = dirs[0];
+    if (dirs.length > 1) {
+      const [a, b] = dirs.map((d) => lastAt(card, d));
+      dir = a > b ? dirs[0] : b > a ? dirs[1] : dirs[Math.floor(rng() * dirs.length)];
+    }
+    items.push({ ...card, shownDir: dir, flippable: isTwoWay(card), _bucket: "practice" });
+  }
+  shuffleInPlace(items, rng);
+  const queue = items.slice(0, Math.max(0, target));
+  if (opts.avoid != null && queue.length > 1 && cardKey(queue[0]) === opts.avoid) {
+    [queue[0], queue[queue.length - 1]] = [queue[queue.length - 1], queue[0]];
+  }
+  return { queue, counts: countBuckets(queue), dueRemaining: 0, newAvailable: 0 };
+}
+
 // What a block is made of, for the counter. Retries are the block's own cards
 // again, not more of them.
 export function countBuckets(entries) {
@@ -357,12 +406,14 @@ export function countBuckets(entries) {
 // `deck` is the block, `idx` the position of the card just missed, `room` the
 // set size (the block's own length when not given). Returns a new array, or
 // the same array if there is no room. A retry that pushed a card out carries
-// it (`_displaced`), for withdrawRetry.
+// it (`_displaced`), for withdrawRetry. The retry of a card gone through again
+// for practice is practice too (practiceSession).
 export function placeRetry(deck, idx, card, offset = 20, room = deck.length) {
+  const bucket = card._bucket === "practice" ? "practice" : "lapse";
   // Still one other card between the miss and its retry, as below.
   if (deck.length < room && deck.length - 1 - idx >= 1) {
     const next = [...deck];
-    next.splice(Math.min(idx + 1 + offset, next.length), 0, { ...card, _retry: true, _bucket: "lapse", _added: true, _displaced: undefined });
+    next.splice(Math.min(idx + 1 + offset, next.length), 0, { ...card, _retry: true, _bucket: bucket, _added: true, _displaced: undefined });
     return next;
   }
   let displace = -1;
@@ -375,7 +426,7 @@ export function placeRetry(deck, idx, card, offset = 20, room = deck.length) {
   const next = [...deck];
   const [pushedOut] = next.splice(displace, 1);
   const insertAt = Math.min(idx + 1 + offset, next.length);
-  next.splice(insertAt, 0, { ...card, _retry: true, _bucket: "lapse", _displaced: pushedOut });
+  next.splice(insertAt, 0, { ...card, _retry: true, _bucket: bucket, _displaced: pushedOut });
   return next;
 }
 

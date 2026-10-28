@@ -9,7 +9,7 @@
 // wave through a UTC bug.
 process.env.TZ = "America/New_York";
 
-import { buildSession, orderNewCards, classDaysOf, addedByStudent, placeRetry, withdrawRetry, applyAnswer, countsAnswer } from "../../src/lib/sessionQueue.js";
+import { buildSession, practiceSession, orderNewCards, classDaysOf, addedByStudent, placeRetry, withdrawRetry, applyAnswer, countsAnswer } from "../../src/lib/sessionQueue.js";
 import { scheduleAnswer } from "../../src/lib/spacedRepetition.js";
 import { packSet, unpackEntries } from "../../src/lib/studyPlace.js";
 import { SIDE_FIELDS, sideOf, itemKey, withLocalAnswers } from "../../src/lib/directions.js";
@@ -549,6 +549,48 @@ console.log("\n  a miss changed to right takes its retry back out");
      back2.length === 7 && back2.find((c) => c._retry)?._added === true);
   ck("so changing the miss after a reload takes it out, and nothing else",
      withdrawRetry(back2, 0, itemKey(back2[0])).length === 6);
+}
+
+// ── A lesson with nothing left in it can be gone through again ──────────
+// The owner, 2026-10-27: "should be able to reset after getting through all
+// cards". Every card of the lesson, one way each, whatever its due date, as
+// practice; a lesson bigger than the set a set at a time.
+console.log("\n  going through a lesson again");
+{
+  const iso = (ms) => new Date(ms).toISOString();
+  // Answered today one way or the other, and not due again for days.
+  const studied = Array.from({ length: 30 }, (_, i) => reviewCard(4 * DAY, {
+    row_id: 900 + i, id: `p${i}`, cat: "vocab",
+    last_review: iso(NOW - (i % 2 ? 0 : DAY)),
+    en_fsrs_state: 2, en_stability: 3, en_next_due_at: iso(NOW + 3 * DAY),
+    en_last_review: iso(NOW - (i % 2 ? DAY : 0)),
+  }));
+  ck("nothing in the lesson is dealt the usual way", build(studied).queue.length === 0);
+  const again = practiceSession(studied, { target: 50, rng: rng() });
+  ck("every card of it is dealt", again.queue.length === 30 && new Set(again.queue.map((c) => c.row_id)).size === 30, `${again.queue.length}`);
+  ck("all of them as practice", again.queue.every((c) => c._bucket === "practice"));
+  ck("each the way round it was answered last, under Mixed",
+     again.queue.every((c) => c.shownDir === (Number(c.id.slice(1)) % 2 ? "fr" : "en")));
+  ck("the direction setting is kept to", practiceSession(studied, { target: 50, direction: "en", rng: rng() }).queue.every((c) => c.shownDir === "en"));
+  const first = practiceSession(studied, { target: 20, rng: rng() });
+  ck("a set takes no more than its size", first.queue.length === 20);
+  const done = new Set(first.queue.map((c) => c.row_id));
+  const rest = practiceSession(studied, { target: 20, done, rng: rng() });
+  ck("the next set takes the cards not yet gone through", rest.queue.length === 10 && rest.queue.every((c) => !done.has(c.row_id)), `${rest.queue.length}`);
+  const last = again.queue[0].row_id;
+  ck("the card answered last never starts the set", practiceSession(studied, { target: 50, avoid: last, rng: rng() }).queue[0].row_id !== last);
+  const grammar = rule(LATER);
+  ck("a card asked one way only is asked that way", practiceSession([grammar], { direction: "en", rng: rng() }).queue[0]?.shownDir === "fr");
+
+  // A miss there comes back later in the set, still as practice, and stays
+  // practice across a reload.
+  const missed = placeRetry(again.queue, 0, { ...again.queue[0], _rid: "p1" }, 20, 50);
+  const retry = missed.find((c) => c._retry);
+  ck("its retry is practice too", retry?._bucket === "practice" && missed.length === 31);
+  const kept = JSON.parse(JSON.stringify(packSet({ deck: missed, idx: 1, stats: {}, done: false, answers: new Map(), face: null, day: "2026-10-27", dir: "mix" })));
+  const { entries } = unpackEntries(kept, studied);
+  ck("a kept set comes back as practice, its retry with it",
+     entries.length === 31 && entries.every((c) => c._bucket === "practice") && entries.some((c) => c._retry));
 }
 
 // ── A fetch never undoes an answer this page has given ─────────────────────
