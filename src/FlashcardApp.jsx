@@ -1480,24 +1480,37 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
     const started = blockAnswersRef.current.size > 0 || answerSeen;
     if (!filterChanged && deck.length > 0 && !newDay && !(outOfDate && !started)) {
       const byRow = new Map(pool.map(c => [c.row_id, c]));
-      const patched = deck
-        .map(c => {
-          const u = byRow.get(c.row_id);
-          // A card edited into grammar is asked only as written: its English-
-          // side entry would record to a state the card no longer uses.
-          if (!u || (c.shownDir === "en" && !isTwoWay(u))) return null;
-          return { ...u, shownDir: c.shownDir, flippable: isTwoWay(u), _bucket: c._bucket, _retry: c._retry, _rid: c._rid, _added: c._added, _displaced: c._displaced };
-        })
-        .filter(Boolean);
+      const kept = deck.map(c => {
+        const u = byRow.get(c.row_id);
+        // A card edited into grammar is asked only as written: its English-
+        // side entry would record to a state the card no longer uses.
+        if (!u || (c.shownDir === "en" && !isTwoWay(u))) return null;
+        return { ...u, shownDir: c.shownDir, flippable: isTwoWay(u), _bucket: c._bucket, _retry: c._retry, _rid: c._rid, _added: c._added, _displaced: c._displaced };
+      });
+      const patched = kept.filter(Boolean);
+      // The card on screen stays on screen: the place moves back one for each
+      // card dropped before it. If the card on screen is the one that went
+      // (removed in the editor, by the tutor, or on another device), the next
+      // card takes its place unanswered. Both used to go wrong (2026-10-28):
+      // the place stayed put, so the card after slid in under the answer
+      // already typed, and Continue saved that answer to it. "to hold", typed
+      // for "haber", showed under "He is bored" once haber was removed.
+      const at = Math.min(kept.slice(0, idx).filter(Boolean).length, Math.max(0, patched.length - 1));
+      if (!kept[idx]) {
+        skipFlipAnim.current = true;
+        setFlipped(false); setTypedAnswer(""); setTypeResult(null);
+        disputeRef.current = null; setFeedbackState(null); setFeedbackVerdict(null);
+        requestAnimationFrame(() => { skipFlipAnim.current = false; });
+      }
       let next = patched;
       if (outOfDate || resized) {
-        next = redealRest(patched, Math.min(idx, patched.length - 1), resized ? setSize : patched.length);
+        next = redealRest(patched, at, resized ? setSize : patched.length);
         dealtSeqRef.current = deckFreshSeq;
         dealtSwitchRef.current = switchSig;
       }
       dealtSizeRef.current = setSize;
       setDeck(next);
-      setIdx(i => Math.min(i, Math.max(0, next.length - 1)));
+      setIdx(Math.min(at, Math.max(0, next.length - 1)));
       return;
     }
 
