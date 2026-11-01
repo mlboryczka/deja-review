@@ -20,6 +20,10 @@
 //
 // The tutor (2026-10-26) is told the exercise being worked on, as Podcasts
 // tells it the episode: a lesson's page hands it up (onTutorContext).
+//
+// "Lesson notes" (2026-11-01) opens the lesson's notes beside the exercises,
+// the same panel Flashcards opens beside the cards. The shell owns it, as it
+// owns the tutor, so the page makes room for it the same way (`notes`).
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, Fragment } from "react";
 import { supabase } from "./supabase";
@@ -208,7 +212,7 @@ function tutorExercise(lesson, latest, again, focusKey, textShown) {
 }
 
 // ── The page ─────────────────────────────────────────────────────────────
-export default function ExercisesPage({ user, view, setView, onNeedKey, onTutorContext }) {
+export default function ExercisesPage({ user, view, setView, onNeedKey, onTutorContext, notes = null }) {
   const store = useAnswers(user?.id);
   const [again, setAgain] = useState(() => readAgain(user?.id));
   const startAgain = (lessonId, n) => {
@@ -243,6 +247,7 @@ export default function ExercisesPage({ user, view, setView, onNeedKey, onTutorC
             onBack={() => setView({ lesson: null })}
             onNeedKey={onNeedKey}
             onTutorContext={onTutorContext}
+            notes={notes}
           />
         ) : (
           <>
@@ -272,7 +277,7 @@ export default function ExercisesPage({ user, view, setView, onNeedKey, onTutorC
 }
 
 // ── One lesson's exercises ───────────────────────────────────────────────
-function LessonExercises({ user, lesson, store, again, startAgain, onBack, onNeedKey, onTutorContext }) {
+function LessonExercises({ user, lesson, store, again, startAgain, onBack, onNeedKey, onTutorContext, notes }) {
   const [showText, setShowText] = useState(false);
   const text = LESSON_TEXTS[lesson.textOf] || null;
   const t = tally(lesson, store.latest, again);
@@ -328,6 +333,19 @@ function LessonExercises({ user, lesson, store, again, startAgain, onBack, onNee
         {text && (
           <button type="button" style={showText ? { ...S.textBtn, ...S.textBtnOn } : S.textBtn} onClick={() => setShowText((v) => !v)} aria-expanded={showText} data-lesson-text-toggle>
             {showText ? "Hide the lesson text" : "Lesson text"}
+          </button>
+        )}
+        {notes && (
+          <button
+            type="button"
+            ref={notes.toggleRef}
+            style={notes.open ? { ...S.textBtn, ...S.textBtnOn } : S.textBtn}
+            onClick={notes.onToggle}
+            aria-expanded={notes.open}
+            title="The lesson's rules, beside the exercises"
+            data-exercises-notes-toggle
+          >
+            Lesson notes
           </button>
         )}
       </div>

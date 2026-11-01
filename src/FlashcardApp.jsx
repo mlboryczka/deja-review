@@ -47,24 +47,22 @@ const SIDEBAR_TOGGLE_ICON = (minimized) => (
     <path d={minimized ? "M14 10l2 2-2 2" : "M16 10l-2 2 2 2"} />
   </svg>
 );
-// Narrowest content column worth reflowing to.
+// Narrowest content column worth reflowing to, on every page.
 //
-// Measured, not guessed. The card is height-driven and 1.6:1, so in a 900px
-// window it wants 375 tall and 600 wide; with mainInner's 40px of padding
-// either side that is a 680px column. Give it less and the width caps while
-// the height does not, and the card turns portrait — 404x375 at a 484px
-// column, 340x375 at 420.
+// A side panel (the tutor, the lesson notes) makes room for itself: the page
+// narrows and stays live beside it. Covering the page under a dim is only for
+// a window with no room at all. The owner has asked for this more than once:
+// for Podcasts (2026-10-18, the tutor dimmed over the passage being asked
+// about in a 1,395px window) and for every page (2026-11-01, the tutor dimmed
+// over Exercises: "REFLOW THE PAGE WHEN THE SIDE PANE IS OPEN!").
 //
-// The top bar used to go first — below about 700 the chips stopped fitting on
-// one row and stacked — but they scroll now (.chip-row in styles.css), so the
-// card is the only thing this floor is protecting.
-const MIN_REFLOW_CONTENT = 680;
-// Podcasts has no card to protect: its passages, answers and word rows all
-// wrap. At 480 the page's 32px of padding either side leaves a 416px column,
-// which the player row (button, title, time, speed) still fits on one line.
-// Held to the card's floor, a 1,395px window put the tutor over the passage
-// being asked about, dimmed (owner, 2026-10-18).
-const MIN_REFLOW_PODCASTS = 480;
+// So the floor is not what each page would like but the least anything still
+// reads in. Passages, exercises and word rows wrap. The card is height-driven
+// and 1.6:1 and turns portrait below a 680px column (404x375 at 484, 340x375
+// at 420), which is better than the card under a dim. At 360 a window under
+// about 1,080px (sidebar 256 + panel 460 + 360) still gets the panel over
+// the page, or under about 890 with the sidebar folded to icons.
+const MIN_REFLOW_CONTENT = 360;
 import ChatPanel, { CHAT_PANEL_WIDTH } from "./ChatPanel";
 import { T } from "./theme";
 import {
@@ -106,7 +104,7 @@ import { podcastsOpenTo } from "./lib/testApp";
 // Loaded only when Exercises is opened: its 27 sheets are about 800 KB that
 // no one else, French included, should have to download.
 const ExercisesPage = lazy(() => import("./ExercisesPage"));
-import { EXERCISE_TITLES, TITLES as EXERCISE_TITLE_OF } from "./data/exercises/es/titles.js";
+import { EXERCISE_TITLES, TITLES as EXERCISE_TITLE_OF, TEXT_OF as EXERCISE_TEXT_OF } from "./data/exercises/es/titles.js";
 
 const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase();
 // The owner's account. Client-side only, so it only ever HIDES things: every
@@ -1080,6 +1078,15 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   const exercisesOn = hasExercises && mode === "exercises";
   useEffect(() => { if (mode === "exercises" && !hasExercises) setMode("study"); }, [mode, hasExercises]);
   const [exView, setExView] = useState(() => ({ lesson: exPlaceRef.current?.lesson || null }));
+  // A lesson's exercises open its notes, the panel Flashcards opens beside the
+  // cards (owner, 2026-11-01: "lesson notes need to be available on exercises
+  // as well as vocab"). Lesson 8's time-and-date sheet opens Lesson 8's, as
+  // it shows Lesson 8's text. Another lesson, or the list, closes them, as
+  // another lesson does on Flashcards.
+  const exNotesLesson = exView.lesson
+    ? LESSONS.find((l) => l.id === (EXERCISE_TEXT_OF[exView.lesson] || exView.lesson)) || null
+    : null;
+  useEffect(() => { setShowLessonPanel(false); }, [exView.lesson]);
   // Going anywhere from the drawer puts it away: a page, a lesson, the tutor,
   // anything from the account menu. Folding Lessons goes nowhere, so the
   // drawer stays.
@@ -2550,8 +2557,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   const sidebarWidth = phone ? 0 : sidebarMin ? SIDEBAR_MIN_WIDTH : SIDEBAR_WIDTH;
   const roomToReflow = (panelWidth, floor = MIN_REFLOW_CONTENT) =>
     winWidth - sidebarWidth - panelWidth >= floor;
-  const chatReflow =
-    showChat && roomToReflow(CHAT_PANEL_WIDTH, podcastsOn ? MIN_REFLOW_PODCASTS : MIN_REFLOW_CONTENT);
+  const chatReflow = showChat && roomToReflow(CHAT_PANEL_WIDTH);
   const lessonReflow = showLessonPanel && roomToReflow(LESSON_PANEL_WIDTH);
   // On a window too narrow for the notes to sit beside the cards, they cover
   // the page under a dim, and the "Lesson notes" button with it. A copy of
@@ -3796,7 +3802,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
       <LessonPanel
         open={showLessonPanel}
         onClose={() => setShowLessonPanel(false)}
-        lesson={LESSONS.find((l) => l.id === lessonFilter) || null}
+        lesson={exercisesOn ? exNotesLesson : LESSONS.find((l) => l.id === lessonFilter) || null}
         reflow={lessonReflow}
         sidebarWidth={sidebarWidth}
       />
@@ -4013,6 +4019,9 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
               setView={setExView}
               onNeedKey={onPodcastNeedKey}
               onTutorContext={onTutorExercise}
+              notes={exNotesLesson?.notes?.length
+                ? { open: showLessonPanel, onToggle: toggleLessonPanel, toggleRef: lessonToggleRef }
+                : null}
             />
           </Suspense>
         </main>
