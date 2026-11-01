@@ -1147,6 +1147,44 @@ console.log("\n  the tutor — a pasted picture");
   ck("a picture turn marked for caching keeps its picture", picTurn.at(-2).content.at(-1).cache_control && picTurn[0].content[0].type === "image", JSON.stringify(picTurn[0].content).slice(0, 120));
 }
 
+// Several pictures with one question, now that a screenshot saved as a file
+// can be added too (owner, 2026-11-01: "screenshots need to be able to be
+// added to the tutor"). The newest three in the thread go; the rest are
+// counted in a note.
+console.log("\n  the tutor — several pictures with one question");
+{
+  const pic = (n) => ({ media_type: "image/png", data: `iVBO${"B".repeat(40 + n)}` });
+  const flat = (m) => (typeof m.content === "string" ? m.content : m.content.filter((b) => b.type === "text").map((b) => b.text).join(""));
+  const two = buildRequestMessages({
+    messages: [{ role: "user", content: "compare these", images: [pic(0), pic(1)] }],
+    context: { currentCard: { prompt: "la colline", answer: "the hill", answered: true } },
+  });
+  const blocks = two[0].content;
+  ck("both pictures go, then the words", blocks.length === 3 && blocks[0].type === "image" && blocks[1].type === "image" && blocks[2].type === "text",
+     JSON.stringify(blocks.map((b) => b.type)));
+  ck("the [Context] block rides with the words", /\[Context\]/.test(blocks[2].text) && /compare these$/.test(blocks[2].text), blocks[2].text.slice(0, 120));
+
+  const none = buildRequestMessages({ messages: [{ role: "user", content: "", images: [pic(0), pic(1)] }] });
+  ck("pictures with nothing typed are still a question", none.length === 1 && /these pictures with nothing typed/.test(flat(none[0])), flat(none[0]));
+
+  const thread = buildRequestMessages({
+    messages: [
+      { role: "user", content: "first", images: [pic(2)] },
+      { role: "assistant", content: "one" },
+      { role: "user", content: "second", images: [pic(3), pic(4)] },
+      { role: "assistant", content: "two" },
+      { role: "user", content: "third", images: [pic(5), pic(6)] },
+    ],
+  });
+  const count = (m) => (Array.isArray(m.content) ? m.content.filter((b) => b.type === "image").length : 0);
+  ck("three pictures in all go, the newest first", thread.map(count).join(",") === "0,0,1,0,2", thread.map(count).join(","));
+  ck("one left out of a turn is noted there", /one more picture here/.test(flat(thread[2])) && /second/.test(flat(thread[2])), flat(thread[2]));
+  ck("a turn with none left says it had one", /sent a picture here; it is no longer attached/.test(flat(thread[0])), flat(thread[0]));
+
+  const held = buildRequestMessages({ messages: [{ role: "user", content: "earlier", imagesDropped: 2 }, { role: "assistant", content: "ok" }, { role: "user", content: "now?" }] });
+  ck("pictures the page held back are counted", /sent 2 pictures here; they are no longer attached/.test(flat(held[0])), flat(held[0]));
+}
+
 const n = ck.fails();
 console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
 process.exit(n ? 1 : 0);

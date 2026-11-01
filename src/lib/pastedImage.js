@@ -2,6 +2,12 @@
 // to copy paste an image into the tutor so tutor can have context for what
 // i'm talking about"). Usually a screenshot of the app.
 //
+// Pasting was the only way in, and a Mac screenshot is saved as a file on
+// the desktop, not put on the clipboard, so most screenshots couldn't get to
+// the tutor at all (owner, 2026-11-01: "screenshots need to be able to be
+// added to the tutor"). They are added with the paperclip by the box or by
+// dropping them on the page too, and a question can take several.
+//
 // It is shrunk here, before it goes anywhere: the tutor reads nothing finer
 // than about 1,568 pixels on the long side (Anthropic's vision guidance), and
 // a full-size Retina screenshot as PNG can run to several megabytes, while the
@@ -13,17 +19,27 @@ export const IMAGE_LONG_EDGE = 1568;
 // IMAGE_MAX_CHARS in api/chat.js; this stays under it.
 export const IMAGE_TARGET_CHARS = 1_000_000;
 
-/** The first picture on the clipboard of a paste event, or null. */
-export function imageFromPaste(e) {
-  const items = e?.clipboardData?.items;
-  if (!items) return null;
-  for (const item of items) {
-    if (item.kind === "file" && /^image\//.test(item.type)) {
-      const file = item.getAsFile();
-      if (file) return file;
-    }
-  }
-  return null;
+/**
+ * The files in a paste or a drop: a screenshot on the clipboard, files copied
+ * in Finder, or files dragged in, such as the thumbnail a Mac screenshot
+ * leaves in the corner of the screen. `files` holds them where the browser
+ * fills it; `items` is the fallback, and reading both would count a pasted
+ * screenshot twice.
+ */
+export function filesFrom(dataTransfer) {
+  const files = Array.from(dataTransfer?.files || []);
+  if (files.length) return files;
+  return Array.from(dataTransfer?.items || [])
+    .filter((item) => item.kind === "file")
+    .map((item) => item.getAsFile())
+    .filter(Boolean);
+}
+
+export const isPicture = (file) => /^image\//.test(file?.type || "");
+
+/** Whether what is being dragged over the page is files, not text. */
+export function draggingFiles(e) {
+  return Array.from(e?.dataTransfer?.types || []).includes("Files");
 }
 
 /** Whether the paste also carries text, which should still land in the box. */

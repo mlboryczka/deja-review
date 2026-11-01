@@ -5,9 +5,9 @@
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSCameraUsageDescription</key>
-	<string>Take a photo to attach to your feedback.</string>
+	<string>Take a photo to show the tutor or to attach to your feedback.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Attach a screenshot to your feedback.</string>
+	<string>Add a screenshot to a question for the tutor or to your feedback.</string>
   <key>CAPACITOR_DEBUG</key>
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>

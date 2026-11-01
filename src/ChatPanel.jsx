@@ -9,7 +9,7 @@ import { cleanFrenchPrompt, firstAnswer } from "./lib/cardText";
 import { buildTutorContext, cardPrompt, cardAnswer, podcastAbout, podcastLabel, questionNumber, exerciseAbout, exerciseFocus, exerciseLabel } from "./lib/deckContext";
 import { readThread, writeThread } from "./lib/tutorThreads";
 import { courseOf } from "./lib/course";
-import { imageFromPaste, pasteHasText, shrinkImage } from "./lib/pastedImage";
+import { filesFrom, isPicture, draggingFiles, pasteHasText, shrinkImage } from "./lib/pastedImage";
 import { logCorrection, CORRECTION_CATEGORIES, CORRECTION_ACTIONS } from "./lib/parseCorrections";
 
 // "Ask the tutor" slide-over. Look a word or phrase up, get an explanation,
@@ -46,6 +46,11 @@ import { logCorrection, CORRECTION_CATEGORIES, CORRECTION_ACTIONS } from "./lib/
 //     to be added to spanish module"), with course="es": it asks the Spanish
 //     tutor (api/chat.js), adds and changes cards in the Spanish deck, keeps
 //     a thread of its own, and on Exercises is told the exercise on screen.
+//   • Screenshots go with a question, up to three: pasted, added with the
+//     paperclip by the box, or dropped anywhere on the page while the panel
+//     is open. Pasting used to be the only way, and a Mac screenshot is a
+//     file on the desktop, not something on the clipboard (owner,
+//     2026-11-01: "screenshots need to be able to be added to the tutor").
 //
 // Usage:
 //   <ChatPanel open={showChat} onClose={...} user={user} cards={userCards}
@@ -77,9 +82,10 @@ const CATEGORY_LABEL = {
 
 // How far the composer may grow before it scrolls instead.
 const COMPOSER_MAX_HEIGHT = 132;
-// Pasted pictures sent with the history, newest first; the server keeps the
-// same number (api/chat.js MAX_IMAGES).
+// Pictures sent with the history, newest first; the server keeps the same
+// number (api/chat.js MAX_IMAGES). Also the most one question can take.
 const MAX_SENT_IMAGES = 3;
+const PICTURE_WORDS = ["", "one", "two", "three"];
 
 // Smoothing the stream out.
 //
@@ -344,6 +350,18 @@ function editReport(e) {
 }
 
 let editSeq = 0;
+let pictureSeq = 0;
+
+// A question's pictures as the request carries them: the first `keep` whole,
+// without the copy the page shows them by, and a count of the rest.
+function picturesSent(images, keep = 0) {
+  const sent = images.slice(0, keep).map(({ media_type, data }) => ({ media_type, data }));
+  const dropped = images.length - sent.length;
+  return {
+    ...(sent.length ? { images: sent } : null),
+    ...(dropped ? { imagesDropped: dropped } : null),
+  };
+}
 
 export default function ChatPanel({
   open,
@@ -406,9 +424,15 @@ export default function ChatPanel({
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
   const [input, setInput] = useState("");
-  // A picture pasted into the box, waiting to go with the next question
-  // ({ media_type, data, url }, see lib/pastedImage.js), or null.
-  const [image, setImage] = useState(null);
+  // Pictures waiting to go with the next question, pasted, dropped or added
+  // with the paperclip: each { media_type, data, url } (see
+  // lib/pastedImage.js) and an id to key it by.
+  const [images, setImages] = useState([]);
+  const imagesRef = useRef(images);
+  imagesRef.current = images;
+  // Files are being dragged over the page.
+  const [dragging, setDragging] = useState(false);
+  const fileInputRef = useRef(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   // "byok_required" when the server refused for want of a key, "bad_key" when
@@ -739,13 +763,13 @@ export default function ChatPanel({
   const send = useCallback(
     async (text) => {
       const trimmed = (text ?? input).trim();
-      if ((!trimmed && !image) || sending) return;
-      const pasted = image;
+      if ((!trimmed && !images.length) || sending) return;
+      const pictures = images;
 
       setError("");
       setErrorCode("");
       setInput("");
-      setImage(null);
+      setImages([]);
       setAnnouncement("");
       // Sent with the button, focus went to it — and the button disables
       // while the answer streams, which drops focus to the page. The next
@@ -770,14 +794,20 @@ export default function ChatPanel({
             : exercise ? exerciseAbout(exercise)
             : "",
           rowId: currentCard?.row_id ?? podcast?.key ?? exercise?.key ?? null,
-          ...(pasted ? { image: pasted } : null),
+          ...(pictures.length ? { images: pictures } : null),
         },
       ];
       // Only the latest few pictures go back with the history; an older one
-      // goes as a note that there was one, so a long thread of screenshots
+      // goes as a count of what was there, so a long thread of screenshots
       // stays under the 4.5 MB a request to Vercel may carry.
-      const withImage = nextMessages.filter((m) => m.image);
-      const keepImages = new Set(withImage.slice(-MAX_SENT_IMAGES));
+      const keepPictures = new Map();
+      let room = MAX_SENT_IMAGES;
+      for (const m of [...nextMessages].reverse()) {
+        if (!m.images?.length) continue;
+        const keep = Math.min(room, m.images.length);
+        keepPictures.set(m, keep);
+        room -= keep;
+      }
       // The empty assistant bubble is what fills in as tokens arrive, so it
       // goes in before the request rather than after it.
       setMessages([
@@ -820,11 +850,7 @@ export default function ChatPanel({
               role: m.role,
               content: m.content,
               ...(m.about ? { about: m.about } : null),
-              ...(m.image
-                ? keepImages.has(m)
-                  ? { image: { media_type: m.image.media_type, data: m.image.data } }
-                  : { imageDropped: true }
-                : null),
+              ...(m.images?.length ? picturesSent(m.images, keepPictures.get(m)) : null),
               ...(m.cards?.length
                 ? { cards: m.cards.map((c) => ({ front: c.front, back: c.back })) }
                 : null),
@@ -950,7 +976,7 @@ export default function ChatPanel({
           // Nothing arrived: drop the empty bubble and put the question back
           // in the box so it isn't lost to a network blip.
           setInput(trimmed);
-          if (pasted) setImage(pasted);
+          if (pictures.length) setImages(pictures);
           setMessages(messages);
         }
       } finally {
@@ -958,23 +984,112 @@ export default function ChatPanel({
         abortRef.current = null;
       }
     },
-    [input, image, sending, messages, cards, currentCard, podcast, exercise, spanish, lang.id, user, updateLast, drain, drained, stopDrain, applyEdit]
+    [input, images, sending, messages, cards, currentCard, podcast, exercise, spanish, lang.id, user, updateLast, drain, drained, stopDrain, applyEdit]
   );
 
-  // A pasted picture is shrunk and held above the box until the question
-  // goes. Text pasted with it still lands in the box.
-  const onPaste = async (e) => {
-    const file = imageFromPaste(e);
-    if (!file) return;
-    if (!pasteHasText(e)) e.preventDefault();
+  // Pictures pasted, dropped or picked are shrunk and held above the box
+  // until the question goes, up to MAX_SENT_IMAGES; past that, a line says
+  // the rest were left out.
+  const addPictures = useCallback(async (files) => {
+    const pictures = files.filter(isPicture);
+    if (!pictures.length) {
+      if (files.length) setError("Only a picture can go with a question, such as a screenshot.");
+      return;
+    }
     setError("");
     setErrorCode("");
-    try {
-      setImage(await shrinkImage(file));
-    } catch (err) {
-      setError(err?.message || "That picture couldn't be read.");
+    const room = MAX_SENT_IMAGES - imagesRef.current.length;
+    const most = `A question can take ${PICTURE_WORDS[MAX_SENT_IMAGES]} pictures at most`;
+    if (room <= 0) {
+      setError(`${most}.`);
+      return;
     }
-  };
+    const shrunk = [];
+    for (const file of pictures.slice(0, room)) {
+      try {
+        shrunk.push({ ...(await shrinkImage(file)), id: ++pictureSeq });
+      } catch (err) {
+        setError(err?.message || "That picture couldn't be read.");
+      }
+    }
+    if (pictures.length > room) setError(`${most}, so the rest were left out.`);
+    if (shrunk.length) {
+      setImages((prev) => [...prev, ...shrunk].slice(0, MAX_SENT_IMAGES));
+      inputRef.current?.focus();
+    }
+  }, []);
+
+  // A picture pasted while the panel is open is for the tutor, wherever the
+  // cursor was, unless the feedback form, which takes screenshots of its
+  // own, took it. Text pasted with it still lands where it was pasted.
+  useEffect(() => {
+    if (!open) return;
+    const onPaste = (e) => {
+      if (e.defaultPrevented || e.target?.closest?.("[data-feedback-sheet]")) return;
+      const files = filesFrom(e.clipboardData);
+      if (!files.length) return;
+      if (!pasteHasText(e)) e.preventDefault();
+      addPictures(files);
+    };
+    document.addEventListener("paste", onPaste);
+    return () => document.removeEventListener("paste", onPaste);
+  }, [open, addPictures]);
+
+  // A screenshot dropped anywhere on the page goes with the question: a file
+  // from the desktop, or the thumbnail a Mac screenshot leaves in the corner
+  // of the screen. A dropped file used to open in the tab in place of the
+  // app. The feedback form's own drop still goes to it.
+  useEffect(() => {
+    if (!open) return;
+    // Every element the drag crosses gets an enter and a leave; at zero it
+    // has left the window. A drag also sends a move several times a second,
+    // even held still, so a second without one means it is over, however
+    // it ended: the outline never stays up over the thread.
+    let depth = 0;
+    let idle = 0;
+    const done = () => {
+      depth = 0;
+      clearTimeout(idle);
+      setDragging(false);
+    };
+    // The feedback form's drop, and the notes upload's, are their own.
+    const theirs = (e) => e.defaultPrevented || !!e.target?.closest?.("[data-feedback-sheet]");
+    const onEnter = (e) => {
+      if (!draggingFiles(e)) return;
+      depth += 1;
+      setDragging(!theirs(e));
+    };
+    const onLeave = (e) => {
+      if (!draggingFiles(e)) return;
+      depth = Math.max(0, depth - 1);
+      if (!depth) done();
+    };
+    const onOver = (e) => {
+      if (!draggingFiles(e)) return;
+      clearTimeout(idle);
+      idle = setTimeout(done, 1000);
+      if (theirs(e)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+    };
+    const onDrop = (e) => {
+      done();
+      if (!draggingFiles(e) || theirs(e)) return;
+      e.preventDefault();
+      addPictures(filesFrom(e.dataTransfer));
+    };
+    window.addEventListener("dragenter", onEnter);
+    window.addEventListener("dragleave", onLeave);
+    window.addEventListener("dragover", onOver);
+    window.addEventListener("drop", onDrop);
+    return () => {
+      window.removeEventListener("dragenter", onEnter);
+      window.removeEventListener("dragleave", onLeave);
+      window.removeEventListener("dragover", onOver);
+      window.removeEventListener("drop", onDrop);
+      done();
+    };
+  }, [open, addPictures]);
 
   const addCard = useCallback(
     async (card) => {
@@ -1180,8 +1295,18 @@ export default function ChatPanel({
                   </span>
                 ) : (
                   <>
-                    {m.image?.url && (
-                      <img src={m.image.url} alt="Your picture" style={S.bubbleImage} data-tutor-image />
+                    {m.images?.length > 0 && (
+                      <div style={S.bubbleImages}>
+                        {m.images.map((img) => (
+                          <img
+                            key={img.id}
+                            src={img.url}
+                            alt="Your picture"
+                            style={m.images.length > 1 ? S.bubbleImageSmall : S.bubbleImage}
+                            data-tutor-image
+                          />
+                        ))}
+                      </div>
                     )}
                     {m.role === "user" ? m.content : renderInline(m.content)}
                     {/* A caret while text is still arriving, so an answer
@@ -1229,39 +1354,89 @@ export default function ChatPanel({
           </div>
         )}
 
-        {image && (
+        {images.length > 0 && (
           <div style={S.pasted} data-tutor-pasted>
-            <img src={image.url} alt="The picture you pasted" style={S.pastedImage} />
-            <span style={S.pastedNote}>This picture goes with your question.</span>
-            <button style={S.pastedRemove} onClick={() => setImage(null)} data-tutor-pasted-remove>
-              Remove
-            </button>
+            {images.map((img) => (
+              <div key={img.id} style={S.pastedItem}>
+                <img src={img.url} alt="A picture waiting to go with your question" style={S.pastedImage} />
+                <button
+                  style={S.pastedRemove}
+                  onClick={() => setImages((prev) => prev.filter((p) => p.id !== img.id))}
+                  aria-label="Remove this picture"
+                  title="Remove this picture"
+                  data-tutor-pasted-remove
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            <span style={S.pastedNote}>
+              {images.length === 1
+                ? "This picture goes with your question."
+                : `These ${PICTURE_WORDS[images.length]} pictures go with your question.`}
+            </span>
           </div>
         )}
-        <div style={image ? { ...S.composer, borderTop: "none", paddingTop: 10 } : S.composer}>
+        <div style={images.length ? { ...S.composer, borderTop: "none", paddingTop: 10 } : S.composer}>
+          <button
+            type="button"
+            style={S.attach}
+            onClick={() => fileInputRef.current?.click()}
+            aria-label="Add a screenshot"
+            title="Add a screenshot. You can also paste one, or drop it on the page."
+            data-tutor-attach
+          >
+            <PaperclipIcon />
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={(e) => { addPictures(Array.from(e.target.files || [])); e.target.value = ""; }}
+            style={{ display: "none" }}
+            data-tutor-file
+          />
           <textarea
             ref={inputRef}
             style={S.input}
             value={input}
             onChange={(e) => { setInput(e.target.value); grow(e.target); }}
             onKeyDown={onKeyDown}
-            onPaste={onPaste}
-            placeholder="Ask about a word or phrase, or paste a screenshot…"
+            // On one line beside the paperclip; a phone's box has room for
+            // less (html.phone, set by FlashcardApp).
+            placeholder={document.documentElement.classList.contains("phone")
+              ? "Ask about a word…"
+              : "Ask about a word, or add a screenshot…"}
             rows={1}
           />
           <button
-            style={sending || (!input.trim() && !image) ? S.sendDisabled : S.send}
+            style={sending || (!input.trim() && !images.length) ? S.sendDisabled : S.send}
             onClick={() => send()}
-            disabled={sending || (!input.trim() && !image)}
+            disabled={sending || (!input.trim() && !images.length)}
           >
             Send
           </button>
         </div>
+        {dragging && (
+          <div style={S.dropZone} data-tutor-drop>
+            Drop the screenshot to add it to your question
+          </div>
+        )}
       </aside>
     </div>,
     document.body
   );
 }
+
+// The feedback form's paperclip (BetaFeedback.jsx), which adds a screenshot
+// there too.
+const PaperclipIcon = () => (
+  <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
+    strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none" }} aria-hidden="true">
+    <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+  </svg>
+);
 
 const S = {
   // pointerEvents none so that in reflow mode the app beside the panel stays
@@ -1526,40 +1701,90 @@ const S = {
     borderRadius: T.radius.md,
     fontSize: 12,
   },
-  // The pasted picture, waiting above the box.
+  // The pictures waiting above the box, each with its ✕.
   pasted: {
     display: "flex",
     alignItems: "center",
     gap: 10,
-    padding: "10px 20px 0",
+    padding: "12px 20px 0",
     borderTop: "1px solid rgba(3,22,50,0.06)",
   },
+  pastedItem: { position: "relative", flexShrink: 0 },
   pastedImage: {
+    display: "block",
     width: 56,
     height: 56,
     objectFit: "cover",
     borderRadius: T.radius.sm,
     border: "1px solid rgba(3,22,50,0.1)",
-    flexShrink: 0,
   },
-  pastedNote: { flex: 1, fontSize: 12.5, color: T.color.onSurfaceVariant, fontFamily: T.font.sans },
+  pastedNote: { flex: 1, minWidth: 0, fontSize: 12.5, color: T.color.onSurfaceVariant, fontFamily: T.font.sans },
   pastedRemove: {
-    background: "none",
-    border: "none",
+    position: "absolute",
+    top: -7,
+    right: -7,
+    width: 20,
+    height: 20,
     padding: 0,
-    fontSize: 12.5,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: T.color.primary,
+    color: T.color.onPrimary,
+    border: `2px solid ${T.color.surface}`,
+    borderRadius: "50%",
+    fontSize: 13,
+    lineHeight: 1,
     fontFamily: T.font.sans,
-    color: T.color.onSurfaceVariant,
-    textDecoration: "underline",
     cursor: "pointer",
   },
-  // A picture in your own message, above what you typed with it.
+  // The pictures in your own message, above what you typed with them.
+  bubbleImages: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 },
   bubbleImage: {
     display: "block",
     maxWidth: "100%",
     maxHeight: 220,
     borderRadius: T.radius.sm,
-    marginBottom: 6,
+  },
+  bubbleImageSmall: {
+    display: "block",
+    height: 96,
+    maxWidth: "100%",
+    objectFit: "cover",
+    borderRadius: T.radius.sm,
+  },
+  // The paperclip, the box's height and ground so the three read as one row.
+  attach: {
+    width: 40,
+    flexShrink: 0,
+    padding: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: T.color.surfaceHigh,
+    color: T.color.onSurfaceVariant,
+    border: "1px solid rgba(3,22,50,0.08)",
+    borderRadius: T.radius.md,
+    cursor: "pointer",
+  },
+  // Over the panel while a screenshot is dragged across the page.
+  dropZone: {
+    position: "absolute",
+    inset: 12,
+    zIndex: 2,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+    textAlign: "center",
+    background: "rgba(255,255,255,0.92)",
+    border: `2px dashed ${T.color.secondary}`,
+    borderRadius: T.radius.lg,
+    color: T.color.primary,
+    fontSize: 15,
+    fontWeight: 600,
+    fontFamily: T.font.sans,
+    pointerEvents: "none",
   },
   composer: {
     display: "flex",

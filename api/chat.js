@@ -25,8 +25,10 @@
 //     course?: "es",                               // the Spanish module; French when absent
 //     messages: [
 //       { role: "user", content: "...", about?: "..." },  // about: what was on screen when asked
-//         // a user turn may also carry image?: { media_type, data } (a pasted
-//         // picture, base64) or imageDropped?: true (one too old to resend)
+//         // a user turn may also carry images?: [{ media_type, data }] (its
+//         // pictures, base64) and imagesDropped?: n (how many were too old to
+//         // resend); image? / imageDropped?: true, one of each, from a page
+//         // loaded before a question could take several
 //       { role: "assistant", content: "...", cards?: [{ front, back }],
 //         edits?: [{ was, now, status, removed? }] }, // cards it changed or removed: "front — back" each
 //     ],
@@ -126,11 +128,12 @@ const MAX_TURNS = 20;
 const TRIM_STEP = 10;
 const MAX_CHARS_PER_MESSAGE = 4000;
 const MAX_CONTEXT_CARDS = 12;
-// Pasted pictures (owner, 2026-10-18). The client shrinks each to about
-// 1,568 pixels and under a million base64 characters (src/lib/pastedImage.js)
-// and sends only the latest three; the same limits hold here, so a request
-// stays under the 4.5 MB Vercel takes. An older picture is replaced by a
-// note that there was one.
+// Pictures with a question (owner, 2026-10-18), up to three to one question
+// since 2026-11-01. The client shrinks each to about 1,568 pixels and under a
+// million base64 characters (src/lib/pastedImage.js) and sends only the
+// latest three; the same limits hold here, so a request stays under the
+// 4.5 MB Vercel takes. An older picture is replaced by a note that it was
+// there.
 const MAX_IMAGES = 3;
 const IMAGE_MAX_CHARS = 1_200_000;
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
@@ -156,7 +159,7 @@ The latest user turn may carry a "[Context]" block: the card on their screen, ca
 
 Earlier turns may carry bracketed notes — what was on their screen when they asked (a card, or a podcast passage), the cards you proposed, the cards you changed. They are for your reference. Never write notes like them yourself.
 
-They may paste a picture with a question, usually a screenshot of this app or of their notes. It shows what they are asking about, so read it before answering. A card or passage in it that they haven't answered yet is under the same rules as one on their screen.
+They may send a picture with a question, or several, usually screenshots of this app or of their notes. They show what they are asking about, so read them before answering. A card or passage in one that they haven't answered yet is under the same rules as one on their screen.
 
 ## The card on screen
 
@@ -306,7 +309,7 @@ The latest user turn may carry a "[Context]" block: the card or the exercise on 
 
 Earlier turns may carry bracketed notes — what was on their screen when they asked (a card, or an exercise), the cards you proposed, the cards you changed. They are for your reference. Never write notes like them yourself.
 
-They may paste a picture with a question, usually a screenshot of this app or of their notes. It shows what they are asking about, so read it before answering. A card or an exercise in it that they haven't answered yet is under the same rules as one on their screen.
+They may send a picture with a question, or several, usually screenshots of this app or of their notes. They show what they are asking about, so read them before answering. A card or an exercise in one that they haven't answered yet is under the same rules as one on their screen.
 
 ## The card on screen
 
@@ -451,10 +454,12 @@ function sanitizeMessages(raw) {
   for (const m of raw) {
     const role = m?.role === "assistant" ? "assistant" : "user";
     const content = typeof m?.content === "string" ? m.content.trim() : "";
-    const image = role === "user" ? imageOf(m.image) : null;
-    const imageDropped = role === "user" && !image && (m.imageDropped === true || !!m.image);
+    const sent = role === "user" ? picturesOf(m) : [];
+    const images = sent.filter(Boolean);
+    // Held back by the client as too old to resend, or not a picture at all.
+    const dropped = role === "user" ? sent.length - images.length + heldBack(m) : 0;
     // A picture with nothing typed is a question in itself.
-    if (!content && !image && !imageDropped) continue;
+    if (!content && !images.length && !dropped) continue;
     const about = role === "user" && typeof m.about === "string" ? m.about.trim().slice(0, 200) : "";
     const proposed = role === "assistant" ? cardList(m.cards).slice(0, 4) : [];
     const changed = role === "assistant" ? editList(m.edits) : [];
@@ -464,8 +469,8 @@ function sanitizeMessages(raw) {
       about,
       proposed,
       changed,
-      image,
-      imageDropped,
+      images,
+      dropped,
     });
   }
   const over = cleaned.length - MAX_TURNS;
@@ -473,15 +478,35 @@ function sanitizeMessages(raw) {
   // The Messages API requires the first message to be from the user.
   while (trimmed.length && trimmed[0].role !== "user") trimmed.shift();
   // The newest pictures go; any older one becomes a note that it was there.
-  let pictures = 0;
+  let room = MAX_IMAGES;
   for (let i = trimmed.length - 1; i >= 0; i--) {
-    if (!trimmed[i].image) continue;
-    if (++pictures > MAX_IMAGES) trimmed[i] = { ...trimmed[i], image: null, imageDropped: true };
+    const { images } = trimmed[i];
+    if (!images.length) continue;
+    const keep = Math.min(room, images.length);
+    room -= keep;
+    if (keep < images.length) {
+      trimmed[i] = { ...trimmed[i], images: images.slice(0, keep), dropped: trimmed[i].dropped + images.length - keep };
+    }
   }
   return trimmed;
 }
 
-// A pasted picture as the client sends it, or null when it isn't one.
+// A user turn's pictures, each an image block or null when it isn't one:
+// `images`, or the single `image` a page loaded before a question could take
+// several still sends.
+function picturesOf(m) {
+  const raw = Array.isArray(m?.images) ? m.images : m?.image ? [m.image] : [];
+  return raw.slice(0, MAX_IMAGES).map(imageOf);
+}
+
+// How many pictures the client says it held back from this turn.
+function heldBack(m) {
+  const n = m?.imagesDropped;
+  if (Number.isInteger(n) && n > 0) return Math.min(n, MAX_IMAGES);
+  return m?.imageDropped === true ? 1 : 0;
+}
+
+// A picture as the client sends it, or null when it isn't one.
 function imageOf(raw) {
   if (!raw || typeof raw !== "object") return null;
   const type = typeof raw.media_type === "string" ? raw.media_type : "";
@@ -498,10 +523,10 @@ function imageOf(raw) {
 // of the passage (owner, 2026-10-09), and calling that a card would mislead.
 function renderTurn(m, isLatest) {
   if (m.role === "user") {
-    const said = m.content || (m.image ? "[They sent this picture with nothing typed.]" : "");
-    const text = m.imageDropped
-      ? `[They pasted a picture here; it is no longer attached.]${said ? `\n${said}` : ""}`
-      : said;
+    const n = m.images.length;
+    const said = m.content
+      || (n === 1 ? "[They sent this picture with nothing typed.]" : n ? "[They sent these pictures with nothing typed.]" : "");
+    const text = m.dropped ? `${droppedNote(m.dropped, n)}${said ? `\n${said}` : ""}` : said;
     return m.about && !isLatest
       ? `[Asked while this was on screen: "${m.about}"]\n${text}`
       : text;
@@ -510,6 +535,19 @@ function renderTurn(m, isLatest) {
   if (m.proposed.length) notes.push(`[Cards you proposed: ${m.proposed.join("; ")}]`);
   if (m.changed.length) notes.push(`[Cards you changed: ${m.changed.join("; ")}]`);
   return notes.length ? `${m.content}\n\n${notes.join("\n")}` : m.content;
+}
+
+// What a turn says about pictures sent with it that are no longer attached;
+// `kept` is how many still are.
+function droppedNote(dropped, kept) {
+  if (kept) {
+    return dropped === 1
+      ? "[They sent one more picture here; it is no longer attached.]"
+      : `[They sent ${dropped} more pictures here; they are no longer attached.]`;
+  }
+  return dropped === 1
+    ? "[They sent a picture here; it is no longer attached.]"
+    : `[They sent ${dropped} pictures here; they are no longer attached.]`;
 }
 
 const EDIT_OUTCOME = {
@@ -765,20 +803,20 @@ function exerciseLines(ex) {
 }
 
 // Attach the context to the final user turn, leaving the caller's array alone.
-// A turn with a picture goes as the picture, then the text.
+// A turn with pictures goes as the pictures, then the text.
 function withContext(messages, contextBlock) {
   const rendered = messages.map((m, i) => {
     const text = renderTurn(m, i === messages.length - 1);
     return {
       role: m.role,
-      content: m.image ? [m.image, { type: "text", text }] : text,
+      content: m.images?.length ? [...m.images, { type: "text", text }] : text,
     };
   });
   const last = rendered[rendered.length - 1];
   if (!contextBlock || !last || last.role !== "user") return rendered;
   if (Array.isArray(last.content)) {
-    const [picture, said] = last.content;
-    last.content = [picture, { type: "text", text: `${contextBlock}\n\n${said.text}` }];
+    const said = last.content[last.content.length - 1];
+    last.content = [...last.content.slice(0, -1), { type: "text", text: `${contextBlock}\n\n${said.text}` }];
   } else {
     last.content = `${contextBlock}\n\n${last.content}`;
   }
