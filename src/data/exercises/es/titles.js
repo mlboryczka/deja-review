@@ -41,3 +41,34 @@ export const TEXT_OF = { "leccion8-anexo": "leccion8" };
 
 // In course order, for the sidebar.
 export const EXERCISE_TITLES = Object.entries(TITLES).map(([id, title]) => ({ id, title }));
+
+// The sidebar's lessons in four stages of the course, one open at a time
+// (owner, 2026-11-01: "a better grouping organization for these so that they
+// are not all open at the same time"). A lesson with more than one sheet is
+// one row that opens to its sheets. Every sheet is in exactly one place, in
+// course order (tests/suites/es-exercises.mjs).
+const one = (id) => ({ id, title: TITLES[id] });
+const parts = (key, title, sheets) => ({ key, title, parts: sheets.map(([id, t]) => ({ id, title: t })) });
+export const EXERCISE_GROUPS = [
+  { title: "Lessons 1–6 · The present", rows: ["leccion1", "leccion2", "leccion3", "leccion4", "leccion5", "leccion6"].map(one) },
+  {
+    title: "Lessons 7–11 · People and the past",
+    rows: [
+      parts("leccion7", "Lesson 7 · Describing people", [["leccion7-1", "Part 1"], ["leccion7-2", "Part 2"], ["leccion7-3", "Part 3"]]),
+      parts("leccion8", "Lesson 8 · The preterite", [["leccion8", "The preterite"], ["leccion8-anexo", "The time and the date"]]),
+      ...["leccion9", "leccion10", "leccion11"].map(one),
+    ],
+  },
+  {
+    title: "Lessons 12–18 · Reflexives to commands",
+    rows: [
+      parts("leccion12", "Lesson 12 · Reflexive verbs", [["leccion12-1", "Part 1"], ["leccion12-2", "Part 2"]]),
+      ...["leccion13", "leccion14", "leccion15", "leccion16", "leccion17", "leccion18"].map(one),
+    ],
+  },
+  { title: "Lessons 19–23 · Food, travel and more", rows: ["leccion19", "leccion20", "leccion21", "leccion22", "leccion23"].map(one) },
+];
+
+// Which group holds a sheet, -1 for none (the list of all exercises).
+export const exerciseGroupOf = (id) =>
+  EXERCISE_GROUPS.findIndex((g) => g.rows.some((r) => r.id === id || r.parts?.some((p) => p.id === id)));

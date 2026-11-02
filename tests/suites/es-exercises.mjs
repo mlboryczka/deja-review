@@ -36,6 +36,7 @@
 import { checker } from "../check.mjs";
 import { EXERCISE_LESSONS, EXERCISES_BY_ID, LEFT_OUT, numbered } from "../../src/data/exercises/es/index.js";
 import { LESSON_TEXTS } from "../../src/data/exercises/es/texts.js";
+import { EXERCISE_GROUPS, EXERCISE_TITLES, exerciseGroupOf } from "../../src/data/exercises/es/titles.js";
 import { plain, bare, kindOf, markByKey, typedText, keyAnswer, itemKey, findItem, isAnswered, hintText, hintLevels, keyReason, markedNow } from "../../src/lib/exerciseMarking.js";
 import { accentCounts } from "../../src/lib/spanishAccents.js";
 import { handleExerciseRequest, markPrompt, readMark } from "../../api/_lib/exercises.js";
@@ -268,6 +269,22 @@ ck("a right verdict carries no correction", readMark({ verdict: "right", note: "
   const f = truthKey && findItem(EXERCISES_BY_ID, truthKey);
   const prompt = f ? markPrompt({ lesson: f.lesson, exercise: f.exercise, item: f.item, typed: "Verdadero. x" }) : "";
   ck("a question about the lesson's text gives Claude the text", !!f && prompt.includes("The lesson's text:"));
+}
+
+// The sidebar's four stages (owner, 2026-11-01): every sheet in one place,
+// in course order, and a lesson in parts found from any of its parts.
+{
+  const order = EXERCISE_GROUPS.flatMap((g) => g.rows.flatMap((r) => (r.parts ? r.parts.map((p) => p.id) : [r.id])));
+  ck(
+    "the sidebar's groups hold every lesson's exercises once, in course order",
+    JSON.stringify(order) === JSON.stringify(EXERCISE_TITLES.map((l) => l.id)),
+    order.join(" ")
+  );
+  ck("and every group, lesson and part has a name", EXERCISE_GROUPS.every((g) => g.title && g.rows.every((r) => r.title && (!r.parts || r.parts.every((p) => p.title)))));
+  ck(
+    "a sheet's group is found from any of its parts",
+    exerciseGroupOf("leccion1") === 0 && exerciseGroupOf("leccion8-anexo") === 1 && exerciseGroupOf("leccion12-2") === 2 && exerciseGroupOf("leccion23") === 3 && exerciseGroupOf(null) === -1
+  );
 }
 
 const n = ck.fails();

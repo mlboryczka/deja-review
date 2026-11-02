@@ -104,7 +104,7 @@ import { podcastsOpenTo } from "./lib/testApp";
 // Loaded only when Exercises is opened: its 27 sheets are about 800 KB that
 // no one else, French included, should have to download.
 const ExercisesPage = lazy(() => import("./ExercisesPage"));
-import { EXERCISE_TITLES, TITLES as EXERCISE_TITLE_OF, TEXT_OF as EXERCISE_TEXT_OF } from "./data/exercises/es/titles.js";
+import { EXERCISE_TITLES, TITLES as EXERCISE_TITLE_OF, TEXT_OF as EXERCISE_TEXT_OF, EXERCISE_GROUPS, exerciseGroupOf } from "./data/exercises/es/titles.js";
 
 const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase();
 // The owner's account. Client-side only, so it only ever HIDES things: every
@@ -1110,6 +1110,24 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
     if (!user?.id) return;
     try { localStorage.setItem(EXERCISES_FOLDED_KEY + user.id, exLessonsFolded ? "1" : "0"); } catch { /* storage blocked */ }
   }, [user?.id, exLessonsFolded]);
+  // Under All exercises, one stage of the course is open at a time
+  // (EXERCISE_GROUPS): the one holding the lesson you're on, until you open
+  // another. Going to a lesson opens its stage. -1 is none open.
+  const [exOpenGroup, setExOpenGroup] = useState(() => Math.max(0, exerciseGroupOf(exView.lesson)));
+  useEffect(() => {
+    const g = exerciseGroupOf(exView.lesson);
+    if (g >= 0) setExOpenGroup(g);
+  }, [exView.lesson]);
+  // A lesson in parts (7, 8, 12) opens to its parts while you're in one of
+  // them, and otherwise when pressed. These are the ones pressed the other
+  // way from that.
+  const [exPartsFlipped, setExPartsFlipped] = useState(() => new Set());
+  const flipExParts = (key) => setExPartsFlipped((prev) => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+  useEffect(() => { setExPartsFlipped(new Set()); }, [exView.lesson]);
   // Changing module stops the browser voice: a card being read aloud must
   // not carry on over an episode, nor a podcast word over the next card. The
   // episode's own recording is the podcasts page's to pause, and it does so
@@ -3548,21 +3566,76 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
                 </button>
               )}
             </div>
-            {!sidebarMin && EXERCISE_TITLES.filter((l) => !exLessonsFolded || exView.lesson === l.id).map((l) => {
-              const on = exView.lesson === l.id;
-              return (
-                <button
-                  key={l.id}
-                  data-ex-nav={l.id}
-                  className="side-btn"
-                  aria-current={on ? "page" : undefined}
-                  style={on ? { ...S.sideSubItem, ...S.sideSubItemActive } : S.sideSubItem}
-                  onClick={() => setExView({ lesson: l.id })}
-                >
-                  {l.title}
-                </button>
-              );
-            })}
+            {/* Folded, only the lesson you're in. Unfolded, the four stages
+                of the course, one open at a time: a closed one still shows
+                the lesson you're in, as a folded Basic Lessons does, under
+                its full title. Lessons 7, 8 and 12 are one row each that
+                opens to their parts (owner, 2026-11-01). */}
+            {!sidebarMin && (() => {
+              const lessonBtn = (id, title, style) => {
+                const on = exView.lesson === id;
+                return (
+                  <button
+                    key={id}
+                    data-ex-nav={id}
+                    className="side-btn"
+                    aria-current={on ? "page" : undefined}
+                    style={on ? { ...style, ...S.sideSubItemActive } : style}
+                    onClick={() => setExView({ lesson: id })}
+                  >
+                    {title}
+                  </button>
+                );
+              };
+              if (exLessonsFolded) {
+                return EXERCISE_TITLES.filter((l) => exView.lesson === l.id).map((l) => lessonBtn(l.id, l.title, S.sideSubItem));
+              }
+              const nested = { ...S.sideSubItem, ...S.sideSubItemNested };
+              return EXERCISE_GROUPS.map((group, gi) => {
+                const open = gi === exOpenGroup;
+                return (
+                  <Fragment key={group.title}>
+                    <button
+                      className="side-btn"
+                      style={S.sideGroup}
+                      onClick={() => setExOpenGroup(open ? -1 : gi)}
+                      aria-expanded={open}
+                      data-ex-group={gi}
+                    >
+                      {group.title}
+                      <span style={open ? { ...S.sideChevron, ...S.sideChevronOpen } : S.sideChevron} aria-hidden="true">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                      </span>
+                    </button>
+                    {group.rows.map((row) => {
+                      if (!row.parts) return open || exView.lesson === row.id ? lessonBtn(row.id, row.title, nested) : null;
+                      const here = row.parts.find((p) => p.id === exView.lesson);
+                      if (!open) return here ? lessonBtn(here.id, EXERCISE_TITLE_OF[here.id], nested) : null;
+                      const partsOpen = !!here !== exPartsFlipped.has(row.key);
+                      return (
+                        <Fragment key={row.key}>
+                          <button
+                            className="side-btn"
+                            style={{ ...nested, display: "flex", alignItems: "center" }}
+                            onClick={() => flipExParts(row.key)}
+                            aria-expanded={partsOpen}
+                            data-ex-parts={row.key}
+                          >
+                            {row.title}
+                            <span style={partsOpen ? { ...S.sideChevron, ...S.sideChevronOpen } : S.sideChevron} aria-hidden="true">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                            </span>
+                          </button>
+                          {row.parts
+                            .filter((p) => partsOpen || p === here)
+                            .map((p) => lessonBtn(p.id, p.title, { ...nested, ...S.sideSubItemPart }))}
+                        </Fragment>
+                      );
+                    })}
+                  </Fragment>
+                );
+              });
+            })()}
           </>
         )}
         {!podcastsOn && !exercisesOn && navItems.map(([m, label]) => {
@@ -6063,6 +6136,8 @@ const S = {
   sideSubItem: { display:"block", width:"100%", padding:"7px 32px 7px 64px", border:"none", borderTopWidth:0, borderTopStyle:"solid", borderTopColor:"transparent", borderBottomWidth:0, borderBottomStyle:"solid", borderBottomColor:"transparent", borderLeftWidth:0, borderLeftStyle:"solid", borderLeftColor:"transparent", borderRightWidth:4, borderRightStyle:"solid", borderRightColor:"transparent", background:"transparent", cursor:"pointer", fontFamily:T.font.sans, fontSize:13, fontWeight:500, color:"rgba(3,22,50,0.55)", textAlign:"left", boxSizing:"border-box" },
   // A lesson under a heading (Basic Lessons) sits one step further in.
   sideSubItemNested: { paddingLeft:80 },
+  // A part of a lesson, under that lesson's row (Exercises' Lesson 7, 8, 12).
+  sideSubItemPart: { paddingLeft:96 },
   sideGroup: { display:"flex", alignItems:"center", width:"100%", padding:"9px 32px 5px 64px", border:"none", background:"transparent", cursor:"pointer", fontFamily:T.font.sans, fontSize:13, fontWeight:600, color:"rgba(3,22,50,0.7)", textAlign:"left", boxSizing:"border-box" },
   sideSubItemActive: { color:T.color.secondary, fontWeight:700, borderRightColor:T.color.secondary, background:"rgba(255,255,255,0.5)" },
   sideItem: { display:"flex", alignItems:"center", gap:14, padding:"14px 32px", border:"none", borderTopWidth:0, borderTopStyle:"solid", borderTopColor:"transparent", borderBottomWidth:0, borderBottomStyle:"solid", borderBottomColor:"transparent", borderLeftWidth:0, borderLeftStyle:"solid", borderLeftColor:"transparent", borderRightWidth:4, borderRightStyle:"solid", borderRightColor:"transparent", background:"transparent", cursor:"pointer", fontFamily:T.font.sans, fontSize:13, fontWeight:600, color:"rgba(3,22,50,0.6)", textTransform:"uppercase", letterSpacing:"0.1em", textAlign:"left", transition:"all 0.2s" },

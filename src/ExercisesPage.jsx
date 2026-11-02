@@ -535,8 +535,14 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
       <div style={S.itemBody}>
         {open ? (
           <>
+            {/* A sentence with blanks is its own answer box: its Check sits
+                on the sentence's row, greyed until every blank is filled, as
+                beside an answer box (owner, 2026-11-02, choosing the mockup
+                with Hint under the answer). It used to appear under the
+                sentence only once something was typed. */}
             {kind === "gaps" ? (
-              <div style={S.prompt}>
+              <div style={S.gapRow}>
+              <div style={S.gapPrompt}>
                 {String(item.prompt).split("___").map((part, i, all) => (
                   <Fragment key={i}>
                     <Rich text={part} />
@@ -555,6 +561,16 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
                     )}
                   </Fragment>
                 ))}
+              </div>
+                <button
+                  type="button"
+                  style={{ ...S.btn, ...(isAnswered(item, typed) ? null : S.btnOff) }}
+                  disabled={!isAnswered(item, typed)}
+                  onClick={check}
+                  data-ex-check
+                >
+                  Check
+                </button>
               </div>
             ) : (
               <div style={S.prompt}><Rich text={item.prompt} /></div>
@@ -615,27 +631,29 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
                 </button>
               </div>
             )}
-            {hint > 0 && (
-              <div style={S.hintLine} data-ex-hint>
-                <b>Hint:</b> <span style={S.hintText}>{hintText(item, hint)}</span>
-              </div>
-            )}
-            {/* Only once something is typed: a sheet of empty gaps each with
-                its own button was a wall of buttons. */}
-            {kind === "gaps" && typed.some((v) => v.trim()) && (
-              <div style={S.gapCheck}>
+            {/* Hint under the answer, at its left edge, and what it shows on
+                the same line (owner, 2026-11-02: "what about Hint bottom left
+                aligned to your answer type space"). It goes once the whole
+                answer shows. */}
+            <div style={kind === "gaps" ? S.hintRow : { ...S.hintRow, ...S.hintRowUnder }}>
+              {hint < levels && (
                 <button
                   type="button"
-                  style={{ ...S.btnSmall, ...(isAnswered(item, typed) ? null : S.btnOff) }}
-                  disabled={!isAnswered(item, typed)}
-                  onClick={check}
-                  data-ex-check
+                  style={S.hintBtn}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={moreHint}
+                  title="Shows the first letter of each word of the answer, then one more letter each time"
+                  data-ex-hint-btn
                 >
-                  Check
+                  {hint ? "Show more" : "Hint"}
                 </button>
-                <span style={S.hint}>or press Enter</span>
-              </div>
-            )}
+              )}
+              {hint > 0 && (
+                <span style={S.hintLine} data-ex-hint>
+                  <b>Hint:</b> <span style={S.hintText}>{hintText(item, hint)}</span>
+                </span>
+              )}
+            </div>
             {problem && (
               <div style={S.inlineError} role="alert">
                 {problem.message}
@@ -651,21 +669,6 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
           <Marked item={item} answer={answer} onRetry={() => setRetrying(true)} />
         )}
       </div>
-      {/* Still there, unseen, once the whole answer shows, so the sentence
-          beside it doesn't move. */}
-      {open && (
-        <button
-          type="button"
-          style={{ ...S.hintBtn, ...(hint >= levels ? S.hintBtnGone : null) }}
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={moreHint}
-          disabled={hint >= levels}
-          title="Shows the first letter of each word of the answer, then one more letter each time"
-          data-ex-hint-btn
-        >
-          {hint ? "Show more" : "Hint"}
-        </button>
-      )}
     </li>
   );
 }
@@ -787,9 +790,8 @@ const S = {
   itemBody: { flex: 1, minWidth: 0 },
   prompt: { fontFamily: T.font.serif, fontSize: 15.5, lineHeight: 1.9, color: T.color.primary },
   gap: { display: "inline-block", margin: "0 4px", padding: "1px 6px", borderWidth: 0, borderBottomWidth: 2, borderStyle: "solid", borderColor: "rgba(3,22,50,0.25)", borderRadius: 0, background: "rgba(3,22,50,0.035)", fontFamily: T.font.serif, fontSize: 15.5, color: T.color.primary, outline: "none", boxSizing: "content-box" },
-  gapCheck: { display: "flex", alignItems: "center", gap: 10, marginTop: 6 },
-  hint: { fontSize: 11.5, color: T.color.onSurfaceVariant },
-  btnSmall: { padding: "6px 13px", border: "none", borderRadius: T.radius.md, background: T.gradient.ink, color: T.color.onPrimary, fontFamily: T.font.sans, fontWeight: 700, fontSize: 11.5, cursor: "pointer", whiteSpace: "nowrap", opacity: 1 },
+  gapRow: { display: "flex", alignItems: "center", gap: 10 },
+  gapPrompt: { flex: 1, minWidth: 0, fontFamily: T.font.serif, fontSize: 15.5, lineHeight: 1.9, color: T.color.primary },
   ansRow: { display: "flex", gap: 10, marginTop: 8, alignItems: "flex-end" },
   input: { flex: 1, minWidth: 0, padding: "9px 12px", borderWidth: 1, borderStyle: "solid", borderColor: "rgba(3,22,50,0.14)", borderRadius: T.radius.lg, background: T.color.surfaceLowest, fontFamily: T.font.sans, fontSize: 14, color: T.color.onSurface, outline: "none", boxSizing: "border-box" },
   textarea: { flex: 1, minWidth: 0, resize: "vertical", padding: "10px 12px", borderWidth: 1, borderStyle: "solid", borderColor: "rgba(3,22,50,0.14)", borderRadius: T.radius.lg, background: T.color.surfaceLowest, fontFamily: T.font.sans, fontSize: 14, lineHeight: 1.5, color: T.color.onSurface, outline: "none", boxSizing: "border-box" },
@@ -799,9 +801,10 @@ const S = {
   truthBtn: { padding: "6px 14px", borderWidth: 1, borderStyle: "solid", borderRadius: T.radius.full, fontFamily: T.font.sans, fontSize: 12, fontWeight: 700, cursor: "pointer" },
   truthBtnOn: { background: T.color.primary, borderColor: T.color.primary, color: T.color.onPrimary },
   truthBtnOff: { background: T.color.surfaceLowest, borderColor: "rgba(3,22,50,0.15)", color: T.color.primary },
-  hintBtn: { ...LINK, flexShrink: 0, alignSelf: "flex-start", marginTop: 7, whiteSpace: "nowrap" },
-  hintBtnGone: { visibility: "hidden" },
-  hintLine: { marginTop: 8, fontSize: 13.5, lineHeight: 1.6, color: T.color.primary },
+  hintRow: { display: "flex", alignItems: "baseline", flexWrap: "wrap", columnGap: 12, rowGap: 2, marginTop: 2 },
+  hintRowUnder: { marginTop: 5 },
+  hintBtn: { ...LINK, whiteSpace: "nowrap" },
+  hintLine: { fontSize: 13.5, lineHeight: 1.6, color: T.color.primary },
   // Monospaced and spaced out, so every hidden letter is its own _ to count.
   hintText: { fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace", fontSize: 13.5, letterSpacing: "0.12em", whiteSpace: "pre-wrap" },
   inlineError: { marginTop: 8, fontSize: 12.5, color: T.color.error, lineHeight: 1.5 },
