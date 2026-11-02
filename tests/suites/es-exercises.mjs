@@ -29,7 +29,11 @@
 //   - the exercises the owner had taken out (2026-10-25) stay out: no
 //     sentence of your own, nothing about yourself, no question to write, no
 //     answer about the text and no yes or no in a full sentence, and every
-//     other item is still there, numbered 1, 2, 3 on the page.
+//     other item is still there, numbered 1, 2, 3 on the page;
+//   - Lessons 9 and 10 open with the present as gaps, an exercise the sheets
+//     don't have (owner, 2026-11-02, asking why they never asked the present
+//     of verbs like ver and venir): every form of hacer, with salgo, pongo
+//     and traigo, and every form of ver and venir.
 //
 // No browser and no network: Claude and the database are stand-ins.
 
@@ -93,9 +97,27 @@ for (const lesson of EXERCISE_LESSONS) {
 }
 ck("no exercise taken out on 2026-10-25 is left: no sentence of your own, nothing about yourself, no question to write, no answer about the text, no yes or no in a full sentence",
    leftIn.length === 0, leftIn.join("; "));
-ck("91 exercises are out, 145 are left, every lesson keeps some, and every other item is still there",
-   Object.values(LEFT_OUT).flat().length === 91 && EXERCISE_LESSONS.reduce((n, l) => n + l.exercises.length, 0) === 145 &&
-   EXERCISE_LESSONS.every((l) => l.exercises.length > 0) && items === 2434);
+ck("91 exercises are out, 147 are in (Lessons 9 and 10's present included), every lesson keeps some, and every other item is still there",
+   Object.values(LEFT_OUT).flat().length === 91 && EXERCISE_LESSONS.reduce((n, l) => n + l.exercises.length, 0) === 147 &&
+   EXERCISE_LESSONS.every((l) => l.exercises.length > 0) && items === 2457);
+// The owner, 2026-11-02: "why are the lessons 9 and 10 exercises not asking
+// me about the present tense for verbs like venir and ver", then yes to a
+// fill-in exercise on the present in each.
+const PRESENT = {
+  leccion9: { hacer: ["hago", "haces", "hace", "hacemos", "hacen"], salir: ["salgo"], poner: ["pongo"], traer: ["traigo"] },
+  leccion10: { ver: ["veo", "ves", "ve", "vemos", "ven"], venir: ["vengo", "vienes", "viene", "venimos", "vienen"] },
+};
+const presentMissing = [];
+for (const [id, verbs] of Object.entries(PRESENT)) {
+  const first = EXERCISES_BY_ID[id].exercises[0];
+  if (!/en presente/.test(first.instruction) || !first.items.every((it) => kindOf(it) === "gaps" && it.gaps.length === 1)) presentMissing.push(`${id}: doesn't open with the present as gaps`);
+  for (const [verb, forms] of Object.entries(verbs)) {
+    const asked = new Set(first.items.filter((it) => it.prompt.endsWith(`(${verb})`)).map((it) => it.gaps[0][0]));
+    for (const form of forms) if (!asked.has(form)) presentMissing.push(`${id}: no ${form}`);
+  }
+}
+ck("Lessons 9 and 10 open with the present as gaps: every form of hacer, with salgo, pongo and traigo, and every form of ver and venir",
+   presentMissing.length === 0, presentMissing.join("; "));
 // "renumber the exercises properly" (owner, 2026-10-25).
 ck("each lesson's exercises are numbered 1, 2, 3… on the page, in order",
    EXERCISE_LESSONS.every((l) => l.exercises.every((ex, i) => ex.number === i + 1)));

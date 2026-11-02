@@ -2607,7 +2607,17 @@ page you were on (kept in this browser, `es-exercises-place:<user id>`).
   answer to a question with yes or no in a full sentence, 39 more in 20
   lessons (581 items), the pronoun, todavía no and nunca ones included.
   Their files keep them as the sheets have them. Lesson 16's translation of
-  its text stays. 145 exercises, 2,434 items.
+  its text stays. That took the present of ver and venir out of Exercises
+  altogether (Lesson 10's sheet asks it only in sentences of your own and
+  answers with no), and the present of hacer out of Lesson 9's. So, asked by
+  the owner (2026-11-02: "why are the lessons 9 and 10 exercises not asking
+  me about the present tense for verbs like venir and ver", then yes to a
+  fill-in exercise), Lessons 9 and 10 open with an exercise of the app's
+  own, on no sheet: the present as gaps, the verb in brackets. Lesson 9's
+  (ex. 13) asks every form of hacer, and salgo, pongo and traigo, the
+  lesson's other verbs with -go; Lesson 10's (ex. 14) every form of ver and
+  venir. Each is numbered after its sheet's last exercise, so its answers are
+  kept apart from the sheet's. 147 exercises, 2,457 items.
   The page numbers each lesson's exercises 1, 2, 3… as they now stand
   (owner, 2026-10-25: "renumber the exercises properly"); `n`, the number
   every answer is kept under, stays the sheet's, and an instruction pointing

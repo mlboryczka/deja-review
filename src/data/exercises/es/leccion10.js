@@ -25,10 +25,37 @@
 //     it is five open items, one per person.
 //   - Answers reuse the flashcard lesson's checked answers where an item
 //     matches (ex. 3, 4, 6, 7, 8, 9, 10).
+//
+// Added for the app, not on the sheet (owner, 2026-11-02, asking why Lessons
+// 9 and 10 never asked the present of verbs like ver and venir): ex. 14, the
+// present of ver and venir as gaps, shown first. The sheet asks the present
+// only in ex. 1 and 2 (sentences of your own) and ex. 4 (answering no in a
+// full sentence), all left out on 2026-10-25. It is numbered after the
+// sheet's last exercise (13), so its answers are kept apart from the sheet's.
 
 export default {
   id: "leccion10",
   exercises: [
+    {
+      n: 14,
+      title: "Conjugación",
+      instruction: "Completar con el verbo en presente.",
+      english: "Fill each gap with the verb in brackets, in the present.",
+      items: [
+        { prompt: "Yo ___ a mis papás los domingos. (ver)", gaps: [["veo"]] },
+        { prompt: "¿Tú ___ a la playa con nosotros? (venir)", gaps: [["vienes"]] },
+        { prompt: "Nosotros ___ la tele en la noche. (ver)", gaps: [["vemos"]] },
+        { prompt: "Yo ___ a la clase en metro. (venir)", gaps: [["vengo"]] },
+        { prompt: "¿Tú ___ mucho a tus abuelos? (ver)", gaps: [["ves"]] },
+        { prompt: "¿Usted ___ a la fiesta el sábado? (venir)", gaps: [["viene"]] },
+        { prompt: "Jessica no ___ bien sin lentes. (ver)", gaps: [["ve"]] },
+        { prompt: "Nosotros ___ a Oaxaca todos los veranos. (venir)", gaps: [["venimos"]] },
+        { prompt: "Mis hijos ___ a sus amigos todos los fines de semana. (ver)", gaps: [["ven"]] },
+        { prompt: "Hugo y Lucía ___ a México en diciembre. (venir)", gaps: [["vienen"]] },
+        { prompt: "¿Ustedes ___ bien desde aquí? (ver)", gaps: [["ven"]] },
+        { prompt: "¿Ustedes ___ en carro o en metro? (venir)", gaps: [["vienen"]] },
+      ],
+    },
     {
       n: 1,
       title: "Conjugación y producción escrita",

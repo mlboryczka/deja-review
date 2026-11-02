@@ -14,10 +14,36 @@
 //   - Ex. 7's empty answer ("nada (—)") is typed as nada (or a dash).
 //   - Answers reuse the flashcard lesson's checked answers where an item
 //     matches (ex. 3, 4, 5, 7, 8, 9).
+//
+// Added for the app, not on the sheet (owner, 2026-11-02, asking why Lessons
+// 9 and 10 never asked the present of verbs like ver and venir): ex. 13, the
+// present of hacer and of the lesson's other verbs with -go (salir, poner,
+// traer) as gaps, shown first. The sheet asks the present only in ex. 1,
+// sentences of your own, left out on 2026-10-25. It is numbered after the
+// sheet's last exercise, so its answers are kept apart from the sheet's.
 
 export default {
   id: "leccion9",
   exercises: [
+    {
+      n: 13,
+      title: "Conjugación",
+      instruction: "Completar con el verbo en presente.",
+      english: "Fill each gap with the verb in brackets, in the present.",
+      items: [
+        { prompt: "Yo ___ los ejercicios de español en la noche. (hacer)", gaps: [["hago"]] },
+        { prompt: "¿Qué ___ tú los fines de semana? (hacer)", gaps: [["haces"]] },
+        { prompt: "Alex ___ deporte dos veces por semana. (hacer)", gaps: [["hace"]] },
+        { prompt: "Nosotros no ___ nada los domingos. (hacer)", gaps: [["hacemos"]] },
+        { prompt: "Mis amigos ___ una fiesta el sábado. (hacer)", gaps: [["hacen"]] },
+        { prompt: "¿Usted ___ algo esta noche? (hacer)", gaps: [["hace"]] },
+        { prompt: "¿Ustedes ___ deporte los sábados? (hacer)", gaps: [["hacen"]] },
+        { prompt: "Yo ___ de mi casa a las ocho. (salir)", gaps: [["salgo"]] },
+        { prompt: "¿A qué hora ___ tú del trabajo? (salir)", gaps: [["sales"]] },
+        { prompt: "Yo ___ los libros en la mesa. (poner)", gaps: [["pongo"]] },
+        { prompt: "Yo ___ a mi hermano a la clase. (traer)", gaps: [["traigo"]] },
+      ],
+    },
     {
       n: 1,
       title: "Producción escrita",

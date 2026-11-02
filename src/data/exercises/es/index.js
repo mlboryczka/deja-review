@@ -7,6 +7,10 @@
 //
 // Each file's format is in src/lib/exerciseMarking.js (the four kinds of
 // item) and the top of any lesson's file.
+//
+// Two exercises are the app's own, on no sheet (owner, 2026-11-02): Lesson
+// 9's ex. 13 and Lesson 10's ex. 14, the present of the lesson's verbs as
+// gaps, each shown first. Their files say why.
 
 import { TITLES, TEXT_OF } from "./titles.js";
 import leccion1 from "./leccion1.js";
