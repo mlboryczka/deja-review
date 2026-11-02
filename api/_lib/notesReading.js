@@ -34,6 +34,16 @@ import { planReplace } from "../../src/lib/replaceDeck.js";
 import { SAME_CARD_MODEL, SAME_CARD_VERSION } from "./sameCardQuestion.js";
 
 export const LEASE_SECONDS = { sync: 360, upload: 1200 };
+
+// Where each language's notes are kept. French is the app as it always was.
+// Spanish (the caderno, migration_023) has a deck, a record of lines read
+// and a link of its own, and its own copies of the two functions, so a
+// Spanish line or card never reaches the French ones.
+export const NOTES_TABLES = Object.freeze({
+  fr: Object.freeze({ cards: "user_cards", read: "notes_read", links: "cahier_links", claim: "claim_notes_reading", save: "save_notes_reading", pairs: true }),
+  es: Object.freeze({ cards: "es_user_cards", read: "es_notes_read", links: "es_cahier_links", claim: "claim_es_notes_reading", save: "save_es_notes_reading", pairs: false }),
+});
+export const notesTables = (course) => NOTES_TABLES[course] || NOTES_TABLES.fr;
 const PAGE = 1000;
 
 // A refusal about the cards themselves (Postgres classes 21, 22, 23, and 54,
@@ -99,23 +109,25 @@ export function seedingFrom(rows = [], linkClasses = null, mode = "lines", { fro
 // Passing the runId an earlier call returned renews that same turn, and only
 // that one: an upload whose turn ran out while another reading came and went
 // has lost it (the record may have changed under it), and gets busy back.
-export async function claimReading(admin, { userId, kind, runId = null }) {
+export async function claimReading(admin, { userId, kind, runId = null, course = "fr" }) {
   const id = runId || randomUUID();
-  const { data, error } = await admin.rpc("claim_notes_reading", {
+  const { data, error } = await admin.rpc(notesTables(course).claim, {
     p_user_id: userId, p_run_id: id, p_kind: kind, p_lease_seconds: LEASE_SECONDS[kind] || 600, p_renew: !!runId,
   });
   if (error) {
-    if (missingFunction(error) || missingTable(error)) return { mode: "dates", runId: null, classes: {} };
+    // Spanish has no time before its record: its link and its record come in
+    // the same migration, and the link is read first.
+    if ((missingFunction(error) || missingTable(error)) && course !== "es") return { mode: "dates", runId: null, classes: {} };
     throw new Error(`Couldn't check whether your notes are being read: ${error.message}`);
   }
   if (!data?.claimed) return { busy: true, kind: data?.run_kind || null, since: data?.run_started_at || null };
   return { mode: "lines", runId: id, classes: data.classes || {} };
 }
 
-export async function releaseReading(admin, userId, runId) {
+export async function releaseReading(admin, userId, runId, course = "fr") {
   if (!runId) return;
   try {
-    await admin.from("notes_read").update({ run_id: null, run_kind: null, run_expires_at: null })
+    await admin.from(notesTables(course).read).update({ run_id: null, run_kind: null, run_expires_at: null })
       .eq("user_id", userId).eq("run_id", runId);
   } catch (e) {
     console.warn("[notes] couldn't give the turn back; it runs out by itself:", e?.message || e);
@@ -124,14 +136,14 @@ export async function releaseReading(admin, userId, runId) {
 
 // The student's whole deck. `hasReasons` says whether user_cards has
 // archived_reason yet (migration_016).
-export async function readDeck(admin, userId) {
+export async function readDeck(admin, userId, course = "fr") {
   // Whether a card was answered either way round, so "Replace" leaves it in
   // study (src/lib/replaceDeck.js).
   const base = "id, front, back, category, dates, source, fsrs_state, en_fsrs_state, reps, en_reps, last_review, en_last_review";
   let hasReasons = true;
   const rows = [];
   for (let from = 0; ; ) {
-    const { data, error } = await admin.from("user_cards")
+    const { data, error } = await admin.from(notesTables(course).cards)
       .select(hasReasons ? `${base}, archived_reason` : base)
       .eq("user_id", userId).order("id", { ascending: true }).range(from, from + PAGE - 1);
     if (error && hasReasons && missingColumn(error)) { hasReasons = false; continue; }
@@ -163,8 +175,8 @@ function pairRows(asked, source) {
 // After migration_016: everything in one step, and the turn given back. A
 // card the database can't hold is left out by the step itself and named in
 // its reply (`refused`), so the rest is still saved with the lines read.
-async function saveInOneStep(admin, { userId, runId, inserts, updates, archive, restore, pairs, classes }) {
-  const { data, error } = await admin.rpc("save_notes_reading", {
+async function saveInOneStep(admin, { userId, runId, inserts, updates, archive, restore, pairs, classes, course }) {
+  const { data, error } = await admin.rpc(notesTables(course).save, {
     p_user_id: userId, p_run_id: runId,
     p_inserts: inserts, p_dates: updates.map((u) => ({ id: u.id, dates: u.dates })),
     p_archive: archive.map((r) => ({ id: r.id, reason: r.reason })), p_restore: restore.map((r) => r.id),
@@ -180,11 +192,12 @@ async function saveInOneStep(admin, { userId, runId, inserts, updates, archive, 
 
 // Before migration_016: one statement at a time, as the app always did. A card
 // already holding the same French is never written over.
-async function saveStepByStep(admin, { userId, inserts, updates, archive, restore = [], hasReasons }) {
+async function saveStepByStep(admin, { userId, inserts, updates, archive, restore = [], hasReasons, course }) {
+  const cardsTable = notesTables(course).cards;
   let inserted = 0;
   const failed = [];
   const saveRows = async (chunk) => {
-    const { error, count } = await admin.from("user_cards")
+    const { error, count } = await admin.from(cardsTable)
       .upsert(chunk.map((r) => ({ user_id: userId, ...r })), { onConflict: "user_id,front", ignoreDuplicates: true, count: "exact" });
     if (!error) { inserted += count ?? chunk.length; return null; }
     if (chunk.length > 1 && aboutTheCards(error)) {
@@ -204,7 +217,7 @@ async function saveStepByStep(admin, { userId, inserts, updates, archive, restor
   }
   let dated = 0;
   for (const u of updates) {
-    const { error } = await admin.from("user_cards").update({ dates: u.merged }).eq("id", u.id).eq("user_id", userId);
+    const { error } = await admin.from(cardsTable).update({ dates: u.merged }).eq("id", u.id).eq("user_id", userId);
     if (error) return { ok: false, error: `Couldn't update a card: ${error.message}`, inserted, failed };
     dated++;
   }
@@ -217,14 +230,14 @@ async function saveStepByStep(admin, { userId, inserts, updates, archive, restor
   for (const [source, ids] of bySource) {
     for (let i = 0; i < ids.length; i += 200) {
       const patch = hasReasons ? { source, archived_reason: "replaced", archived_at: new Date().toISOString() } : { source };
-      const { error } = await admin.from("user_cards").update(patch).in("id", ids.slice(i, i + 200)).eq("user_id", userId);
+      const { error } = await admin.from(cardsTable).update(patch).in("id", ids.slice(i, i + 200)).eq("user_id", userId);
       if (error) return { ok: false, error: `Couldn't take a card out of study: ${error.message}`, inserted, failed };
     }
   }
   // Back into study, only ever a card a Replace took out (as save_notes_reading
   // does). Only reached with the reason column in place.
   for (const row of hasReasons ? restore : []) {
-    const { error } = await admin.from("user_cards")
+    const { error } = await admin.from(cardsTable)
       .update({ source: String(row.source).slice("archived:".length) || null, archived_reason: null, archived_at: null })
       .eq("id", row.id).eq("user_id", userId).eq("archived_reason", "replaced");
     if (error) return { ok: false, error: `Couldn't bring a card back into study: ${error.message}`, inserted, failed };
@@ -255,11 +268,12 @@ function addDates(updates, row, dates) {
 //   failedDates classes Claude couldn't read
 //   ask         Claude's question (api/_lib/sameCardQuestion.js)
 //   replaceDates for "Replace my existing deck": the classes in the upload
+//   course      "es" for the Spanish caderno: its own deck and record
 export async function saveRun({
   admin, userId, reading, deck, plan = null, incoming = [], read = new Set(), failedDates = [],
-  ask, source, batchId = null, replaceDates = null,
+  ask, source, batchId = null, replaceDates = null, course = "fr",
 }) {
-  const match = await matchNewCards({ incoming, deck: deck.rows, ask });
+  const match = await matchNewCards({ incoming, deck: deck.rows, ask, language: course === "es" ? "es" : "fr" });
   const waiting = waitingDates(match.decisions, failedDates);
   const writes = plannedWrites(match.decisions, waiting);
   const inserts = writes.inserts.map((c) => insertRow(c, batchId));
@@ -307,10 +321,10 @@ export async function saveRun({
       ? { ok: true, inserted: 0, dated: 0, failed: [] }
       : await saveInOneStep(admin, {
           userId, runId: reading.runId, inserts, updates: writes.updates, archive, restore,
-          pairs: pairRows(match.asked, source), classes,
+          pairs: notesTables(course).pairs ? pairRows(match.asked, source) : [], classes, course,
         });
   } else {
-    saved = await saveStepByStep(admin, { userId, inserts, updates: writes.updates, archive, restore, hasReasons: deck.hasReasons });
+    saved = await saveStepByStep(admin, { userId, inserts, updates: writes.updates, archive, restore, hasReasons: deck.hasReasons, course });
   }
 
   // A list card decided item by item waits once, however many of its items do.

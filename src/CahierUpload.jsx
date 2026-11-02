@@ -23,9 +23,14 @@ import { runUpload } from "./lib/uploadRun";
 //   onSuccess     — called with the server response on successful upload
 //   hasExisting   — if true, shows a "replace existing deck" checkbox
 //   cahier        — useCahierSync(): the linked doc, and the sync itself
+//   caderno       — the Spanish module's (2026-11-02): only the link, to
+//                   Laura's doc of the Spanish classes. Notes are never
+//                   pasted or uploaded in Spanish.
 
-export function CahierUpload({ open, onClose, onSuccess, hasExisting, initialTab, user, cahier }) {
-  const [tab, setTab] = useState(initialTab || "paste"); // paste | file | link
+export function CahierUpload({ open, onClose, onSuccess, hasExisting, initialTab, user, cahier, caderno = false }) {
+  const [tabChosen, setTab] = useState(initialTab || "paste"); // paste | file | link
+  const tab = caderno ? "link" : tabChosen;
+  const notes = caderno ? "caderno" : "cahier";
   const [url, setUrl] = useState("");
   // When the modal is reopened with a different initialTab, switch to it.
   useEffect(() => {
@@ -187,7 +192,7 @@ export function CahierUpload({ open, onClose, onSuccess, hasExisting, initialTab
         return;
       }
       setStatus("uploading");
-      setProgress("Reading your cahier…");
+      setProgress(`Reading your ${notes}…`);
       const result = await cahier?.sync({
         url: href,
         force: true,
@@ -199,7 +204,7 @@ export function CahierUpload({ open, onClose, onSuccess, hasExisting, initialTab
       });
       setStatus("idle");
       setProgress("");
-      if (!result?.ok) { setStatus("error"); setError(result?.error || "Couldn't read that cahier."); return; }
+      if (!result?.ok) { setStatus("error"); setError(result?.error || `Couldn't read that ${notes}.`); return; }
       setUrl("");
       onSuccess?.({
         linked: true,
@@ -294,7 +299,7 @@ export function CahierUpload({ open, onClose, onSuccess, hasExisting, initialTab
     <div style={M.overlay} onClick={status === "uploading" ? null : onClose}>
       <div style={M.modal} onClick={(e) => e.stopPropagation()}>
         <div style={M.header}>
-          <h2 style={M.title}>Upload your cahier</h2>
+          <h2 style={M.title}>{caderno ? "Link your caderno" : "Upload your cahier"}</h2>
           {status !== "uploading" && (
             <button style={M.closeBtn} onClick={onClose} aria-label="Close">
               ×
@@ -303,10 +308,10 @@ export function CahierUpload({ open, onClose, onSuccess, hasExisting, initialTab
         </div>
 
         <p style={M.desc}>
-          Your lesson notes, turned into cards.
+          {caderno ? "The notes of your Spanish classes, turned into cards." : "Your lesson notes, turned into cards."}
         </p>
 
-        <div style={M.tabs}>
+        {!caderno && <div style={M.tabs}>
           {[
             ["paste", "Paste text"],
             ["file", "Upload file"],
@@ -324,7 +329,7 @@ export function CahierUpload({ open, onClose, onSuccess, hasExisting, initialTab
               {label}
             </button>
           ))}
-        </div>
+        </div>}
 
         <div style={M.tabBody}>
           {tab === "paste" && (
@@ -403,9 +408,9 @@ fonder / créer une entreprise
                 disabled={status === "uploading"}
               />
               <p style={M.linkText}>
-                The app reads the doc when you open it, and once a day. Any line it hasn't
-                read before becomes cards. A word you already have only gets the new class
-                date, so nothing you've studied changes.
+                {caderno
+                  ? "The app reads the doc when you open Spanish, at most once an hour. Any line it hasn't read before becomes cards: words and phrases, not grammar. A word you already have only gets the new class date, so nothing you've studied changes."
+                  : "The app reads the doc when you open it, and once a day. Any line it hasn't read before becomes cards. A word you already have only gets the new class date, so nothing you've studied changes."}
               </p>
               <p style={M.linkText}>
                 The doc has to be shared so that anyone with the link can view it.
@@ -466,7 +471,7 @@ fonder / créer une entreprise
             onClick={handleSubmit}
             disabled={status === "uploading"}
           >
-            {status === "uploading" ? "Uploading…" : "Upload"}
+            {caderno ? (status === "uploading" ? "Linking…" : "Link") : status === "uploading" ? "Uploading…" : "Upload"}
           </button>
         </div>
       </div>

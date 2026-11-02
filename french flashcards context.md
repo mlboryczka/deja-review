@@ -870,7 +870,7 @@ route means retiring or merging one. `api/_lib/` is shared code, not a route.
 |---|---|
 | `parse-cahier.js` | Upload: splits a notebook into dated classes (`slice`), says which lines are new and takes the student's turn (`plan`), then compares the new cards with the deck and saves them with the lines read (`commit`). The dialog's steps are `src/lib/uploadRun.js` |
 | `cahier-parse.js` | Upload: reads the classes with new lines, exactly as the sync does (`extractCardsFromBlock`) |
-| `cahier-sync.js` | Linked cahier: turns the doc's unread classes into cards. A body with `notesChecks` is instead the owner's test of how Claude reads a class (`api/_lib/notesChecks.js`) |
+| `cahier-sync.js` | Linked cahier: turns the doc's unread classes into cards; with `course: "es"`, the Spanish caderno (see *Spanish*). A body with `notesChecks` is instead the owner's test of how Claude reads a class (`api/_lib/notesChecks.js`) |
 | `cahier-daily.js` | Daily cron at 13:00 UTC: syncs up to 40 linked docs. A second schedule, 14:00 UTC, runs the status check on every student instead (`api/_lib/statusDaily.js`), first asking Claude about look-alike cards in study it hasn't judged, up to 200 a student a day; 15:00 and 16:00 UTC run the tests of Claude's marking and of its reading of class notes, each only when due (`api/_lib/evalRuns.js`), and either one, when its own isn't due, the test of Claude's same-or-different question (`api/_lib/repeatsChecks.js`). Vercel's `x-vercel-cron-schedule` header says which |
 | `chat.js` | The tutor. Gives hints, not the answer, until the card's answer is shown. Never writes cards |
 | `review-answer.js` | "My answer should be accepted". Saves an accepted answer for that student only; "Accept anyway" skips Claude. A body with `feedback` is instead Claude's review of a piece of feedback and the owner's Apply and Dismiss (`api/_lib/feedbackReview.js`), here because of the 12-route limit. Every verdict is saved to `answer_reviews` (migration_015); a body with `answerChecks` is the owner's list of them and the test made from them (`api/_lib/answerChecks.js`). A body with `exercise` is an answer to the Spanish Exercises, marked and kept (`api/_lib/exercises.js`, see *Spanish*) |
@@ -1073,6 +1073,13 @@ The files:
   the Spanish module's verdicts and corrections (see *Spanish*). Service role
   only, as the French ones. Only adds tables. Until it is run, Spanish
   verdicts and corrections aren't kept (the app works the same).
+- `023_spanish_caderno` (on `testing`, written 2026-11-02, waits on the
+  owner): `es_cahier_links` and `es_notes_read`, LIKE `cahier_links` and
+  `notes_read`, and `claim_es_notes_reading` / `save_es_notes_reading`,
+  migration_016's two functions on the Spanish tables, keeping no verdicts
+  (see *Spanish*, "The caderno"). Only adds. Until it is run, linking the
+  caderno says this migration is needed. Tried on a throwaway Postgres (the
+  `caderno` suite runs it): it runs, and runs again harmlessly.
   `podcast_episodes` is shared: written only by the server, and the first
   table any signed-in user may read. `podcast_follows` is each student's own
   to read, add and remove. `podcast_answers` is a record like `card_reviews`:
@@ -1619,6 +1626,14 @@ Twenty need no browser:
   Claude gets the sheet's instruction and the typed answer, every answer is
   kept for its student, no key means nothing asked or kept, an unreadable
   reply keeps nothing, and before migration_022 the page is told. No browser.
+- `caderno`: the Spanish caderno link (`api/_lib/caderno.js`, `syncUser` with
+  `course: "es"`) with the stand-in database, doc and Claude: its date lines
+  (no year, a class over two days, a French date line ignored), the
+  homework cut off, linking before migration_023 refused with its name, the
+  classes put in by hand read only for lines on no card, a new class made
+  into Spanish cards, "la niña" asked in Spanish beside "una niña" and only
+  dated, a line read once, nothing French touched; and migration_023's two
+  functions on a throwaway Postgres. No browser.
 - `podcast-marking`: the Podcasts server (`api/_lib/podcasts.js`,
   `podcastQuestions.js`) with a stand-in Claude counted at the wire: the
   questions written once and checked against the transcript, "Got it" only
@@ -2350,10 +2365,39 @@ Flashcards / Podcasts switch is French only; Spanish has no Podcasts (owner,
   `src/data/lessons/byCourse.js`: both catalogues are built by
   `src/data/lessons/catalogue.js`, so a Spanish lesson works exactly as a
   French one (sync, rank, instruction lines, notes, switches).
-- **Not in Spanish**: uploading notes, the linked cahier, the
-  first-visit tour, Podcasts and the "Include lessons" switch (every Spanish
-  card is a lesson card). Spanish has Exercises instead of Podcasts (below). The daily FSRS check runs from the French app only;
+- **Not in Spanish**: uploading notes (pasted or as a file), the
+  first-visit tour, Podcasts and the "Include lessons" switch. The notes come
+  in through the caderno link (below). Spanish has Exercises instead of Podcasts (below). The daily FSRS check runs from the French app only;
   Spanish is scheduled with the settings it gives.
+- **The caderno** (owner, 2026-11-02, of Laura's doc of the owner's Spanish
+  classes, "Caderno español", keeping itself up to date: "Yes, build it").
+  "Link your caderno" in the account menu ("Caderno ✓" once linked) opens
+  the upload dialog with only its Google Doc link (`CahierUpload`'s
+  `caderno`). From then on the app reads the doc each time Spanish opens, at
+  most hourly (`useCahierSync(user, "es")`), through `/api/cahier-sync` with
+  `course: "es"`: the French sync, its record of lines read, its one turn at
+  a time and its one-step save, on the Spanish tables (migration_023,
+  `NOTES_TABLES` in `api/_lib/notesReading.js`), so no Spanish line or card
+  reaches anything French. What differs is in `api/_lib/caderno.js`: a
+  class's date line is "27 de octubre" with no year (this year, or last year
+  if that is more than a month ahead), and Claude (Haiku, as in French) is
+  asked for words and phrases only, as the Spanish flashcards are: no
+  conjugation table, rule, possessive or gustar table, sound note, gender-only
+  or yes-or-no card; Laura's slips corrected ("me bañe" → "Me bañé", "30 =
+  trente" → "treinta", a struck-out "a el" dropped); the English most natural
+  first, with (tú), (usted) or (ustedes) where "you" could be any. A word the
+  student has gains the class date, by the French matching rule plus a
+  Spanish near search (`spanishLooseKey`, `cardIndex(…, { language: "es" })`:
+  "la niña" from a class beside the lesson's "una niña"), put to Claude in
+  Spanish (`SAME_CARD_SYSTEM_ES`); the verdicts aren't kept, since
+  `card_pairs` holds French cards. The doc must be shared "anyone with the
+  link can view", like the cahier. Its classes of 8 to 27 October were put in
+  by hand on 2026-10-27, before the link; linking marks the classes on cards
+  with a fingerprint no text has, so their lines on a card count as read and
+  any other line (Laura added ten to 27 October afterwards) is read once.
+  The daily check doesn't read caderno links yet (`api/cahier-daily.js`
+  reads `cahier_links`), and Vercel's crons run only on the students' app
+  anyway: the caderno is read when Spanish is opened.
 - **The tutor** (owner, 2026-10-26: "tutor needs to be added to spanish
   module"): the same panel, opened from Tutor in the sidebar, "Ask the
   tutor" in the account menu or under a missed card, as in French. Its

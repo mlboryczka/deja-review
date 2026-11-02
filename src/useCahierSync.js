@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "./supabase";
+import { courseOf } from "./lib/course";
 
 // The linked cahier: the Google Doc the student and their teacher actually
 // write in, read again whenever they open the app so a class added after the
@@ -14,6 +15,10 @@ import { supabase } from "./supabase";
 // Reading the doc costs nothing and takes a second; only a class that has
 // never been read costs anything at all. So checking on open is cheap, and the
 // server refuses to check twice within half a minute anyway.
+//
+// The Spanish module has its own (2026-11-02): the caderno, Laura's doc of
+// the owner's Spanish classes, kept in es_cahier_links (migration_023) and
+// read by the same route with `course: "es"`. `course` is "fr" or "es".
 
 // Don't check more than once an hour per browser. The daily job catches
 // anything this misses, and a student reloading the page ten times should not
@@ -21,8 +26,12 @@ import { supabase } from "./supabase";
 const CHECK_EVERY_MS = 60 * 60 * 1000;
 const LAST_CHECK_KEY = "cahier-checked:";
 
-export function useCahierSync(user) {
+export function useCahierSync(user, course = "fr") {
   const userId = user?.id ?? null;
+  const spanish = course === "es";
+  const table = courseOf(course).table("cahier_links");
+  // The browser's note of the last check, per language.
+  const checkKey = LAST_CHECK_KEY + courseOf(course).store(userId);
   const [link, setLink] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -37,14 +46,15 @@ export function useCahierSync(user) {
     if (!userId) { setLink(null); setLoaded(true); return; }
     (async () => {
       const { data, error: err } = await supabase
-        .from("cahier_links").select("*").eq("user_id", userId).maybeSingle();
+        .from(table).select("*").eq("user_id", userId).maybeSingle();
       if (cancelled) return;
-      if (err) console.error("Couldn't read the cahier link:", err);
+      // Before migration_023 there is no caderno table: nothing is linked.
+      if (err && !(spanish && /PGRST205|42P01/.test(String(err.code)))) console.error("Couldn't read the cahier link:", err);
       setLink(data || null);
       setLoaded(true);
     })();
     return () => { cancelled = true; };
-  }, [userId]);
+  }, [userId, table, spanish]);
 
   // One run of the sync, repeated while classes are left to read.
   //
@@ -65,10 +75,10 @@ export function useCahierSync(user) {
         const res = await fetch("/api/cahier-sync", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-          body: JSON.stringify({ ...(run === 0 && url ? { url } : null), force: force || run > 0 }),
+          body: JSON.stringify({ ...(run === 0 && url ? { url } : null), force: force || run > 0, ...(spanish ? { course: "es" } : null) }),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok || data.error) throw new Error(data.error || `Couldn't read your cahier (HTTP ${res.status})`);
+        if (!res.ok || data.error) throw new Error(data.error || `Couldn't read your ${spanish ? "caderno" : "cahier"} (HTTP ${res.status})`);
         last = data;
         added += data.cardsAdded || 0;
         dates.push(...(data.newClasses || []));
@@ -76,12 +86,12 @@ export function useCahierSync(user) {
         if (!data.remaining) break;
       }
       if (userId) {
-        try { localStorage.setItem(LAST_CHECK_KEY + userId, String(Date.now())); } catch { /* storage blocked */ }
+        try { localStorage.setItem(checkKey, String(Date.now())); } catch { /* storage blocked */ }
       }
       // Re-read the row rather than assembling it here, so what the app shows
       // is what was actually stored.
       if (userId) {
-        const { data } = await supabase.from("cahier_links").select("*").eq("user_id", userId).maybeSingle();
+        const { data } = await supabase.from(table).select("*").eq("user_id", userId).maybeSingle();
         setLink(data || null);
       }
       // `busy`: another reading of the student's notes (an upload, or the
@@ -100,16 +110,16 @@ export function useCahierSync(user) {
       running.current = false;
       setChecking(false);
     }
-  }, [userId]);
+  }, [userId, table, spanish, checkKey]);
 
   // The check on open. Once the link is known, and at most hourly.
   useEffect(() => {
     if (!loaded || !link || !userId) return;
     let lastLocal = 0;
-    try { lastLocal = Number(localStorage.getItem(LAST_CHECK_KEY + userId)) || 0; } catch { /* storage blocked */ }
+    try { lastLocal = Number(localStorage.getItem(checkKey)) || 0; } catch { /* storage blocked */ }
     if (Date.now() - lastLocal < CHECK_EVERY_MS) return;
     sync();
-  }, [loaded, link, userId, sync]);
+  }, [loaded, link, userId, sync, checkKey]);
 
   // Unlinking removes only the link. What the student's notes have had read,
   // line by line, is their own record (notes_read, migration_016), shared
@@ -121,12 +131,12 @@ export function useCahierSync(user) {
   // class still counts as read when the doc is linked again.
   const unlink = useCallback(async () => {
     if (!userId) return;
-    const { error: err } = await supabase.from("cahier_links").delete().eq("user_id", userId);
+    const { error: err } = await supabase.from(table).delete().eq("user_id", userId);
     if (err) { setError(err.message); return false; }
     setLink(null);
     setArrived(null);
     return true;
-  }, [userId]);
+  }, [userId, table]);
 
   return {
     link, loaded, checking, error, arrived,

@@ -67,8 +67,8 @@ export function senseLabel(back) {
 //   { card, action: "wait" }           undecided; its classes stay unread
 // A list card decided item by item gives one decision for each item, and
 // each item's `card` has the list card as `from`.
-export async function matchNewCards({ incoming, deck, ask }) {
-  const index = cardIndex(deck || []);
+export async function matchNewCards({ incoming, deck, ask, language = "fr" }) {
+  const index = cardIndex(deck || [], { language });
   const decisions = [];
   const asking = [];
   // A card of this run that is still undecided stands in the index for itself,

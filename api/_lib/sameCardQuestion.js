@@ -76,6 +76,33 @@ When you are unsure, answer "different": a card too many can be removed, a card 
 
 Reply with JSON only: {"verdicts": [{"pair": 1, "verdict": "same"}, ...]}, one entry for every pair.`;
 
+// The same question for the Spanish caderno (2026-11-02), with Spanish
+// examples. Its verdicts aren't kept (card_pairs holds French cards), so it
+// has no version of its own; the French one above is unchanged.
+export const SAME_CARD_SYSTEM_ES = `You help a learner of Latin American Spanish keep one flashcard for each thing they learn. Their cards come from their lessons and their class notes, and the same word is often written a little differently from one place to the next.
+
+For each numbered pair, card A is one the student already has and card B was just made from their class notes. Decide whether B is the same card to learn as A.
+
+Answer "same" when learning one card means learning the other: the same Spanish word, phrase or sentence, written another way. For example:
+- a different article: "la niña" and "una niña"; "el almuerzo" and "almuerzo"
+- an accent left off or a typo: "no entendi" and "No entendí"; "reunion" and "reunión"; "una preguntas" and "una pregunta"
+- ¿ ¡ left off: "Que hiciste?" and "¿Qué hiciste?"
+- the subject pronoun added or left off: "Voy a comer" and "Yo voy a comer"
+- one item of a list card, which already teaches it: "mi papá" and "mi papá / mi padre"; "cansado" and "cansado / cansada"
+- a number written in digits: "30" and "treinta"
+- the same word with its English worded differently: "los audífonos" = "the headphones" and "the earphones"
+
+Answer "different" when they teach different things. Keep these apart:
+- different words that look alike: "esta" (this) and "está" (is); "papa" (potato) and "papá" (dad)
+- a different tense of a verb: "hablo" (I speak) and "habló" (he spoke); "comí" and "como"
+- a different person or number: "Te vi" and "Lo vi"; "me gusta" and "me gustan"
+- a word inside a longer phrase or sentence: "llegar" and "llegar tarde"; "Tuve una reunión" and "Tuve una reunión con mi jefe"; "No entiendo" and "No entiendo la pregunta"
+- different words that only appear together on one card: "allá" and "allá, ahí"
+
+When you are unsure, answer "different": a card too many can be removed, a card lost can't be found.
+
+Reply with JSON only: {"verdicts": [{"pair": 1, "verdict": "same"}, ...]}, one entry for every pair.`;
+
 const quote = (s) => JSON.stringify(String(s ?? ""));
 
 // The pairs, as Claude reads them.
@@ -130,7 +157,7 @@ export function readVerdicts(text, count) {
   return out;
 }
 
-async function askOnce(client, pairs, signal) {
+async function askOnce(client, pairs, signal, language = "fr") {
   const response = await client.beta.messages.create({
     model: SAME_CARD_MODEL,
     max_tokens: 16000,
@@ -138,7 +165,7 @@ async function askOnce(client, pairs, signal) {
     betas: ["server-side-fallback-2026-07-01"],
     fallbacks: "default",
     output_config: { effort: "medium", format: { type: "json_schema", schema: SCHEMA } },
-    system: SAME_CARD_SYSTEM,
+    system: language === "es" ? SAME_CARD_SYSTEM_ES : SAME_CARD_SYSTEM,
     messages: [{ role: "user", content: sameCardPrompt(pairs) }],
   }, { signal });
   if (response.stop_reason === "refusal") throw new Error("Claude declined to compare the cards.");
@@ -155,7 +182,9 @@ async function askOnce(client, pairs, signal) {
 // time leaves its pairs null: those cards wait, and their lines stay unread
 // for the next run. Throws only when no call got an answer, so the caller can
 // say why.
-export async function askSameCard({ apiKey, pairs, deadline = Date.now() + DEFAULT_TIME_MS }) {
+//
+// `language` "es" asks the Spanish question (the caderno).
+export async function askSameCard({ apiKey, pairs, deadline = Date.now() + DEFAULT_TIME_MS, language = "fr" }) {
   if (!apiKey) throw new Error("No Anthropic key to compare the cards with.");
   const out = new Array(pairs.length).fill(null);
   if (!pairs.length) return out;
@@ -170,7 +199,7 @@ export async function askSameCard({ apiKey, pairs, deadline = Date.now() + DEFAU
       const left = deadline - Date.now();
       if (left < 5000) { errors.push(new Error("There wasn't time to compare the cards.")); continue; }
       try {
-        const verdicts = await askOnce(client, pairs.slice(start, start + PAIRS_PER_CALL), AbortSignal.timeout(left));
+        const verdicts = await askOnce(client, pairs.slice(start, start + PAIRS_PER_CALL), AbortSignal.timeout(left), language);
         verdicts.forEach((v, j) => { out[start + j] = v; });
       } catch (e) {
         errors.push(e);

@@ -19,6 +19,12 @@
 //     times; with `after: true` the work is done and then the reply is lost,
 //     as when a function is cut off after the database committed
 //   faults.update = { table, times, error }     fail updates to a table
+//
+// The Spanish tables are the French ones' copies and are checked by the same
+// rules: es_user_cards (migration_020) always, and with `caderno` (the
+// default) migration_023's es_cahier_links, es_notes_read and its two
+// functions, written out here from that migration, which copies
+// migration_016's word for word on the Spanish tables and keeps no verdicts.
 
 const POST_016_COLUMNS = { user_cards: ["archived_reason", "archived_at", "merged_into"] };
 const POST_016_TABLES = ["notes_read", "card_pairs"];
@@ -35,22 +41,27 @@ const DEFAULTS = {
   card_pairs: () => ({ asked_at: new Date().toISOString() }),
 };
 const INDEX_LIMIT = 2704;
+const CADERNO_TABLES = ["es_cahier_links", "es_notes_read"];
+// A Spanish table is checked as the French one it copies.
+const base = (name) => (String(name).startsWith("es_") ? name.slice(3) : name);
 
 const clone = (v) => JSON.parse(JSON.stringify(v));
 const err = (code, message) => ({ code, message });
 
-export function fakeSupabase({ tables = {}, migrated = true, faults = {}, now = () => Date.now() } = {}) {
+export function fakeSupabase({ tables = {}, migrated = true, caderno = true, faults = {}, now = () => Date.now() } = {}) {
   const db = { ...tables };
-  for (const t of ["user_cards", "cahier_links", "card_reviews", "upload_batches"]) db[t] ||= [];
+  for (const t of ["user_cards", "cahier_links", "card_reviews", "upload_batches", "es_user_cards"]) db[t] ||= [];
   if (migrated) for (const t of POST_016_TABLES) db[t] ||= [];
-  let nextId = 1 + Math.max(0, ...db.user_cards.map((r) => Number(r.id) || 0), 1000);
+  if (caderno) for (const t of CADERNO_TABLES) db[t] ||= [];
+  let nextId = 1 + Math.max(0, ...db.user_cards.map((r) => Number(r.id) || 0), ...db.es_user_cards.map((r) => Number(r.id) || 0), 1000);
   const calls = [];
 
-  const tableExists = (name) => migrated || !POST_016_TABLES.includes(name);
+  const tableExists = (name) => (CADERNO_TABLES.includes(name) ? caderno : migrated || !POST_016_TABLES.includes(name));
   const missingCols = (name, cols) => (migrated ? [] : (POST_016_COLUMNS[name] || []).filter((c) => cols.includes(c)));
 
   // Checks a row as Postgres would on insert; returns an error or null.
-  const refuse = (name, row) => {
+  const refuse = (table, row) => {
+    const name = base(table);
     for (const k of NOT_NULL[name] || []) {
       if (row[k] === undefined || row[k] === null) return err("23502", `null value in column "${k}" of relation "${name}" violates not-null constraint`);
     }
@@ -60,10 +71,11 @@ export function fakeSupabase({ tables = {}, migrated = true, faults = {}, now = 
     if (name === "user_cards" && /\u0000/.test(`${row.front}${row.back}`)) return err("22P05", "unsupported Unicode escape sequence");
     return null;
   };
-  const sameKey = (name, a, b) => (UNIQUE[name] || []).length > 0 && UNIQUE[name].every((k) => a[k] === b[k]);
-  const withDefaults = (name, row) => {
-    const base = DEFAULTS[name] ? DEFAULTS[name]() : {};
-    const out = { ...base, ...row };
+  const sameKey = (table, a, b) => { const name = base(table); return (UNIQUE[name] || []).length > 0 && UNIQUE[name].every((k) => a[k] === b[k]); };
+  const withDefaults = (table, row) => {
+    const name = base(table);
+    const defaults = DEFAULTS[name] ? DEFAULTS[name]() : {};
+    const out = { ...defaults, ...row };
     if (name === "user_cards" && out.id == null) out.id = nextId++;
     if (name === "card_pairs" && out.id == null) out.id = `pair-${Math.random().toString(36).slice(2)}`;
     return out;
@@ -133,10 +145,10 @@ export function fakeSupabase({ tables = {}, migrated = true, faults = {}, now = 
         const hit = matching();
         const after = hit.map((r) => ({ ...r, ...clone(q.payload) }));
         // migration_016's trigger: a card back in study loses its reason.
-        if (name === "user_cards" && migrated && "source" in q.payload) {
+        if (base(name) === "user_cards" && migrated && "source" in q.payload) {
           for (const r of after) if (!(typeof r.source === "string" && r.source.startsWith("archived:"))) { r.archived_reason = null; r.archived_at = null; }
         }
-        if (name === "user_cards") {
+        if (base(name) === "user_cards") {
           for (const r of after) {
             const bad = refuse(name, r);
             if (bad) return { data: null, error: bad };
@@ -155,7 +167,7 @@ export function fakeSupabase({ tables = {}, migrated = true, faults = {}, now = 
 
       // insert / upsert: checked whole first, then written.
       const list = (Array.isArray(q.payload) ? q.payload : [q.payload]).map((r) => clone(r));
-      const conflictKeys = q.op === "upsert" ? (q.opts.onConflict || "id").split(",").map((s) => s.trim()) : UNIQUE[name] || [];
+      const conflictKeys = q.op === "upsert" ? (q.opts.onConflict || "id").split(",").map((s) => s.trim()) : UNIQUE[base(name)] || [];
       const planned = [];
       for (const row of list) {
         const full = withDefaults(name, row);
@@ -176,7 +188,7 @@ export function fakeSupabase({ tables = {}, migrated = true, faults = {}, now = 
       for (const p of planned) {
         if (p.kind === "insert") { rows.push(p.row); written.push(p.row); continue; }
         Object.assign(p.target, p.patch);
-        if (name === "user_cards" && migrated && "source" in p.patch && !String(p.target.source ?? "").startsWith("archived:")) {
+        if (base(name) === "user_cards" && migrated && "source" in p.patch && !String(p.target.source ?? "").startsWith("archived:")) {
           p.target.archived_reason = null;
           p.target.archived_at = null;
         }
@@ -190,10 +202,10 @@ export function fakeSupabase({ tables = {}, migrated = true, faults = {}, now = 
 
   // ── migration_016's functions ─────────────────────────────────────────
   const merged = (a, b) => [...new Set([...(Array.isArray(a) ? a : []), ...(Array.isArray(b) ? b : [])])].sort();
-  const fns = {
-    claim_notes_reading({ p_user_id, p_run_id, p_kind, p_lease_seconds = 600, p_renew = false }) {
-      let row = db.notes_read.find((r) => r.user_id === p_user_id);
-      if (!row) { row = withDefaults("notes_read", { user_id: p_user_id }); db.notes_read.push(row); }
+  const reading = ({ cards, read, pairs }) => ({
+    claim({ p_user_id, p_run_id, p_kind, p_lease_seconds = 600, p_renew = false }) {
+      let row = db[read].find((r) => r.user_id === p_user_id);
+      if (!row) { row = withDefaults(read, { user_id: p_user_id }); db[read].push(row); }
       const t = now();
       // Renewing takes only this run's own turn, never a free one.
       const free = row.run_id === p_run_id ||
@@ -205,44 +217,44 @@ export function fakeSupabase({ tables = {}, migrated = true, faults = {}, now = 
       row.run_expires_at = new Date(t + Math.max(Number(p_lease_seconds) || 600, 30) * 1000).toISOString();
       return { data: { claimed: true, classes: clone(row.classes || {}) } };
     },
-    save_notes_reading({ p_user_id, p_run_id, p_inserts = [], p_dates = [], p_archive = [], p_restore = [], p_pairs = [], p_classes = null, p_finish = true }) {
-      const rec = db.notes_read.find((r) => r.user_id === p_user_id && r.run_id === p_run_id);
+    save({ p_user_id, p_run_id, p_inserts = [], p_dates = [], p_archive = [], p_restore = [], p_pairs = [], p_classes = null, p_finish = true }) {
+      const rec = db[read].find((r) => r.user_id === p_user_id && r.run_id === p_run_id);
       if (!rec) return { error: err("NR409", "This reading of the notes lost its turn: another one started after it ran out of time.") };
-      const out = { inserted: 0, joined: 0, dated: 0, archived: 0, restored: 0, pairs: 0, refused: [] };
+      const out = { inserted: 0, joined: 0, dated: 0, archived: 0, restored: 0, ...(pairs ? { pairs: 0 } : null), refused: [] };
       // A card the database can't hold is left out and named, inside the step
       // (the function's one-at-a-time fallback); the rest is saved.
       for (const x of p_inserts || []) {
-        const row = withDefaults("user_cards", {
+        const row = withDefaults(cards, {
           user_id: p_user_id, front: x.front, back: x.back, category: x.category ?? "V",
           dates: x.dates ?? [], source: x.source ?? null, batch_id: x.batch_id ?? null,
         });
-        const bad = refuse("user_cards", row);
+        const bad = refuse(cards, row);
         if (bad) { out.refused.push({ front: x.front, error: bad.message, code: bad.code }); continue; }
-        const found = db.user_cards.find((r) => r.user_id === p_user_id && r.front === x.front);
-        if (found) { found.dates = merged(found.dates, x.dates); out.joined++; } else { db.user_cards.push(row); out.inserted++; }
+        const found = db[cards].find((r) => r.user_id === p_user_id && r.front === x.front);
+        if (found) { found.dates = merged(found.dates, x.dates); out.joined++; } else { db[cards].push(row); out.inserted++; }
       }
       for (const u of p_dates || []) {
-        const r = db.user_cards.find((c) => c.id === u.id && c.user_id === p_user_id);
+        const r = db[cards].find((c) => c.id === u.id && c.user_id === p_user_id);
         if (r) { r.dates = merged(r.dates, u.dates); out.dated++; }
       }
       // "Replace" never takes out a card answered either way round.
       const answeredRow = (r) => (r.fsrs_state ?? 0) !== 0 || (r.en_fsrs_state ?? 0) !== 0 || (r.reps ?? 0) > 0 ||
         (r.en_reps ?? 0) > 0 || r.last_review != null || r.en_last_review != null;
       for (const a of p_archive || []) {
-        const r = db.user_cards.find((c) => c.id === a.id && c.user_id === p_user_id);
+        const r = db[cards].find((c) => c.id === a.id && c.user_id === p_user_id);
         if (r && a.reason === "replaced" && answeredRow(r)) continue;
         if (r && !(typeof r.source === "string" && r.source.startsWith("archived:"))) {
           r.source = `archived:${r.source ?? ""}`; r.archived_reason = a.reason; r.archived_at = new Date(now()).toISOString(); out.archived++;
         }
       }
       for (const id of p_restore || []) {
-        const r = db.user_cards.find((c) => c.id === id && c.user_id === p_user_id);
+        const r = db[cards].find((c) => c.id === id && c.user_id === p_user_id);
         if (r && typeof r.source === "string" && r.source.startsWith("archived:") && r.archived_reason === "replaced") {
           r.source = r.source.slice(9) || null; r.archived_reason = null; r.archived_at = null; out.restored++;
         }
       }
-      const idOf = (front) => db.user_cards.find((c) => c.user_id === p_user_id && c.front === front)?.id ?? null;
-      for (const x of p_pairs || []) {
+      const idOf = (front) => db[cards].find((c) => c.user_id === p_user_id && c.front === front)?.id ?? null;
+      for (const x of pairs ? p_pairs || [] : []) {
         if (!["same", "different"].includes(x.verdict)) continue;
         if (x.card_a != null && !db.user_cards.some((c) => c.id === x.card_a && c.user_id === p_user_id)) continue;
         db.card_pairs.push(withDefaults("card_pairs", {
@@ -257,15 +269,22 @@ export function fakeSupabase({ tables = {}, migrated = true, faults = {}, now = 
       rec.updated_at = new Date(now()).toISOString();
       return { data: out };
     },
+  });
+  const french = reading({ cards: "user_cards", read: "notes_read", pairs: true });
+  const spanish = reading({ cards: "es_user_cards", read: "es_notes_read", pairs: false });
+  const fns = {
+    claim_notes_reading: french.claim, save_notes_reading: french.save,
+    claim_es_notes_reading: spanish.claim, save_es_notes_reading: spanish.save,
   };
+  const fnExists = (name) => (name.includes("_es_") ? caderno : migrated) && !!fns[name];
 
   const rpc = async (name, params = {}) => {
     calls.push({ rpc: name, params: clone(params) });
-    if (!migrated || !fns[name]) return { data: null, error: err("PGRST202", `Could not find the function public.${name} in the schema cache`) };
+    if (!fnExists(name)) return { data: null, error: err("PGRST202", `Could not find the function public.${name} in the schema cache`) };
     const f = faults.rpc;
     if (f && f.name === name && f.times > 0 && !f.after) { f.times--; return { data: null, error: f.error || err("XX000", "connection lost") }; }
     // All or nothing: a function that fails part way changes nothing.
-    const before = clone({ user_cards: db.user_cards, notes_read: db.notes_read, card_pairs: db.card_pairs });
+    const before = clone({ user_cards: db.user_cards, notes_read: db.notes_read, card_pairs: db.card_pairs, es_user_cards: db.es_user_cards, es_notes_read: db.es_notes_read });
     const keepNext = nextId;
     try {
       const r = fns[name](params);

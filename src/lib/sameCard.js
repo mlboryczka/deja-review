@@ -325,6 +325,17 @@ export function looseKey(front) {
 
 const looseKeepBrackets = (front) => looseKey(String(front ?? "").replace(/[()]/g, " "));
 
+// The Spanish caderno's own near search (2026-11-02): the Spanish with
+// accents, brackets, ¿ ¡ and punctuation set aside, and the Spanish articles
+// (el, la, los, las, un, una, unos, unas). looseKey sets aside only the
+// French ones, so "la niña" from a class and "una niña" from a lesson were no
+// look-alikes. Used only when the index is told the cards are Spanish, so
+// French is read exactly as before.
+export function spanishLooseKey(front) {
+  const s = stripAccents(String(front ?? "").normalize("NFC").toLowerCase()).replace(/\([^)]*\)/g, " ");
+  return s.replace(/[^a-z0-9ñ ]+/g, " ").replace(/\b(?:el|la|los|las|un|una|unos|unas)\b/g, " ").replace(/\s+/g, " ").trim();
+}
+
 // The parts of a list card: "manquer / rater", "japonais, japonaise".
 export function partsOf(front) {
   const t = onePronoun(String(front ?? ""));
@@ -398,7 +409,13 @@ const push = (map, key, card) => {
 // least front and back (and source, to tell what is in study). Cards added
 // later with add() are found too, which is how two spellings in one reading
 // end up as one card.
-export function cardIndex(cards = []) {
+export function cardIndex(cards = [], { language = "fr" } = {}) {
+  const spanish = language === "es";
+  const bySpanish = new Map();
+  const spanishKeys = (card) => {
+    const whole = spanishLooseKey(card.front);
+    return [...new Set([whole, ...partsOf(card.front).map(spanishLooseKey)].filter(Boolean))];
+  };
   const bySure = new Map();
   const byItem = new Map();
   const byLoose = new Map();
@@ -420,6 +437,7 @@ export function cardIndex(cards = []) {
     for (const d of new Set(k.drop)) push(byDrop, d, card);
     push(byAnswer, k.answer, card);
     if (k.typo) push(byLen, k.typo.length, card);
+    if (spanish) for (const key of spanishKeys(card)) push(bySpanish, key, card);
   };
 
   // Every card `card` surely is: the same French by the rule, a list card it
@@ -472,6 +490,7 @@ export function cardIndex(cards = []) {
       take(byAnswer.get(k.answer), (c) => !(isDrillFront(c.front) && isDrillFront(card.front)));
     }
     take(byAnswer.get(k.loose));
+    if (spanish) for (const key of spanishKeys(card)) take(bySpanish.get(key));
     if (k.typo) {
       for (let len = k.typo.length - 2; len <= k.typo.length + 2; len++) {
         take(byLen.get(len), (c) => {

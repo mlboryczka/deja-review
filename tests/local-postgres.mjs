@@ -8,8 +8,8 @@
 // a socket's 103 bytes), and is stopped and deleted by `stop()`.
 //
 // Supabase provides some things a plain Postgres lacks (the auth schema and
-// its functions, three roles, pgcrypto); STUB adds the few the schema and
-// migrations use.
+// its functions, three roles, pgcrypto, storage's table of files, which
+// migration_018 sums); STUB adds the few the schema and migrations use.
 
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -33,6 +33,8 @@ create function auth.jwt() returns jsonb language sql stable as $f$ select coale
 create function auth.email() returns text language sql stable as $f$ select auth.jwt() ->> 'email' $f$;
 create function auth.role() returns text language sql stable as $f$ select coalesce(auth.jwt() ->> 'role', 'anon') $f$;
 create extension if not exists pgcrypto;
+create schema storage;
+create table storage.objects (id uuid primary key default gen_random_uuid(), bucket_id text, name text, metadata jsonb);
 `;
 
 const has = (cmd) => spawnSync("sh", ["-c", `command -v ${cmd}`], { encoding: "utf8" }).status === 0;

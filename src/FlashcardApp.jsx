@@ -570,7 +570,14 @@ const AREA_LABEL = Object.freeze({ recent: "Last two weeks of class", earlier: "
 // "Your class of 24 September: 31 new cards" — said in classes, because that
 // is what the student recognises, with the count second.
 // What linking a cahier did, said in classes rather than in lessons parsed.
-function uploadDoneText({ cardsInserted = 0, datesCovered = 0, busy = false }) {
+function uploadDoneText({ cardsInserted = 0, datesCovered = 0, busy = false }, caderno = false) {
+  // The Spanish caderno (2026-11-02): said the same way, of the caderno.
+  if (caderno) {
+    const after = "\n\nFrom now on, each class Laura adds becomes cards on its own when you open Spanish.";
+    if (busy && cardsInserted === 0) return `Your caderno is linked. It is being read right now, so its new classes will be added on the next check.${after}`;
+    if (cardsInserted === 0) return `Your caderno is linked. Nothing new to add yet: every class in it is already in your deck.${after}`;
+    return `Your caderno is linked.\n\n${cardsInserted} new ${cardsInserted === 1 ? "card" : "cards"} from ${datesCovered} ${datesCovered === 1 ? "class" : "classes"}. They join your deck as new cards, so they arrive once your reviews are done.${after}`;
+  }
   // Only one reading of a student's notes runs at a time (2026-10-06).
   if (busy && cardsInserted === 0) {
     return "Your cahier is linked. Your notes are being read right now, by an upload or the daily check, so its new classes will be added on the next check.\n\nFrom now on, each class Laura adds becomes cards on its own.";
@@ -581,9 +588,9 @@ function uploadDoneText({ cardsInserted = 0, datesCovered = 0, busy = false }) {
   return `Your cahier is linked.\n\n${cardsInserted} cards from ${datesCovered} ${datesCovered === 1 ? "class" : "classes"} you hadn't studied yet. They join your deck as new cards, so they arrive once your reviews are done.\n\nFrom now on, each class Laura adds becomes cards on its own.`;
 }
 
-function cahierArrivalText({ dates = [], cards = 0 } = {}) {
+function cahierArrivalText({ dates = [], cards = 0 } = {}, caderno = false) {
   const asDay = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "long" });
-  const when = dates.length === 0 ? "Your cahier"
+  const when = dates.length === 0 ? (caderno ? "Your caderno" : "Your cahier")
     : dates.length === 1 ? `Your class of ${asDay(dates[0])}`
     : `Your classes from ${asDay(dates[0])} to ${asDay(dates[dates.length - 1])}`;
   return `${when}: ${cards.toLocaleString()} new ${cards === 1 ? "card" : "cards"} added to your deck.`;
@@ -630,9 +637,9 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   const { progress, loaded: progressLoaded, updateCard, resetAll: resetAllProgress } = useProgress(user, { table: tbl("card_progress"), store: storeId });
   const { cards: userCards, archived: archivedCards, loaded: deckLoaded, missing: deckMissing, reload: reloadDeck, patch: patchDeckCard, patchAll: patchAllDeckCards, add: addDeckCard, drop: dropDeckCard, freshSeq: deckFreshSeq, fetchedAt: deckFetchedAt } = useUserDeck(user, { table: tbl("user_cards"), store: storeId });
   // The linked cahier, read again when the app opens: a class taught after
-  // the last visit is already cards by the time the student studies. French
-  // only: the cahier is French notes.
-  const cahier = useCahierSync(spanish ? null : user);
+  // the last visit is already cards by the time the student studies. In
+  // Spanish, the caderno (2026-11-02), in tables of its own.
+  const cahier = useCahierSync(user, spanish ? "es" : "fr");
   // Cards that arrived from it are only in the database until the deck is
   // read again. They then reach the student the way any new card does — the
   // scheduler deals them once due work runs out, most recent class first.
@@ -3774,7 +3781,16 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
                     Ask the tutor
                   </button>
                   {/* Uploads are French only: they make cards from French
-                      notes. */}
+                      notes. Spanish links the caderno instead. */}
+                  {spanish && (
+                  <button
+                    data-caderno-link
+                    style={S.profileMenuItem}
+                    onClick={() => { setShowUpload(true); setShowProfileMenu(false); }}
+                  >
+                    {cahier.link ? "Caderno ✓" : "Link your caderno"}
+                  </button>
+                  )}
                   {!spanish && (
                   <button
                     data-tour="upload"
@@ -3931,20 +3947,21 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
         onClose={() => setShowFsrsSettings(false)}
         settings={fsrs}
       />
-      {!spanish && <CahierUpload
+      <CahierUpload
         open={showUpload}
         user={user}
         cahier={cahier}
+        caderno={spanish}
         onClose={() => setShowUpload(false)}
         hasExisting={userCards.length > 0}
         initialTab={uploadInitialTab}
         onSuccess={(result) => {
           setShowUpload(false);
           reloadDeck();
-          if (result.linked) return alert(uploadDoneText(result));
+          if (result.linked) return alert(uploadDoneText(result, spanish));
           alert(uploadResultText(result));
         }}
-      />}
+      />
       {showFeedbackModal && (
         <FeedbackReviewModal user={user} onClose={() => setShowFeedbackModal(false)} onOwnCardChanged={reloadDeck} />
       )}
@@ -4604,7 +4621,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
         {cahier.arrived && (
           <div style={S.cahierNotice} data-cahier-notice role="status">
             <span>
-              {cahierArrivalText(cahier.arrived)}
+              {cahierArrivalText(cahier.arrived, spanish)}
             </span>
             <button style={S.cahierDismiss} onClick={cahier.dismissArrived} aria-label="Dismiss">✕</button>
           </div>
