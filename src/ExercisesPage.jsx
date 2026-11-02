@@ -696,22 +696,24 @@ function Marked({ item, answer }) {
   // answer. Claude's sentence saying why is still kept with the answer, and
   // shows under a miss only when "Why?" is pressed (owner, 2026-10-26:
   // "there should also be a "why was my answer wrong" option"); for a miss
-  // the key marked, the key says why (keyReason).
+  // the key marked, the key says why (keyReason). The correct answer comes
+  // first, under yours, then the verdict and why (owner, 2026-11-02:
+  // "correct answer should be first and then almost/correct/wrong and why").
   const correct = v === "right" ? "" : answer.correct || keyAnswer(item);
   const reason = v === "right" ? "" : answer.note || keyReason(item, answer.typed);
   return (
     <>
       {kind !== "gaps" && <div style={S.prompt}><Rich text={item.prompt} /></div>}
       <div style={S.mine} data-ex-typed><TypedLine text={answer.typed} /></div>
+      {correct && (
+        <div style={S.line} data-ex-correct><b>Correct:</b> {correct}</div>
+      )}
       <div style={S.fb}>
         <span style={{ ...S.verdict, ...VERDICT_STYLE[v] }} data-ex-verdict={v}>{VERDICT_LABEL[v]}</span>
         {reason && !why && (
           <button type="button" style={S.link} onClick={() => setWhy(true)} data-ex-why>Why?</button>
         )}
       </div>
-      {correct && (
-        <div style={S.line} data-ex-correct><b>Correct:</b> {correct}</div>
-      )}
       {why && reason && (
         <div style={S.line} data-ex-reason><b>Why:</b> {reason}</div>
       )}

@@ -2594,13 +2594,14 @@ page you were on (kept in this browser, `es-exercises-place:<user id>`).
   again" until the owner had it taken off (2026-11-02: "get rid of try
   again, it's not useful"). "Start this exercise again" adds answers and
   hides the old ones from the page; it removes nothing. A marked answer
-  shows only Right, Almost or Wrong, and under
-  Almost or Wrong one line, "Correct:", the answer corrected: Claude's
-  correction where it made one, otherwise the key's answer (owner,
-  2026-10-25: "get rid of the description after the right/wrong tag",
-  "only need corrected, not the answer. change to correct:"). Claude's
+  shows, under what was typed, for Almost or Wrong one line, "Correct:",
+  the answer corrected: Claude's correction where it made one, otherwise
+  the key's answer (owner, 2026-10-25: "get rid of the description after
+  the right/wrong tag", "only need corrected, not the answer. change to
+  correct:"); then only Right, Almost or Wrong (owner, 2026-11-02: "correct
+  answer should be first and then almost/correct/wrong and why"). Claude's
   sentence saying why is kept with the answer and shows, as a "Why:" line
-  under "Correct:", only when "Why?" beside the verdict is pressed (owner,
+  under the verdict, only when "Why?" beside it is pressed (owner,
   2026-10-26: "there should also be a "why was my answer wrong" option").
   For a miss the key marked, the key says why (`keyReason`): the words whose
   accent changes the tense, as the key writes them ("Right but for the
