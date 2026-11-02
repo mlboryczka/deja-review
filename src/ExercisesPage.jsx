@@ -10,8 +10,10 @@
 // type. Every answer is kept (es_exercise_answers, migration_022); an item
 // shows its latest one from today, so every exercise starts fresh each day
 // (owner, 2026-10-27: "reset all exercise answers at the end of a day"). The
-// day is the app's study day, from 4am. "Try again" and "Start again" add
-// answers, they never remove any. "Hint" on an item still to answer shows the key's answer a
+// day is the app's study day, from 4am. An answered item stays answered: its
+// "Try again" went (owner, 2026-11-02: "get rid of try again, it's not
+// useful"). "Start again" on an exercise adds answers, it never removes any.
+// "Hint" on an item still to answer shows the key's answer a
 // letter at a time (hintText in exerciseMarking.js); it isn't kept and
 // doesn't change the marking.
 //
@@ -25,7 +27,7 @@
 // the same panel Flashcards opens beside the cards. The shell owns it, as it
 // owns the tutor, so the page makes room for it the same way (`notes`).
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, Fragment } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, Fragment } from "react";
 import { supabase } from "./supabase";
 import { T } from "./theme";
 import { EXERCISE_LESSONS, EXERCISES_BY_ID } from "./data/exercises/es/index.js";
@@ -456,16 +458,12 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
   const [typed, setTypedState] = useState(() => drafts.get(draftKey) ?? emptyTyped(item));
   const setTyped = (v) => { drafts.set(draftKey, v); setTypedState(v); };
   const [problem, setProblem] = useState(null);
-  const [retrying, setRetrying] = useState(false);
   // How much of the hint shows: none, then one more letter of each word per
-  // press. It goes once the item is answered, so "Try again" starts without.
+  // press. It goes once the item is answered.
   const [hint, setHint] = useState(0);
   const levels = hintLevels(item);
-  const firstInput = useRef(null);
   const itemRef = useRef(null);
-  const open = !answer || retrying;
-  // "Try again" puts the cursor straight back in the item.
-  useLayoutEffect(() => { if (retrying) firstInput.current?.focus(); }, [retrying]);
+  const open = !answer;
 
   // The cursor stays where it was typing; pressed from outside the item, it
   // goes to the item's first empty box.
@@ -481,7 +479,6 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
   const check = async () => {
     if (!isAnswered(item, typed)) return;
     setProblem(null);
-    setRetrying(false);
     setHint(0);
     const ticket = ++ticketSeq;
     const now = new Date().toISOString();
@@ -547,9 +544,7 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
                   <Fragment key={i}>
                     <Rich text={part} />
                     {i < all.length - 1 && (
-                      <input
-                        ref={i === 0 ? firstInput : undefined}
-                        style={{ ...S.gap, width: gapWidth(item.gaps[i]) }}
+                      <input                        style={{ ...S.gap, width: gapWidth(item.gaps[i]) }}
                         value={typed[i] || ""}
                         onChange={(e) => setTyped(typed.map((v, j) => (j === i ? e.target.value : v)))}
                         onKeyDown={onEnter}
@@ -579,9 +574,7 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
               <div style={S.truthRow}>
                 {[[true, "Verdadero"], [false, "Falso"]].map(([v, label]) => (
                   <button
-                    key={label}
-                    ref={v ? firstInput : undefined}
-                    type="button"
+                    key={label}                    type="button"
                     data-truth={String(v)}
                     aria-pressed={typed.truth === v}
                     style={{ ...S.truthBtn, ...(typed.truth === v ? S.truthBtnOn : S.truthBtnOff) }}
@@ -595,9 +588,7 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
             {kind !== "gaps" && (
               <div style={S.ansRow}>
                 {item.long ? (
-                  <textarea
-                    ref={kind === "truth" ? undefined : firstInput}
-                    style={S.textarea}
+                  <textarea                    style={S.textarea}
                     rows={6}
                     value={typed}
                     placeholder="Your answer (⌘ Enter to check)"
@@ -608,9 +599,7 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
                     aria-label="Your answer"
                   />
                 ) : (
-                  <input
-                    ref={kind === "truth" ? undefined : firstInput}
-                    style={S.input}
+                  <input                    style={S.input}
                     value={kind === "truth" ? typed.text : typed}
                     placeholder={kind === "truth" ? "A sentence that confirms or corrects it" : "Your answer"}
                     onChange={(e) => setTyped(kind === "truth" ? { ...typed, text: e.target.value } : e.target.value)}
@@ -666,7 +655,7 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
             )}
           </>
         ) : (
-          <Marked item={item} answer={answer} onRetry={() => setRetrying(true)} />
+          <Marked item={item} answer={answer} />
         )}
       </div>
     </li>
@@ -685,7 +674,7 @@ function TypedLine({ text }) {
   });
 }
 
-function Marked({ item, answer, onRetry }) {
+function Marked({ item, answer }) {
   const kind = kindOf(item);
   const [why, setWhy] = useState(false);
   if (answer.pending) {
@@ -727,7 +716,6 @@ function Marked({ item, answer, onRetry }) {
         <div style={S.line} data-ex-reason><b>Why:</b> {reason}</div>
       )}
       {answer.unsaved && <div style={S.unsaved}>This answer was marked but not saved, so it won’t be here next time.</div>}
-      <button type="button" style={S.retry} onClick={onRetry} data-ex-retry>Try again</button>
     </>
   );
 }
@@ -746,7 +734,7 @@ const VERDICT_STYLE = {
   wrong: { background: T.color.errorContainer, color: T.color.onErrorContainer },
 };
 
-// A small underlined button that reads as a link: "Try again", "Hint", "Why?".
+// A small underlined button that reads as a link: "Hint", "Why?".
 const LINK = { padding: 0, border: "none", background: "transparent", fontFamily: T.font.sans, fontSize: 11.5, fontWeight: 600, color: T.color.onSurfaceVariant, cursor: "pointer", textDecoration: "underline", textDecorationColor: "rgba(3,22,50,0.25)", textUnderlineOffset: 2 };
 
 const S = {
@@ -818,6 +806,5 @@ const S = {
   line: { marginTop: 6, fontSize: 13.5, lineHeight: 1.55, color: T.color.primary },
   unsaved: { marginTop: 6, fontSize: 12, color: T.color.onSurfaceVariant },
   link: LINK,
-  retry: { ...LINK, marginTop: 6 },
   again: { marginTop: 12, padding: "7px 14px", borderWidth: 1, borderStyle: "solid", borderColor: "rgba(3,22,50,0.15)", borderRadius: T.radius.md, background: "transparent", color: T.color.primary, fontFamily: T.font.sans, fontWeight: 700, fontSize: 12, cursor: "pointer" },
 };

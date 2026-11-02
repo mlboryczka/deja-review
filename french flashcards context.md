@@ -2590,9 +2590,11 @@ page you were on (kept in this browser, `es-exercises-place:<user id>`).
 - **The page**: Enter checks an answer and puts the cursor in the next item,
   so a sheet is done without the mouse; Claude's verdict arrives while you
   type the next one. "Lesson text" shows the dialogue the comprehension
-  questions are about. "Try again" on an item and "Start this exercise
-  again" add answers and hide the old ones from the page; they remove
-  nothing. A marked answer shows only Right, Almost or Wrong, and under
+  questions are about. An answered item stays answered: it had a "Try
+  again" until the owner had it taken off (2026-11-02: "get rid of try
+  again, it's not useful"). "Start this exercise again" adds answers and
+  hides the old ones from the page; it removes nothing. A marked answer
+  shows only Right, Almost or Wrong, and under
   Almost or Wrong one line, "Correct:", the answer corrected: Claude's
   correction where it made one, otherwise the key's answer (owner,
   2026-10-25: "get rid of the description after the right/wrong tag",
@@ -2611,8 +2613,7 @@ page you were on (kept in this browser, `es-exercises-place:<user id>`).
   "1. m_   2. n___"; punctuation, ¿ and ¡ show). Then "Show more" adds one
   letter to every word, until the whole answer shows and the link goes. The
   cursor stays in the box. A hint isn't kept and doesn't change the
-  marking; it goes once the item is answered, so "Try again" starts
-  without one (`hintText`, `hintLevels`).
+  marking; it goes once the item is answered (`hintText`, `hintLevels`).
 - **The tutor** (2026-10-26): on a lesson's page the tutor is told the
   exercise being worked on, as Podcasts tells it the episode: the exercise
   whose item has the cursor, else the one answered last, else the first.
