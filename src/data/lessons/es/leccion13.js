@@ -231,7 +231,7 @@ export const NOTES = [
           ["¿Conoces Guadalajara?", "Have you been to Guadalajara?"],
         ]},
       { t: "note", v: "Use saber before que, dónde, cuánto, por qué or cómo and the rest of the sentence: *¿sabes dónde vive Lucía?*, \"do you know where Lucía lives?\"." },
-      { t: "note", v: "Use saber before a verb in its dictionary form to say \"know how to\": *mi hijo sabe manejar*, \"my son knows how to drive\"." },
+      { t: "note", v: "Use saber before a verb in the infinitive to say \"know how to\": *mi hijo sabe manejar*, \"my son knows how to drive\"." },
       { t: "note", v: "Use conocer before a name or a noun: *conozco el centro*, \"I know downtown\"." },
       { t: "sub", v: "conocer a" },
       { t: "note", v: "**The trap:** with a person, put a after conocer: *conozco a Lucía*, \"I know Lucía\", not conozco Lucía. A and el make al: *¿conoces al agente?*, \"do you know the agent?\"." },

@@ -291,7 +291,7 @@ export const NOTES = [
       { t: "sub", v: "The near future" },
       { t: "note", v: "To say what someone is going to do, use ir in the present, then a, then the second verb in the form the dictionary gives, the infinitive: *voy a ir a la playa*, \"I'm going to go to the beach\"." },
       { t: "note", v: "Only ir changes with the person: *¿qué vas a hacer?*, \"what are you going to do?\"; *vamos a cenar*, \"we're going to have dinner\"." },
-      { t: "note", v: "To put a sentence in the near future, swap its verb for ir a and the verb in its dictionary form: *está cansado*, \"he is tired\", becomes *va a estar cansado*, \"he's going to be tired\"." },
+      { t: "note", v: "To put a sentence in the near future, swap its verb for ir a and the verb in the infinitive: *está cansado*, \"he is tired\", becomes *va a estar cansado*, \"he's going to be tired\"." },
       { t: "note", v: "When the verb is ir, you get ir twice: *vamos a Guadalajara*, \"we're going to Guadalajara\", becomes *vamos a ir a Guadalajara*, \"we're going to go to Guadalajara\"." },
     ],
   },

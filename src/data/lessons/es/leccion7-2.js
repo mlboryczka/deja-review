@@ -169,7 +169,7 @@ export const NOTES = [
         ["Mis amigos entienden bien el español", "My friends understand Spanish well"],
       ]},
       { t: "sub", v: "Learning to do something" },
-      { t: "note", v: "Before a second verb, *aprender* takes *a*, and the second verb stays in its dictionary form: *Aprendo a cocinar*, \"I'm learning to cook\"." },
+      { t: "note", v: "Before a second verb, *aprender* takes *a*, and the second verb stays in the infinitive: *Aprendo a cocinar*, \"I'm learning to cook\"." },
       { t: "note", v: "Spanish has one present tense where English has two, so *aprendemos* is \"we learn\" and \"we are learning\": *Aprendemos a cocinar*, \"We are learning to cook\"." },
       { t: "sub", v: "Answering yes" },
       { t: "note", v: "Answer a question asked with tú in the yo form, and change tus (\"your\") to mis (\"my\"): *¿Aprendes bien tus lecciones?* → *Sí, aprendo bien mis lecciones*, \"Do you learn your lessons well? Yes, I learn my lessons well\"." },

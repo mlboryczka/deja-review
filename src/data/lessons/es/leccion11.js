@@ -206,7 +206,7 @@ export const NOTES = [
     tab: "Must",
     h: "2 · Must, should, have to",
     blocks: [
-      { t: "lead", v: "After deber and tener que, the second verb stays in its dictionary form: *debes descansar*, \"you should rest\"." },
+      { t: "lead", v: "After deber and tener que, the second verb stays in the infinitive: *debes descansar*, \"you should rest\"." },
       { t: "note", v: "Deber is for something you must or should do, an obligation or a piece of advice: *Los pacientes deben traer su credencial*, \"Patients must bring their card\"." },
       { t: "note", v: "Tener que is the everyday way to say \"to have to\". Tener changes with the person, and the que stays: *Tengo que trabajar el sábado*, \"I have to work on Saturday\"; *Tienes que actualizar los expedientes*, \"You have to update the files\"." },
       { t: "sub", v: "I had to" },

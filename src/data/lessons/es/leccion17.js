@@ -242,7 +242,7 @@ export const NOTES = [
       { t: "note", v: "When le or les is already there, just leave the person out: *Les hablo a mis papás* becomes *Les hablo*, \"I talk to them\"." },
       { t: "sub", v: "Where it goes" },
       { t: "note", v: "The pronoun goes before the verb, and after no: *No lo conozco*, \"I don't know him\"; *¿Dónde lo conociste?*, \"where did you meet him?\"." },
-      { t: "note", v: "With a verb in its dictionary form, or an -ando or -iendo form, it can also be joined to the end: *¿Cuándo los vas a recibir?* and *¿Cuándo vas a recibirlos?* both mean \"when are you going to get them?\"; *La estoy buscando* and *Estoy buscándola*, \"I'm looking for her\"." },
+      { t: "note", v: "With a verb in the infinitive, or an -ando or -iendo form, it can also be joined to the end: *¿Cuándo los vas a recibir?* and *¿Cuándo vas a recibirlos?* both mean \"when are you going to get them?\"; *La estoy buscando* and *Estoy buscándola*, \"I'm looking for her\"." },
       { t: "note", v: "After hay que, it always goes at the end: *Hay que hacerlos hoy*, \"they have to be done today\"." },
       { t: "sub", v: "In answers" },
       { t: "note", v: "Answering, me becomes te and te becomes me: *¿Me oyes? Sí, te oigo*, \"can you hear me? Yes, I can hear you\". Nos becomes los or las, the pronoun for ustedes: *¿Nos ves? Sí, los veo*, \"can you see us? Yes, I can see you\"." },
@@ -282,7 +282,7 @@ export const NOTES = [
           ["Les mandé las fotos a mis papás", "Se las mandé"],
         ]},
       { t: "note", v: "This se can be him, her, you or them. To be clear, add a and the person: *Se lo di a Natalia*, \"I gave it to Natalia\"." },
-      { t: "note", v: "With a verb in its dictionary form, the two stay together, before the first verb or joined to the end of the second: *Te lo voy a decir* and *Voy a decírtelo* both mean \"I'm going to tell you\"." },
+      { t: "note", v: "With a verb in the infinitive, the two stay together, before the first verb or joined to the end of the second: *Te lo voy a decir* and *Voy a decírtelo* both mean \"I'm going to tell you\"." },
     ],
   },
   {

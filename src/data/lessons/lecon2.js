@@ -315,7 +315,7 @@ export const NOTES = [
         ["Ils vont apprendre le français", "They're going to learn French"],
       ]},
       { t: "sub", v: "Putting a sentence in the near future" },
-      { t: "note", v: "Swap the verb for aller in the same form, then add the verb in its dictionary form: *il est fatigué*, \"he is tired\", becomes *il va être fatigué*, \"he is going to be tired\"." },
+      { t: "note", v: "Swap the verb for aller in the same form, then add the verb in the infinitive: *il est fatigué*, \"he is tired\", becomes *il va être fatigué*, \"he is going to be tired\"." },
       { t: "note", v: "When the verb is aller, you get aller twice: *Damien va à la plage*, \"Damien goes to the beach\", becomes *Damien va aller à la plage*, \"Damien is going to go to the beach\"." },
     ],
   },

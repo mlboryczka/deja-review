@@ -256,7 +256,8 @@ Each of these drew "unclear" and was rewritten:
   drink").
 - **No grammar jargon an example can replace**: "agrees", "aspirate h", "mute
   h", "with no -ment on the feminine". Show the form: "*évident →
-  évidemment*, not évidentement".
+  évidemment*, not évidentement". "Infinitive" is not jargon (owner,
+  2026-11-03): write "in the infinitive", never "dictionary form".
 - **Give the English for every French example**, including the one in a
   tab's opening sentence.
 - **Plain column headings**: "Without -ment / With -ment", not "Plain word /

@@ -99,7 +99,7 @@
 //   - Past: "With tú, nosotros and ellos…" (the sheet shows it only in its
 //     table, which has too many columns for the panel), and the two
 //     "Answering yes" notes, which the ex. 4 and 5 answers only show.
-//   - Verb + verb: "the second stays in its dictionary form" (the sheet's
+//   - Verb + verb: "the second stays in the infinitive" (the sheet's
 //     "infinitivo").
 //   - Numbers: "Between the tens and the units, write y", which the sheet
 //     shows only in its table.
@@ -266,7 +266,7 @@ export const NOTES = [
     tab: "Verb + verb",
     h: "3 · Two verbs together",
     blocks: [
-      { t: "lead", v: "When one verb follows another, only the first one changes, and the second stays in its dictionary form: *decidimos aprender*, \"we decided to learn\"." },
+      { t: "lead", v: "When one verb follows another, only the first one changes, and the second stays in the infinitive: *decidimos aprender*, \"we decided to learn\"." },
       { t: "note", v: "Some verbs put a or de before the second verb, and some put nothing. Learn each verb with the word that comes after it." },
       { t: "table", bold: 0,
         cols: ["Nothing between", "With a", "With de"],
