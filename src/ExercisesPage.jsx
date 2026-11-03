@@ -26,6 +26,9 @@
 // "Lesson notes" (2026-11-01) opens the lesson's notes beside the exercises,
 // the same panel Flashcards opens beside the cards. The shell owns it, as it
 // owns the tutor, so the page makes room for it the same way (`notes`).
+// The "Lesson text" button beside it went (owner, 2026-11-03: "remove lesson
+// text from exercises"); the tutor and Claude's marking still get the text
+// when an exercise is about it.
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, Fragment } from "react";
 import { supabase } from "./supabase";
@@ -167,7 +170,7 @@ const lessonTextLines = (lines) =>
 const exerciseOfKey = (lesson, key) =>
   key ? lesson.exercises.find((ex) => String(key).startsWith(`${lesson.id}/${ex.n}/`)) || null : null;
 
-function tutorExercise(lesson, latest, again, focusKey, textShown) {
+function tutorExercise(lesson, latest, again, focusKey) {
   const shownOf = (ex, i) => shownAnswer(latest, again, lesson.id, ex.n, itemKey(lesson.id, ex.n, i));
   const doneAt = (a) => (a && !a.pending ? at(a.answeredAt) || 1 : 0);
   let ex = exerciseOfKey(lesson, focusKey);
@@ -195,8 +198,8 @@ function tutorExercise(lesson, latest, again, focusKey, textShown) {
   });
   const focus = exerciseOfKey(lesson, focusKey) === ex ? Number(String(focusKey).split("/").pop()) || 0 : 0;
   // The lesson's text goes when the exercise is about it (true or false
-  // about the dialogue, translating the text) or it is open on the page.
-  const aboutText = textShown || ex.items.some((it) => kindOf(it) === "truth" || kindOf(it) === "open");
+  // about the dialogue, translating the text).
+  const aboutText = ex.items.some((it) => kindOf(it) === "truth" || kindOf(it) === "open");
   const text = aboutText ? lessonTextLines(LESSON_TEXTS[lesson.textOf]) : "";
   return {
     key: `ex:${lesson.id}/${ex.n}${focus ? `/${focus}` : ""}`,
@@ -280,8 +283,6 @@ export default function ExercisesPage({ user, view, setView, onNeedKey, onTutorC
 
 // ── One lesson's exercises ───────────────────────────────────────────────
 function LessonExercises({ user, lesson, store, again, startAgain, onBack, onNeedKey, onTutorContext, notes }) {
-  const [showText, setShowText] = useState(false);
-  const text = LESSON_TEXTS[lesson.textOf] || null;
   const t = tally(lesson, store.latest, again);
   const listRef = useRef(null);
 
@@ -293,8 +294,8 @@ function LessonExercises({ user, lesson, store, again, startAgain, onBack, onNee
     if (key) setFocusKey(key);
   };
   const tutorFor = useCallback(
-    (key) => tutorExercise(lesson, store.latest, again, key, showText),
-    [lesson, store.latest, again, showText]
+    (key) => tutorExercise(lesson, store.latest, again, key),
+    [lesson, store.latest, again]
   );
   const tutorCtx = useMemo(() => tutorFor(focusKey), [tutorFor, focusKey]);
   const tellRef = useRef(onTutorContext);
@@ -332,11 +333,6 @@ function LessonExercises({ user, lesson, store, again, startAgain, onBack, onNee
       <h1 style={S.h1}>{lesson.title}</h1>
       <div style={S.byline}>
         <span data-exercises-count>{countLine(t)}</span>
-        {text && (
-          <button type="button" style={showText ? { ...S.textBtn, ...S.textBtnOn } : S.textBtn} onClick={() => setShowText((v) => !v)} aria-expanded={showText} data-lesson-text-toggle>
-            {showText ? "Hide the lesson text" : "Lesson text"}
-          </button>
-        )}
         {notes && (
           <button
             type="button"
@@ -351,7 +347,6 @@ function LessonExercises({ user, lesson, store, again, startAgain, onBack, onNee
           </button>
         )}
       </div>
-      {showText && text && <LessonText lines={text} />}
       <div ref={listRef} onFocus={onFocusItem}>
         {lesson.exercises.map((ex) => (
           <ExerciseBlock
@@ -368,20 +363,6 @@ function LessonExercises({ user, lesson, store, again, startAgain, onBack, onNee
         ))}
       </div>
     </>
-  );
-}
-
-function LessonText({ lines }) {
-  return (
-    <div style={S.text} data-lesson-text>
-      {lines.map((l, i) =>
-        l.title ? <div key={i} style={S.textTitle}>{l.title}</div>
-        : l.scene ? <p key={i} style={S.textScene}>{l.scene}</p>
-        : l.question ? <p key={i} style={S.textQ}>{l.question}</p>
-        : l.who ? <p key={i} style={S.textLine}><b style={S.textWho}>{l.who}</b> {l.text}</p>
-        : <p key={i} style={S.textLine}>{l.text}</p>
-      )}
-    </div>
   );
 }
 
@@ -757,12 +738,6 @@ const S = {
   byline: { display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", fontSize: 13, color: T.color.onSurfaceVariant, margin: "-12px 0 20px", fontVariantNumeric: "tabular-nums" },
   textBtn: { padding: "5px 12px", borderWidth: 1, borderStyle: "solid", borderColor: "rgba(3,22,50,0.15)", borderRadius: T.radius.full, background: T.color.surfaceLowest, fontFamily: T.font.sans, fontSize: 11.5, fontWeight: 700, color: T.color.primary, cursor: "pointer" },
   textBtnOn: { background: T.color.primary, borderColor: T.color.primary, color: T.color.onPrimary },
-  text: { padding: "16px 20px", marginBottom: 20, background: T.color.surfaceLow, borderRadius: T.radius.xl, fontFamily: T.font.serif, fontSize: 15, lineHeight: 1.65, color: T.color.primary },
-  textTitle: { fontWeight: 700, fontSize: 15.5, margin: "0 0 8px" },
-  textScene: { margin: "0 0 10px", fontStyle: "italic", color: T.color.onSurfaceVariant },
-  textQ: { margin: "10px 0 2px", fontWeight: 700 },
-  textLine: { margin: "0 0 6px", whiteSpace: "pre-wrap" },
-  textWho: { fontFamily: T.font.sans, fontSize: 12.5, color: T.color.secondary, marginRight: 4 },
 
   ex: { padding: "20px 22px 18px", background: T.color.surfaceLowest, borderWidth: 1, borderStyle: "solid", borderColor: LINE, borderRadius: T.radius.xl, marginBottom: 16 },
   exHead: { display: "flex", alignItems: "baseline", gap: 10, marginBottom: 8 },
