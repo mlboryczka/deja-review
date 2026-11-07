@@ -9,6 +9,7 @@
 // the caderno writes its dates ("27 de octubre", no year), and the classes of
 // 8 to 27 October put in by hand on 2026-10-27, before there was a link:
 // their lines on a card count as read, and a line Laura added since is read.
+// And the real save on a real Postgres, with the live deck's date column.
 
 import { createServer } from "node:http";
 import { checker } from "../check.mjs";
@@ -198,29 +199,46 @@ const V1 = caderno(
   ck("linking the caderno leaves the French link as it was", r.ok && admin.tables.cahier_links.length === 1 && admin.tables.cahier_links[0].doc_id === "FRENCH");
 }
 
-// ── migration_023's functions, on a real Postgres ─────────────────────────
+// ── The caderno's functions, on a real Postgres ───────────────────────────
 {
   const { db: pg, why } = await localPostgres();
-  if (!pg) console.log(`  (not run here: migration_023 on a local Postgres; ${why})`);
+  if (!pg) console.log(`  (not run here: the caderno's save on a local Postgres; ${why})`);
   else {
     try {
       const U = "00000000-0000-0000-0000-0000000000e6", RUN = "22222222-2222-2222-2222-222222222222";
       const q = (t) => pg.sql(t);
-      const setup = q(`insert into auth.users (id) values ('${U}');
-        insert into public.es_user_cards (id, user_id, front, back, source, dates) values (5001, '${U}', 'una niña', 'a girl', 'lesson:leccion4#x', '[]');`);
+      // The live deck keeps class dates as text[], though supabase/schema.sql
+      // says jsonb: migration_023's save failed on it at the first real read
+      // (2026-11-07). So the check runs on the live column.
+      const LONG = Array.from({ length: 700 }, () => Math.random().toString(36).slice(2, 10)).join("");
+      const setup = q(`alter table public.es_user_cards drop column dates;
+        alter table public.es_user_cards add column dates text[] not null default '{}';
+        insert into auth.users (id) values ('${U}');
+        insert into public.es_user_cards (id, user_id, front, back, source, dates) values
+          (5001, '${U}', 'una niña', 'a girl', 'lesson:leccion4#x', '{}'),
+          (5002, '${U}', 'ayer', 'yesterday', 'lesson:leccion8#y', '{2026-10-23}');`);
       const claimed = q(`select public.claim_es_notes_reading('${U}', '${RUN}', 'sync', 360, false) ->> 'claimed'`);
       const taken = q(`select public.claim_es_notes_reading('${U}', '33333333-3333-3333-3333-333333333333', 'sync', 360, false) ->> 'claimed'`);
       const saved = q(`select public.save_es_notes_reading('${U}', '${RUN}',
-        '[{"front":"la fecha","back":"the date","category":"V","dates":["2026-10-27"],"source":"cahier-upload"}]'::jsonb,
+        '[{"front":"la fecha","back":"the date","category":"V","dates":["2026-10-27"],"source":"cahier-upload"},
+          {"front":"ayer","back":"yesterday","category":"V","dates":["2026-10-30"],"source":"cahier-upload"}]'::jsonb,
         '[{"id":5001,"dates":["2026-10-21"]}]'::jsonb, '[]'::jsonb, '[]'::jsonb, '[{"verdict":"same","a_front":"una niña"}]'::jsonb,
-        '{"2026-10-27":["abc"]}'::jsonb, true) ->> 'inserted'`);
+        '{"2026-10-27":["abc"]}'::jsonb, true)::text`);
       const es = q(`select string_agg(front || ' ' || dates::text, ' | ' order by front) from public.es_user_cards`);
       const french = q(`select (select count(*) from public.user_cards) + (select count(*) from public.card_pairs) + (select count(*) from public.notes_read)`);
       const record = q(`select classes::text || ' ' || coalesce(run_id::text, 'free') from public.es_notes_read`);
-      ck("on a local Postgres, migration_023's functions take the turn, save the cards and dates and the lines read on the Spanish tables, and touch nothing French",
-        setup.ok && claimed.out === "true" && taken.out === "false" && saved.out === "1" &&
-        es.out === 'la fecha ["2026-10-27"] | una niña ["2026-10-21"]' && french.out === "0" && record.out === '{"2026-10-27": ["abc"]} free',
+      ck("on a local Postgres with the live date column, the caderno's save takes the turn, adds cards and dates and the lines read on the Spanish tables, and touches nothing French",
+        setup.ok && claimed.out === "true" && taken.out === "false" && /"inserted": 1/.test(saved.out) && /"joined": 1/.test(saved.out) && /"dated": 1/.test(saved.out) &&
+        es.out === "ayer {2026-10-23,2026-10-30} | la fecha {2026-10-27} | una niña {2026-10-21}" && french.out === "0" && record.out === '{"2026-10-27": ["abc"]} free',
         [setup.err, claimed.out, taken.out, saved.out || saved.err, es.out, french.out, record.out].join(" / "));
+      // A front too long for the index: named, and the rest saved.
+      const again = q(`select public.claim_es_notes_reading('${U}', '${RUN}', 'sync', 360, false) ->> 'claimed'`);
+      const refused = q(`select public.save_es_notes_reading('${U}', '${RUN}',
+        '[{"front":"${LONG}","back":"too long","dates":["2026-11-02"],"source":"cahier-upload"},
+          {"front":"descansar","back":"to rest","dates":["2026-11-06"],"source":"cahier-upload"}]'::jsonb) ->> 'inserted'`);
+      const list = q(`select dates::text from public.es_user_cards where front = 'descansar'`);
+      ck("a card the database refuses is left out and the others are saved", again.out === "true" && refused.out === "1" && list.out === "{2026-11-06}",
+        [again.out, refused.out || refused.err, list.out].join(" / "));
     } finally {
       pg.stop();
     }

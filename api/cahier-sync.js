@@ -326,6 +326,12 @@ export async function syncUser({ admin, apiKey, userId, url, limit, force = fals
       dateRange: dates.length ? [dates[0], dates[dates.length - 1]] : null,
       errors,
     };
+  } catch (e) {
+    // Said on the link as well, where the student can see it. A save that
+    // failed used to leave no trace: on the live database the French link's
+    // every save failed from 2026-10-07, and nothing said so for a month.
+    await updateLink(admin, userId, { last_checked_at: now.toISOString(), last_error: e.message }, tables).catch(() => {});
+    throw e;
   } finally {
     await releaseReading(admin, userId, reading.runId, course);
   }
