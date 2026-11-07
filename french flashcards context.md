@@ -1072,6 +1072,11 @@ The files:
   owner): `save_es_notes_reading` again, for `dates` as `text[]`, which is what
   the live deck has (`supabase/schema.sql` says jsonb). Migration_016's French
   save has the same fault on the live database (see *Spanish*, "The caderno").
+- `025_notes_save_dates` (on `testing`, written 2026-11-07, waits on the
+  owner; the owner: "yes fix both"): `save_notes_reading` again, with `dates`
+  as `text[]`, and nothing else changed. It also serves the students' app, as
+  the database is shared. `supabase/schema.sql` now says `text[]` too, so the
+  throwaway Postgres tests run on the live column.
 - `021_spanish_logs` (on `testing`, written 2026-10-22, waits on the owner):
   `es_answer_reviews` and `es_parse_corrections`, LIKE the French logs, for
   the Spanish module's verdicts and corrections (see *Spanish*). Service role
@@ -2402,8 +2407,9 @@ Flashcards / Podcasts switch is French only; Spanish has no Podcasts (owner,
   The first read on the live database (2026-11-07) failed: `dates` is `text[]`
   there, and the function was written for the schema file's jsonb; migration_024
   fixes it, and a failed save now shows on the link (`last_error`). French's
-  `save_notes_reading` has the same fault: the owner's French link has saved
-  nothing since 2026-10-07 (seven classes, 7 to 19 October, unread).
+  `save_notes_reading` had the same fault: the owner's French link saved
+  nothing from 2026-10-07 (seven classes, 7 to 19 October, unread) until
+  migration_025.
   The daily check doesn't read caderno links yet (`api/cahier-daily.js`
   reads `cahier_links`), and Vercel's crons run only on the students' app
   anyway: the caderno is read when Spanish is opened.

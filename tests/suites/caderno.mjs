@@ -207,13 +207,10 @@ const V1 = caderno(
     try {
       const U = "00000000-0000-0000-0000-0000000000e6", RUN = "22222222-2222-2222-2222-222222222222";
       const q = (t) => pg.sql(t);
-      // The live deck keeps class dates as text[], though supabase/schema.sql
-      // says jsonb: migration_023's save failed on it at the first real read
-      // (2026-11-07). So the check runs on the live column.
+      // The live deck keeps class dates as text[]: migration_023's save, written
+      // for jsonb, failed on it at the first real read (2026-11-07).
       const LONG = Array.from({ length: 700 }, () => Math.random().toString(36).slice(2, 10)).join("");
-      const setup = q(`alter table public.es_user_cards drop column dates;
-        alter table public.es_user_cards add column dates text[] not null default '{}';
-        insert into auth.users (id) values ('${U}');
+      const setup = q(`insert into auth.users (id) values ('${U}');
         insert into public.es_user_cards (id, user_id, front, back, source, dates) values
           (5001, '${U}', 'una niña', 'a girl', 'lesson:leccion4#x', '{}'),
           (5002, '${U}', 'ayer', 'yesterday', 'lesson:leccion8#y', '{2026-10-23}');`);

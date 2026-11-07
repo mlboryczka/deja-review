@@ -177,7 +177,9 @@ create table if not exists public.user_cards (
   -- The LESSON dates this word appeared on in the notebook — not review
   -- history. Every parsed card has them, which is exactly the mistake
   -- migration_006 originally made; see migration_007 for the repair.
-  dates jsonb not null default '[]'::jsonb,
+  -- text[], as on the live database. This file said jsonb until 2026-11-07, and
+  -- the notes saves written from it failed on every call (migration_025).
+  dates text[] not null default '{}',
   source text,
   flagged_for_review boolean not null default false,
   created_at timestamptz not null default now(),

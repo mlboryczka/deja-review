@@ -1020,7 +1020,7 @@ console.log("\n  Replace works by class, never deletes, and leaves lesson and tu
   // name all six signs of an answer, the same six the copy and the app
   // (src/lib/replaceDeck.js's answered) look at.
   {
-    const sql = readFileSync(new URL("../../migrations/migration_016_notes_read_once.sql", import.meta.url), "utf8");
+    const sql = readFileSync(new URL("../../migrations/migration_025_notes_save_dates.sql", import.meta.url), "utf8");
     const fn = sql.slice(sql.indexOf("create or replace function public.save_notes_reading("));
     const body = fn.slice(0, fn.indexOf("$$;")).replace(/--[^\n]*/g, "").replace(/\s+/g, " ");
     const step = /update public\.user_cards c set source = 'archived:' \|\| coalesce\(c\.source, ''\), archived_reason = a\.reason.*?returning c\.id/.exec(body)?.[0] || "";
@@ -1028,7 +1028,7 @@ console.log("\n  Replace works by class, never deletes, and leaves lesson and tu
     const SIX = ["coalesce(c.fsrs_state, 0) = 0", "coalesce(c.en_fsrs_state, 0) = 0", "coalesce(c.reps, 0) = 0", "coalesce(c.en_reps, 0) = 0",
       "c.last_review is null", "c.en_last_review is null"];
     const missing = SIX.filter((t) => !clause.split(" and ").map((x) => x.trim()).includes(t));
-    ck("migration_016's own save refuses a Replace of an answered card: the clause is there, naming all six signs of an answer",
+    ck("the save as it now stands (migration_025) refuses a Replace of an answered card: the clause is there, naming all six signs of an answer",
        !!step && !!clause && missing.length === 0, step ? `missing: ${missing.join(", ") || "none"}` : "no archive step found");
     const fake = readFileSync(new URL("../fake-supabase.mjs", import.meta.url), "utf8");
     const copy = /const answeredRow = \(r\) => ([^;]*);/.exec(fake)?.[1] || "";
@@ -1061,6 +1061,30 @@ console.log("\n  Replace works by class, never deletes, and leaves lesson and tu
         const want = [...SIGNS.map((_, i) => `${9001 + i}:in study`), "9007:replaced", "9008:removed"].join(", ");
         ck("on a local Postgres, the real save takes out for a Replace only the card never answered, whichever sign of an answer a card has; a card the student removes goes out answered or not",
            setup.ok && saved.out === "2" && rows.out === want, `${setup.err || saved.err || ""} archived ${saved.out}: ${rows.out}`);
+        // The live deck keeps class dates as text[]: written for jsonb, this
+        // function failed on every call from 2026-10-07 to 2026-11-07, and the
+        // owner's linked cahier saved nothing (migration_025).
+        const RUN2 = "22222222-2222-2222-2222-222222222222";
+        const LONG = Array.from({ length: 700 }, () => Math.random().toString(36).slice(2, 10)).join("");
+        const dated = pg.sql(`insert into public.user_cards (id, user_id, front, back, source, dates) values (9101, '${U}', 'hier', 'yesterday', 'cahier-upload', '{2025-10-02}');
+          update public.notes_read set run_id = '${RUN2}' where user_id = '${U}';`);
+        const notes = pg.sql(`select public.save_notes_reading('${U}', '${RUN2}',
+          '[{"front":"demain","back":"tomorrow","category":"V","dates":["2025-10-09"],"source":"sync"},
+            {"front":"hier","back":"yesterday","category":"V","dates":["2025-10-16"],"source":"sync"}]'::jsonb,
+          '[{"id":9007,"dates":["2025-10-09","2025-10-02"]}]'::jsonb,
+          p_pairs => '[{"card_a":9101,"a_front":"hier","a_back":"yesterday","b_front":"hier","b_back":"yesterday","verdict":"same","version":"v","model":"m","source":"sync"}]'::jsonb,
+          p_classes => '{"2025-10-09":["abc"]}'::jsonb)::text`);
+        const after = pg.sql(`select string_agg(front || ' ' || dates::text, ' | ' order by front) from public.user_cards where front in ('demain', 'hier', 'jamais vu')`);
+        const pairs = pg.sql(`select count(*) from public.card_pairs where user_id = '${U}'`);
+        ck("on a local Postgres with the live date column, the real save adds a card, joins one, adds dates, keeps the verdict and records the lines",
+           dated.ok && /"inserted": 1/.test(notes.out) && /"joined": 1/.test(notes.out) && /"dated": 1/.test(notes.out) &&
+           after.out === "demain {2025-10-09} | hier {2025-10-02,2025-10-16} | jamais vu {2025-10-02,2025-10-09}" && pairs.out === "1",
+           [dated.err, notes.out || notes.err, after.out, pairs.out].join(" / "));
+        const again = pg.sql(`update public.notes_read set run_id = '${RUN2}' where user_id = '${U}'; select public.save_notes_reading('${U}', '${RUN2}',
+          '[{"front":"${LONG}","back":"too long","dates":["2025-10-16"],"source":"sync"},
+            {"front":"la pluie","back":"the rain","dates":["2025-10-16"],"source":"sync"}]'::jsonb) ->> 'inserted'`);
+        const rain = pg.sql(`select dates::text from public.user_cards where front = 'la pluie'`);
+        ck("  and a card the database refuses is left out, the others saved", again.out === "1" && rain.out === "{2025-10-16}", [again.out || again.err, rain.out].join(" / "));
       } finally {
         pg.stop();
       }
