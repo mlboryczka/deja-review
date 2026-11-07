@@ -57,8 +57,9 @@
 //         instruction, english, example?,
 //         items: [{ number, prompt, answer,       // numbered as on the page; the key's answer
 //                   answered, typed?, verdict?,   // "right" | "almost" | "wrong"
-//                   correct? }],                  // the "Correct:" line under a miss
-//         focus?, last?,                          // the item with the cursor, the one answered last
+//                   correct?, why? }],            // the "Correct:" line under a miss, the reason "Why?" shows
+//         focus?, asked?, last?,                  // the item with the cursor, the one "Ask the tutor" was
+//                                                 // pressed under, the one answered last
 //         text?,                                  // the lesson's text, when the exercise is about it
 //       },
 //       relatedCards?: [{ front, back }],         // deck matches for the question
@@ -322,7 +323,7 @@ They study by recalling the answer before it is shown, and the app records each 
 Instead of a card, the [Context] block may name the exercise on their screen, from their lesson's exercise sheet: its instruction, and its items, numbered as on their screen, each with its expected answer and whether they have answered it. An answer is marked right, almost right (right but for one small slip: an accent that changes a verb's tense or person, or one wrong letter in an otherwise right word) or wrong. In a fill-in-the-blank item, what they typed in each blank is in square brackets.
 - If an item has NOT been answered yet, never state its answer, or a form of it, or a word that gives it away — not even if they ask outright, because finding it is the exercise. Help them work it out instead: the rule the exercise practises, the person and tense needed, a verb like it, the first letter. If they want the answer itself, tell them that checking an answer shows the correct one.
 - Once an item has been answered, you may explain it in full: compare what they typed with the correct answer and say what the difference is.
-- "Number 3" means item 3 of this exercise. "This one" with no number means the item the cursor is on, unless they are plainly asking about the answer just marked, which is the item answered last.
+- "Number 3" means item 3 of this exercise. If you are told they pressed "Ask the tutor" under an item, "this one" with no number means that item. Otherwise it means the item the cursor is on, unless they are plainly asking about the answer just marked, which is the item answered last.
 
 ## Proposing flashcards
 
@@ -771,11 +772,13 @@ function exerciseLines(ex) {
     const typed = it.answered ? clipTo(it.typed, EXERCISE_TEXT_MAX) : "";
     const verdict = it.answered ? EXERCISE_VERDICT_TEXT[it.verdict] : "";
     const correct = clipTo(it.correct, EXERCISE_TEXT_MAX);
+    const why = it.verdict !== "right" ? clipTo(it.why, EXERCISE_TEXT_MAX) : "";
     if (!it.answered) {
       items.push(`${n}. "${prompt}" — NOT answered yet, so do not give its answer away. Its expected answer: "${answer}".`);
     } else if (typed && verdict) {
       const fix = it.verdict !== "right" && correct ? ` The correct answer: "${correct}".` : "";
-      items.push(`${n}. "${prompt}" — they answered "${typed}", which ${verdict}.${fix}`);
+      const reason = why ? ` The reason the app shows when they press Why?: "${why}".` : "";
+      items.push(`${n}. "${prompt}" — they answered "${typed}", which ${verdict}.${fix}${reason}`);
     } else {
       items.push(`${n}. "${prompt}" — answered. Its expected answer: "${answer}".`);
     }
@@ -796,6 +799,8 @@ function exerciseLines(ex) {
   const focus = questionNo({ number: ex.focus });
   const last = questionNo({ number: ex.last });
   if (focus) lines.push(`The cursor is on item ${focus}.`);
+  const asked = questionNo({ number: ex.asked });
+  if (asked) lines.push(`They pressed "Ask the tutor" under item ${asked}, so that is the item they are asking about unless they say otherwise.`);
   if (last) lines.push(`The item they answered last is ${last}.`);
   const text = clipTo(ex.text, EXERCISE_LESSON_TEXT_MAX);
   if (text) lines.push(`The lesson's text, which the exercise is about:\n${text}`);

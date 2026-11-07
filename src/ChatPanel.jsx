@@ -152,14 +152,16 @@ function podcastSuggestions(podcast) {
 function exerciseSuggestions(exercise) {
   const items = Array.isArray(exercise?.items) ? exercise.items : [];
   const missed = (it) => it?.answered && (it.verdict === "wrong" || it.verdict === "almost");
-  const out = [];
-  const last = items.find((it) => it.number === exercise.last);
-  if (missed(last)) out.push(`What did I get wrong in number ${last.number}?`);
+  const wrongIn = (it) => (missed(it) ? [`What did I get wrong in number ${it.number}?`] : []);
+  const itemAt = (n) => items.find((it) => it.number === n);
   const focus = exerciseFocus(exercise);
-  if (focus && !focus.answered) out.push(`Give me a hint for number ${focus.number} without the answer`);
-  else if (missed(focus) && focus !== last) out.push(`What did I get wrong in number ${focus.number}?`);
-  out.push("Explain the rule this exercise practises");
-  return out;
+  // Opened with "Ask the tutor" under a missed answer, that answer comes first.
+  return [...new Set([
+    ...wrongIn(itemAt(exercise.asked)),
+    ...wrongIn(itemAt(exercise.last)),
+    ...(focus && !focus.answered ? [`Give me a hint for number ${focus.number} without the answer`] : wrongIn(focus)),
+    "Explain the rule this exercise practises",
+  ])];
 }
 
 // Bold and italics, rendered. The prompt asks for plain prose, but a model

@@ -322,10 +322,12 @@ export function podcastContext(podcast) {
 // with the key's answer and whether it has been answered. The exercises page
 // hands it up as
 //   { key, lesson, number, title, instruction, english, example,
-//     items: [{ number, prompt, answer, answered, typed, verdict, correct }],
-//     focus, last, text }
-// (focus: the item with the cursor; last: the one answered last; text: the
-// lesson's text, when the exercise is about it) and FlashcardApp passes it to
+//     items: [{ number, prompt, answer, answered, typed, verdict, correct, why }],
+//     focus, asked, last, text }
+// (why: the reason "Why?" shows under a miss; focus: the item with the cursor;
+// asked: the one whose "Ask the tutor" was pressed; last: the one answered
+// last; text: the lesson's text, when the exercise is about it) and
+// FlashcardApp passes it to
 // the tutor as `exercise`. As with a card, an item's answer is not given away
 // before it has been answered (api/chat.js, "An exercise"). The server clips
 // to the same limits, which leave room: the longest exercise has 41 items,
@@ -385,6 +387,7 @@ export function exerciseContext(exercise) {
     const typed = answered ? clip(it.typed) : "";
     const verdict = answered && EXERCISE_VERDICTS.has(it.verdict) ? it.verdict : null;
     const correct = verdict && verdict !== "right" ? clip(it.correct) : "";
+    const why = verdict && verdict !== "right" ? clip(it.why) : "";
     items.push({
       number,
       prompt,
@@ -393,11 +396,13 @@ export function exerciseContext(exercise) {
       ...(typed ? { typed } : null),
       ...(verdict ? { verdict } : null),
       ...(correct ? { correct } : null),
+      ...(why ? { why } : null),
     });
   }
   if (!items.length) return null;
   const has = (n) => n > 0 && items.some((it) => it.number === n);
   const focus = questionNumber({ number: exercise.focus });
+  const asked = questionNumber({ number: exercise.asked });
   const last = questionNumber({ number: exercise.last });
   const example = clip(exercise.example);
   const text = textOf(exercise.text).slice(0, EXERCISE_LESSON_TEXT_MAX);
@@ -410,6 +415,7 @@ export function exerciseContext(exercise) {
     ...(example ? { example } : null),
     items,
     ...(has(focus) ? { focus } : null),
+    ...(has(asked) ? { asked } : null),
     ...(has(last) ? { last } : null),
     ...(text ? { text } : null),
   };

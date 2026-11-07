@@ -4109,6 +4109,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
               setView={setExView}
               onNeedKey={onPodcastNeedKey}
               onTutorContext={onTutorExercise}
+              openChat={openChat}
               notes={exNotesLesson?.notes?.length
                 ? { open: showLessonPanel, onToggle: toggleLessonPanel, toggleRef: lessonToggleRef }
                 : null}

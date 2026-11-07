@@ -425,6 +425,32 @@ console.log("\n  The Spanish tutor");
      /1\. "Yo ___ mucho con mis amigos\. \(caminar\)" — they answered "Yo \[camina\] mucho con mis amigos\. \(caminar\)", which was marked wrong\. The correct answer: "Yo camino/.test(sent), sent);
   ck("and that item 2 is not answered and not to be given away",
      /2\. "Mis papás ___ cerca de Nueva York\. \(vivir\)" — NOT answered yet, so do not give its answer away\./.test(sent), sent);
+  // "Ask the tutor" under a missed answer (owner, 2026-11-07): the tutor is
+  // told which item it was pressed under, and the reason "Why?" shows.
+  const asking = {
+    ...exercise,
+    focus: 1,
+    asked: 1,
+    last: 2,
+    items: [
+      { ...exercise.items[0], why: "With yo, caminar ends in -o." },
+      { ...exercise.items[1], answered: true, typed: "Mis papás [viven] cerca de Nueva York. (vivir)", verdict: "right", why: "Should not go." },
+    ],
+  };
+  const askedCtx = buildTutorContext({ question: "why?", cards: ES, exercise: asking, course: "es" });
+  ck("the item Ask the tutor was pressed under goes with the exercise",
+     askedCtx?.exercise?.asked === 1 && askedCtx.exercise.focus === 1, JSON.stringify({ asked: askedCtx?.exercise?.asked, focus: askedCtx?.exercise?.focus }));
+  ck("an item that isn't in the exercise isn't named as asked",
+     !("asked" in buildTutorContext({ question: "why?", cards: ES, exercise: { ...asking, asked: 99 }, course: "es" }).exercise));
+  ck("the reason goes with a miss, and not with a right answer",
+     askedCtx.exercise.items[0].why === "With yo, caminar ends in -o." && !("why" in askedCtx.exercise.items[1]), JSON.stringify(askedCtx.exercise.items));
+  const askedSent = text(buildRequestMessages({ course: "es", messages: [{ role: "user", content: "why?" }], context: askedCtx }).at(-1));
+  ck("the tutor is told which item they asked from, even when another was answered later",
+     /They pressed "Ask the tutor" under item 1, so that is the item they are asking about/.test(askedSent) && /The item they answered last is 2\./.test(askedSent), askedSent);
+  ck("and the reason the app shows for it",
+     /The reason the app shows when they press Why\?: "With yo, caminar ends in -o\."/.test(askedSent) && !/Should not go/.test(askedSent), askedSent);
+  ck("and its rule says what \"this one\" then means",
+     /If you are told they pressed "Ask the tutor" under an item, "this one" with no number means that item\./.test(es.system));
   ck("and where the cursor is, and which item was answered last",
      /The cursor is on item 2\./.test(sent) && /The item they answered last is 1\./.test(sent), sent);
 }

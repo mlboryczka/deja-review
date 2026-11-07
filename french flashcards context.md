@@ -2683,8 +2683,13 @@ page you were on (kept in this browser, `es-exercises-place:<user id>`).
   1, 2: Mis papás ___ cerca de Nueva York. (vivir)"), and its first
   suggestions are "What did I get wrong in number 1?", "Give me a hint for
   number 2 without the answer" and "Explain the rule this exercise
-  practises". A marked item has no "Ask the tutor" of its own: Tutor in the
-  sidebar opens the panel on the exercise.
+  practises". A missed answer has "Ask the tutor" beside "Why?", as a missed
+  card does (owner, 2026-11-07, offered after the Why? work was done). It
+  opens the panel on that item: the tutor is told that is the one being asked
+  about, what they typed, the correct answer and the reason "Why?" shows, the
+  first suggestion is about it, and a conversation about another item is put
+  away for a fresh one. Tutor in the sidebar also opens the panel on the
+  exercise.
 - **Kept**: every answer, in `es_exercise_answers` (migration_022): the item,
   its prompt as shown, what was typed, the verdict, who marked it, Claude's
   note and correction. Written by the server; a student reads only their

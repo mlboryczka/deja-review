@@ -21,7 +21,9 @@
 // mark it and the page opens where you left it.
 //
 // The tutor (2026-10-26) is told the exercise being worked on, as Podcasts
-// tells it the episode: a lesson's page hands it up (onTutorContext).
+// tells it the episode: a lesson's page hands it up (onTutorContext). A missed
+// answer has "Ask the tutor" beside "Why?", as a missed card does (owner,
+// 2026-11-07), which opens the tutor on that answer (openChat).
 //
 // "Lesson notes" (2026-11-01) opens the lesson's notes beside the exercises,
 // the same panel Flashcards opens beside the cards. The shell owns it, as it
@@ -169,8 +171,11 @@ const lessonTextLines = (lines) =>
     .join("\n");
 const exerciseOfKey = (lesson, key) =>
   key ? lesson.exercises.find((ex) => String(key).startsWith(`${lesson.id}/${ex.n}/`)) || null : null;
+// Why a miss was a miss, as "Why?" shows it: Claude's sentence, or for a miss
+// the key marked, the key's.
+const missReason = (item, a) => (a.verdict === "right" ? "" : a.note || keyReason(item, a.typed));
 
-function tutorExercise(lesson, latest, again, focusKey) {
+function tutorExercise(lesson, latest, again, focusKey, askedKey) {
   const shownOf = (ex, i) => shownAnswer(latest, again, lesson.id, ex.n, itemKey(lesson.id, ex.n, i));
   const doneAt = (a) => (a && !a.pending ? at(a.answeredAt) || 1 : 0);
   let ex = exerciseOfKey(lesson, focusKey);
@@ -193,7 +198,7 @@ function tutorExercise(lesson, latest, again, focusKey) {
       prompt: plainLine(item.prompt),
       answer: plainLine(keyAnswer(item)),
       answered: !!t,
-      ...(t ? { typed: plainLine(a.typed), verdict: a.verdict, correct: a.verdict === "right" ? "" : plainLine(a.correct || keyAnswer(item)) } : null),
+      ...(t ? { typed: plainLine(a.typed), verdict: a.verdict, correct: a.verdict === "right" ? "" : plainLine(a.correct || keyAnswer(item)), why: plainLine(missReason(item, a)) } : null),
     };
   });
   const focus = exerciseOfKey(lesson, focusKey) === ex ? Number(String(focusKey).split("/").pop()) || 0 : 0;
@@ -211,13 +216,14 @@ function tutorExercise(lesson, latest, again, focusKey) {
     ...(ex.example ? { example: plainLine(ex.example) } : null),
     items,
     ...(focus ? { focus } : null),
+    ...(focus && askedKey === focusKey ? { asked: focus } : null),
     ...(last ? { last } : null),
     ...(text ? { text } : null),
   };
 }
 
 // ── The page ─────────────────────────────────────────────────────────────
-export default function ExercisesPage({ user, view, setView, onNeedKey, onTutorContext, notes = null }) {
+export default function ExercisesPage({ user, view, setView, onNeedKey, onTutorContext, openChat, notes = null }) {
   const store = useAnswers(user?.id);
   const [again, setAgain] = useState(() => readAgain(user?.id));
   const startAgain = (lessonId, n) => {
@@ -252,6 +258,7 @@ export default function ExercisesPage({ user, view, setView, onNeedKey, onTutorC
             onBack={() => setView({ lesson: null })}
             onNeedKey={onNeedKey}
             onTutorContext={onTutorContext}
+            openChat={openChat}
             notes={notes}
           />
         ) : (
@@ -282,22 +289,27 @@ export default function ExercisesPage({ user, view, setView, onNeedKey, onTutorC
 }
 
 // ── One lesson's exercises ───────────────────────────────────────────────
-function LessonExercises({ user, lesson, store, again, startAgain, onBack, onNeedKey, onTutorContext, notes }) {
+function LessonExercises({ user, lesson, store, again, startAgain, onBack, onNeedKey, onTutorContext, openChat, notes }) {
   const t = tally(lesson, store.latest, again);
   const listRef = useRef(null);
 
   // The item with the cursor, which the tutor is told about with its
   // exercise. Kept when the cursor goes to the tutor's own box.
   const [focusKey, setFocusKey] = useState(null);
+  // The item whose "Ask the tutor" was pressed, until the cursor goes to
+  // another: it is what "this one" then means to the tutor.
+  const [askedKey, setAskedKey] = useState(null);
   const onFocusItem = (e) => {
     const key = e.target?.closest?.("[data-ex-item]")?.dataset?.exItem;
-    if (key) setFocusKey(key);
+    if (!key) return;
+    setFocusKey(key);
+    setAskedKey((asked) => (asked === key ? asked : null));
   };
   const tutorFor = useCallback(
-    (key) => tutorExercise(lesson, store.latest, again, key),
+    (key, asked) => tutorExercise(lesson, store.latest, again, key, asked),
     [lesson, store.latest, again]
   );
-  const tutorCtx = useMemo(() => tutorFor(focusKey), [tutorFor, focusKey]);
+  const tutorCtx = useMemo(() => tutorFor(focusKey, askedKey), [tutorFor, focusKey, askedKey]);
   const tellRef = useRef(onTutorContext);
   tellRef.current = onTutorContext;
   const sentRef = useRef("");
@@ -311,6 +323,16 @@ function LessonExercises({ user, lesson, store, again, startAgain, onBack, onNee
   // Leaving the lesson leaves no exercise on screen. What was sent is
   // forgotten too, so the lesson opened again sends its exercise afresh.
   useEffect(() => () => { sentRef.current = ""; tellRef.current?.(null); }, []);
+  // "Ask the tutor" under a missed answer: the tutor is told about that item
+  // at once, and a thread about any other is put away (ChatPanel's `thread`),
+  // as on a missed card.
+  const askTutor = (key) => {
+    setFocusKey(key);
+    setAskedKey(key);
+    const ctx = tutorFor(key, key);
+    tellTutor(ctx);
+    if (ctx) openChat({ row_id: ctx.key });
+  };
 
   // After an answer is sent, the next item still to answer gets the cursor.
   const focusNext = useCallback((fromKey) => {
@@ -359,6 +381,7 @@ function LessonExercises({ user, lesson, store, again, startAgain, onBack, onNee
             onStartAgain={() => startAgain(lesson.id, ex.n)}
             focusNext={focusNext}
             onNeedKey={onNeedKey}
+            askTutor={openChat ? askTutor : null}
           />
         ))}
       </div>
@@ -378,7 +401,7 @@ function Rich({ text }) {
   });
 }
 
-function ExerciseBlock({ user, lesson, exercise, store, again, onStartAgain, focusNext, onNeedKey }) {
+function ExerciseBlock({ user, lesson, exercise, store, again, onStartAgain, focusNext, onNeedKey, askTutor }) {
   let answered = 0, right = 0;
   const keys = exercise.items.map((_, i) => itemKey(lesson.id, exercise.n, i));
   const shown = keys.map((k) => shownAnswer(store.latest, again, lesson.id, exercise.n, k));
@@ -408,6 +431,7 @@ function ExerciseBlock({ user, lesson, exercise, store, again, onStartAgain, foc
               store={store}
               focusNext={focusNext}
               onNeedKey={onNeedKey}
+              askTutor={askTutor}
             />
           </Fragment>
         ))}
@@ -433,7 +457,7 @@ const gapWidth = (list) => `${Math.max(9, Math.min(24, Math.max(...list.map((s) 
 
 let ticketSeq = 0;
 
-function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext, onNeedKey }) {
+function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext, onNeedKey, askTutor }) {
   const kind = kindOf(item);
   const draftKey = `${user?.id}|${key}`;
   const [typed, setTypedState] = useState(() => drafts.get(draftKey) ?? emptyTyped(item));
@@ -636,7 +660,7 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
             )}
           </>
         ) : (
-          <Marked item={item} answer={answer} />
+          <Marked item={item} answer={answer} onAsk={askTutor ? () => askTutor(key) : null} />
         )}
       </div>
     </li>
@@ -655,7 +679,7 @@ function TypedLine({ text }) {
   });
 }
 
-function Marked({ item, answer }) {
+function Marked({ item, answer, onAsk }) {
   const kind = kindOf(item);
   const [why, setWhy] = useState(false);
   if (answer.pending) {
@@ -681,7 +705,7 @@ function Marked({ item, answer }) {
   // first, under yours, then the verdict and why (owner, 2026-11-02:
   // "correct answer should be first and then almost/correct/wrong and why").
   const correct = v === "right" ? "" : answer.correct || keyAnswer(item);
-  const reason = v === "right" ? "" : answer.note || keyReason(item, answer.typed);
+  const reason = missReason(item, answer);
   return (
     <>
       {kind !== "gaps" && <div style={S.prompt}><Rich text={item.prompt} /></div>}
@@ -692,7 +716,10 @@ function Marked({ item, answer }) {
       <div style={S.fb}>
         <span style={{ ...S.verdict, ...VERDICT_STYLE[v] }} data-ex-verdict={v}>{VERDICT_LABEL[v]}</span>
         {reason && !why && (
-          <button type="button" style={S.link} onClick={() => setWhy(true)} data-ex-why>Why?</button>
+          <button type="button" style={{ ...S.link, marginRight: 12 }} onClick={() => setWhy(true)} data-ex-why>Why?</button>
+        )}
+        {onAsk && v !== "right" && (
+          <button type="button" style={S.link} onClick={onAsk} data-tutor-toggle data-ex-ask-tutor>Ask the tutor</button>
         )}
       </div>
       {why && reason && (
