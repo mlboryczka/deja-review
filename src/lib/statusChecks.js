@@ -558,7 +558,17 @@ function checkNewOrder(idx, ctx) {
     const at = ms(d.dealt_at);
     const tz = idx.tzOf(d);
     const today = dayNo(at, tz);
-    const { items, lessonMode } = candidateItems(idx, d, at);
+    const { items: allItems, lessonMode } = candidateItems(idx, d, at);
+    // Only the owner's test app records how often a new card is said (the
+    // `said` it writes on each, 2026-10-14). It asks a word one way a day, so
+    // in its sets a card with a way in the set, or answered today, has no
+    // other way to give (2026-11-07: Laura's "a note; a grade" waited rightly
+    // while "une note" was due, and was reported as passed over).
+    const oneWayADay = dealtNew.some((x) => "said" in x);
+    const hasWayInSet = new Set([...(d.items || []), ...(d.kept || [])].map((x) => x.c));
+    const answeredOtherWayToday = (it) => (idx.byItem.get(keyOf(it.id, otherDirection(it.dir))) || [])
+      .some((r) => r.counted && ms(r.answered_at) < at && dayNo(ms(r.answered_at), tz) === today);
+    const items = oneWayADay ? allItems.filter((it) => !hasWayInSet.has(it.id) && !answeredOtherWayToday(it)) : allItems;
     const cutoff = dayIso(today - RECENT_DAYS);
     const opts = { lessonMode, cutoff, lessonRank: ctx.lessonRank };
     // The class dates the app knew of when it dealt the set. A date after

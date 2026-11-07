@@ -325,6 +325,77 @@ console.log("\n  following the app's rules");
   ck("  and says which card it passed over", /ahead of/.test(r.details[0] || ""), r.details[0]);
 }
 {
+  // A set made on the owner's test app (2026-11-07, Laura's "a note; a grade"):
+  // it asks a word one way a day, so a word due one way, or answered one way
+  // today, has no other way to give. A set from this app has no such rule.
+  // Only this set is judged; the first set on record only starts the checks.
+  const dayOf = (t) => {
+    const d = new Date(t - 4 * 3600000);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+  // A set, and a word in it as a review whose other way is still new, which
+  // gets a class of the set's own day so that other way comes before any new card.
+  const setUp = () => {
+    const rec = clone(base);
+    for (const set of rec.deals.slice(1).filter((d) => d.scope === "all|all" && d.items.some((x) => x.b === "new"))) {
+      const at = Date.parse(set.dealt_at);
+      if (dayOf(at) === dayOf(Date.parse(rec.deals[0].dealt_at))) continue;
+      const item = set.items.find((x) => {
+        const card = rec.cards.find((c) => c.id === x.c);
+        const other = x.d === "en" ? "fr" : "en";
+        return x.b === "review" && card && ["V", "E"].includes(card.category)
+          && !set.items.some((y) => y.c === x.c && y.d === other)
+          && !rec.answers.some((r) => r.card_id === x.c && r.direction === other && Date.parse(r.answered_at) < at);
+      });
+      if (!item) continue;
+      const card = rec.cards.find((c) => c.id === item.c);
+      const day = dayOf(at);
+      card.dates = [...card.dates, day];
+      rec.cards.push({ ...clone(card), id: -1, front: "une nouvelle", source: "archived:cahier-upload", dates: [day], created_at: new Date(at - 60000).toISOString() });
+      rec.deals = [rec.deals[0], set];
+      return { rec, set, item, at };
+    }
+    return null;
+  };
+  const onTestApp = (set) => { for (const x of set.items) if (x.b === "new") x.said = null; };
+  const order = (rec) => result(check(rec), "new-order");
+
+  const here = setUp();
+  ck("(a set holds a word one way as a review, its other way new)", !!here);
+  if (here) {
+    const there = setUp();
+    onTestApp(there.set);
+    const b = order(there.rec);
+    ck("from the test app, that way waits and the set passes", b.status === "pass", `${b.status}: ${b.details[0] || b.summary}`);
+
+    // The same word answered that way earlier today, not in the set.
+    const answeredToday = (mark) => {
+      const s = setUp();
+      s.set.items = s.set.items.filter((x) => x !== s.item);
+      s.rec.answers.push({ ...s.rec.answers.find((r) => r.card_id === s.item.c && r.direction === s.item.d), id: "today-1", counted: true, state_before: State.Review, answered_at: new Date(s.at - 1000).toISOString() });
+      if (mark) onTestApp(s.set);
+      return order(s.rec);
+    };
+    // Until the one-way rule reaches this app too: then every set has it.
+    const thisAppToo = base.deals.some((d) => d.items.some((x) => x.b === "new" && "said" in x));
+    if (!thisAppToo) {
+      const a = order(here.rec);
+      ck("from this app, passing over that word's other way fails", a.status === "fail", `${a.status}: ${a.summary}`);
+      const c = answeredToday(false);
+      ck("from this app, a word answered one way today still has its other way to give", c.status === "fail", `${c.status}: ${c.summary}`);
+    }
+    const e = answeredToday(true);
+    ck("from the test app, it waits for tomorrow", e.status === "pass", `${e.status}: ${e.details[0] || e.summary}`);
+
+    // Anything else waiting still comes first on a test app set.
+    const f = setUp();
+    onTestApp(f.set);
+    f.set.items = f.set.items.filter((x) => x.c !== f.item.c);
+    const g = order(f.rec);
+    ck("a test app set passing over a word with no way in it still fails", g.status === "fail", `${g.status}: ${g.summary}`);
+  }
+}
+{
   const rec = clone(base);
   const set = rec.deals.find((d, i) => i > 2 && d.items.some((x) => x.b === "new"));
   const n = set.items.find((x) => x.b === "new");
