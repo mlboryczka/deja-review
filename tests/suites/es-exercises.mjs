@@ -21,6 +21,10 @@
 //     kept; a Wrong kept from before shows as Almost when the key says so;
 //   - Claude's marking instructions never show a double quotation mark, which
 //     cut its replies short, and a whole reply that ran out of room is used;
+//   - "My answer should be accepted" (owner, 2026-11-07, as on the cards):
+//     Claude looks again and accepts, rejects with a reason, or isn't sure;
+//     Accept anyway asks nobody; every press is kept; an accepted answer shows
+//     as Right and the key takes it from then on, before Claude is asked;
 //   - a true-or-false pressed the wrong way is wrong without asking Claude;
 //     free writing always goes to Claude;
 //   - the server marks with the sheet's own item, not what the page sends,
@@ -53,10 +57,10 @@ import { checker } from "../check.mjs";
 import { EXERCISE_LESSONS, EXERCISES_BY_ID, LEFT_OUT, numbered } from "../../src/data/exercises/es/index.js";
 import { LESSON_TEXTS } from "../../src/data/exercises/es/texts.js";
 import { EXERCISE_GROUPS, EXERCISE_TITLES, exerciseGroupOf } from "../../src/data/exercises/es/titles.js";
-import { plain, bare, kindOf, markByKey, typedText, keyAnswer, itemKey, findItem, isAnswered, hintText, hintLevels, keyReason, markedNow, countsAsRight } from "../../src/lib/exerciseMarking.js";
+import { plain, bare, kindOf, markByKey, typedText, keyAnswer, itemKey, findItem, isAnswered, hintText, hintLevels, keyReason, markedNow, countsAsRight, acceptedNow, isAccepted } from "../../src/lib/exerciseMarking.js";
 import { accentCounts } from "../../src/lib/spanishAccents.js";
-import { handleExerciseRequest, markPrompt, readMark, markFromReply, MARK_SYSTEM, supabaseExerciseStore } from "../../api/_lib/exercises.js";
-import { markAnswer } from "../../src/lib/exerciseApi.js";
+import { handleExerciseRequest, markPrompt, readMark, markFromReply, MARK_SYSTEM, REVIEW_SYSTEM, supabaseExerciseStore } from "../../api/_lib/exercises.js";
+import { markAnswer, disputeAnswer } from "../../src/lib/exerciseApi.js";
 import { UnreadableReply } from "../../api/_lib/podcastQuestions.js";
 
 const ck = checker();
@@ -382,6 +386,67 @@ const right = first.item.gaps.map((g) => g[0]);
   const sent3 = body?.exercise?.hints;
   await markAnswer({ key: key1, typed: right }, { supabase, user: { id: "u-1" }, fetchImpl });
   ck("the page sends how much of the hint showed, none when it wasn't pressed", sent3 === 3 && body?.exercise?.hints === 0);
+}
+{
+  // "My answer should be accepted"
+  const disputes = [];
+  const dstore = (missing = false) => ({
+    ...store(),
+    async saveDispute(row) {
+      if (missing) return { error: { code: "PGRST205", message: "Could not find the table" } };
+      disputes.push(row);
+      return { error: null };
+    },
+    async accepted(userId, key) {
+      return { lines: disputes.filter((d) => d.user_id === userId && d.item_key === key && d.accepted).map((d) => d.typed), error: null };
+    },
+  });
+  // The owner's own case: a sentence of Lesson 12's dialogue.
+  const { DIALOGUES_BY_ID } = await import("../../src/data/exercises/es/dialogues.js");
+  const text = DIALOGUES_BY_ID["dialogo-leccion12-1"];
+  const k = itemKey(text.id, 1, text.items.findIndex((it) => /take a shower, brush my teeth/.test(it.prompt)));
+  const line = "despues me baño, lavo los dientes, me maquillo y me visto";
+  const reviewed = [];
+  const review = (reply) => async ({ apiKey, prompt }) => { reviewed.push({ apiKey, prompt }); return reply; };
+  const st = dstore();
+  const no = await handleExerciseRequest({ body: { action: "dispute", key: k, typed: line, verdict: "wrong" }, user, store: st, apiKey: () => ({ key: "sk-ant-test" }),
+    review: review({ verdict: "reject", reasoning: "Brushing your own teeth needs 'me lavo'." }) });
+  ck("Claude looks again, with the item, the answer and how it was marked, and its reason comes back",
+     no.status === 200 && no.json.verdict === "reject" && no.json.reasoning === "Brushing your own teeth needs 'me lavo'." && no.json.saved === true &&
+     reviewed.length === 1 && reviewed[0].prompt.includes(line) && reviewed[0].prompt.includes("How the app marked it: Wrong"));
+  ck("a rejected press is kept, and accepts nothing", disputes.length === 1 && disputes[0].review === "reject" && disputes[0].accepted === false && disputes[0].marked === "wrong" && disputes[0].item_key === k && !!disputes[0].prompt_version);
+  reviewed.length = 0;
+  const anyway = await handleExerciseRequest({ body: { action: "dispute", key: k, typed: line, verdict: "wrong", force: true }, user, store: st, apiKey: null, review: review(null) });
+  ck("Accept anyway asks nobody, needs no key, and is kept as forced",
+     anyway.status === 200 && anyway.json.verdict === "accept" && anyway.json.forced === true && reviewed.length === 0 &&
+     disputes.length === 2 && disputes[1].accepted === true && disputes[1].forced === true && disputes[1].review === null && disputes[1].model === null);
+  asked.length = 0;
+  const again = await handleExerciseRequest({ body: { action: "answer", key: k, typed: "Después me baño, lavo los dientes, me maquillo y me visto." }, user, store: st, apiKey: null, ask: ask(null) });
+  ck("an accepted answer is right from then on, by the key, with no call and no key", again.status === 200 && again.json.answer.verdict === "right" && again.json.answer.markedBy === "key" && asked.length === 0);
+  const other = await handleExerciseRequest({ body: { action: "answer", key: k, typed: "despues me baño" }, user: { id: "u-2" }, store: st, apiKey: null, ask: ask(null) });
+  ck("only for the student who had it accepted", other.status === 402);
+  const yes = await handleExerciseRequest({ body: { action: "dispute", key: k, typed: "otra cosa", verdict: "almost" }, user, store: st, apiKey: () => ({ key: "k" }), review: review({ verdict: "accept", reasoning: "That is fine too." }) });
+  ck("Claude can accept it itself", yes.json.verdict === "accept" && disputes.at(-1).accepted === true && disputes.at(-1).review === "accept" && !disputes.at(-1).forced);
+  const odd = await handleExerciseRequest({ body: { action: "dispute", key: k, typed: line }, user, store: st, apiKey: () => ({ key: "k" }), review: review({ verdict: "maybe" }) });
+  ck("a reply that can't be read is 'not sure', with Accept anyway to fall back on", odd.json.verdict === "uncertain" && /Accept anyway/.test(odd.json.reasoning));
+  const nokey = await handleExerciseRequest({ body: { action: "dispute", key: k, typed: line }, user, store: st, apiKey: () => ({ error: "Connect", code: "byok_required", status: 402 }), review: review(null) });
+  ck("with no key to pay for Claude, the page is told to connect one", nokey.status === 402 && nokey.json.code === "byok_required");
+  const before = await handleExerciseRequest({ body: { action: "dispute", key: k, typed: line, force: true }, user, store: dstore(true), apiKey: null });
+  ck("before migration_027 Accept anyway still accepts, and says it wasn't kept", before.json.verdict === "accept" && before.json.saved === false && before.json.missing === true);
+  const empty = await handleExerciseRequest({ body: { action: "dispute", key: k, typed: "  " }, user, store: st, apiKey: null });
+  ck("an empty answer or an item that isn't there is refused", empty.status === 400 && (await handleExerciseRequest({ body: { action: "dispute", key: "leccion99/1/1", typed: "x" }, user, store: st, apiKey: null })).status === 400);
+  ck("Claude's second look never shows a double quotation mark", !REVIEW_SYSTEM.includes('"'));
+  const acc = { [k]: new Set(["despues me baño lavo los dientes me maquillo y me visto"]) };
+  ck("on the page, an accepted answer shows as Right; others, and one being marked, don't change",
+     acceptedNow({ key: k, typed: line, verdict: "wrong" }, acc).verdict === "right" && acceptedNow({ key: k, typed: line, verdict: "wrong" }, acc).accepted === true &&
+     acceptedNow({ key: k, typed: "otra", verdict: "wrong" }, acc).verdict === "wrong" && acceptedNow({ key: k, typed: line, pending: true }, acc).pending === true &&
+     isAccepted(acc, k, "Después me baño, lavo los dientes, me maquillo y me visto.") && !isAccepted(acc, k, "otra") && !isAccepted(null, k, line));
+  let body = null;
+  const fetchImpl = async (_url, init) => { body = JSON.parse(init.body); return { ok: true, status: 200, text: async () => JSON.stringify({ verdict: "accept", forced: true, saved: true }) }; };
+  const supabase = { auth: { getSession: async () => ({ data: { session: { access_token: "t" } } }) } };
+  const r = await disputeAnswer({ key: k, typed: line, verdict: "wrong", force: true }, { supabase, user: { id: "u-1" }, fetchImpl });
+  ck("the page sends the item, the answer as kept, how it was marked, and Accept anyway",
+     r.verdict === "accept" && JSON.stringify(body) === JSON.stringify({ exercise: { action: "dispute", key: k, typed: line, verdict: "wrong", force: true } }));
 }
 {
   const s = store({ missing: true });

@@ -28,8 +28,9 @@ export class ExerciseError extends Error {
   }
 }
 
-// { answer, saved, missing? }, or throws ExerciseError with a plain sentence.
-export async function markAnswer({ key, typed, hints = 0 }, { supabase, user, fetchImpl } = {}) {
+// One request to the server's exercises: its reply when it says `ok`, or
+// throws ExerciseError with a plain sentence.
+async function send(exercise, ok, { supabase, user, fetchImpl } = {}) {
   const doFetch = fetchImpl || globalThis.fetch;
   let token = "";
   try {
@@ -43,7 +44,7 @@ export async function markAnswer({ key, typed, hints = 0 }, { supabase, user, fe
     res = await doFetch(EXERCISE_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...keyHeaders(user?.id) },
-      body: JSON.stringify({ exercise: { action: "answer", key, typed, hints } }),
+      body: JSON.stringify({ exercise }),
     });
   } catch {
     throw new ExerciseError("Couldn’t reach the server. Check your connection and try again.", { code: "network" });
@@ -51,12 +52,31 @@ export async function markAnswer({ key, typed, hints = 0 }, { supabase, user, fe
   const raw = await res.text().catch(() => "");
   let data = null;
   try { data = raw ? JSON.parse(raw) : null; } catch { data = null; }
-  if (res.ok && data?.answer) return data;
+  if (res.ok && data && ok(data)) return data;
   const fallback = res.status === 504 ? "The server took too long. Try again in a minute." : `The server answered ${res.status}. Try again.`;
   throw new ExerciseError((data && typeof data.error === "string" && data.error) || fallback, {
     status: res.status,
     code: (data && typeof data.code === "string" && data.code) || "",
   });
+}
+
+// { answer, saved, missing? }, or throws ExerciseError with a plain sentence.
+export const markAnswer = ({ key, typed, hints = 0 }, opts) =>
+  send({ action: "answer", key, typed, hints }, (d) => !!d.answer, opts);
+
+// "My answer should be accepted": { verdict: "accept"|"reject"|"uncertain",
+// reasoning, forced?, saved, missing? }. `typed` is the answer as kept,
+// `verdict` how it was marked; `force` is Accept anyway.
+export const disputeAnswer = ({ key, typed, verdict, force = false }, opts) =>
+  send({ action: "dispute", key, typed, verdict, force }, (d) => typeof d.verdict === "string", opts);
+
+// The answers the student has had accepted, as { [item key]: Set of lines as
+// kept } (es_exercise_disputes, migration_027). Before that is run, none.
+export async function loadAccepted({ supabase, userId }) {
+  const accepted = {};
+  const { data, error } = await supabase.from("es_exercise_disputes").select("item_key, typed").eq("user_id", userId).eq("accepted", true);
+  for (const r of error ? [] : data || []) (accepted[r.item_key] ||= new Set()).add(r.typed);
+  return accepted;
 }
 
 const PAGE = 1000;

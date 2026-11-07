@@ -310,6 +310,20 @@ export function markedNow(item, answer) {
   return now === "almost" || now === "right" ? { ...answer, verdict: now } : answer;
 }
 
+// An answer the student had accepted with "My answer should be accepted"
+// (es_exercise_disputes) shows as Right. `accepted` is { [item key]: Set of
+// lines as kept }, as exerciseApi's loadAccepted gives it. The row kept stays
+// as it was.
+export function acceptedNow(answer, accepted) {
+  if (!answer || answer.pending || answer.verdict === "right") return answer;
+  return isAccepted(accepted, answer.key, answer.typed) ? { ...answer, verdict: "right", accepted: true } : answer;
+}
+// Whether a line is one the student had accepted: the same words, compared as
+// the key's own answers are (accents aside, but for one that changes a verb's
+// tense).
+export const matchesAccepted = (lines, line) => !!lines?.length && against(line, lines, { slips: false })?.mark === "right";
+export const isAccepted = (accepted, key, line) => matchesAccepted([...(accepted?.[key] || [])], line);
+
 // A hint for an item still to answer (owner, 2026-10-26: "exercises should
 // have a hint option"). It is the key's first answer with only the first
 // `level` letters of each word showing and the rest as _, so the words and

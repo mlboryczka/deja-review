@@ -22,9 +22,11 @@
 // mark it and the page opens where you left it.
 //
 // The tutor (2026-10-26) is told the exercise being worked on, as Podcasts
-// tells it the episode: a lesson's page hands it up (onTutorContext). A missed
-// answer has "Ask the tutor" beside "Why?", as a missed card does (owner,
-// 2026-11-07), which opens the tutor on that answer (openChat).
+// tells it the episode: a lesson's page hands it up (onTutorContext). Under a
+// miss, "My answer should be accepted" replaced "Ask the tutor" (owner,
+// 2026-11-07: "the same ... button as we have for the flashcards"):
+// useAnswerDispute.js. An accepted answer shows as Right, counts as right, and
+// is right from then on (es_exercise_disputes, migration_027).
 //
 // "Lesson notes" (2026-11-01) opens the lesson's notes beside the exercises,
 // the same panel Flashcards opens beside the cards. The shell owns it, as it
@@ -40,8 +42,9 @@ import { EXERCISES_BY_ID } from "./data/exercises/es/index.js";
 import { EXERCISE_GROUPS } from "./data/exercises/es/titles.js";
 import { stageIds } from "./data/lessons/es/stages.js";
 import { LESSON_TEXTS } from "./data/exercises/es/texts.js";
-import { itemKey, kindOf, isAnswered, markByKey, typedText, keyAnswer, keyReason, hintText, hintLevels, markedNow, findItem, countsAsRight } from "./lib/exerciseMarking.js";
-import { markAnswer, loadAnswers } from "./lib/exerciseApi.js";
+import { itemKey, kindOf, isAnswered, markByKey, typedText, keyAnswer, keyReason, hintText, hintLevels, markedNow, findItem, countsAsRight, acceptedNow, isAccepted } from "./lib/exerciseMarking.js";
+import { markAnswer, loadAnswers, loadAccepted } from "./lib/exerciseApi.js";
+import { useAnswerDispute, acceptedLine } from "./useAnswerDispute";
 import { BYOK_REQUIRED, BAD_KEY } from "./lib/anthropicKey";
 import { startOfLocalDay } from "./lib/studyDay";
 
@@ -51,7 +54,7 @@ import { startOfLocalDay } from "./lib/studyDay";
 const stores = new Map();
 function storeFor(userId) {
   if (!stores.has(userId)) {
-    const s = { latest: {}, loading: true, missing: false, error: null, listeners: new Set(), version: 0, started: false };
+    const s = { latest: {}, accepted: {}, loading: true, missing: false, error: null, listeners: new Set(), version: 0, started: false };
     s.emit = () => { s.version++; s.listeners.forEach((l) => l()); };
     // An answer given on this page carries a ticket, newer ones higher: a
     // result that comes back after the item was answered again is dropped.
@@ -68,6 +71,13 @@ function storeFor(userId) {
       const kept = {};
       for (const [k, a] of Object.entries(s.latest)) if (!k.startsWith(prefix) || a.pending) kept[k] = a;
       s.latest = kept;
+      s.emit();
+    };
+    // An answer accepted with "My answer should be accepted": right now, and
+    // the key takes it from now on.
+    s.accept = (key, line) => {
+      s.accepted = { ...s.accepted, [key]: new Set([...(s.accepted[key] || []), line]) };
+      if (s.latest[key]) s.latest = { ...s.latest, [key]: acceptedNow(s.latest[key], s.accepted) };
       s.emit();
     };
     s.forget = (key, ticket) => {
@@ -89,12 +99,14 @@ function useAnswers(userId) {
   useEffect(() => {
     if (s.started || !userId) return;
     s.started = true;
-    loadAnswers({ supabase, userId }).then(({ answers, missing, error }) => {
+    Promise.all([loadAnswers({ supabase, userId }), loadAccepted({ supabase, userId }).catch(() => ({}))]).then(([{ answers, missing, error }, accepted]) => {
       // Oldest first, so each item ends on its latest; one answered on this
       // page while they loaded is newer than any of them. One kept under an
-      // earlier rule shows the verdict the key gives it now (markedNow).
+      // earlier rule shows the verdict the key gives it now (markedNow), and
+      // one accepted since shows as Right (acceptedNow).
+      s.accepted = { ...accepted, ...s.accepted };
       const latest = {};
-      for (const a of answers) latest[a.key] = markedNow(findItem(EXERCISES_BY_ID, a.key)?.item, a);
+      for (const a of answers) latest[a.key] = acceptedNow(markedNow(findItem(EXERCISES_BY_ID, a.key)?.item, a), s.accepted);
       for (const [k, a] of Object.entries(s.latest)) latest[k] = a;
       s.latest = latest;
       s.missing = missing;
@@ -514,7 +526,8 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
     const ticket = ++ticketSeq;
     const now = new Date().toISOString();
     const line = typedText(item, typed);
-    const byKey = markByKey(item, typed);
+    // An answer accepted before is right, as the key's own are.
+    const byKey = isAccepted(store.accepted, key, line) ? { verdict: "right" } : markByKey(item, typed);
     // The key's verdict is shown at once; Claude's is waited for.
     store.record(byKey
       ? { key, typed: line, verdict: byKey.verdict, markedBy: "key", note: "", correct: byKey.correct || "", answeredAt: now, ticket, saving: true }
@@ -688,7 +701,7 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
             )}
           </>
         ) : (
-          <Marked item={item} answer={answer} onAsk={askTutor ? () => askTutor(key) : null} />
+          <Marked item={item} answer={answer} user={user} store={store} />
         )}
       </div>
     </li>
@@ -707,9 +720,10 @@ function TypedLine({ text }) {
   });
 }
 
-function Marked({ item, answer, onAsk }) {
+function Marked({ item, answer, user, store }) {
   const kind = kindOf(item);
   const [why, setWhy] = useState(false);
+  const dispute = useAnswerDispute({ user, answer, onAccepted: (line) => store.accept(answer.key, line) });
   if (answer.pending) {
     return (
       <>
@@ -746,13 +760,24 @@ function Marked({ item, answer, onAsk }) {
         {reason && !why && (
           <button type="button" style={{ ...S.link, marginRight: 12 }} onClick={() => setWhy(true)} data-ex-why>Why?</button>
         )}
-        {onAsk && v !== "right" && (
-          <button type="button" style={S.link} onClick={onAsk} data-tutor-toggle data-ex-ask-tutor>Ask the tutor</button>
+        {v !== "right" && (!dispute.state || dispute.state.step === "error") && (
+          <button type="button" style={S.link} onClick={() => dispute.send()} data-ex-dispute>My answer should be accepted</button>
         )}
+        {dispute.state?.step === "reviewing" && <span style={S.reviewing}>Reviewing your answer…</span>}
       </div>
       {why && reason && (
         <div style={S.line} data-ex-reason><b>Why:</b> {reason}</div>
       )}
+      {dispute.state?.step === "declined" && (
+        <div style={S.line} data-ex-dispute-reason>
+          {dispute.state.reasoning}{" "}
+          <button type="button" style={S.link} onClick={() => dispute.send(true)} data-ex-accept-anyway>Accept anyway</button>
+        </div>
+      )}
+      {(dispute.state?.step === "accepted" || answer.accepted) && (
+        <div style={S.unsaved} data-ex-accepted>{acceptedLine(dispute.state)}</div>
+      )}
+      {dispute.state?.step === "error" && <div style={S.inlineError} role="alert">{dispute.state.message}</div>}
       {answer.unsaved && <div style={S.unsaved}>This answer was marked but not saved, so it won’t be here next time.</div>}
     </>
   );
@@ -842,6 +867,7 @@ const S = {
   verdict: { display: "inline-block", padding: "2px 10px", marginRight: 8, borderRadius: T.radius.full, fontSize: 11.5, fontWeight: 800 },
   line: { marginTop: 6, fontSize: 13.5, lineHeight: 1.55, color: T.color.primary },
   unsaved: { marginTop: 6, fontSize: 12, color: T.color.onSurfaceVariant },
+  reviewing: { fontSize: 12, color: T.color.onSurfaceVariant, fontStyle: "italic" },
   link: LINK,
   again: { marginTop: 12, padding: "7px 14px", borderWidth: 1, borderStyle: "solid", borderColor: "rgba(3,22,50,0.15)", borderRadius: T.radius.md, background: "transparent", color: T.color.primary, fontFamily: T.font.sans, fontWeight: 700, fontSize: 12, cursor: "pointer" },
 };

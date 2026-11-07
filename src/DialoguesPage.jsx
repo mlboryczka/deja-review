@@ -30,8 +30,9 @@ import { T } from "./theme";
 import { DIALOGUES, DIALOGUES_BY_ID, DIALOGUE_OF } from "./data/exercises/es/dialogues.js";
 import { DIALOGUE_GROUPS } from "./data/exercises/es/dialogueTitles.js";
 import { stageIds } from "./data/lessons/es/stages.js";
-import { itemKey, parseItemKey, isAnswered, markByKey, typedText, keyReason, hintText, hintLevels, plain, markedNow, findItem, countsAsRight } from "./lib/exerciseMarking.js";
-import { markAnswer, loadAnswers } from "./lib/exerciseApi.js";
+import { itemKey, parseItemKey, isAnswered, markByKey, typedText, keyReason, hintText, hintLevels, plain, markedNow, findItem, countsAsRight, acceptedNow, isAccepted } from "./lib/exerciseMarking.js";
+import { markAnswer, loadAnswers, loadAccepted } from "./lib/exerciseApi.js";
+import { useAnswerDispute, acceptedLine } from "./useAnswerDispute";
 import { roundsOf, nextSentence, dialogueStatus, statusLine } from "./lib/dialogueRounds.js";
 import { BYOK_REQUIRED, BAD_KEY } from "./lib/anthropicKey";
 import { localISODate } from "./lib/studyDay";
@@ -43,7 +44,7 @@ import { localISODate } from "./lib/studyDay";
 const stores = new Map();
 function storeFor(userId) {
   if (!stores.has(userId)) {
-    const s = { rows: {}, problems: {}, loading: true, missing: false, error: null, listeners: new Set(), version: 0, started: false };
+    const s = { rows: {}, accepted: {}, problems: {}, loading: true, missing: false, error: null, listeners: new Set(), version: 0, started: false };
     s.emit = () => { s.version++; s.listeners.forEach((l) => l()); };
     // An answer given on this page carries a ticket: its mark replaces it.
     s.record = (row) => {
@@ -52,6 +53,14 @@ function storeFor(userId) {
       const list = s.rows[id] || [];
       const at = row.ticket ? list.findIndex((r) => r.ticket === row.ticket) : -1;
       s.rows = { ...s.rows, [id]: at >= 0 ? list.map((r, i) => (i === at ? row : r)) : [...list, row] };
+      s.emit();
+    };
+    // An answer accepted with "My answer should be accepted": right now, so it
+    // isn't asked again, and the key takes it from now on (as on Exercises).
+    s.accept = (key, line) => {
+      s.accepted = { ...s.accepted, [key]: new Set([...(s.accepted[key] || []), line]) };
+      const id = parseItemKey(key)?.lesson;
+      if (id) s.rows = { ...s.rows, [id]: (s.rows[id] || []).map((r) => (r.key === key ? acceptedNow(r, s.accepted) : r)) };
       s.emit();
     };
     s.forget = (key, ticket) => {
@@ -76,14 +85,15 @@ function useRows(userId) {
   useEffect(() => {
     if (s.started || !userId) return;
     s.started = true;
-    loadAnswers({ supabase, userId, dialogues: true }).then(({ answers, missing, error }) => {
+    Promise.all([loadAnswers({ supabase, userId, dialogues: true }), loadAccepted({ supabase, userId }).catch(() => ({}))]).then(([{ answers, missing, error }, accepted]) => {
       // Oldest first; one answered on this page while they loaded is newer
       // than any of them. One kept under an earlier rule shows the verdict the
-      // key gives it now (markedNow).
+      // key gives it now (markedNow), and one accepted since as Right.
+      s.accepted = { ...accepted, ...s.accepted };
       const rows = {};
       for (const a of answers) {
         const k = parseItemKey(a.key);
-        if (k) (rows[k.lesson] ||= []).push({ ...markedNow(findItem(DIALOGUES_BY_ID, a.key)?.item, a), index: k.index });
+        if (k) (rows[k.lesson] ||= []).push({ ...acceptedNow(markedNow(findItem(DIALOGUES_BY_ID, a.key)?.item, a), s.accepted), index: k.index });
       }
       for (const [id, list] of Object.entries(s.rows)) rows[id] = [...(rows[id] || []), ...list];
       s.rows = rows;
@@ -443,7 +453,7 @@ function SentenceRow({ item, number, itemKeyValue: key, kind, who, answer, user,
         {who && <div style={S.whoInline}>{who}</div>}
         <div style={promptStyle}>{item.prompt}</div>
         {answer ? (
-          <Marked item={item} answer={answer} onAsk={onAsk} />
+          <Marked item={item} answer={answer} user={user} store={store} />
         ) : (
           <SentenceBox key={key} item={item} itemKeyValue={key} user={user} store={store} onNeedKey={onNeedKey} />
         )}
@@ -493,7 +503,7 @@ function SentenceBox({ item, itemKeyValue: key, user, store, onNeedKey }) {
     const ticket = ++ticketSeq;
     const now = new Date().toISOString();
     const line = typedText(item, typed);
-    const byKey = markByKey(item, typed);
+    const byKey = isAccepted(store.accepted, key, line) ? { verdict: "right" } : markByKey(item, typed);
     const keyRow = byKey && { key, index, typed: line, verdict: byKey.verdict, markedBy: "key", note: "", correct: byKey.correct || "", answeredAt: now, ticket };
     if (store.problems[key]) store.setProblem(key, null);
     // The key's verdict is shown at once; Claude's is waited for, while the
@@ -590,8 +600,9 @@ const VERDICT_LABEL = { right: "Right", almost: "Almost", wrong: "Wrong" };
 // order Exercises shows them (owner, 2026-11-02). The Spanish is "Correct:"
 // under a miss, and "In the text:" under an answer that is right in other
 // words (or, say, without its accents), since those are the words to learn.
-function Marked({ item, answer, onAsk }) {
+function Marked({ item, answer, user, store }) {
   const [why, setWhy] = useState(false);
+  const dispute = useAnswerDispute({ user, answer, onAccepted: (line) => store.accept(answer.key, line) });
   if (answer.pending) {
     return (
       <>
@@ -617,13 +628,24 @@ function Marked({ item, answer, onAsk }) {
         {reason && !why && (
           <button type="button" style={{ ...S.link, marginRight: 12 }} onClick={() => setWhy(true)} data-dialogue-why>Why?</button>
         )}
-        {onAsk && v !== "right" && (
-          <button type="button" style={S.link} onClick={onAsk} data-tutor-toggle data-dialogue-ask-tutor>Ask the tutor</button>
+        {v !== "right" && (!dispute.state || dispute.state.step === "error") && (
+          <button type="button" style={S.link} onClick={() => dispute.send()} data-dialogue-dispute>My answer should be accepted</button>
         )}
+        {dispute.state?.step === "reviewing" && <span style={S.reviewing}>Reviewing your answer…</span>}
       </div>
       {why && reason && (
         <div style={S.line} data-dialogue-reason><b>Why:</b> {reason}</div>
       )}
+      {dispute.state?.step === "declined" && (
+        <div style={S.line} data-dialogue-dispute-reason>
+          {dispute.state.reasoning}{" "}
+          <button type="button" style={S.link} onClick={() => dispute.send(true)} data-dialogue-accept-anyway>Accept anyway</button>
+        </div>
+      )}
+      {(dispute.state?.step === "accepted" || answer.accepted) && (
+        <div style={S.unsaved} data-dialogue-accepted>{acceptedLine(dispute.state)}</div>
+      )}
+      {dispute.state?.step === "error" && <div style={S.inlineError} role="alert">{dispute.state.message}</div>}
       {answer.unsaved && <div style={S.unsaved}>This answer was marked but not saved, so it won’t be here next time.</div>}
     </>
   );
@@ -707,6 +729,7 @@ const S = {
   verdict: { display: "inline-block", padding: "2px 10px", marginRight: 8, borderRadius: T.radius.full, fontSize: 11.5, fontWeight: 800 },
   line: { marginTop: 6, fontSize: 13.5, lineHeight: 1.55, color: T.color.primary },
   unsaved: { marginTop: 6, fontSize: 12, color: T.color.onSurfaceVariant },
+  reviewing: { fontSize: 12, color: T.color.onSurfaceVariant, fontStyle: "italic" },
   link: LINK,
 
   done: { padding: "18px 22px", background: T.color.surfaceLowest, borderWidth: 1, borderStyle: "solid", borderColor: LINE, borderRadius: T.radius.xl, marginBottom: 16 },
