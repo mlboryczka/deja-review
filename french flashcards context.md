@@ -1068,12 +1068,11 @@ The files:
   owner): `es_exercise_answers`, every answer to the Spanish Exercises (see
   *Spanish*). The server writes it; each student reads their own. Only adds
   a table. Until it is run, answers are marked but not kept.
-- `024_spanish_caderno_dates` (on `testing`, written 2026-11-07, waits on the
-  owner): `save_es_notes_reading` again, for `dates` as `text[]`, which is what
+- `024_spanish_caderno_dates` (on `testing`, run by the owner 2026-11-07): `save_es_notes_reading` again, for `dates` as `text[]`, which is what
   the live deck has (`supabase/schema.sql` says jsonb). Migration_016's French
   save has the same fault on the live database (see *Spanish*, "The caderno").
-- `025_notes_save_dates` (on `testing`, written 2026-11-07, waits on the
-  owner; the owner: "yes fix both"): `save_notes_reading` again, with `dates`
+- `025_notes_save_dates` (on `testing`, run by the owner 2026-11-07, who
+  said "yes fix both"): `save_notes_reading` again, with `dates`
   as `text[]`, and nothing else changed. It also serves the students' app, as
   the database is shared. `supabase/schema.sql` now says `text[]` too, so the
   throwaway Postgres tests run on the live column.
@@ -1082,8 +1081,8 @@ The files:
   the Spanish module's verdicts and corrections (see *Spanish*). Service role
   only, as the French ones. Only adds tables. Until it is run, Spanish
   verdicts and corrections aren't kept (the app works the same).
-- `023_spanish_caderno` (on `testing`, written 2026-11-02, waits on the
-  owner): `es_cahier_links` and `es_notes_read`, LIKE `cahier_links` and
+- `023_spanish_caderno` (on `testing`, written 2026-11-02, run by the owner
+  2026-11-07): `es_cahier_links` and `es_notes_read`, LIKE `cahier_links` and
   `notes_read`, and `claim_es_notes_reading` / `save_es_notes_reading`,
   migration_016's two functions on the Spanish tables, keeping no verdicts
   (see *Spanish*, "The caderno"). Only adds. Until it is run, linking the
