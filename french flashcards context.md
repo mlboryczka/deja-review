@@ -2765,15 +2765,14 @@ them under the other.
   "The sentences you missed, once more". It is worked out from the answers alone
   (`src/lib/dialogueRounds.js`), so devices agree and there is nothing else to
   keep: a round ends with the answer that leaves nothing to ask, and the next
-  answer starts the next one. A round left unfinished carries on another day. A
-  round finished today stays on screen until Go again.
-- **The schedule**: a finished round brings the text back the next day, then after
-  3 days, a week and 3 weeks, staying at 3 weeks. The gap doesn't grow after a
-  round with more than a quarter of its sentences not Right the first time. A
-  round finished before the text was due counts as a time through it and leaves
-  the schedule alone. The gaps are the app's own starting guess, not Laura's, and
-  the owner hasn't ruled on them. Due today sits at the top of the list, with any
-  first round under way.
+  answer starts the next one. A round finished today stays on screen until Go
+  again. Each morning, from 4am, every text starts from its first sentence, as
+  every exercise does, and a round not finished is dropped (its answers stay kept).
+- **Never asked to do one again** (owner, 2026-11-07: "the app shouldn't ask me to
+  do a dialogue again"). A schedule was built and taken out the same day. Going
+  back to a text is the student's choice: its row says how many times it has been
+  gone through, when it was last, and how many sentences were right the first time
+  ("Gone through twice · last on Nov 7, 21 of 22 sentences right").
 - **Kept** in `es_exercise_answers` under keys of their own
   ("dialogo-leccion1/1/5"), so no migration. Exercises and Dialogues each read
   only their own rows (`loadAnswers`).
@@ -2781,8 +2780,7 @@ them under the other.
   its Spanish, and how it was last answered this round. It doesn't give away a
   sentence not yet answered.
 - **Not built**: saying the Spanish aloud. Typing came first (owner, 2026-11-07:
-  "let's do typing to start"). A spoken round has no marks, so it couldn't move the
-  schedule without the owner judging themselves.
+  "let's do typing to start").
 
 ---
 

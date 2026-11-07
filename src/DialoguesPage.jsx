@@ -3,17 +3,20 @@
 // translate it back into Spanish (owner, 2026-11-07: "it's a third module.
 // each dialogue from each lesson. let's do typing to start.").
 //
-// Two pages: Dialogues, the lessons' texts with those due today on top, and
-// one lesson's text. It shows the sheet's English a sentence at a time. Type
+// Two pages: Dialogues, the lessons' texts, and one lesson's text. It shows
+// the sheet's English a sentence at a time. Type
 // the Spanish and press Enter: the answer key marks it at once, Claude marks
 // anything the key doesn't have (the same marking as Exercises,
 // api/_lib/exercises.js), and the next sentence is ready, so the text builds
 // up as you go. Any correct Spanish is Right, and the text's own wording always
 // shows. A sentence that wasn't Right comes back once at the end of the round.
 //
-// A finished round sets when the text comes back. Rounds and the schedule are
-// worked out from the answers alone (src/lib/dialogueRounds.js), which are
-// kept with the exercises' (es_exercise_answers) under keys of their own.
+// The app never asks for a text to be done again (owner, 2026-11-07: "the app
+// shouldn't ask me to do a dialogue again"): "Go again" is there for whenever
+// the student wants it, and each morning every text starts from its first
+// sentence. Rounds are worked out from the answers alone
+// (src/lib/dialogueRounds.js), which are kept with the exercises'
+// (es_exercise_answers) under keys of their own.
 //
 // As with Exercises, the shell (FlashcardApp) owns which page is showing and
 // the Lesson notes panel, and a lesson's page tells the tutor what is on screen
@@ -29,7 +32,7 @@ import { DIALOGUE_GROUPS } from "./data/exercises/es/dialogueTitles.js";
 import { stageIds } from "./data/lessons/es/stages.js";
 import { itemKey, parseItemKey, isAnswered, markByKey, typedText, keyReason, hintText, hintLevels, plain } from "./lib/exerciseMarking.js";
 import { markAnswer, loadAnswers } from "./lib/exerciseApi.js";
-import { roundsOf, nextSentence, scheduleOf, dialogueStatus, statusLine, whenLine } from "./lib/dialogueRounds.js";
+import { roundsOf, nextSentence, dialogueStatus, statusLine } from "./lib/dialogueRounds.js";
 import { BYOK_REQUIRED, BAD_KEY } from "./lib/anthropicKey";
 import { localISODate } from "./lib/studyDay";
 
@@ -193,11 +196,11 @@ function DialogueList({ store, onPick }) {
     if (next.has(title)) next.delete(title); else next.add(title);
     return next;
   });
-  const row = (d, keyPrefix = "") => {
+  const row = (d) => {
     const st = status[d.lesson];
     const count = d.items.length;
     return (
-      <button key={`${keyPrefix}${d.id}`} type="button" style={S.row} onClick={() => onPick(d.lesson)} data-dialogue-lesson={d.lesson}>
+      <button key={d.id} type="button" style={S.row} onClick={() => onPick(d.lesson)} data-dialogue-lesson={d.lesson}>
         <span style={S.rowMain}>
           <span style={S.rowTitle}>{d.title}</span>
           <span style={S.rowCount}>{store.loading ? `${count} sentences` : statusLine(count, st, today)}</span>
@@ -210,19 +213,12 @@ function DialogueList({ store, onPick }) {
       </button>
     );
   };
-  const due = store.loading ? [] : DIALOGUES.filter((d) => status[d.lesson].isDue);
   return (
     <>
       <h1 style={S.h1}>Dialogues</h1>
       <p style={S.intro}>
-        Each lesson’s dialogue in English, to type back into Spanish one sentence at a time. When you finish one, it comes back the next day, then after 3 days, a week and 3 weeks.
+        Each lesson’s dialogue in English, to type back into Spanish one sentence at a time.
       </p>
-      {due.length > 0 && (
-        <div data-dialogues-due>
-          <div style={S.dueHead}>Due today</div>
-          {due.map((d) => row(d, "due:"))}
-        </div>
-      )}
       {DIALOGUE_GROUPS.map((stage) => {
         const closed = closedStages.has(stage.title);
         return (
@@ -245,8 +241,8 @@ function DialogueList({ store, onPick }) {
 function OneDialogue({ user, dialogue, store, scrollRef, onBack, onNeedKey, onTutorContext, openChat, notes }) {
   const rows = store.rows[dialogue.id] || NO_ROWS;
   const count = dialogue.items.length;
-  const { finished, tries } = useMemo(() => roundsOf(count, rows), [count, rows]);
   const today = localISODate();
+  const { finished, tries } = useMemo(() => roundsOf(count, rows, today), [count, rows, today]);
   const last = finished[finished.length - 1] || null;
   // A round finished today stays on screen, with how it went, until "Go again"
   // (which notes how many rounds there were when it was pressed) or tomorrow.
@@ -397,7 +393,6 @@ function OneDialogue({ user, dialogue, store, scrollRef, onBack, onNeedKey, onTu
           <div style={S.doneLine}>
             {`You went through all ${last.total} sentences, and ${last.total - last.missed} were right the first time.`}
           </div>
-          <div style={S.doneLine}>{`This dialogue ${whenLine(scheduleOf(finished).due, today)}.`}</div>
           <button type="button" style={S.again} onClick={goAgain} data-dialogue-again>Go again</button>
         </div>
       )}
@@ -661,7 +656,6 @@ const S = {
   stage: { display: "flex", alignItems: "center", gap: 10, padding: 0, border: "none", background: "transparent", cursor: "pointer", fontSize: 20, fontWeight: 600, color: T.color.primary, fontFamily: T.font.serif, margin: "32px 0 14px", textAlign: "left" },
   stageChevron: { display: "flex", opacity: 0.6, transition: "transform 0.2s" },
   stageChevronOpen: { transform: "rotate(180deg)" },
-  dueHead: { fontSize: 20, fontWeight: 600, color: T.color.primary, fontFamily: T.font.serif, margin: "32px 0 14px" },
 
   row: { display: "flex", alignItems: "center", gap: 18, width: "100%", padding: "14px 18px", background: T.color.surfaceLowest, borderWidth: 1, borderStyle: "solid", borderColor: LINE, borderRadius: T.radius.xl, marginBottom: 8, cursor: "pointer", textAlign: "left", fontFamily: T.font.sans, boxSizing: "border-box" },
   rowMain: { display: "block", flex: 1, minWidth: 0 },

@@ -14,12 +14,11 @@
 //     correct Spanish can be right;
 //   - a round is every sentence, then each one that wasn't Right once more,
 //     and it is worked out from the answers alone: an unfinished round carries
-//     on, a finished one ends where it ends, and the next answer starts the
-//     next round;
-//   - a finished round brings the text back the next day, then after 3 days, a
-//     week and 3 weeks; the gap doesn't grow after more than a quarter of the
-//     sentences were missed; a round done before the text was due leaves the
-//     schedule alone; the day runs from 4am;
+//     on through the day, a finished one ends where it ends, and the next
+//     answer starts the next round; each morning, from 4am, every text starts
+//     from its first sentence;
+//   - the app never asks for a text to be done again (owner, 2026-11-07): the
+//     list says only how many times it has been gone through, and when;
 //   - the server marks with the sheet's own sentence, whatever the page sends,
 //     keeps it with the exercises' answers under a key of its own, and the two
 //     pages read only their own answers;
@@ -36,10 +35,11 @@ import { EXERCISES_BY_ID } from "../../src/data/exercises/es/index.js";
 import { LESSON_TEXTS } from "../../src/data/exercises/es/texts.js";
 import { stageIds } from "../../src/data/lessons/es/stages.js";
 import { markByKey, isAnswered, itemKey, findItem, hintText, hintLevels, keyReason } from "../../src/lib/exerciseMarking.js";
-import { roundsOf, nextSentence, scheduleOf, dialogueStatus, statusLine, whenLine, addDays, DIALOGUE_PREFIX, DIALOGUE_GAPS } from "../../src/lib/dialogueRounds.js";
+import { roundsOf as roundsToday, nextSentence, dialogueStatus, statusLine, DIALOGUE_PREFIX } from "../../src/lib/dialogueRounds.js";
 import { loadAnswers } from "../../src/lib/exerciseApi.js";
 import { exerciseLabel, exerciseAbout, exerciseContext } from "../../src/lib/deckContext.js";
 import { handleExerciseRequest } from "../../api/_lib/exercises.js";
+import fs from "node:fs";
 
 const ck = checker();
 
@@ -149,6 +149,8 @@ ck("a sentence's answers are kept under a key of their own", itemKey(DIALOGUE_OF
 console.log("Rounds");
 const local = (y, m, d, h = 10) => new Date(y, m - 1, d, h).toISOString();
 const NOW = local(2026, 11, 7);
+const TODAY = "2026-11-07";
+const roundsOf = (count, rows, today = TODAY) => roundsToday(count, rows, today);
 const row = (index, verdict, answeredAt = NOW, more = {}) => ({ index, verdict, answeredAt, ...more });
 const R = "right", W = "wrong", A = "almost";
 ck("a new text starts at its first sentence", JSON.stringify(nextSentence(3, new Map())) === JSON.stringify({ index: 0, again: false }));
@@ -195,74 +197,55 @@ ck("a new text starts at its first sentence", JSON.stringify(nextSentence(3, new
   ck("the next answer after a finished round starts the next round", finished.length === 1 && tries.size === 1 && tries.get(0)[0].verdict === W);
 }
 {
-  const { finished, tries } = roundsOf(2, [row(0, R, local(2026, 11, 1)), row(1, R, local(2026, 11, 7))]);
-  ck("an unfinished round carries on another day, and finishes that day", finished.length === 1 && finished[0].at === local(2026, 11, 7) && tries.size === 0);
+  const { finished, tries } = roundsOf(2, [row(0, R, local(2026, 11, 6)), row(1, R, local(2026, 11, 7))]);
+  ck("a round not finished is dropped overnight: today's answer starts a new one, from the first sentence still to do",
+     finished.length === 0 && tries.size === 1 && tries.has(1) && nextSentence(2, tries).index === 0);
+  const left = roundsOf(2, [row(0, R, local(2026, 11, 6))]);
+  ck("one left yesterday and not touched today is nothing under way", left.finished.length === 0 && left.tries.size === 0 && nextSentence(2, left.tries).index === 0);
+  const late = roundsOf(2, [row(0, R, local(2026, 11, 6, 23)), row(1, R, local(2026, 11, 7, 1))]);
+  ck("the day runs from 4am: 1am is still the night before", late.finished.length === 1);
+  const whole = roundsOf(2, [row(0, R, local(2026, 11, 6)), row(1, R, local(2026, 11, 6))]);
+  ck("a round finished on an earlier day stays counted", whole.finished.length === 1 && whole.tries.size === 0);
 }
 {
   const { finished, tries } = roundsOf(1, [row(5, R)]);
   ck("an answer to a sentence the text doesn't have is ignored", !finished.length && !tries.size);
 }
 
-// ── The schedule ────────────────────────────────────────────────────────
-console.log("The schedule");
-const round = (at, missed = 0, total = 20) => ({ at, missed, total });
-const dueAfter = (...rounds) => scheduleOf(rounds).due;
-ck("the gaps are a day, 3 days, a week and 3 weeks", JSON.stringify(DIALOGUE_GAPS) === "[1,3,7,21]");
-ck("no round finished, no date", dueAfter() === null);
-const d1 = round(local(2026, 11, 7));
-ck("a first round brings it back the next day", dueAfter(d1) === "2026-11-08");
-const d2 = round(local(2026, 11, 8));
-ck("the second after 3 days", dueAfter(d1, d2) === "2026-11-11");
-const d3 = round(local(2026, 11, 11));
-ck("the third after a week", dueAfter(d1, d2, d3) === "2026-11-18");
-const d4 = round(local(2026, 11, 18));
-ck("the fourth after 3 weeks", dueAfter(d1, d2, d3, d4) === "2026-12-09");
-ck("and it stays at 3 weeks", dueAfter(d1, d2, d3, d4, round(local(2026, 12, 9))) === "2026-12-30");
-ck("exactly a quarter missed still grows the gap", dueAfter(d1, round(local(2026, 11, 8), 5)) === "2026-11-11");
-ck("more than a quarter missed doesn't", dueAfter(d1, round(local(2026, 11, 8), 6)) === "2026-11-09");
-ck("a poor first round comes back the next day", dueAfter(round(local(2026, 11, 7), 20)) === "2026-11-08");
-ck("a poor round later keeps the gap it had", dueAfter(d1, d2, round(local(2026, 11, 11), 10)) === "2026-11-14");
-ck("then a good one grows it again", dueAfter(d1, d2, round(local(2026, 11, 11), 10), round(local(2026, 11, 14))) === "2026-11-21");
-ck("a round before it was due leaves the schedule alone", dueAfter(d1, d2, round(local(2026, 11, 9))) === "2026-11-11");
-ck("a second round the same day does too", dueAfter(d1, round(local(2026, 11, 7, 18))) === "2026-11-08");
-ck("a round done late counts from the day it was done", dueAfter(d1, round(local(2026, 11, 20))) === "2026-11-23");
-ck("the day runs from 4am: 1am belongs to the day before", dueAfter(round(local(2026, 11, 8, 1))) === "2026-11-08");
-ck("dates carry over months and years", addDays("2026-12-30", 3) === "2027-01-02" && addDays("2026-11-01", 1) === "2026-11-02");
-
 // ── What the list says ──────────────────────────────────────────────────
 console.log("What the list says");
-const TODAY = "2026-11-07";
 const full = (n, verdict, at) => Array.from({ length: n }, (_, i) => row(i, verdict, at));
 {
   const st = dialogueStatus(4, [], TODAY);
-  ck("a text not started says how long it is and isn't due", statusLine(4, st, TODAY) === "4 sentences" && !st.isDue);
+  ck("a text not started says how long it is", statusLine(4, st, TODAY) === "4 sentences");
 }
 {
   const st = dialogueStatus(4, [row(0, R), row(1, W)], TODAY);
-  ck("a first round under way says how far, and stays near the top until it's done",
-     statusLine(4, st, TODAY) === "4 sentences · 2 done" && st.isDue);
+  ck("a first round under way says how far", statusLine(4, st, TODAY) === "4 sentences · 2 done");
+  ck("and not the next morning", statusLine(4, dialogueStatus(4, [row(0, R), row(1, W)], "2026-11-08"), "2026-11-08") === "4 sentences");
 }
 {
   const at = local(2026, 11, 7);
   const rows = [row(0, W, at), row(1, R, at), row(2, R, at), row(3, R, at), row(0, R, at)];
-  const st = dialogueStatus(4, rows, TODAY);
-  ck("a finished one says how many times, how it went and when it comes back",
-     statusLine(4, st, TODAY) === "Gone through once · 3 of 4 sentences right last time · comes back tomorrow" && !st.isDue, statusLine(4, st, TODAY));
-  const later = dialogueStatus(4, rows, "2026-11-08");
-  ck("on its day it's due", statusLine(4, later, "2026-11-08").endsWith("due today") && later.isDue);
-  const after = dialogueStatus(4, rows, "2026-11-20");
-  ck("and stays due until it's done", statusLine(4, after, "2026-11-20").endsWith("due today") && after.isDue);
+  ck("a finished one says how many times, when, and how it went",
+     statusLine(4, dialogueStatus(4, rows, TODAY), TODAY) === "Gone through once · last today, 3 of 4 sentences right", statusLine(4, dialogueStatus(4, rows, TODAY), TODAY));
+  ck("another day it names the day",
+     statusLine(4, dialogueStatus(4, rows, "2026-11-20"), "2026-11-20") === "Gone through once · last on Nov 7, 3 of 4 sentences right");
 }
 {
   const rows = [...full(2, R, local(2026, 11, 7)), ...full(2, R, local(2026, 11, 8))];
-  ck("twice, then a date", statusLine(2, dialogueStatus(2, rows, "2026-11-08"), "2026-11-08") === "Gone through twice · 2 of 2 sentences right last time · comes back Nov 11");
-  const three = [...rows, ...full(2, R, local(2026, 11, 8, 12))];
-  ck("then a number", statusLine(2, dialogueStatus(2, three, "2026-11-08"), "2026-11-08").startsWith("Gone through 3 times"));
-  const early = dialogueStatus(2, [...rows, row(0, R, local(2026, 11, 9))], "2026-11-09");
-  ck("a round started early says how far, and doesn't make it due",
-     !early.isDue && statusLine(2, early, "2026-11-09") === "Gone through twice · 2 of 2 sentences right last time · 1 done this time · comes back Nov 11", statusLine(2, early, "2026-11-09"));
+  ck("twice", statusLine(2, dialogueStatus(2, rows, "2026-11-08"), "2026-11-08") === "Gone through twice · last today, 2 of 2 sentences right");
+  ck("then a number", statusLine(2, dialogueStatus(2, [...rows, ...full(2, R, local(2026, 11, 8, 12))], "2026-11-08"), "2026-11-08").startsWith("Gone through 3 times"));
+  const again = dialogueStatus(2, [...rows, row(0, R, local(2026, 11, 9))], "2026-11-09");
+  ck("going through it again says how far today",
+     statusLine(2, again, "2026-11-09") === "Gone through twice · last on Nov 8, 2 of 2 sentences right · 1 done today", statusLine(2, again, "2026-11-09"));
 }
-ck("when: today, tomorrow or a date", whenLine("2026-11-07", TODAY) === "due today" && whenLine("2026-11-08", TODAY) === "comes back tomorrow" && whenLine("2026-11-18", TODAY) === "comes back Nov 18");
+{
+  const st = dialogueStatus(2, full(2, R, local(2026, 11, 1)), "2026-12-25");
+  const page = fs.readFileSync(new URL("../../src/DialoguesPage.jsx", import.meta.url), "utf8");
+  ck("however long ago, the app doesn't ask for it to be done again (owner, 2026-11-07)",
+     !("due" in st) && !("isDue" in st) && !/due|comes back|again\b.*(tomorrow|today)/i.test(statusLine(2, st, "2026-12-25")) && !/Due today|comes back the next|whenLine|scheduleOf/.test(page));
+}
 
 // ── The server ──────────────────────────────────────────────────────────
 console.log("The server");
