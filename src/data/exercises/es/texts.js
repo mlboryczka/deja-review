@@ -1,6 +1,6 @@
 // Each Spanish lesson's text (its dialogue, story or profile): the part of
-// the lesson sheet before the grammar. Shown on the Exercises page as "Lesson
-// text", and given to Claude when it marks a question about the text.
+// the lesson sheet before the grammar. Given to the tutor, and to Claude when it
+// marks a question about the text or a sentence of it (Dialogues).
 // Written by scripts/es-exercise-texts.mjs from the course's HTML sources;
 // run it again if a lesson's text changes.
 //

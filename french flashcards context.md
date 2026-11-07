@@ -2726,6 +2726,59 @@ page you were on (kept in this browser, `es-exercises-place:<user id>`).
   (403). Claude is paid for as everywhere else: the owner's account for the
   owner (and Laura on the test app), anyone else's own key.
 
+### Dialogues (Spanish only)
+
+Laura's advice in class (2026-11-06, as the owner reported it; that class
+wasn't recorded): go over each lesson's text several times, and a good way is
+to read the English and translate it back into Spanish. Owner, 2026-11-07:
+"it's a third module. each dialogue from each lesson. let's do typing to
+start." The Spanish sidebar's switch now has three parts, **Flashcards /
+Exercises / Dialogues**. Dialogues' side of the sidebar is the same as
+Exercises', with its own lessons and place; folding the lessons under one folds
+them under the other.
+
+- **The texts**: 25 of the 26 sheets have one (Lesson 15 has none, and Lesson
+  8's annex shares Lesson 8's), 570 sentences, 13 to 40 per text.
+  `src/data/exercises/es/dialogueTexts.js` is written by
+  `scripts/es-dialogues.mjs` from the course's HTML sources: each line of the
+  text is paired with the same line of the sheet's Traducción page, both cut
+  into sentences the same way, and the script stops if a line doesn't pair. A
+  one-word sentence ("¡Claro!") goes with the one beside it. An independent
+  reader checked all 570 pairs (2026-11-07) and found no problems.
+  `dialogues.js` gives each text the shape of a sheet with one exercise, so the
+  key, Claude's marking and the hints work on it unchanged.
+- **Answers are kept under a sentence's place**: a sentence added or taken out
+  moves the ones after it. `tests/suites/es-dialogues.mjs` pins each text's
+  count so this can't happen by accident.
+- **The page**: the English a sentence at a time, with who says it. Enter marks
+  it, and the next sentence is ready, while Claude's mark is still on its way
+  if it needs one. Any correct Spanish is Right, and the text's own wording
+  always shows: "Correct:" under a miss, "In the text:" under an answer right in
+  other words. Hint, Why? and Ask the tutor work as on Exercises. "Read it" shows
+  the Spanish and English side by side, and Lesson notes opens as on Exercises.
+- **A round** is every sentence, then each one that wasn't Right once more, under
+  "The sentences you missed, once more". It is worked out from the answers alone
+  (`src/lib/dialogueRounds.js`), so devices agree and there is nothing else to
+  keep: a round ends with the answer that leaves nothing to ask, and the next
+  answer starts the next one. A round left unfinished carries on another day. A
+  round finished today stays on screen until Go again.
+- **The schedule**: a finished round brings the text back the next day, then after
+  3 days, a week and 3 weeks, staying at 3 weeks. The gap doesn't grow after a
+  round with more than a quarter of its sentences not Right the first time. A
+  round finished before the text was due counts as a time through it and leaves
+  the schedule alone. The gaps are the app's own starting guess, not Laura's, and
+  the owner hasn't ruled on them. Due today sits at the top of the list, with any
+  first round under way.
+- **Kept** in `es_exercise_answers` under keys of their own
+  ("dialogo-leccion1/1/5"), so no migration. Exercises and Dialogues each read
+  only their own rows (`loadAnswers`).
+- **The tutor** is told the text as an exercise with no number: every sentence,
+  its Spanish, and how it was last answered this round. It doesn't give away a
+  sentence not yet answered.
+- **Not built**: saying the Spanish aloud. Typing came first (owner, 2026-11-07:
+  "let's do typing to start"). A spoken round has no marks, so it couldn't move the
+  schedule without the owner judging themselves.
+
 ---
 
 ## The status check and the simulations

@@ -105,6 +105,11 @@ import { podcastsOpenTo } from "./lib/testApp";
 // no one else, French included, should have to download.
 const ExercisesPage = lazy(() => import("./ExercisesPage"));
 import { TITLES as EXERCISE_TITLE_OF, TEXT_OF as EXERCISE_TEXT_OF, EXERCISE_GROUPS } from "./data/exercises/es/titles.js";
+// The Spanish Dialogues module (owner, 2026-11-07): each lesson's text, typed
+// back into Spanish from the sheet's English. Its pages are DialoguesPage's,
+// loaded only when Dialogues is opened, as with Exercises.
+const DialoguesPage = lazy(() => import("./DialoguesPage"));
+import { DIALOGUE_TITLE_OF, DIALOGUE_GROUPS } from "./data/exercises/es/dialogueTitles.js";
 import { stageOf } from "./data/lessons/es/stages.js";
 
 const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase();
@@ -192,6 +197,7 @@ export function clearPodcastsPlace(userId) {
   try { localStorage.removeItem(PODCASTS_PLACE_KEY + userId); } catch { /* storage blocked */ }
   try { localStorage.removeItem(EXERCISES_PLACE_KEY + userId); } catch { /* storage blocked */ }
   try { localStorage.removeItem(EXERCISES_FOLDED_KEY + userId); } catch { /* storage blocked */ }
+  try { localStorage.removeItem(DIALOGUES_PLACE_KEY + userId); } catch { /* storage blocked */ }
   // The exercises started again (ExercisesPage's own key).
   try { localStorage.removeItem("es-exercises-again:" + userId); } catch { /* storage blocked */ }
 }
@@ -216,6 +222,24 @@ function writeExercisesPlace(userId, { open, lesson }) {
   if (!userId) return;
   try {
     localStorage.setItem(EXERCISES_PLACE_KEY + userId, JSON.stringify({ open, lesson }));
+  } catch { /* storage blocked: the place is a convenience, not a record */ }
+}
+// The same for Dialogues, the switch's third part (2026-11-07).
+const DIALOGUES_PLACE_KEY = "es-dialogues-place:";
+function readDialoguesPlace(userId) {
+  if (!userId) return null;
+  try {
+    const p = JSON.parse(localStorage.getItem(DIALOGUES_PLACE_KEY + userId) || "null");
+    if (!p || typeof p !== "object") return null;
+    return { open: p.open === true, lesson: DIALOGUE_TITLE_OF[p.lesson] ? p.lesson : null };
+  } catch {
+    return null;
+  }
+}
+function writeDialoguesPlace(userId, { open, lesson }) {
+  if (!userId) return;
+  try {
+    localStorage.setItem(DIALOGUES_PLACE_KEY + userId, JSON.stringify({ open, lesson }));
   } catch { /* storage blocked: the place is a convenience, not a record */ }
 }
 // The lessons under All exercises, folded away by All exercises or the arrow
@@ -723,6 +747,11 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   if (exPlaceRef.current === undefined) {
     exPlaceRef.current = podcastsUser(user) && spanish ? readExercisesPlace(user?.id) : null;
   }
+  // And for Dialogues.
+  const dgPlaceRef = useRef(undefined);
+  if (dgPlaceRef.current === undefined) {
+    dgPlaceRef.current = podcastsUser(user) && spanish ? readDialoguesPlace(user?.id) : null;
+  }
   // The page: study | lessons | stats | podcasts. "study" is Cards and also
   // the inside of a lesson (lessonFilter). "podcasts" is the whole Podcasts
   // module, whichever of its pages is showing (podView, below), so the module
@@ -730,7 +759,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   // and enterLesson set the page, and that alone brings the sidebar back to
   // Flashcards. A separate module flag left behind on Podcasts would have the
   // tour pointing at a Lessons item that isn't drawn.
-  const [mode, setMode] = useState(() => (podPlaceRef.current?.open ? "podcasts" : exPlaceRef.current?.open ? "exercises" : "study"));
+  const [mode, setMode] = useState(() => (podPlaceRef.current?.open ? "podcasts" : exPlaceRef.current?.open ? "exercises" : dgPlaceRef.current?.open ? "dialogues" : "study"));
   // seen/got/missed count TYPED answers only — those are verifiable, and
   // accuracy built from self-reported flips would be meaningless. `answered`
   // counts every graded card in either mode, so the end-of-session summary
@@ -1070,13 +1099,13 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   // and the place-saving effect don't depend on the page (never add `mode` to
   // either; owner rule: updates never reset progress).
   const lastCardsModeRef = useRef("study");
-  useEffect(() => { if (mode !== "podcasts" && mode !== "exercises") lastCardsModeRef.current = mode; }, [mode]);
+  useEffect(() => { if (mode !== "podcasts" && mode !== "exercises" && mode !== "dialogues") lastCardsModeRef.current = mode; }, [mode]);
   // The switch's two halves. Stable, so the tour can call goFlashcards.
   const goPodcasts = useCallback(() => {
     if (hasPodcasts) setMode("podcasts");
   }, [hasPodcasts]);
   const goFlashcards = useCallback(() => {
-    setMode((m) => (m === "podcasts" || m === "exercises" ? lastCardsModeRef.current || "study" : m));
+    setMode((m) => (m === "podcasts" || m === "exercises" || m === "dialogues" ? lastCardsModeRef.current || "study" : m));
   }, []);
   // ── EXERCISES (Spanish, 2026-10-24) ──
   // The second half of the Spanish switch, for the same people as Spanish.
@@ -1095,11 +1124,19 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
     ? LESSONS.find((l) => l.id === (EXERCISE_TEXT_OF[exView.lesson] || exView.lesson)) || null
     : null;
   useEffect(() => { setShowLessonPanel(false); }, [exView.lesson]);
+  // ── DIALOGUES (Spanish, 2026-11-07) ──
+  // The switch's third part, for the same people as Exercises, with its own
+  // place and the same panel of lesson notes.
+  const dialoguesOn = hasExercises && mode === "dialogues";
+  useEffect(() => { if (mode === "dialogues" && !hasExercises) setMode("study"); }, [mode, hasExercises]);
+  const [dgView, setDgView] = useState(() => ({ lesson: dgPlaceRef.current?.lesson || null }));
+  const dgNotesLesson = dgView.lesson ? LESSONS.find((l) => l.id === dgView.lesson) || null : null;
+  useEffect(() => { setShowLessonPanel(false); }, [dgView.lesson]);
   // Going anywhere from the drawer puts it away: a page, a lesson, the tutor,
   // anything from the account menu. Folding Lessons goes nowhere, so the
   // drawer stays.
   useEffect(() => { setDrawerOpen(false); }, [
-    mode, lessonFilter, podView, exView, showChat, showUpload, showKeyModal,
+    mode, lessonFilter, podView, exView, dgView, showChat, showUpload, showKeyModal,
     showFsrsSettings, showFeedbackModal, showUsersModal, courseId,
   ]);
   // Feedback opens inside the sidebar, so on a phone it opens the drawer
@@ -1113,6 +1150,14 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
     if (!hasExercises || !user?.id) return;
     writeExercisesPlace(user.id, { open: exercisesOn, lesson: exView.lesson });
   }, [hasExercises, user?.id, exercisesOn, exView.lesson]);
+  const goDialogues = useCallback(() => {
+    if (hasExercises) setMode("dialogues");
+  }, [hasExercises]);
+  useEffect(() => {
+    if (!hasExercises || !user?.id) return;
+    writeDialoguesPlace(user.id, { open: dialoguesOn, lesson: dgView.lesson });
+  }, [hasExercises, user?.id, dialoguesOn, dgView.lesson]);
+  // Folding the lessons under All exercises folds them under All dialogues too.
   const [exLessonsFolded, setExLessonsFolded] = useState(() => readExercisesFolded(user?.id));
   useEffect(() => {
     if (!user?.id) return;
@@ -1121,6 +1166,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   // The stages open in the sidebar: under All exercises, and under Lessons on
   // Spanish Flashcards (French has no stages).
   const exStageFolds = useStageFolds(EXERCISE_GROUPS, exView.lesson);
+  const dgStageFolds = useStageFolds(DIALOGUE_GROUPS, dgView.lesson);
   const lessonOpenHere = mode === "study" && lessonFilter !== "all" ? lessonFilter : null;
   const lessonStageFolds = useStageFolds(LESSON_STAGES, lessonOpenHere);
   // Changing module stops the browser voice: a card being read aloud must
@@ -3298,6 +3344,8 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
     mine: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16.85 18.58a9 9 0 1 0-9.7 0"/><path d="M8 14a5 5 0 1 1 8 0"/><circle cx="12" cy="11" r="1"/><path d="M13 17a1 1 0 1 0-2 0l.5 4.5a.5.5 0 1 0 1 0Z"/></svg>,
     // Exercises (Spanish): the switch's half on the rail, and All exercises.
     pencil: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>,
+    // Dialogues (Spanish): the switch's third part on the rail.
+    dialogues: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/></svg>,
     headphones: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></svg>,
   };
 
@@ -3450,16 +3498,16 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
           <div
             data-module-switch
             role="group"
-            aria-label={hasExercises ? "Flashcards or exercises" : "Flashcards or podcasts"}
+            aria-label={hasExercises ? "Flashcards, exercises or dialogues" : "Flashcards or podcasts"}
             style={sidebarMin ? S.modSwitchMin : S.modSwitch}
           >
             {[
               ["flashcards", "Flashcards", NAV_ICONS.study, goFlashcards],
-              hasExercises
-                ? ["exercises", "Exercises", NAV_ICONS.pencil, goExercises]
-                : ["podcasts", "Podcasts", NAV_ICONS.headphones, goPodcasts],
+              ...(hasExercises
+                ? [["exercises", "Exercises", NAV_ICONS.pencil, goExercises], ["dialogues", "Dialogues", NAV_ICONS.dialogues, goDialogues]]
+                : [["podcasts", "Podcasts", NAV_ICONS.headphones, goPodcasts]]),
             ].map(([key, label, icon, go]) => {
-              const on = (key !== "flashcards") === (podcastsOn || exercisesOn);
+              const on = key === (podcastsOn ? "podcasts" : exercisesOn ? "exercises" : dialoguesOn ? "dialogues" : "flashcards");
               return (
                 <button
                   key={key}
@@ -3524,30 +3572,35 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
             anything. All exercises, or the arrow beside it, folds the
             lessons away and back (owner, 2026-10-26: not only the arrow);
             All exercises also opens its page. Folded, the lesson you're in
-            still shows, as under Basic Lessons. */}
-        {exercisesOn && (
+            still shows, as under Basic Lessons. Dialogues' side is the same,
+            with its own lessons. */}
+        {(exercisesOn || dialoguesOn) && (() => {
+          const side = exercisesOn
+            ? { all: "All exercises", view: exView, setView: setExView, stages: EXERCISE_GROUPS, folds: exStageFolds, titles: EXERCISE_TITLE_OF, data: "ex" }
+            : { all: "All dialogues", view: dgView, setView: setDgView, stages: DIALOGUE_GROUPS, folds: dgStageFolds, titles: DIALOGUE_TITLE_OF, data: "dlg" };
+          return (
           <>
             <div style={S.sideItemWrap}>
               <button
-                data-ex-nav="all"
+                {...{ [`data-${side.data}-nav`]: "all" }}
                 className="side-btn"
-                aria-current={!exView.lesson ? "page" : undefined}
-                style={{ ...(sidebarMin ? { ...S.sideItem, ...S.sideItemMin } : S.sideItem), ...(!exView.lesson || sidebarMin ? S.sideItemActive : null) }}
+                aria-current={!side.view.lesson ? "page" : undefined}
+                style={{ ...(sidebarMin ? { ...S.sideItem, ...S.sideItemMin } : S.sideItem), ...(!side.view.lesson || sidebarMin ? S.sideItemActive : null) }}
                 onClick={() => {
-                  setExView({ lesson: null });
+                  side.setView({ lesson: null });
                   // The rail shows no lessons, so there is nothing to fold.
                   if (!sidebarMin) setExLessonsFolded((v) => !v);
                 }}
-                title={sidebarMin ? "All exercises" : undefined}
-                aria-label={sidebarMin ? "All exercises" : undefined}
+                title={sidebarMin ? side.all : undefined}
+                aria-label={sidebarMin ? side.all : undefined}
                 aria-expanded={!sidebarMin ? !exLessonsFolded : undefined}
               >
                 <span style={S.sideIcon}>{NAV_ICONS.episodes}</span>
-                {!sidebarMin && "All exercises"}
+                {!sidebarMin && side.all}
               </button>
               {!sidebarMin && (
                 <button
-                  data-ex-fold
+                  {...{ [`data-${side.data}-fold`]: true }}
                   className="side-btn"
                   style={S.sideFoldBtn}
                   onClick={() => setExLessonsFolded((v) => !v)}
@@ -3565,18 +3618,19 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
                 of the course (SideStages). */}
             {!sidebarMin && (
               <SideStages
-                stages={EXERCISE_GROUPS}
-                folds={exStageFolds}
+                stages={side.stages}
+                folds={side.folds}
                 folded={exLessonsFolded}
-                current={exView.lesson}
-                titleOf={(id) => EXERCISE_TITLE_OF[id]}
-                onPick={(id) => setExView({ lesson: id })}
-                data="ex"
+                current={side.view.lesson}
+                titleOf={(id) => side.titles[id]}
+                onPick={(id) => side.setView({ lesson: id })}
+                data={side.data}
               />
             )}
           </>
-        )}
-        {!podcastsOn && !exercisesOn && navItems.map(([m, label]) => {
+          );
+        })()}
+        {!podcastsOn && !exercisesOn && !dialoguesOn && navItems.map(([m, label]) => {
           const baseStyle = sidebarMin ? { ...S.sideItem, ...S.sideItemMin } : S.sideItem;
           const activeStyle = S.sideItemActive;
           return (
@@ -3790,7 +3844,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
               // Which Podcasts page feedback came from (podcasts/episode,
               // podcasts/mine…), not just "podcasts": the review reads it as
               // "from the <page> page".
-              currentPage={podcastsOn ? `podcasts/${podView.view}` : exercisesOn ? `Spanish exercises/${exView.lesson || "all"}` : spanish ? `Spanish ${mode}` : mode}
+              currentPage={podcastsOn ? `podcasts/${podView.view}` : exercisesOn ? `Spanish exercises/${exView.lesson || "all"}` : dialoguesOn ? `Spanish dialogues/${dgView.lesson || "all"}` : spanish ? `Spanish ${mode}` : mode}
               currentCard={mode === "study" ? card : null}
               course={course.id}
               open={showFeedback}
@@ -3834,7 +3888,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
       <LessonPanel
         open={showLessonPanel}
         onClose={() => setShowLessonPanel(false)}
-        lesson={exercisesOn ? exNotesLesson : LESSONS.find((l) => l.id === lessonFilter) || null}
+        lesson={exercisesOn ? exNotesLesson : dialoguesOn ? dgNotesLesson : LESSONS.find((l) => l.id === lessonFilter) || null}
         reflow={lessonReflow}
         sidebarWidth={sidebarWidth}
       />
@@ -3865,8 +3919,8 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
         // with a question asked on Cards.
         podcast={podcastsOn ? tutorPodcast : null}
         // On the Spanish Exercises, the exercise being worked on, handed up
-        // by the exercises page in the same way.
-        exercise={exercisesOn ? tutorExercise : null}
+        // by the exercises page in the same way; on Dialogues, the text.
+        exercise={exercisesOn || dialoguesOn ? tutorExercise : null}
         thread={tutorThread}
         // The insert hands back the row, so the deck takes it in place; only a
         // write that returned nothing falls back to a refetch.
@@ -4054,6 +4108,37 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
               onTutorContext={onTutorExercise}
               openChat={openChat}
               notes={exNotesLesson?.notes?.length
+                ? { open: showLessonPanel, onToggle: toggleLessonPanel, toggleRef: lessonToggleRef }
+                : null}
+            />
+          </Suspense>
+        </main>
+        {modals}
+      </div>
+    );
+  }
+
+  // ── DIALOGUES (Spanish, 2026-11-07) ─────────────────────────────────
+  // The same three children again.
+  if (dialoguesOn) {
+    return (
+      <div style={shellStyle}>
+        {sidebar}
+        <main style={{ ...mainStyle, position: "relative" }}>
+          {onCourse && (
+            <div style={{ ...S.cornerFlag, right: (mainStyle.paddingRight || 0) + 24, top: phone ? cornerFlagTopPhone : S.cornerFlag.top }}>
+              <LanguageFlag course={course.id} onCourse={onCourse} />
+            </div>
+          )}
+          <Suspense fallback={null}>
+            <DialoguesPage
+              user={user}
+              view={dgView}
+              setView={setDgView}
+              onNeedKey={onPodcastNeedKey}
+              onTutorContext={onTutorExercise}
+              openChat={openChat}
+              notes={dgNotesLesson?.notes?.length
                 ? { open: showLessonPanel, onToggle: toggleLessonPanel, toggleRef: lessonToggleRef }
                 : null}
             />

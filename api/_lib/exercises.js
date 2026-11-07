@@ -11,7 +11,9 @@
 // `key` names the item ("leccion1/2/5", src/lib/exerciseMarking.js), `typed`
 // is in the shape its kind takes. The item, its instruction and its answers
 // are read from the app's own exercise data, never from the request, so what
-// is marked and kept is the sheet's item whatever the page sent.
+// is marked and kept is the sheet's item whatever the page sent. A sentence
+// of the Dialogues module (src/data/exercises/es/dialogues.js) is marked and
+// kept in just the same way, under a key of its own ("dialogo-leccion1/1/5").
 //
 // The answer key marks first (markByKey: right, or right but for an accent
 // that changes a verb's tense, or a true-or-false pressed the wrong way), and
@@ -28,6 +30,7 @@
 import { createHash } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { EXERCISES_BY_ID } from "../../src/data/exercises/es/index.js";
+import { DIALOGUES_BY_ID } from "../../src/data/exercises/es/dialogues.js";
 import { LESSON_TEXTS } from "../../src/data/exercises/es/texts.js";
 import { findItem, isAnswered, kindOf, markByKey, typedText, keyAnswer, VERDICTS } from "../../src/lib/exerciseMarking.js";
 import { UnreadableReply } from "./podcastQuestions.js";
@@ -89,6 +92,7 @@ export function markPrompt({ lesson, exercise, item, typed }) {
     ...(exercise?.example ? [`The sheet's example: ${exercise.example}`] : []),
     `Kind of item: ${KIND_LINE[kind]}`,
     ...(item.heading ? [`Under the heading: ${item.heading}`] : []),
+    ...(item.who ? [`Said by: ${item.who}`] : []),
     `Item: ${item.prompt}`,
     `The key's answers: ${key}`,
     ...(text ? ["", "The lesson's text:", text] : []),
@@ -174,7 +178,7 @@ const isMissingTable = (error) =>
 // `ask` stands in for askMark in the tests.
 export async function handleExerciseRequest({ body, user, store, apiKey, ask = askMark }) {
   if (body?.action !== "answer") return reply(400, { error: "Unknown request.", code: "bad_request" });
-  const found = findItem(EXERCISES_BY_ID, body.key);
+  const found = findItem(EXERCISES_BY_ID, body.key) || findItem(DIALOGUES_BY_ID, body.key);
   if (!found) return reply(400, { error: "That exercise isn’t in the app any more. Reload the page.", code: "no_item" });
   const { lesson, exercise, item } = found;
   const typed = body.typed;

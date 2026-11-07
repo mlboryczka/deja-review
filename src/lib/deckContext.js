@@ -316,7 +316,8 @@ export function podcastContext(podcast) {
 }
 
 // ── An exercise instead of a card (Spanish, 2026-10-26) ───────────────────
-// On the Spanish module's Exercises there is no card on screen either. What
+// On the Spanish module's Exercises and Dialogues there is no card on screen
+// either (a dialogue is told as an exercise with no number). What
 // the tutor is told instead is the exercise being worked on, from the lesson's
 // exercise sheet: its instruction and every item, numbered as on the page,
 // with the key's answer and whether it has been answered. The exercises page
@@ -348,10 +349,12 @@ export function exerciseFocus(exercise) {
 /** The exercise as the panel's header names it: its item with the cursor, or its title. */
 export function exerciseLabel(exercise) {
   const n = questionNumber(exercise);
-  const name = n ? `Ejercicio ${n}` : "Ejercicio";
+  const title = textOf(exercise?.title);
+  // A dialogue (the Dialogues module) has no number: its title names it.
+  const name = n ? `Ejercicio ${n}` : title || "Ejercicio";
   const item = exerciseFocus(exercise);
   if (item) return `${name}, ${questionNumber(item)}: ${textOf(item.prompt)}`;
-  return textOf(exercise?.title) ? `${name} · ${textOf(exercise.title)}` : name;
+  return n && title ? `${name} · ${title}` : name;
 }
 
 /**
@@ -362,7 +365,7 @@ export function exerciseLabel(exercise) {
 export function exerciseAbout(exercise) {
   const n = questionNumber(exercise);
   const title = textOf(exercise?.title);
-  const name = `${n ? `Ejercicio ${n}` : "An exercise"}${title ? ` (${title})` : ""}`;
+  const name = n ? `Ejercicio ${n}${title ? ` (${title})` : ""}` : title || "An exercise";
   const item = exerciseFocus(exercise);
   if (!item) return name;
   const p = textOf(item.prompt);

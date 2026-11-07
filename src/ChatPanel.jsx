@@ -160,7 +160,7 @@ function exerciseSuggestions(exercise) {
     ...wrongIn(itemAt(exercise.asked)),
     ...wrongIn(itemAt(exercise.last)),
     ...(focus && !focus.answered ? [`Give me a hint for number ${focus.number} without the answer`] : wrongIn(focus)),
-    "Explain the rule this exercise practises",
+    exercise?.number ? "Explain the rule this exercise practises" : "Explain the grammar in this sentence",
   ])];
 }
 

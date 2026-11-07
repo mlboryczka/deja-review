@@ -15,6 +15,7 @@
 // Node.
 
 import { keyHeaders } from "./anthropicKey.js";
+import { DIALOGUE_PREFIX } from "./dialogueRounds.js";
 
 export const EXERCISE_ENDPOINT = "/api/review-answer";
 
@@ -62,14 +63,19 @@ const PAGE = 1000;
 
 // Every answer the student has given, oldest first, as the page keeps them:
 // { key, typed, verdict, markedBy, note, correct, answeredAt }. `missing`
-// when the table isn't there yet (migration_022 not run).
-export async function loadAnswers({ supabase, userId }) {
+// when the table isn't there yet (migration_022 not run). The Dialogues page's
+// answers are in the same table: `dialogues` reads those instead of the
+// exercises'.
+export async function loadAnswers({ supabase, userId, dialogues = false }) {
   const rows = [];
   for (let from = 0; ; from += PAGE) {
-    const { data, error } = await supabase
+    const mine = supabase
       .from("es_exercise_answers")
       .select("item_key, typed, verdict, marked_by, note, correct, answered_at")
-      .eq("user_id", userId)
+      .eq("user_id", userId);
+    const { data, error } = await (dialogues
+      ? mine.like("item_key", `${DIALOGUE_PREFIX}%`)
+      : mine.not("item_key", "like", `${DIALOGUE_PREFIX}%`))
       .order("answered_at", { ascending: true })
       .range(from, from + PAGE - 1);
     if (error) {

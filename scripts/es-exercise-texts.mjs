@@ -1,7 +1,7 @@
 // Writes src/data/exercises/es/texts.js: each Spanish lesson's text (its
 // dialogue, story or profile, the part of the lesson sheet before the
-// grammar), for the Exercises page's "Lesson text" and for Claude when it
-// marks a question about the text.
+// grammar), for the tutor and for Claude when it marks a question about the
+// text.
 //
 //   node scripts/es-exercise-texts.mjs [<folder of the lesson sheets' HTML>]
 //
@@ -58,8 +58,8 @@ for (const f of fs.readdirSync(SRC).filter((f) => /^leccion[\d-]+\.html$/.test(f
 }
 
 const body = `// Each Spanish lesson's text (its dialogue, story or profile): the part of
-// the lesson sheet before the grammar. Shown on the Exercises page as "Lesson
-// text", and given to Claude when it marks a question about the text.
+// the lesson sheet before the grammar. Given to the tutor, and to Claude when it
+// marks a question about the text or a sentence of it (Dialogues).
 // Written by scripts/es-exercise-texts.mjs from the course's HTML sources;
 // run it again if a lesson's text changes.
 //
