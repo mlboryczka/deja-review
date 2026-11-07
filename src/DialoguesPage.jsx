@@ -30,9 +30,10 @@ import { T } from "./theme";
 import { DIALOGUES, DIALOGUES_BY_ID, DIALOGUE_OF } from "./data/exercises/es/dialogues.js";
 import { DIALOGUE_GROUPS } from "./data/exercises/es/dialogueTitles.js";
 import { stageIds } from "./data/lessons/es/stages.js";
-import { itemKey, parseItemKey, isAnswered, markByKey, typedText, keyReason, hintText, hintLevels, plain, markedNow, findItem, countsAsRight, acceptedNow, isAccepted } from "./lib/exerciseMarking.js";
+import { itemKey, parseItemKey, isAnswered, markByKey, typedText, keyReason, hintText, hintLevels, markedNow, findItem, countsAsRight, acceptedNow, isAccepted } from "./lib/exerciseMarking.js";
 import { markAnswer, loadAnswers, loadAccepted } from "./lib/exerciseApi.js";
 import { useAnswerDispute, acceptedLine } from "./useAnswerDispute";
+import { VerdictMark, VERDICT_INK, MARKED_STYLE as M } from "./VerdictMark";
 import { roundsOf, nextSentence, dialogueStatus, statusLine } from "./lib/dialogueRounds.js";
 import { BYOK_REQUIRED, BAD_KEY } from "./lib/anthropicKey";
 import { localISODate } from "./lib/studyDay";
@@ -594,12 +595,11 @@ function SentenceBox({ item, itemKeyValue: key, user, store, onNeedKey }) {
   );
 }
 
-const VERDICT_LABEL = { right: "Right", almost: "Almost", wrong: "Wrong" };
 
-// What was typed, then the text's own Spanish, then the verdict and why, in the
-// order Exercises shows them (owner, 2026-11-02). The Spanish is "Correct:"
-// under a miss, and "In the text:" under an answer that is right in other
-// words (or, say, without its accents), since those are the words to learn.
+// What was typed, marked and in its verdict's colour, then under a miss the
+// text's own Spanish in italics, then Why? and My answer should be accepted
+// (owner, 2026-11-07, from a mockup: VerdictMark.jsx). A right answer has
+// nothing under it, however it was worded.
 function Marked({ item, answer, user, store }) {
   const [why, setWhy] = useState(false);
   const dispute = useAnswerDispute({ user, answer, onAccepted: (line) => store.accept(answer.key, line) });
@@ -613,40 +613,34 @@ function Marked({ item, answer, user, store }) {
   }
   const v = answer.verdict;
   const reason = missReason(item, answer);
-  const same = plain(answer.typed) === plain(item.answer);
+  const showWhy = v !== "right" && !!reason && !why;
+  const showDispute = v !== "right" && (!dispute.state || dispute.state.step === "error");
+  const reviewing = dispute.state?.step === "reviewing";
   return (
     <>
-      <div style={S.mine} lang="es" data-dialogue-typed>{answer.typed}</div>
-      {v !== "right" && (
-        <div style={S.line} lang="es" data-dialogue-correct><b>Correct:</b> {item.answer}</div>
+      <div style={{ ...M.answer, color: VERDICT_INK[v] }} lang="es" data-dialogue-typed data-dialogue-verdict={v}><VerdictMark verdict={v} /><span>{answer.typed}</span></div>
+      {v !== "right" && <div style={M.correct} lang="es" data-dialogue-correct>{item.answer}</div>}
+      {(showWhy || showDispute || reviewing) && (
+        <div style={M.links}>
+          {showWhy && <button type="button" style={S.link} onClick={() => setWhy(true)} data-dialogue-why>Why?</button>}
+          {showDispute && <button type="button" style={S.link} onClick={() => dispute.send()} data-dialogue-dispute>My answer should be accepted</button>}
+          {reviewing && <span style={M.reviewing}>Reviewing your answer…</span>}
+        </div>
       )}
-      {v === "right" && !same && (
-        <div style={S.line} lang="es" data-dialogue-text><b>In the text:</b> {item.answer}</div>
-      )}
-      <div style={S.fb}>
-        <span style={{ ...S.verdict, ...VERDICT_STYLE[v] }} data-dialogue-verdict={v}>{VERDICT_LABEL[v]}</span>
-        {reason && !why && (
-          <button type="button" style={{ ...S.link, marginRight: 12 }} onClick={() => setWhy(true)} data-dialogue-why>Why?</button>
-        )}
-        {v !== "right" && (!dispute.state || dispute.state.step === "error") && (
-          <button type="button" style={S.link} onClick={() => dispute.send()} data-dialogue-dispute>My answer should be accepted</button>
-        )}
-        {dispute.state?.step === "reviewing" && <span style={S.reviewing}>Reviewing your answer…</span>}
-      </div>
       {why && reason && (
-        <div style={S.line} data-dialogue-reason><b>Why:</b> {reason}</div>
+        <div style={M.says} data-dialogue-reason><b>Why:</b> {reason}</div>
       )}
       {dispute.state?.step === "declined" && (
-        <div style={S.line} data-dialogue-dispute-reason>
+        <div style={M.says} data-dialogue-dispute-reason>
           {dispute.state.reasoning}{" "}
           <button type="button" style={S.link} onClick={() => dispute.send(true)} data-dialogue-accept-anyway>Accept anyway</button>
         </div>
       )}
       {(dispute.state?.step === "accepted" || answer.accepted) && (
-        <div style={S.unsaved} data-dialogue-accepted>{acceptedLine(dispute.state)}</div>
+        <div style={M.quiet} data-dialogue-accepted>{acceptedLine(dispute.state)}</div>
       )}
-      {dispute.state?.step === "error" && <div style={S.inlineError} role="alert">{dispute.state.message}</div>}
-      {answer.unsaved && <div style={S.unsaved}>This answer was marked but not saved, so it won’t be here next time.</div>}
+      {dispute.state?.step === "error" && <div style={M.error} role="alert">{dispute.state.message}</div>}
+      {answer.unsaved && <div style={M.quiet}>This answer was marked but not saved, so it won’t be here next time.</div>}
     </>
   );
 }
@@ -655,15 +649,6 @@ function Marked({ item, answer, user, store }) {
 // The Exercises page's look (src/ExercisesPage.jsx): the same page width,
 // headings, verdict colours and buttons.
 const LINE = "rgba(3,22,50,0.07)";
-const OK_INK = "#2f6f5e";
-const OK_BG = "#e3efe9";
-const PART_INK = "#8a5a00";
-const PART_BG = "#fbe9d0";
-const VERDICT_STYLE = {
-  right: { background: OK_BG, color: OK_INK },
-  almost: { background: PART_BG, color: PART_INK },
-  wrong: { background: T.color.errorContainer, color: T.color.onErrorContainer },
-};
 
 // A small underlined button that reads as a link: "Hint", "Why?".
 const LINK = { padding: 0, border: "none", background: "transparent", fontFamily: T.font.sans, fontSize: 11.5, fontWeight: 600, color: T.color.onSurfaceVariant, cursor: "pointer", textDecoration: "underline", textDecorationColor: "rgba(3,22,50,0.25)", textUnderlineOffset: 2 };

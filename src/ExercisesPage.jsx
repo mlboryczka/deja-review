@@ -45,6 +45,7 @@ import { LESSON_TEXTS } from "./data/exercises/es/texts.js";
 import { itemKey, kindOf, isAnswered, markByKey, typedText, keyAnswer, keyReason, hintText, hintLevels, markedNow, findItem, countsAsRight, acceptedNow, isAccepted } from "./lib/exerciseMarking.js";
 import { markAnswer, loadAnswers, loadAccepted } from "./lib/exerciseApi.js";
 import { useAnswerDispute, acceptedLine } from "./useAnswerDispute";
+import { VerdictMark, VERDICT_INK, MARKED_STYLE as M } from "./VerdictMark";
 import { BYOK_REQUIRED, BAD_KEY } from "./lib/anthropicKey";
 import { startOfLocalDay } from "./lib/studyDay";
 
@@ -708,7 +709,6 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
   );
 }
 
-const VERDICT_LABEL = { right: "Right", almost: "Almost", wrong: "Wrong" };
 
 // The answer as typed, the blanks' words picked out.
 function TypedLine({ text }) {
@@ -746,39 +746,40 @@ function Marked({ item, answer, user, store }) {
   // the key marked, the key says why (keyReason). The correct answer comes
   // first, under yours, then the verdict and why (owner, 2026-11-02:
   // "correct answer should be first and then almost/correct/wrong and why").
+  // Since 2026-11-07 (owner, from a mockup: VerdictMark.jsx) the verdict is a
+  // mark before the answer, in its colour, and the correct answer is in
+  // italics with no "Correct:" before it.
   const correct = v === "right" ? "" : answer.correct || keyAnswer(item);
   const reason = missReason(item, answer);
+  const showWhy = v !== "right" && !!reason && !why;
+  const showDispute = v !== "right" && (!dispute.state || dispute.state.step === "error");
+  const reviewing = dispute.state?.step === "reviewing";
   return (
     <>
       {kind !== "gaps" && <div style={S.prompt}><Rich text={item.prompt} /></div>}
-      <div style={S.mine} data-ex-typed><TypedLine text={answer.typed} /></div>
-      {correct && (
-        <div style={S.line} data-ex-correct><b>Correct:</b> {correct}</div>
+      <div style={{ ...M.answer, color: VERDICT_INK[v] }} data-ex-typed data-ex-verdict={v}><VerdictMark verdict={v} /><span><TypedLine text={answer.typed} /></span></div>
+      {correct && <div style={M.correct} data-ex-correct><Rich text={correct} /></div>}
+      {(showWhy || showDispute || reviewing) && (
+        <div style={M.links}>
+          {showWhy && <button type="button" style={S.link} onClick={() => setWhy(true)} data-ex-why>Why?</button>}
+          {showDispute && <button type="button" style={S.link} onClick={() => dispute.send()} data-ex-dispute>My answer should be accepted</button>}
+          {reviewing && <span style={M.reviewing}>Reviewing your answer…</span>}
+        </div>
       )}
-      <div style={S.fb}>
-        <span style={{ ...S.verdict, ...VERDICT_STYLE[v] }} data-ex-verdict={v}>{VERDICT_LABEL[v]}</span>
-        {reason && !why && (
-          <button type="button" style={{ ...S.link, marginRight: 12 }} onClick={() => setWhy(true)} data-ex-why>Why?</button>
-        )}
-        {v !== "right" && (!dispute.state || dispute.state.step === "error") && (
-          <button type="button" style={S.link} onClick={() => dispute.send()} data-ex-dispute>My answer should be accepted</button>
-        )}
-        {dispute.state?.step === "reviewing" && <span style={S.reviewing}>Reviewing your answer…</span>}
-      </div>
       {why && reason && (
-        <div style={S.line} data-ex-reason><b>Why:</b> {reason}</div>
+        <div style={M.says} data-ex-reason><b>Why:</b> {reason}</div>
       )}
       {dispute.state?.step === "declined" && (
-        <div style={S.line} data-ex-dispute-reason>
+        <div style={M.says} data-ex-dispute-reason>
           {dispute.state.reasoning}{" "}
           <button type="button" style={S.link} onClick={() => dispute.send(true)} data-ex-accept-anyway>Accept anyway</button>
         </div>
       )}
       {(dispute.state?.step === "accepted" || answer.accepted) && (
-        <div style={S.unsaved} data-ex-accepted>{acceptedLine(dispute.state)}</div>
+        <div style={M.quiet} data-ex-accepted>{acceptedLine(dispute.state)}</div>
       )}
-      {dispute.state?.step === "error" && <div style={S.inlineError} role="alert">{dispute.state.message}</div>}
-      {answer.unsaved && <div style={S.unsaved}>This answer was marked but not saved, so it won’t be here next time.</div>}
+      {dispute.state?.step === "error" && <div style={M.error} role="alert">{dispute.state.message}</div>}
+      {answer.unsaved && <div style={M.quiet}>This answer was marked but not saved, so it won’t be here next time.</div>}
     </>
   );
 }
@@ -788,14 +789,6 @@ function Marked({ item, answer, user, store }) {
 // headings, verdict colours and buttons.
 const LINE = "rgba(3,22,50,0.07)";
 const OK_INK = "#2f6f5e";
-const OK_BG = "#e3efe9";
-const PART_INK = "#8a5a00";
-const PART_BG = "#fbe9d0";
-const VERDICT_STYLE = {
-  right: { background: OK_BG, color: OK_INK },
-  almost: { background: PART_BG, color: PART_INK },
-  wrong: { background: T.color.errorContainer, color: T.color.onErrorContainer },
-};
 
 // A small underlined button that reads as a link: "Hint", "Why?".
 const LINK = { padding: 0, border: "none", background: "transparent", fontFamily: T.font.sans, fontSize: 11.5, fontWeight: 600, color: T.color.onSurfaceVariant, cursor: "pointer", textDecoration: "underline", textDecorationColor: "rgba(3,22,50,0.25)", textUnderlineOffset: 2 };
@@ -861,7 +854,8 @@ const S = {
   errorAction: { marginLeft: 8, padding: "4px 10px", borderWidth: 1, borderStyle: "solid", borderColor: "rgba(3,22,50,0.2)", borderRadius: T.radius.md, background: T.color.surfaceLowest, color: T.color.primary, fontFamily: T.font.sans, fontSize: 11.5, fontWeight: 700, cursor: "pointer" },
 
   mine: { marginTop: 4, paddingLeft: 12, borderLeft: `3px solid ${T.color.surfaceHigh}`, fontFamily: T.font.serif, fontSize: 15, lineHeight: 1.6, color: T.color.onSurface, whiteSpace: "pre-wrap" },
-  typedGap: { color: T.color.secondary, fontWeight: 700 },
+  // The blanks' words in bold, in the colour of the rest of the answer.
+  typedGap: { fontWeight: 700 },
   checking: { marginTop: 8, fontSize: 12.5, color: T.color.onSurfaceVariant, fontStyle: "italic" },
   fb: { marginTop: 8, fontSize: 13.5, lineHeight: 1.6, color: T.color.onSurface },
   verdict: { display: "inline-block", padding: "2px 10px", marginRight: 8, borderRadius: T.radius.full, fontSize: 11.5, fontWeight: 800 },
