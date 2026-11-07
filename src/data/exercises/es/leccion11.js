@@ -21,10 +21,41 @@
 //   - Ex. 13 also takes the years without their "en".
 //   - Answers reuse the flashcard lesson's checked answers where an item
 //     matches (ex. 3, 4, 5, 6, 7, 9, 10, 11, 13).
+//
+// Added for the app, not on the sheet (owner, 2026-11-07, as in Lessons 9 and
+// 10): ex. 17, the present of decir, deber and dar as gaps, shown first. The
+// sheet asks the present of decir and deber only in ex. 1 and 2, sentences of
+// your own, left out on 2026-10-25, and of dar nowhere. It is numbered after
+// the sheet's last exercise (16), so its answers are kept apart from the
+// sheet's.
 
 export default {
   id: "leccion11",
   exercises: [
+    {
+      n: 17,
+      title: "Conjugación",
+      instruction: "Completar con el verbo en presente.",
+      english: "Fill each gap with the verb in brackets, in the present.",
+      items: [
+        { prompt: "Yo siempre ___ la verdad. (decir)", gaps: [["digo"]] },
+        { prompt: "Tú ___ estudiar todos los días. (deber)", gaps: [["debes"]] },
+        { prompt: "Yo le ___ el expediente a la doctora. (dar)", gaps: [["doy"]] },
+        { prompt: "La doctora ___ que tengo que descansar. (decir)", gaps: [["dice"]] },
+        { prompt: "Nosotros no ___ olvidar la credencial. (deber)", gaps: [["debemos"]] },
+        { prompt: "¿Tú me ___ tu teléfono? (dar)", gaps: [["das"]] },
+        { prompt: "¿Ustedes ___ que la clase es hoy? (decir)", gaps: [["dicen"]] },
+        { prompt: "Andrés le ___ un regalo a su esposa. (dar)", gaps: [["da"]] },
+        { prompt: "Yo ___ descansar más. (deber)", gaps: [["debo"]] },
+        { prompt: "Nosotros no ___ nada. (decir)", gaps: [["decimos"]] },
+        { prompt: "Nosotros les ___ información a los pacientes. (dar)", gaps: [["damos"]] },
+        { prompt: "El doctor ___ hablar con sus pacientes. (deber)", gaps: [["debe"]] },
+        { prompt: "Tú ___ que el español es fácil. (decir)", gaps: [["dices"]] },
+        { prompt: "Mis jefes no me ___ días libres en julio. (dar)", gaps: [["dan"]] },
+        { prompt: "Ustedes ___ traer la credencial del seguro. (deber)", gaps: [["deben"]] },
+        { prompt: "Doctora, ¿usted me ___ su correo? (dar)", gaps: [["da"]] },
+      ],
+    },
     {
       n: 1,
       title: "Conjugación y producción escrita",

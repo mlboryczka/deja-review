@@ -9,10 +9,33 @@
 // thing named (Sí, la conozco), which a teacher would accept.
 // Ex. 3 "open" and "new" (masc. & fem.) ask for both forms; one alone is
 // accepted too.
+//
+// Added for the app, not on the sheet (owner, 2026-11-07, as in Lessons 9 and
+// 10): ex. 13, the present of poner as gaps, shown first. The sheet asks
+// poner's forms only in the preterite, in ex. 1, and the present only in two
+// answers in ex. 7 and 8, all left out on 2026-10-25. It is numbered after
+// the sheet's last exercise (12), so its answers are kept apart from the
+// sheet's.
 
 export default {
   id: "leccion13",
   exercises: [
+    {
+      n: 13,
+      title: "Conjugación",
+      instruction: "Completar con el verbo en presente.",
+      english: "Fill each gap with the verb in brackets, in the present.",
+      items: [
+        { prompt: "Normalmente yo ___ mis zapatos en el clóset. (poner)", gaps: [["pongo"]] },
+        { prompt: "¿Dónde ___ tú tus lentes? (poner)", gaps: [["pones"]] },
+        { prompt: "Lucía siempre ___ la computadora en la sala. (poner)", gaps: [["pone"]] },
+        { prompt: "Nosotros ___ la cama en la recámara más grande. (poner)", gaps: [["ponemos"]] },
+        { prompt: "Mis hijos ___ sus libros en la mesa. (poner)", gaps: [["ponen"]] },
+        { prompt: "¿Dónde ___ usted los muebles nuevos? (poner)", gaps: [["pone"]] },
+        { prompt: "¿Ustedes ___ una mesa en la cocina? (poner)", gaps: [["ponen"]] },
+        { prompt: "Yo ___ las fotos de mi familia en la oficina. (poner)", gaps: [["pongo"]] },
+      ],
+    },
     {
       n: 1,
       title: "Conjugación y producción escrita",

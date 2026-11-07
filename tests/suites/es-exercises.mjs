@@ -30,10 +30,11 @@
 //     sentence of your own, nothing about yourself, no question to write, no
 //     answer about the text and no yes or no in a full sentence, and every
 //     other item is still there, numbered 1, 2, 3 on the page;
-//   - Lessons 9 and 10 open with the present as gaps, an exercise the sheets
-//     don't have (owner, 2026-11-02, asking why they never asked the present
-//     of verbs like ver and venir): every form of hacer, with salgo, pongo
-//     and traigo, and every form of ver and venir.
+//   - Lessons 9, 10, 11 and 13 open with the present as gaps, an exercise the
+//     sheets don't have (owner, 2026-11-02, asking why Lessons 9 and 10 never
+//     asked the present of verbs like ver and venir; 2026-11-07, yes to the
+//     same in Lessons 11 and 13): every form of hacer, with salgo, pongo and
+//     traigo; of ver and venir; of decir, deber and dar; and of poner.
 //
 // No browser and no network: Claude and the database are stand-ins.
 
@@ -97,15 +98,18 @@ for (const lesson of EXERCISE_LESSONS) {
 }
 ck("no exercise taken out on 2026-10-25 is left: no sentence of your own, nothing about yourself, no question to write, no answer about the text, no yes or no in a full sentence",
    leftIn.length === 0, leftIn.join("; "));
-ck("91 exercises are out, 147 are in (Lessons 9 and 10's present included), every lesson keeps some, and every other item is still there",
-   Object.values(LEFT_OUT).flat().length === 91 && EXERCISE_LESSONS.reduce((n, l) => n + l.exercises.length, 0) === 147 &&
-   EXERCISE_LESSONS.every((l) => l.exercises.length > 0) && items === 2457);
+ck("91 exercises are out, 149 are in (the present in Lessons 9, 10, 11 and 13 included), every lesson keeps some, and every other item is still there",
+   Object.values(LEFT_OUT).flat().length === 91 && EXERCISE_LESSONS.reduce((n, l) => n + l.exercises.length, 0) === 149 &&
+   EXERCISE_LESSONS.every((l) => l.exercises.length > 0) && items === 2481);
 // The owner, 2026-11-02: "why are the lessons 9 and 10 exercises not asking
 // me about the present tense for verbs like venir and ver", then yes to a
-// fill-in exercise on the present in each.
+// fill-in exercise on the present in each, and on 2026-11-07 yes to the same
+// in Lessons 11 and 13.
 const PRESENT = {
   leccion9: { hacer: ["hago", "haces", "hace", "hacemos", "hacen"], salir: ["salgo"], poner: ["pongo"], traer: ["traigo"] },
   leccion10: { ver: ["veo", "ves", "ve", "vemos", "ven"], venir: ["vengo", "vienes", "viene", "venimos", "vienen"] },
+  leccion11: { decir: ["digo", "dices", "dice", "decimos", "dicen"], deber: ["debo", "debes", "debe", "debemos", "deben"], dar: ["doy", "das", "da", "damos", "dan"] },
+  leccion13: { poner: ["pongo", "pones", "pone", "ponemos", "ponen"] },
 };
 const presentMissing = [];
 for (const [id, verbs] of Object.entries(PRESENT)) {
@@ -116,7 +120,7 @@ for (const [id, verbs] of Object.entries(PRESENT)) {
     for (const form of forms) if (!asked.has(form)) presentMissing.push(`${id}: no ${form}`);
   }
 }
-ck("Lessons 9 and 10 open with the present as gaps: every form of hacer, with salgo, pongo and traigo, and every form of ver and venir",
+ck("Lessons 9, 10, 11 and 13 open with the present as gaps: every form of hacer, with salgo, pongo and traigo; of ver and venir; of decir, deber and dar; and of poner",
    presentMissing.length === 0, presentMissing.join("; "));
 // "renumber the exercises properly" (owner, 2026-10-25).
 ck("each lesson's exercises are numbered 1, 2, 3… on the page, in order",
@@ -245,6 +249,14 @@ const right = first.item.gaps.map((g) => g[0]);
   ck("an answer the key has is right, kept, and Claude isn't asked",
      status === 200 && json.answer.verdict === "right" && json.answer.markedBy === "key" && json.saved === true &&
      asked.length === 0 && s.rows.length === 1 && s.rows[0].user_id === "u-1" && s.rows[0].item_key === key1 && s.rows[0].prompt === first.item.prompt);
+}
+{
+  const s = store();
+  asked.length = 0;
+  const added = itemKey("leccion11", 17, 0);
+  const { status, json } = await handleExerciseRequest({ body: { action: "answer", key: added, typed: ["digo"] }, user, store: s, apiKey: () => ({ key: "sk-ant-test" }), ask: ask(null) });
+  ck("an answer to an exercise on no sheet is marked and kept like any other, under its own key",
+     status === 200 && json.answer.verdict === "right" && json.saved === true && asked.length === 0 && s.rows.length === 1 && s.rows[0].item_key === "leccion11/17/1");
 }
 {
   const s = store();
