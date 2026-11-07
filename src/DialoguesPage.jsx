@@ -27,10 +27,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, Fragment } from "react";
 import { supabase } from "./supabase";
 import { T } from "./theme";
-import { DIALOGUES, DIALOGUE_OF } from "./data/exercises/es/dialogues.js";
+import { DIALOGUES, DIALOGUES_BY_ID, DIALOGUE_OF } from "./data/exercises/es/dialogues.js";
 import { DIALOGUE_GROUPS } from "./data/exercises/es/dialogueTitles.js";
 import { stageIds } from "./data/lessons/es/stages.js";
-import { itemKey, parseItemKey, isAnswered, markByKey, typedText, keyReason, hintText, hintLevels, plain } from "./lib/exerciseMarking.js";
+import { itemKey, parseItemKey, isAnswered, markByKey, typedText, keyReason, hintText, hintLevels, plain, markedNow, findItem, countsAsRight } from "./lib/exerciseMarking.js";
 import { markAnswer, loadAnswers } from "./lib/exerciseApi.js";
 import { roundsOf, nextSentence, dialogueStatus, statusLine } from "./lib/dialogueRounds.js";
 import { BYOK_REQUIRED, BAD_KEY } from "./lib/anthropicKey";
@@ -78,11 +78,12 @@ function useRows(userId) {
     s.started = true;
     loadAnswers({ supabase, userId, dialogues: true }).then(({ answers, missing, error }) => {
       // Oldest first; one answered on this page while they loaded is newer
-      // than any of them.
+      // than any of them. One kept under an earlier rule shows the verdict the
+      // key gives it now (markedNow).
       const rows = {};
       for (const a of answers) {
         const k = parseItemKey(a.key);
-        if (k) (rows[k.lesson] ||= []).push({ ...a, index: k.index });
+        if (k) (rows[k.lesson] ||= []).push({ ...markedNow(findItem(DIALOGUES_BY_ID, a.key)?.item, a), index: k.index });
       }
       for (const [id, list] of Object.entries(s.rows)) rows[id] = [...(rows[id] || []), ...list];
       s.rows = rows;
@@ -296,13 +297,13 @@ function OneDialogue({ user, dialogue, store, scrollRef, onBack, onNeedKey, onTu
     scrollRef.current?.scrollTo?.(0, 0);
   };
 
-  // The sentences that weren't Right the first time, once the first time
-  // through is over. They come back under the text, in its order.
+  // The sentences that were Wrong the first time, once the first time through
+  // is over. They come back under the text, in its order. An Almost doesn’t.
   const firstTimeOver = dialogue.items.every((_, i) => shown.has(i));
   const missed = firstTimeOver
     ? dialogue.items.map((_, i) => i).filter((i) => {
         const first = shown.get(i)[0];
-        return !first.pending && first.verdict !== "right";
+        return !first.pending && !countsAsRight(first.verdict);
       })
     : [];
   const missedShown = missed.filter((i) => shown.get(i).length > 1 || (next?.again && next.index === i));
@@ -493,7 +494,7 @@ function SentenceBox({ item, itemKeyValue: key, user, store, onNeedKey }) {
     const now = new Date().toISOString();
     const line = typedText(item, typed);
     const byKey = markByKey(item, typed);
-    const keyRow = byKey && { key, index, typed: line, verdict: byKey.verdict, markedBy: "key", note: "", correct: "", answeredAt: now, ticket };
+    const keyRow = byKey && { key, index, typed: line, verdict: byKey.verdict, markedBy: "key", note: "", correct: byKey.correct || "", answeredAt: now, ticket };
     if (store.problems[key]) store.setProblem(key, null);
     // The key's verdict is shown at once; Claude's is waited for, while the
     // next sentence is ready to type.

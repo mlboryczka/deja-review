@@ -12,6 +12,15 @@
 //     "Almost", as on the cards, and "sólo" for "solo" is right; an answer
 //     the key marked Almost before, for an accent that no longer counts,
 //     shows as Right;
+//   - Almost is the key's words with only small slips, however many (owner,
+//     2026-11-07): a word off by one letter, a wrong gender or number on an
+//     article or demonstrative, one word written as two; a different word, a
+//     word left out or added, or a form further off is Claude's to judge, and
+//     so is anything that might be just as right, "cansada" for "cansado".
+//     Almost counts as right in the figures and stays "almost" in what is
+//     kept; a Wrong kept from before shows as Almost when the key says so;
+//   - Claude's marking instructions never show a double quotation mark, which
+//     cut its replies short, and a whole reply that ran out of room is used;
 //   - a true-or-false pressed the wrong way is wrong without asking Claude;
 //     free writing always goes to Claude;
 //   - the server marks with the sheet's own item, not what the page sends,
@@ -42,9 +51,10 @@ import { checker } from "../check.mjs";
 import { EXERCISE_LESSONS, EXERCISES_BY_ID, LEFT_OUT, numbered } from "../../src/data/exercises/es/index.js";
 import { LESSON_TEXTS } from "../../src/data/exercises/es/texts.js";
 import { EXERCISE_GROUPS, EXERCISE_TITLES, exerciseGroupOf } from "../../src/data/exercises/es/titles.js";
-import { plain, bare, kindOf, markByKey, typedText, keyAnswer, itemKey, findItem, isAnswered, hintText, hintLevels, keyReason, markedNow } from "../../src/lib/exerciseMarking.js";
+import { plain, bare, kindOf, markByKey, typedText, keyAnswer, itemKey, findItem, isAnswered, hintText, hintLevels, keyReason, markedNow, countsAsRight } from "../../src/lib/exerciseMarking.js";
 import { accentCounts } from "../../src/lib/spanishAccents.js";
-import { handleExerciseRequest, markPrompt, readMark } from "../../api/_lib/exercises.js";
+import { handleExerciseRequest, markPrompt, readMark, markFromReply, MARK_SYSTEM } from "../../api/_lib/exercises.js";
+import { UnreadableReply } from "../../api/_lib/podcastQuestions.js";
 
 const ck = checker();
 
@@ -158,6 +168,45 @@ ck("the accents that count are those that change a verb's tense",
    ["habló", "hablo", "hablé", "hable", "llegó", "llego", "llegué", "llegue", "trabajó", "trabajo"].every(accentCounts) &&
    !["está", "esta", "están", "estás", "tú", "él", "sé", "dé", "cómo", "qué", "días", "año", "frío"].some(accentCounts));
 ck("an accent that Real Academia still allows is right", markByKey({ prompt: "only", answer: "solo" }, "sólo")?.verdict === "right");
+{
+  const almost = (answer, typed, also) => markByKey({ prompt: "x", answer, also }, typed)?.verdict === "almost";
+  const toClaude = (answer, typed, also) => markByKey({ prompt: "x", answer, also }, typed) === null;
+  ck("Almost: a wrong article, as the owner said of la despertador", almost("Lo que pasa es que el despertador no sonó.", "lo que pasa es que la despertador no sonó"));
+  ck("Almost: a word off by one letter, even another form of the verb", almost("Ellas se maquillan y se visten.", "ellas se maquillan y se vistan") && almost("Cuando te despiertas, ¿qué haces?", "cuando te despiertes, que haces"));
+  ck("Almost: however many slips", almost("Ella debe estar agotada.", "elle dabe estar agotada"));
+  ck("Almost: a missing, an extra and a swapped letter", almost("Tengo problemas.", "tengo problmas") && almost("Tengo problemas.", "tengo probblemas") && almost("Tengo problemas.", "tengo porblemas"));
+  ck("Almost: one word written as two, or two as one", almost("Me levanto porque me aburro.", "me levanto por que me aburro") && almost("A veces duermo.", "aveces duermo"));
+  ck("Almost: a demonstrative of the wrong gender or number", almost("Me aburro estos días.", "me aburro este dias"));
+  ck("Almost: the closest of the key's answers is the correction",
+     markByKey({ prompt: "x", answer: "A veces me levanto porque me aburro.", also: ["A veces me levanto porque estoy aburrido."] }, "a veces me levanto por que estoy aburrido")?.correct === "A veces me levanto porque estoy aburrido.");
+  ck("Claude's: a short word off by a letter is another word", toClaude("Se levanta.", "te levanta") && toClaude("Soy Ana.", "son ana"));
+  ck("Claude's: a word left out or added", toClaude("Voy a estar agotado.", "voy estar agotado") && toClaude("Se duerme sin problema.", "a se duerme sin problema"));
+  ck("Claude's: a form further off", toClaude("Mi despertador sonó.", "mi despertador suena") && toClaude("¿Te despiertas?", "te despertes"));
+  ck("Claude's: an ending that may be just as right", toClaude("Estoy cansado.", "estoy cansada") && toClaude("El doctor llegó.", "el doctora llegó"));
+  ck("Claude's: an article on a noun either gender can be", toClaude("un turista", "una turista") && toClaude("el paciente", "la paciente"));
+  ck("free writing isn't compared for slips", markByKey({ prompt: "x", open: true, answer: "Tengo problemas." }, "tengo problmas") === null);
+  const blank = { prompt: "Ellos ___ tarde.", gaps: [["llegan"]] };
+  ck("a blank can be Almost too", markByKey(blank, ["llagan"])?.verdict === "almost" && markByKey(blank, ["llagan"])?.slips === true);
+  ck("only accents off still says so", markByKey({ prompt: "x", answer: "Habló con Ana." }, "hablo con ana")?.accents === true);
+  ck("Why? names the words, as they are written",
+     keyReason({ prompt: "x", answer: "Lo que pasa es que el despertador no sonó." }, "lo que pasa es que la despertador no sonó") === 'Right but for one word: "el", not "la".' &&
+     keyReason({ prompt: "x", answer: "Ella debe estar agotada." }, "Elle dabe estar agotada") === 'Right but for 2 words: "Ella", not "Elle"; "debe", not "dabe".' &&
+     keyReason({ prompt: "x", answer: "Me levanto porque me aburro." }, "me levanto por que me aburro") === 'Right but for one word: "porque", not "por que".');
+  const clock = { prompt: "x", answer: "Lo que pasa es que el despertador no sonó." };
+  ck("a Wrong kept from before shows as Almost when the key says so, and nothing else is changed",
+     markedNow(clock, { markedBy: "claude", verdict: "wrong", typed: "lo que pasa es que la despertador no sonó", note: "n" }).verdict === "almost" &&
+     markedNow(clock, { markedBy: "claude", verdict: "wrong", typed: "lo que pasa", note: "n" }).verdict === "wrong");
+  ck("a Wrong the key now takes shows as Right", markedNow({ prompt: "I see.", answer: "Ya veo.", also: ["Veo."] }, { markedBy: "claude", verdict: "wrong", typed: "veo" }).verdict === "right");
+  const tfWrong = { prompt: "x", truth: false, answer: "Falso. Ana habla con Luis." };
+  ck("a true-or-false pressed the wrong way stays Wrong", markedNow(tfWrong, { markedBy: "key", verdict: "wrong", typed: "Verdadero. Ana habla con Luis." }).verdict === "wrong");
+  ck("Almost counts as right, Wrong doesn't", countsAsRight("right") && countsAsRight("almost") && !countsAsRight("wrong") && !countsAsRight(undefined));
+  ck("Claude's instructions never show a double quotation mark", !MARK_SYSTEM.includes('"'));
+  ck("a whole reply that ran out of room is used", markFromReply({ stop_reason: "max_tokens", content: [{ type: "text", text: '{"verdict":"wrong","note":"","correct":""}' }] })?.verdict === "wrong");
+  let cut = null, refused = null;
+  try { markFromReply({ stop_reason: "max_tokens", content: [{ type: "text", text: '{"verdict":"wro' }] }); } catch (e) { cut = e; }
+  try { markFromReply({ stop_reason: "refusal", content: [] }); } catch (e) { refused = e; }
+  ck("a reply cut off in the middle, or refused, can't be used", cut instanceof UnreadableReply && refused instanceof UnreadableReply);
+}
 ck("another wording in also is right", markByKey({ prompt: "x", answer: "Me llamo Ana.", also: ["Mi nombre es Ana."] }, "mi nombre es ana")?.verdict === "right");
 const tf = { prompt: "Lucía vive en Guadalajara.", truth: false, answer: "Falso. Lucía vive en Estados Unidos." };
 ck("true or false pressed the wrong way is wrong, without Claude", markByKey(tf, { truth: true, text: "Sí." })?.verdict === "wrong");
@@ -283,6 +332,17 @@ const right = first.item.gaps.map((g) => g[0]);
   const s = store();
   const { status } = await handleExerciseRequest({ body: { action: "answer", key: key1, typed: ["zzz"] }, user, store: s, apiKey: () => ({ key: "k" }), ask: ask({ verdict: "maybe" }) });
   ck("a reply with no verdict keeps nothing", status === 502 && s.rows.length === 0);
+}
+{
+  const s = store();
+  asked.length = 0;
+  const lesson = EXERCISES_BY_ID["leccion12-1"];
+  const ex = lesson.exercises.find((e) => e.items.some((it) => /alarm clock didn't go off/.test(it.prompt)));
+  const index = ex.items.findIndex((it) => /alarm clock didn't go off/.test(it.prompt));
+  const { status, json } = await handleExerciseRequest({ body: { action: "answer", key: itemKey("leccion12-1", ex.n, index), typed: "lo que pasa es que la despertador no sonó" }, user, store: s, apiKey: null, ask: ask(null) });
+  ck("the key's Almost is kept as Almost, with the correction, and needs neither Claude nor a key",
+     status === 200 && asked.length === 0 && json.answer.verdict === "almost" && json.answer.markedBy === "key" && json.answer.correct === ex.items[index].answer &&
+     json.saved === true && s.rows.length === 1 && s.rows[0].verdict === "almost" && s.rows[0].marked_by === "key" && s.rows[0].correct === ex.items[index].answer && s.rows[0].typed === "lo que pasa es que la despertador no sonó");
 }
 {
   const s = store({ missing: true });

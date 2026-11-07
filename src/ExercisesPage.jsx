@@ -39,7 +39,7 @@ import { EXERCISES_BY_ID } from "./data/exercises/es/index.js";
 import { EXERCISE_GROUPS } from "./data/exercises/es/titles.js";
 import { stageIds } from "./data/lessons/es/stages.js";
 import { LESSON_TEXTS } from "./data/exercises/es/texts.js";
-import { itemKey, kindOf, isAnswered, markByKey, typedText, keyAnswer, keyReason, hintText, hintLevels, markedNow, findItem } from "./lib/exerciseMarking.js";
+import { itemKey, kindOf, isAnswered, markByKey, typedText, keyAnswer, keyReason, hintText, hintLevels, markedNow, findItem, countsAsRight } from "./lib/exerciseMarking.js";
 import { markAnswer, loadAnswers } from "./lib/exerciseApi.js";
 import { BYOK_REQUIRED, BAD_KEY } from "./lib/anthropicKey";
 import { startOfLocalDay } from "./lib/studyDay";
@@ -90,9 +90,8 @@ function useAnswers(userId) {
     s.started = true;
     loadAnswers({ supabase, userId }).then(({ answers, missing, error }) => {
       // Oldest first, so each item ends on its latest; one answered on this
-      // page while they loaded is newer than any of them. One the key marked
-      // Almost for an accent that no longer counts shows as Right
-      // (markedNow).
+      // page while they loaded is newer than any of them. One kept under an
+      // earlier rule shows the verdict the key gives it now (markedNow).
       const latest = {};
       for (const a of answers) latest[a.key] = markedNow(findItem(EXERCISES_BY_ID, a.key)?.item, a);
       for (const [k, a] of Object.entries(s.latest)) latest[k] = a;
@@ -150,7 +149,7 @@ function tally(lesson, latest, again) {
     ex.items.forEach((_, i) => {
       items++;
       const a = shownAnswer(latest, again, lesson.id, ex.n, itemKey(lesson.id, ex.n, i));
-      if (a && !a.pending) { answered++; if (a.verdict === "right") right++; }
+      if (a && !a.pending) { answered++; if (countsAsRight(a.verdict)) right++; }
     });
   }
   return { items, answered, right };
@@ -430,7 +429,7 @@ function ExerciseBlock({ user, lesson, exercise, store, again, onStartAgain, foc
   let answered = 0, right = 0;
   const keys = exercise.items.map((_, i) => itemKey(lesson.id, exercise.n, i));
   const shown = keys.map((k) => shownAnswer(store.latest, again, lesson.id, exercise.n, k));
-  for (const a of shown) if (a && !a.pending) { answered++; if (a.verdict === "right") right++; }
+  for (const a of shown) if (a && !a.pending) { answered++; if (countsAsRight(a.verdict)) right++; }
   return (
     <section style={S.ex} data-exercise={exercise.n}>
       <div style={S.exHead}>
@@ -516,7 +515,7 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
     const byKey = markByKey(item, typed);
     // The key's verdict is shown at once; Claude's is waited for.
     store.record(byKey
-      ? { key, typed: line, verdict: byKey.verdict, markedBy: "key", note: "", correct: "", answeredAt: now, ticket, saving: true }
+      ? { key, typed: line, verdict: byKey.verdict, markedBy: "key", note: "", correct: byKey.correct || "", answeredAt: now, ticket, saving: true }
       : { key, typed: line, pending: true, answeredAt: now, ticket });
     const sent = typed;
     drafts.delete(draftKey);
@@ -528,7 +527,7 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
       store.record({ ...a, answeredAt: a.answeredAt || now, ticket, unsaved: !saved && !missing });
     } catch (e) {
       if (byKey) {
-        store.record({ key, typed: line, verdict: byKey.verdict, markedBy: "key", note: "", correct: "", answeredAt: now, ticket, unsaved: true });
+        store.record({ key, typed: line, verdict: byKey.verdict, markedBy: "key", note: "", correct: byKey.correct || "", answeredAt: now, ticket, unsaved: true });
       } else {
         // Nothing was marked: the answer goes back in the box to try again.
         store.forget(key, ticket);

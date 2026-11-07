@@ -14,6 +14,11 @@ import { TITLES } from "./titles.js";
 import { DIALOGUE_TEXTS } from "./dialogueTexts.js";
 import { DIALOGUE_PREFIX } from "../../../lib/dialogueRounds.js";
 
+// Other answers the key takes for a sentence, by the text's own Spanish. Claude
+// accepts any other correct Spanish; these are the ones the owner has settled
+// (2026-11-07, of "veo" for "I see.": "this should be correct").
+const ALSO = { "Ya veo.": ["Veo."] };
+
 const INSTRUCTION = "Traduce esta frase del diálogo de la lección al español.";
 const ENGLISH = "Translate this sentence of the lesson's dialogue into Spanish. Any correct, natural Spanish that says the same thing is right, even if it isn't the dialogue's own wording.";
 
@@ -23,7 +28,7 @@ export const DIALOGUES = Object.keys(TITLES).filter((id) => DIALOGUE_TEXTS[id]).
   const lines = text.lines.map((line) => ({
     ...line,
     sentences: line.sentences.map((s) => {
-      items.push({ prompt: s.en, answer: s.es, ...(line.who ? { who: line.who } : null) });
+      items.push({ prompt: s.en, answer: s.es, ...(ALSO[s.es] ? { also: ALSO[s.es] } : null), ...(line.who ? { who: line.who } : null) });
       return { ...s, index: items.length - 1 };
     }),
   }));

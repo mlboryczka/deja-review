@@ -12,8 +12,9 @@
 //   - the key marks a sentence's own Spanish right, with or without accents
 //     but for one that changes the tense; other words go to Claude, and any
 //     correct Spanish can be right;
-//   - a round is every sentence, then each one that wasn't Right once more,
-//     and it is worked out from the answers alone: an unfinished round carries
+//   - a round is every sentence, then each one that was Wrong once more (an
+//     Almost counts as right, owner 2026-11-07), and it is worked out from the
+//     answers alone: an unfinished round carries
 //     on through the day, a finished one ends where it ends, and the next
 //     answer starts the next round; each morning, from 4am, every text starts
 //     from its first sentence;
@@ -125,6 +126,10 @@ ck("capitals, punctuation and accents that change no tense don't matter", markBy
 ck("other words go to Claude, which can call them right", markByKey(asleep, "Estoy durmiendo muy mal estos días.") === null);
 {
   const said = { prompt: "He spoke with Ana.", answer: "Habló con Ana." };
+  {
+    const seen = DIALOGUES.flatMap((d) => d.items).filter((it) => it.answer === "Ya veo.");
+    ck("veo is right for I see, with or without the text's own ya", seen.length > 0 && seen.every((it) => markByKey(it, "veo")?.verdict === "right" && markByKey(it, "ya veo")?.verdict === "right"));
+  }
   ck("an accent that changes the tense is Almost, and says why",
      markByKey(said, "Hablo con Ana.")?.verdict === "almost" && /"Habló", not "Hablo"/.test(keyReason(said, "Hablo con Ana.")));
 }
@@ -175,7 +180,7 @@ ck("a new text starts at its first sentence", JSON.stringify(nextSentence(3, new
 }
 {
   const { finished, tries } = roundsOf(2, [row(0, A), row(1, R)]);
-  ck("Almost comes back too", !finished.length && nextSentence(2, tries).index === 0 && nextSentence(2, tries).again);
+  ck("Almost counts as right: it doesn't come back, the round is over and it isn't a miss", finished.length === 1 && finished[0].missed === 0 && tries.size === 0);
 }
 {
   const a = roundsOf(2, [row(0, W), row(1, W)]);

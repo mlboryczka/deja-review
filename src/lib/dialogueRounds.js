@@ -1,9 +1,9 @@
 // The Dialogues module's rounds (Spanish, test app; owner, 2026-11-07).
 //
 // A round is one time through a lesson's text: every sentence answered in
-// order, then each one that wasn't Right once more, as a missed card comes
-// back later in its set. Almost counts as not Right here, as it does on a
-// card.
+// order, then each one that was Wrong once more, as a missed card comes back
+// later in its set. Almost counts as right here, as it does on Exercises (owner,
+// 2026-11-07): it doesn't come back, and "8 of 10 sentences right" includes it.
 //
 // Nothing about a round is kept but its answers (es_exercise_answers, one row
 // per answer, oldest first), so a round is worked out from them here, the same
@@ -20,16 +20,17 @@
 // Pure, plain JS: the page imports it, and so do the tests.
 
 import { localISODate } from "./studyDay.js";
+import { countsAsRight } from "./exerciseMarking.js";
 
 // A dialogue's answers are kept under keys starting with this, so they can't
 // be mistaken for an exercise's: "dialogo-leccion12-1/1/5".
 export const DIALOGUE_PREFIX = "dialogo-";
 
-const isRight = (row) => row.verdict === "right";
+const isRight = (row) => countsAsRight(row.verdict);
 const lastOf = (list) => list[list.length - 1];
 
-// Whether a round's answers leave nothing to ask: every sentence Right, or
-// answered twice, with no answer still being marked.
+// Whether a round's answers leave nothing to ask: every sentence right or
+// almost, or answered twice, with no answer still being marked.
 function roundOver(count, tries) {
   for (let i = 0; i < count; i++) {
     const t = tries.get(i);

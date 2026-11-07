@@ -756,8 +756,8 @@ const EXERCISE_ITEMS_MAX = 60;
 const EXERCISE_LESSON_TEXT_MAX = 4000;
 const EXERCISE_VERDICT_TEXT = {
   right: "was marked right",
-  // As api/_lib/exercises.js marks it: one small slip.
-  almost: "was marked almost right (right but for one small slip: an accent that changes a verb's tense or person, or one wrong letter in an otherwise right word)",
+  // As api/_lib/exercises.js marks it.
+  almost: "was marked almost right (right but for small slips: a word off by one letter, an accent that changes a verb's tense or person, the wrong gender or number on an article, demonstrative or adjective, or one word written as two)",
   wrong: "was marked wrong",
 };
 
