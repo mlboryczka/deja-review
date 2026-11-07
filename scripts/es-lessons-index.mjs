@@ -19,16 +19,13 @@ const ORDER = [
 const only = (process.env.ONLY || "").split(",").filter(Boolean);
 const have = ORDER.filter((id) => fs.existsSync(path.join(dir, `${id}.js`)) && (!only.length || only.includes(id)));
 const name = (id) => id.replace("-", "_");
-// One folding heading over every lesson, "Basic Lessons", as the French
-// beginner lessons have (owner, 2026-10-22: "all the spanish lessons should
-// be under Basic Lessons, just as in French module").
-const groups = have.length ? [{ title: "Basic Lessons", ids: have }] : [];
 
 const out = `// The Spanish module's lessons (test app, owner 2026-10-22): the 23-lesson
 // Latin American Spanish course adapted from Laura Caufour's LFL METHOD, in
-// Google Drive under Español / "New Lessons to Review", all under the folding
-// heading "Basic Lessons". Written by scripts/es-lessons-index.mjs; run it
-// again after adding a lesson file.
+// Google Drive under Español / "New Lessons to Review". They are shown in the
+// course's four stages, the same as on Exercises (./stages.js; owner,
+// 2026-11-07). Written by scripts/es-lessons-index.mjs; run it again after
+// adding a lesson file.
 //
 // Every lesson starts in every Spanish deck, as the French ones do in the
 // French deck. Lessons 1 to 6 come up on Cards without a choice
@@ -36,12 +33,19 @@ const out = `// The Spanish module's lessons (test app, owner 2026-10-22): the 2
 
 ${have.map((id) => `import ${name(id)} from "./${id}.js";`).join("\n")}
 import { makeCatalogue } from "../catalogue.js";
+import { stagesOf, stageIds } from "./stages.js";
 
-export const SPANISH = makeCatalogue({
-  lessons: [${have.map(name).join(", ")}],
-  meetingOrder: ${JSON.stringify(have)},
-  groups: ${JSON.stringify(groups.map((g) => ({ title: g.title, folds: true, ids: g.ids })))},
-});
+const lessons = [${have.map(name).join(", ")}];
+const LESSON_STAGES = stagesOf(lessons);
+
+export const SPANISH = {
+  ...makeCatalogue({
+    lessons,
+    meetingOrder: ${JSON.stringify(have)},
+    groups: LESSON_STAGES.map((stage) => ({ title: stage.title, folds: true, ids: stageIds(stage) })),
+  }),
+  LESSON_STAGES,
+};
 
 export default SPANISH;
 `;

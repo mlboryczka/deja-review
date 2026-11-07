@@ -104,7 +104,8 @@ import { podcastsOpenTo } from "./lib/testApp";
 // Loaded only when Exercises is opened: its 27 sheets are about 800 KB that
 // no one else, French included, should have to download.
 const ExercisesPage = lazy(() => import("./ExercisesPage"));
-import { EXERCISE_TITLES, TITLES as EXERCISE_TITLE_OF, TEXT_OF as EXERCISE_TEXT_OF, EXERCISE_GROUPS, exerciseGroupOf } from "./data/exercises/es/titles.js";
+import { TITLES as EXERCISE_TITLE_OF, TEXT_OF as EXERCISE_TEXT_OF, EXERCISE_GROUPS } from "./data/exercises/es/titles.js";
+import { stageOf } from "./data/lessons/es/stages.js";
 
 const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase();
 // The owner's account. Client-side only, so it only ever HIDES things: every
@@ -631,7 +632,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   const storeId = course.store(user?.id);
   // The course's lessons. The same object on every render, so it never
   // changes a hook's dependencies.
-  const { LESSONS, LESSON_GROUPS, LESSONS_SHOWN, lessonRank, cardInstructionFor, lessonBackFor } = catalogueFor(course.id);
+  const { LESSONS, LESSON_GROUPS, LESSON_STAGES, LESSONS_SHOWN, lessonById, lessonRank, cardInstructionFor, lessonBackFor } = catalogueFor(course.id);
   // The browser voice reads this course's language.
   setSpeechLanguage(course.speech);
   const { progress, loaded: progressLoaded, updateCard, resetAll: resetAllProgress } = useProgress(user, { table: tbl("card_progress"), store: storeId });
@@ -1117,24 +1118,11 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
     if (!user?.id) return;
     try { localStorage.setItem(EXERCISES_FOLDED_KEY + user.id, exLessonsFolded ? "1" : "0"); } catch { /* storage blocked */ }
   }, [user?.id, exLessonsFolded]);
-  // Under All exercises, one stage of the course is open at a time
-  // (EXERCISE_GROUPS): the one holding the lesson you're on, until you open
-  // another. Going to a lesson opens its stage. -1 is none open.
-  const [exOpenGroup, setExOpenGroup] = useState(() => Math.max(0, exerciseGroupOf(exView.lesson)));
-  useEffect(() => {
-    const g = exerciseGroupOf(exView.lesson);
-    if (g >= 0) setExOpenGroup(g);
-  }, [exView.lesson]);
-  // A lesson in parts (7, 8, 12) opens to its parts while you're in one of
-  // them, and otherwise when pressed. These are the ones pressed the other
-  // way from that.
-  const [exPartsFlipped, setExPartsFlipped] = useState(() => new Set());
-  const flipExParts = (key) => setExPartsFlipped((prev) => {
-    const next = new Set(prev);
-    if (next.has(key)) next.delete(key); else next.add(key);
-    return next;
-  });
-  useEffect(() => { setExPartsFlipped(new Set()); }, [exView.lesson]);
+  // The stages open in the sidebar: under All exercises, and under Lessons on
+  // Spanish Flashcards (French has no stages).
+  const exStageFolds = useStageFolds(EXERCISE_GROUPS, exView.lesson);
+  const lessonOpenHere = mode === "study" && lessonFilter !== "all" ? lessonFilter : null;
+  const lessonStageFolds = useStageFolds(LESSON_STAGES, lessonOpenHere);
   // Changing module stops the browser voice: a card being read aloud must
   // not carry on over an episode, nor a podcast word over the next card. The
   // episode's own recording is the podcasts page's to pause, and it does so
@@ -3574,75 +3562,18 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
               )}
             </div>
             {/* Folded, only the lesson you're in. Unfolded, the four stages
-                of the course, one open at a time: a closed one still shows
-                the lesson you're in, as a folded Basic Lessons does, under
-                its full title. Lessons 7, 8 and 12 are one row each that
-                opens to their parts (owner, 2026-11-01). */}
-            {!sidebarMin && (() => {
-              const lessonBtn = (id, title, style) => {
-                const on = exView.lesson === id;
-                return (
-                  <button
-                    key={id}
-                    data-ex-nav={id}
-                    className="side-btn"
-                    aria-current={on ? "page" : undefined}
-                    style={on ? { ...style, ...S.sideSubItemActive } : style}
-                    onClick={() => setExView({ lesson: id })}
-                  >
-                    {title}
-                  </button>
-                );
-              };
-              if (exLessonsFolded) {
-                return EXERCISE_TITLES.filter((l) => exView.lesson === l.id).map((l) => lessonBtn(l.id, l.title, S.sideSubItem));
-              }
-              const nested = { ...S.sideSubItem, ...S.sideSubItemNested };
-              return EXERCISE_GROUPS.map((group, gi) => {
-                const open = gi === exOpenGroup;
-                return (
-                  <Fragment key={group.title}>
-                    <button
-                      className="side-btn"
-                      style={S.sideGroup}
-                      onClick={() => setExOpenGroup(open ? -1 : gi)}
-                      aria-expanded={open}
-                      data-ex-group={gi}
-                    >
-                      {group.title}
-                      <span style={open ? { ...S.sideChevron, ...S.sideChevronOpen } : S.sideChevron} aria-hidden="true">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                      </span>
-                    </button>
-                    {group.rows.map((row) => {
-                      if (!row.parts) return open || exView.lesson === row.id ? lessonBtn(row.id, row.title, nested) : null;
-                      const here = row.parts.find((p) => p.id === exView.lesson);
-                      if (!open) return here ? lessonBtn(here.id, EXERCISE_TITLE_OF[here.id], nested) : null;
-                      const partsOpen = !!here !== exPartsFlipped.has(row.key);
-                      return (
-                        <Fragment key={row.key}>
-                          <button
-                            className="side-btn"
-                            style={{ ...nested, display: "flex", alignItems: "center" }}
-                            onClick={() => flipExParts(row.key)}
-                            aria-expanded={partsOpen}
-                            data-ex-parts={row.key}
-                          >
-                            {row.title}
-                            <span style={partsOpen ? { ...S.sideChevron, ...S.sideChevronOpen } : S.sideChevron} aria-hidden="true">
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                            </span>
-                          </button>
-                          {row.parts
-                            .filter((p) => partsOpen || p === here)
-                            .map((p) => lessonBtn(p.id, p.title, { ...nested, ...S.sideSubItemPart }))}
-                        </Fragment>
-                      );
-                    })}
-                  </Fragment>
-                );
-              });
-            })()}
+                of the course (SideStages). */}
+            {!sidebarMin && (
+              <SideStages
+                stages={EXERCISE_GROUPS}
+                folds={exStageFolds}
+                folded={exLessonsFolded}
+                current={exView.lesson}
+                titleOf={(id) => EXERCISE_TITLE_OF[id]}
+                onPick={(id) => setExView({ lesson: id })}
+                data="ex"
+              />
+            )}
           </>
         )}
         {!podcastsOn && !exercisesOn && navItems.map(([m, label]) => {
@@ -3678,8 +3609,20 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
               {/* Lessons are the one nav item with children: each lesson sits
                   under it as a sub-item, so picking one is a single click
                   rather than a trip through the catalogue. Not on the rail,
-                  which has no room to nest anything. */}
-              {m === "lessons" && !sidebarMin && lessonsOpen && LESSON_GROUPS.map((group) => {
+                  which has no room to nest anything. In Spanish they are in
+                  the same stages as on Exercises (owner, 2026-11-07). */}
+              {m === "lessons" && !sidebarMin && lessonsOpen && LESSON_STAGES && (
+                <SideStages
+                  stages={LESSON_STAGES}
+                  folds={lessonStageFolds}
+                  current={lessonOpenHere}
+                  titleOf={(id) => lessonById(id)?.title}
+                  tooltip={(id) => `Study ${lessonById(id)?.title}`}
+                  onPick={enterLesson}
+                  data="lesson"
+                />
+              )}
+              {m === "lessons" && !sidebarMin && lessonsOpen && !LESSON_STAGES && LESSON_GROUPS.map((group) => {
                 // Folded, it still shows the lesson you're in. (It used to
                 // refuse to fold there, so the press did nothing you could
                 // see.)
@@ -4329,8 +4272,10 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
       if (!rows.length) continue;
       if (!g.folds) { lessonRows.push(...rows); continue; }
       const sum = (k) => rows.reduce((n, r) => n + r.summary[k], 0);
+      // Lessons, not parts: Spanish Lesson 7's three parts are one lesson.
+      const lessonCount = new Set(rows.map((r) => r.label.split(" · ")[0])).size;
       lessonGroups.push({
-        key: `group:${g.title}`, label: g.title, sub: `${rows.length} ${rows.length === 1 ? "lesson" : "lessons"}`, lessons: rows,
+        key: `group:${g.title}`, label: g.title, sub: `${lessonCount} ${lessonCount === 1 ? "lesson" : "lessons"}`, lessons: rows,
         summary: { total: sum("total"), seen: sum("seen"), remembered: sum("remembered"), notSeen: sum("notSeen") },
         delta: weekAgo ? rows.reduce((n, r) => n + r.delta, 0) : null,
       });
@@ -5810,6 +5755,101 @@ function FeedbackAdminView({ user, setMode, resetSession }) {
 // the sidebar. Opens the feedback panel with this card attached. Stops the
 // click so it never flips, continues or grades the card underneath it.
 // One on/off row in the settings menu.
+// ─── THE SIDEBAR'S STAGES (Spanish) ──────────────────────────────────────
+// Spanish lessons are listed in the course's four stages, one open at a time,
+// on Flashcards and on Exercises alike (data/lessons/es/stages.js).
+//
+// Which are open is kept in the app rather than in SideStages, so it stays
+// put while the list is folded away. The open stage is the one holding the
+// lesson you're on, until you open another; going to a lesson opens its
+// stage; -1 is none open. A lesson in parts opens to them while you're in one
+// of them, and otherwise when pressed: `flipped` holds the ones pressed the
+// other way from that.
+function useStageFolds(stages, current) {
+  const [open, setOpen] = useState(() => Math.max(0, stageOf(stages, current)));
+  useEffect(() => {
+    const g = stageOf(stages, current);
+    if (g >= 0) setOpen(g);
+  }, [stages, current]);
+  const [flipped, setFlipped] = useState(() => new Set());
+  const flip = (key) => setFlipped((prev) => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+  useEffect(() => { setFlipped(new Set()); }, [current]);
+  return { open, setOpen, flipped, flip };
+}
+
+// A closed stage still shows the lesson you're in, under its full title, and
+// `folded` (Exercises' fold) shows only that lesson. `data` names the test
+// hooks: data-ex-nav, data-lesson-nav and so on.
+function SideStages({ stages, folds, folded = false, current, titleOf, onPick, tooltip, data }) {
+  const hook = (what, value) => ({ [`data-${data}-${what}`]: value });
+  const lessonBtn = (id, title, style) => {
+    const on = current === id;
+    return (
+      <button
+        key={id}
+        {...hook("nav", id)}
+        className="side-btn"
+        aria-current={on ? "page" : undefined}
+        style={on ? { ...style, ...S.sideSubItemActive } : style}
+        onClick={() => onPick(id)}
+        title={tooltip?.(id)}
+      >
+        {title}
+      </button>
+    );
+  };
+  if (folded) return titleOf(current) ? lessonBtn(current, titleOf(current), S.sideSubItem) : null;
+  const nested = { ...S.sideSubItem, ...S.sideSubItemNested };
+  return stages.map((stage, si) => {
+    const open = si === folds.open;
+    return (
+      <Fragment key={stage.title}>
+        <button
+          className="side-btn"
+          style={S.sideGroup}
+          onClick={() => folds.setOpen(open ? -1 : si)}
+          aria-expanded={open}
+          {...hook("group", si)}
+        >
+          {stage.title}
+          <span style={open ? { ...S.sideChevron, ...S.sideChevronOpen } : S.sideChevron} aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </span>
+        </button>
+        {stage.rows.map((row) => {
+          if (!row.parts) return open || current === row.id ? lessonBtn(row.id, row.title, nested) : null;
+          const here = row.parts.find((p) => p.id === current);
+          if (!open) return here ? lessonBtn(here.id, titleOf(here.id), nested) : null;
+          const partsOpen = !!here !== folds.flipped.has(row.key);
+          return (
+            <Fragment key={row.key}>
+              <button
+                className="side-btn"
+                style={{ ...nested, display: "flex", alignItems: "center" }}
+                onClick={() => folds.flip(row.key)}
+                aria-expanded={partsOpen}
+                {...hook("parts", row.key)}
+              >
+                {row.title}
+                <span style={partsOpen ? { ...S.sideChevron, ...S.sideChevronOpen } : S.sideChevron} aria-hidden="true">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </span>
+              </button>
+              {row.parts
+                .filter((p) => partsOpen || p === here)
+                .map((p) => lessonBtn(p.id, p.title, { ...nested, ...S.sideSubItemPart }))}
+            </Fragment>
+          );
+        })}
+      </Fragment>
+    );
+  });
+}
+
 // The French / Spanish switch (owner, 2026-10-22: option 2 of the mockup,
 // ".claude/mockups/language-switch.html", "and use the colombian flag"): a
 // round flag in the top-right corner of every page, as Duolingo and Babbel

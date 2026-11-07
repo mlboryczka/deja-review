@@ -35,7 +35,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, Fragment } from "react";
 import { supabase } from "./supabase";
 import { T } from "./theme";
-import { EXERCISE_LESSONS, EXERCISES_BY_ID } from "./data/exercises/es/index.js";
+import { EXERCISES_BY_ID } from "./data/exercises/es/index.js";
+import { EXERCISE_GROUPS } from "./data/exercises/es/titles.js";
+import { stageIds } from "./data/lessons/es/stages.js";
 import { LESSON_TEXTS } from "./data/exercises/es/texts.js";
 import { itemKey, kindOf, isAnswered, markByKey, typedText, keyAnswer, keyReason, hintText, hintLevels, markedNow, findItem } from "./lib/exerciseMarking.js";
 import { markAnswer, loadAnswers } from "./lib/exerciseApi.js";
@@ -237,6 +239,13 @@ export default function ExercisesPage({ user, view, setView, onNeedKey, onTutorC
   useEffect(() => { scrollRef.current?.scrollTo?.(0, 0); }, [view?.lesson]);
   // On the list of lessons no exercise is on screen.
   useEffect(() => { if (!lesson) onTutorContext?.(null); }, [lesson, onTutorContext]);
+  // The stages folded on that list: each folds on its own, open until it's pressed.
+  const [closedStages, setClosedStages] = useState(() => new Set());
+  const toggleStage = (title) => setClosedStages((prev) => {
+    const next = new Set(prev);
+    if (next.has(title)) next.delete(title); else next.add(title);
+    return next;
+  });
 
   return (
     <div style={S.scroll} ref={scrollRef} data-exercises-page={lesson ? "lesson" : "list"}>
@@ -267,18 +276,34 @@ export default function ExercisesPage({ user, view, setView, onNeedKey, onTutorC
             <p style={S.intro}>
               The written exercises from each lesson’s sheet. Type your answer and press Enter: the answer key marks it straight away, and Claude marks any answer the key doesn’t have.
             </p>
-            {EXERCISE_LESSONS.map((l) => {
-              const t = tally(l, store.latest, again);
+            {/* Under the course's four stages, as the Lessons page on
+                Flashcards is (owner, 2026-11-07). */}
+            {EXERCISE_GROUPS.map((stage) => {
+              const closed = closedStages.has(stage.title);
               return (
-                <button key={l.id} type="button" className="ex-row" style={S.row} onClick={() => setView({ lesson: l.id })} data-exercise-lesson={l.id}>
-                  <span style={S.rowMain}>
-                    <span style={S.rowTitle}>{l.title}</span>
-                    <span style={S.rowCount}>{store.loading ? `${t.items} questions` : countLine(t)}</span>
-                  </span>
-                  <span style={S.bar} aria-hidden="true">
-                    <span style={{ ...S.barFill, width: `${t.items ? Math.round((100 * t.answered) / t.items) : 0}%` }} />
-                  </span>
-                </button>
+                <Fragment key={stage.title}>
+                  <button type="button" style={S.stage} onClick={() => toggleStage(stage.title)} aria-expanded={!closed} data-exercise-stage={stage.title}>
+                    {stage.title}
+                    <span style={closed ? S.stageChevron : { ...S.stageChevron, ...S.stageChevronOpen }} aria-hidden="true">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    </span>
+                  </button>
+                  {!closed && stageIds(stage).map((id) => {
+                    const l = EXERCISES_BY_ID[id];
+                    const t = tally(l, store.latest, again);
+                    return (
+                      <button key={l.id} type="button" className="ex-row" style={S.row} onClick={() => setView({ lesson: l.id })} data-exercise-lesson={l.id}>
+                        <span style={S.rowMain}>
+                          <span style={S.rowTitle}>{l.title}</span>
+                          <span style={S.rowCount}>{store.loading ? `${t.items} questions` : countLine(t)}</span>
+                        </span>
+                        <span style={S.bar} aria-hidden="true">
+                          <span style={{ ...S.barFill, width: `${t.items ? Math.round((100 * t.answered) / t.items) : 0}%` }} />
+                        </span>
+                      </button>
+                    );
+                  })}
+                </Fragment>
               );
             })}
           </>
@@ -753,6 +778,11 @@ const S = {
   h1: { fontFamily: T.font.serif, fontWeight: 600, fontSize: 30, color: T.color.primary, letterSpacing: "-0.02em", margin: "0 0 20px", lineHeight: 1.2, paddingRight: 56 },
   intro: { margin: "-6px 0 22px", fontSize: 14, lineHeight: 1.55, color: T.color.onSurfaceVariant, maxWidth: 600 },
   notice: { margin: "0 0 18px", padding: "14px 18px", background: T.color.surfaceLowest, border: `1px solid ${LINE}`, borderRadius: T.radius.xl, fontSize: 13.5, lineHeight: 1.55, color: T.color.primary },
+
+  // A stage's heading, the same as a heading on the Lessons page.
+  stage: { display: "flex", alignItems: "center", gap: 10, padding: 0, border: "none", background: "transparent", cursor: "pointer", fontSize: 20, fontWeight: 600, color: T.color.primary, fontFamily: T.font.serif, margin: "32px 0 14px", textAlign: "left" },
+  stageChevron: { display: "flex", opacity: 0.6, transition: "transform 0.2s" },
+  stageChevronOpen: { transform: "rotate(180deg)" },
 
   row: { display: "flex", alignItems: "center", gap: 18, width: "100%", padding: "14px 18px", background: T.color.surfaceLowest, borderWidth: 1, borderStyle: "solid", borderColor: LINE, borderRadius: T.radius.xl, marginBottom: 8, cursor: "pointer", textAlign: "left", fontFamily: T.font.sans, boxSizing: "border-box" },
   rowMain: { display: "block", flex: 1, minWidth: 0 },

@@ -2566,12 +2566,23 @@ Flashcards / Podcasts switch is French only; Spanish has no Podcasts (owner,
   built on the building-lessons skill like Laura's French lessons, with
   `source: "Adapted from the LFL METHOD by Laura Caufour"`. Lesson 8 includes
   its time-and-date annex. `es/index.js` is written by
-  `node scripts/es-lessons-index.mjs`, in course order, all under one
-  folding heading, "Basic Lessons", as the French beginner lessons are
-  (owner, 2026-10-22). Lessons 1 to 6, the ones the
-  owner has covered with Laura, are on Cards without a choice
+  `node scripts/es-lessons-index.mjs`, in course order. Lessons 1 to 6, the
+  ones the owner has covered with Laura, are on Cards without a choice
   (`ON_BY_DEFAULT`); the Spanish choices sit beside the French ones in
   `user_metadata.lessons_in_cards`, since the ids never meet.
+- **How the lessons are grouped**: in the course's four stages, the same on
+  Flashcards and on Exercises (owner, 2026-11-07: "make sure lessons are
+  grouped the same way", replacing the one "Basic Lessons" heading of
+  2026-10-22). `es/stages.js` names them once and both sides build from it:
+  Lessons 1–6 · The present, Lessons 7–11 · People and the past, Lessons
+  12–18 · Reflexives to commands, Lessons 19–23 · Food, travel and more. In
+  the sidebar one stage is open at a time, the one holding the lesson you're
+  on until you open another, and a closed one still shows the lesson you're
+  in. A lesson with more than one part (7 and 12, and 8 on Exercises, which
+  has a sheet for the time and the date) is one row that opens to its parts.
+  On the Lessons page, the All exercises page and Progress by Lesson the
+  stages are headings that fold one by one. Grouping only changes how lessons
+  are listed: the order cards come in is `lessons` and `meetingOrder`.
 - **Released cards**: `scripts/release-lesson-cards.mjs` and the `logic`
   suite cover the Spanish lessons too, and `logic` fails if two Spanish
   lessons share a front (es_user_cards is unique on user and front).
@@ -2586,9 +2597,9 @@ Owner, 2026-10-24: "create a new module only in the spanish module for
 quizzing me on the exercises you put together for each lesson". The Spanish
 sidebar has a switch at the top, **Flashcards / Exercises**, like French's
 Flashcards / Podcasts; French is unchanged. Exercises' sidebar has All
-exercises with every lesson beneath it. Clicking All exercises, or the arrow
-beside it, folds the lessons away and brings them back, leaving the one you're
-in (owner, 2026-10-25: "need to be able to remove the subheadings (lessons)";
+exercises with every lesson beneath it, in the course's four stages. Clicking
+All exercises, or the arrow beside it, folds the lessons away and brings them
+back, leaving the one you're in (owner, 2026-10-25: "need to be able to remove the subheadings (lessons)";
 2026-10-26: clicking All exercises should do it, not only the arrow). All
 exercises also opens its page, so from inside a lesson one click goes there
 and folds the list. On the minimized sidebar, which shows no lessons, it only

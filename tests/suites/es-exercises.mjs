@@ -319,6 +319,49 @@ ck("a right verdict carries no correction", readMark({ verdict: "right", note: "
     "a sheet's group is found from any of its parts",
     exerciseGroupOf("leccion1") === 0 && exerciseGroupOf("leccion8-anexo") === 1 && exerciseGroupOf("leccion12-2") === 2 && exerciseGroupOf("leccion23") === 3 && exerciseGroupOf(null) === -1
   );
+  ck(
+    "a lesson in parts is one row, named for the lesson, with its parts named",
+    JSON.stringify(EXERCISE_GROUPS[1].rows[0]) === JSON.stringify({
+      key: "leccion7", title: "Lesson 7 · Describing people",
+      parts: [{ id: "leccion7-1", title: "Part 1" }, { id: "leccion7-2", title: "Part 2" }, { id: "leccion7-3", title: "Part 3" }],
+    }) && JSON.stringify(EXERCISE_GROUPS[1].rows[1]) === JSON.stringify({
+      key: "leccion8", title: "Lesson 8 · The preterite",
+      parts: [{ id: "leccion8", title: "The preterite" }, { id: "leccion8-anexo", title: "The time and the date" }],
+    }),
+    JSON.stringify(EXERCISE_GROUPS[1].rows.slice(0, 2))
+  );
+}
+
+// Flashcards groups the lessons the same way as Exercises (owner, 2026-11-07:
+// "make sure lessons are grouped the same way"), and the grouping leaves the
+// order cards come in alone.
+{
+  const { SPANISH } = await import("../../src/data/lessons/es/index.js");
+  const stages = SPANISH.LESSON_STAGES;
+  // Each stage as the lessons it holds, whatever parts they have.
+  const shape = (groups) => JSON.stringify(groups.map((g) => [g.title, g.rows.map((r) => (r.key || r.id).match(/^leccion\d+/)[0])]));
+  ck("Flashcards has the same stages as Exercises, with the same lessons in each", shape(stages) === shape(EXERCISE_GROUPS), shape(stages));
+  const order = stages.flatMap((g) => g.rows.flatMap((r) => (r.parts ? r.parts.map((p) => p.id) : [r.id])));
+  ck(
+    "the stages hold every Flashcards lesson once, in course order",
+    JSON.stringify(order) === JSON.stringify(SPANISH.LESSONS.map((l) => l.id)),
+    order.join(" ")
+  );
+  ck(
+    "Lessons and Progress list them under the same headings",
+    JSON.stringify(SPANISH.LESSON_GROUPS.map((g) => g.title)) === JSON.stringify(stages.map((g) => g.title)) &&
+      SPANISH.LESSON_GROUPS.every((g) => g.folds)
+  );
+  ck(
+    "and in the same order as ever, the order cards come in",
+    JSON.stringify(SPANISH.LESSONS_SHOWN.map((l) => l.id)) === JSON.stringify(SPANISH.LESSONS.map((l) => l.id))
+  );
+  const lesson7 = stages[1].rows[0];
+  ck(
+    "Lesson 7 is one row on Flashcards too, Lesson 8 one lesson there",
+    lesson7.title === "Lesson 7 · Describing people" && lesson7.parts.map((p) => p.title).join() === "Part 1,Part 2,Part 3" &&
+      stages[1].rows[1].id === "leccion8" && stages[1].rows[1].title === "Lesson 8 · The preterite"
+  );
 }
 
 const n = ck.fails();
