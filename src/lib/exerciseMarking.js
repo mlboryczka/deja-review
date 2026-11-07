@@ -318,7 +318,8 @@ export function markedNow(item, answer) {
 //   level 1   "Prefiero comer cosas dulces." → "P_______ c____ c____ d_____."
 // A gap item hints each blank, numbered when it has more than one ("1. m_
 // 2. n___"); a true-or-false item hints the key's sentence, Verdadero or
-// Falso included. Nothing about it is kept or changes the marking.
+// Falso included. How far it went is kept with the answer (migration_026); it
+// never changes the marking.
 const hintSources = (item) =>
   (kindOf(item) === "gaps" ? item.gaps.map((list) => list?.[0]) : [item?.answer]).map((s) => String(s ?? "").normalize("NFC"));
 

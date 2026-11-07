@@ -2,7 +2,7 @@
 // test app, 2026-10-24).
 //
 // Marking an answer is POST /api/review-answer with { exercise: { action:
-// "answer", key, typed } } (api/_lib/exercises.js; the route is shared
+// "answer", key, typed, hints } }, `hints` being how much of the hint showed (api/_lib/exercises.js; the route is shared
 // because Vercel's Hobby plan deploys at most twelve). The student's own
 // Anthropic key goes with it, as with every request that may spend Claude
 // credit; the server uses it only when the answer key doesn't settle the
@@ -29,7 +29,7 @@ export class ExerciseError extends Error {
 }
 
 // { answer, saved, missing? }, or throws ExerciseError with a plain sentence.
-export async function markAnswer({ key, typed }, { supabase, user, fetchImpl } = {}) {
+export async function markAnswer({ key, typed, hints = 0 }, { supabase, user, fetchImpl } = {}) {
   const doFetch = fetchImpl || globalThis.fetch;
   let token = "";
   try {
@@ -43,7 +43,7 @@ export async function markAnswer({ key, typed }, { supabase, user, fetchImpl } =
     res = await doFetch(EXERCISE_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...keyHeaders(user?.id) },
-      body: JSON.stringify({ exercise: { action: "answer", key, typed } }),
+      body: JSON.stringify({ exercise: { action: "answer", key, typed, hints } }),
     });
   } catch {
     throw new ExerciseError("Couldn’t reach the server. Check your connection and try again.", { code: "network" });

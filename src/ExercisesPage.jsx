@@ -14,7 +14,8 @@
 // "Try again" went (owner, 2026-11-02: "get rid of try again, it's not
 // useful"). "Start again" on an exercise adds answers, it never removes any.
 // "Hint" on an item still to answer shows the key's answer a
-// letter at a time (hintText in exerciseMarking.js); it isn't kept and
+// letter at a time (hintText in exerciseMarking.js); how much of it showed is
+// kept with the answer (owner, 2026-11-07: "Yes, record hints"), and it
 // doesn't change the marking.
 //
 // The shell (FlashcardApp) owns which page is showing, so the sidebar can
@@ -509,6 +510,7 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
     if (!isAnswered(item, typed)) return;
     setProblem(null);
     setHint(0);
+    const hints = hint;
     const ticket = ++ticketSeq;
     const now = new Date().toISOString();
     const line = typedText(item, typed);
@@ -522,15 +524,17 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
     setTypedState(emptyTyped(item));
     focusNext(key);
     try {
-      const { answer: a, saved, missing } = await markAnswer({ key, typed: sent }, { supabase, user });
+      const { answer: a, saved, missing } = await markAnswer({ key, typed: sent, hints }, { supabase, user });
       if (missing) { store.missing = true; }
       store.record({ ...a, answeredAt: a.answeredAt || now, ticket, unsaved: !saved && !missing });
     } catch (e) {
       if (byKey) {
         store.record({ key, typed: line, verdict: byKey.verdict, markedBy: "key", note: "", correct: byKey.correct || "", answeredAt: now, ticket, unsaved: true });
       } else {
-        // Nothing was marked: the answer goes back in the box to try again.
+        // Nothing was marked: the answer goes back in the box to try again,
+        // with the hint as it was.
         store.forget(key, ticket);
+        setHint(hints);
         drafts.set(draftKey, sent);
         setTypedState(sent);
         setProblem({ message: e?.message || "Couldn’t mark that. Try again.", code: e?.code || "" });

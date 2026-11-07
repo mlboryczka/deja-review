@@ -6,10 +6,11 @@
 // because Vercel's Hobby plan deploys at most twelve routes and eleven are
 // taken: see that file. One action:
 //
-//   answer  { key, typed } -> { answer, saved, missing? }
+//   answer  { key, typed, hints? } -> { answer, saved, missing? }
 //
 // `key` names the item ("leccion1/2/5", src/lib/exerciseMarking.js), `typed`
-// is in the shape its kind takes. The item, its instruction and its answers
+// is in the shape its kind takes, `hints` how much of the hint showed (0 for
+// none: kept with the answer, migration_026; it never changes the marking). The item, its instruction and its answers
 // are read from the app's own exercise data, never from the request, so what
 // is marked and kept is the sheet's item whatever the page sent. A sentence
 // of the Dialogues module (src/data/exercises/es/dialogues.js) is marked and
@@ -32,7 +33,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { EXERCISES_BY_ID } from "../../src/data/exercises/es/index.js";
 import { DIALOGUES_BY_ID } from "../../src/data/exercises/es/dialogues.js";
 import { LESSON_TEXTS } from "../../src/data/exercises/es/texts.js";
-import { findItem, isAnswered, kindOf, markByKey, typedText, keyAnswer, VERDICTS } from "../../src/lib/exerciseMarking.js";
+import { findItem, isAnswered, kindOf, markByKey, typedText, keyAnswer, hintLevels, VERDICTS } from "../../src/lib/exerciseMarking.js";
 import { UnreadableReply } from "./podcastQuestions.js";
 import { claudeError } from "./podcasts.js";
 
@@ -182,6 +183,14 @@ export function readMark(raw) {
 
 const reply = (status, json) => ({ status, json });
 
+// How much of the hint showed, as a whole number from none (0) to the whole
+// answer (hintLevels), or null when the page didn't say: a page loaded before
+// hints were kept.
+export function hintsShown(item, n) {
+  if (n === undefined || n === null) return null;
+  return Number.isInteger(n) ? Math.max(0, Math.min(n, hintLevels(item))) : 0;
+}
+
 // Whether a failed insert means the table isn't there yet (migration_022).
 const isMissingTable = (error) =>
   /42P01|PGRST205/.test(String(error?.code || "")) || /does not exist|could not find the table/i.test(String(error?.message || ""));
@@ -236,6 +245,8 @@ export async function handleExerciseRequest({ body, user, store, apiKey, ask = a
     model: answer.markedBy === "claude" ? MARK_MODEL : null,
     prompt_version: answer.markedBy === "claude" ? MARK_VERSION : null,
   };
+  const hints = hintsShown(item, body.hints);
+  if (hints !== null) row.hints = hints;
   let saved = null;
   try {
     saved = store ? await store.save(row) : { error: { message: "no store" } };
@@ -256,10 +267,22 @@ export async function handleExerciseRequest({ body, user, store, apiKey, ask = a
   });
 }
 
+// Whether an insert was refused because the hints column isn't there yet.
+const isMissingHints = (error) =>
+  /PGRST204|42703/.test(String(error?.code || "")) && /hints/.test(String(error?.message || ""));
+
 export function supabaseExerciseStore(db) {
+  const insert = (row) => db.from("es_exercise_answers").insert(row).select("answered_at").single();
   return {
     async save(row) {
-      const { data, error } = await db.from("es_exercise_answers").insert(row).select("answered_at").single();
+      let { data, error } = await insert(row);
+      // Before migration_026 the answer is kept without its hints rather than
+      // not at all.
+      if (error && "hints" in row && isMissingHints(error)) {
+        const { hints: _notYet, ...rest } = row;
+        ({ data, error } = await insert(rest));
+        if (!error) console.warn("[exercises] es_exercise_answers has no hints column yet (migration_026): kept without it");
+      }
       return { row: data, error };
     },
   };

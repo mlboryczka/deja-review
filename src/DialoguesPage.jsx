@@ -501,7 +501,7 @@ function SentenceBox({ item, itemKeyValue: key, user, store, onNeedKey }) {
     store.record(keyRow || { key, index, typed: line, pending: true, answeredAt: now, ticket });
     drafts.delete(draftKey);
     try {
-      const { answer: a, saved, missing } = await markAnswer({ key, typed: line }, { supabase, user });
+      const { answer: a, saved, missing } = await markAnswer({ key, typed: line, hints: hint }, { supabase, user });
       if (missing) store.missing = true;
       store.record({ ...a, index, answeredAt: a.answeredAt || now, ticket, unsaved: !saved && !missing });
     } catch (e) {

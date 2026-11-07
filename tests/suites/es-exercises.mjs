@@ -31,6 +31,8 @@
 //   - a hint (owner, 2026-10-26: "exercises should have a hint option")
 //     shows the first letter of each word of the key's first answer, the
 //     rest as _, then one more letter a press, until the whole answer shows;
+//     how far it went is kept with the answer (owner, 2026-11-07: "Yes,
+//     record hints"), and before migration_026 the answer is kept without it;
 //   - "Why?" under a miss (owner, 2026-10-26: "there should also be a "why
 //     was my answer wrong" option") has a reason for every miss the key
 //     marks: the accents that change the tense, as the key writes them, or
@@ -53,7 +55,8 @@ import { LESSON_TEXTS } from "../../src/data/exercises/es/texts.js";
 import { EXERCISE_GROUPS, EXERCISE_TITLES, exerciseGroupOf } from "../../src/data/exercises/es/titles.js";
 import { plain, bare, kindOf, markByKey, typedText, keyAnswer, itemKey, findItem, isAnswered, hintText, hintLevels, keyReason, markedNow, countsAsRight } from "../../src/lib/exerciseMarking.js";
 import { accentCounts } from "../../src/lib/spanishAccents.js";
-import { handleExerciseRequest, markPrompt, readMark, markFromReply, MARK_SYSTEM } from "../../api/_lib/exercises.js";
+import { handleExerciseRequest, markPrompt, readMark, markFromReply, MARK_SYSTEM, supabaseExerciseStore } from "../../api/_lib/exercises.js";
+import { markAnswer } from "../../src/lib/exerciseApi.js";
 import { UnreadableReply } from "../../api/_lib/podcastQuestions.js";
 
 const ck = checker();
@@ -343,6 +346,42 @@ const right = first.item.gaps.map((g) => g[0]);
   ck("the key's Almost is kept as Almost, with the correction, and needs neither Claude nor a key",
      status === 200 && asked.length === 0 && json.answer.verdict === "almost" && json.answer.markedBy === "key" && json.answer.correct === ex.items[index].answer &&
      json.saved === true && s.rows.length === 1 && s.rows[0].verdict === "almost" && s.rows[0].marked_by === "key" && s.rows[0].correct === ex.items[index].answer && s.rows[0].typed === "lo que pasa es que la despertador no sonó");
+}
+{
+  const kept = async (hints) => {
+    const s = store();
+    await handleExerciseRequest({ body: { action: "answer", key: key1, typed: right, ...(hints === undefined ? null : { hints }) }, user, store: s, apiKey: null });
+    return s.rows[0];
+  };
+  const most = hintLevels(first.item);
+  const [none, two, past, odd, unsaid] = [await kept(0), await kept(2), await kept(most + 5), await kept("x"), await kept(undefined)];
+  ck("how much of the hint showed is kept with the answer, from none to the whole answer",
+     none.hints === 0 && two.hints === Math.min(2, most) && past.hints === most && odd.hints === 0, JSON.stringify([none.hints, two.hints, past.hints, odd.hints]));
+  ck("a page that doesn't say keeps no hints at all, so it isn't counted as none", !("hints" in unsaid));
+}
+{
+  // The database before migration_026: an insert naming hints is refused.
+  const inserted = [];
+  const db = { from: () => ({ insert: (row) => ({ select: () => ({ single: async () => {
+    if ("hints" in row) return { data: null, error: { code: "PGRST204", message: "Could not find the 'hints' column of 'es_exercise_answers' in the schema cache" } };
+    inserted.push(row);
+    return { data: { answered_at: "2026-11-07T20:00:00Z" }, error: null };
+  } }) }) }) };
+  const warn = console.warn; console.warn = () => {};
+  const res = await supabaseExerciseStore(db).save({ item_key: "k", verdict: "right", hints: 2 });
+  console.warn = warn;
+  ck("before migration_026 the answer is still kept, without its hints", !res.error && inserted.length === 1 && !("hints" in inserted[0]) && inserted[0].item_key === "k");
+  const other = { from: () => ({ insert: () => ({ select: () => ({ single: async () => ({ data: null, error: { code: "23514", message: "violates check constraint" } }) }) }) }) };
+  ck("any other refusal is still a failure", !!(await supabaseExerciseStore(other).save({ item_key: "k", hints: 1 })).error);
+}
+{
+  let body = null;
+  const fetchImpl = async (_url, init) => { body = JSON.parse(init.body); return { ok: true, status: 200, text: async () => JSON.stringify({ answer: { verdict: "right" }, saved: true }) }; };
+  const supabase = { auth: { getSession: async () => ({ data: { session: { access_token: "t" } } }) } };
+  await markAnswer({ key: key1, typed: right, hints: 3 }, { supabase, user: { id: "u-1" }, fetchImpl });
+  const sent3 = body?.exercise?.hints;
+  await markAnswer({ key: key1, typed: right }, { supabase, user: { id: "u-1" }, fetchImpl });
+  ck("the page sends how much of the hint showed, none when it wasn't pressed", sent3 === 3 && body?.exercise?.hints === 0);
 }
 {
   const s = store({ missing: true });
