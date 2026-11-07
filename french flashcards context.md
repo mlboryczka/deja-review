@@ -2389,8 +2389,8 @@ Flashcards / Podcasts switch is French only; Spanish has no Podcasts (owner,
   `NOTES_TABLES` in `api/_lib/notesReading.js`), so no Spanish line or card
   reaches anything French. What differs is in `api/_lib/caderno.js`: a
   class's date line is "27 de octubre" with no year (this year, or last year
-  if that is more than a month ahead), and Claude (Haiku, as in French) is
-  asked for words and phrases only, as the Spanish flashcards are: no
+  if that is more than a month ahead), and Claude (Sonnet: in the first real
+  read Haiku kept Laura's "la viaje" and "prefiro") is asked for words and phrases only, as the Spanish flashcards are: no
   conjugation table, rule, possessive or gustar table, sound note, gender-only
   or yes-or-no card; Laura's slips corrected ("me bañe" → "Me bañé", "30 =
   trente" → "treinta", a struck-out "a el" dropped); the English most natural

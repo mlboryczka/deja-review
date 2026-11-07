@@ -92,7 +92,10 @@ WHAT NEVER BECOMES A CARD (the grammar is practised elsewhere in the app):
 - Headings, the notebook's title, homework and the teacher's notes to the student.
 
 WRITE EACH CARD CORRECTLY:
-- Spanish exactly right, with every accent, ñ, ¿ and ¡. Class notes have slips: correct them. "me bañe" is "Me bañé", "Que hiciste ?" is "¿Qué hiciste?", "una preguntas" is "una pregunta", "un parillada" is "una parrillada", "restaurant" is "restaurante". A French word slipped in is put in Spanish: "30 = trente" is "treinta". A word struck through in the notes still shows in the text, followed by its correction: "Fui a el al restaurante" is "Fui al restaurante". A grammar slip is corrected too: "I have danced: He bailando" is "He bailado".
+- Spanish exactly right, with every accent, ñ, ¿ and ¡. Class notes have slips: correct them. "me bañe" is "Me bañé", "Que hiciste ?" is "¿Qué hiciste?", "una preguntas" is "una pregunta", "un parillada" is "una parrillada", "restaurant" is "restaurante". A French word slipped in is put in Spanish: "30 = trente" is "treinta". A word struck through in the notes still shows in the text, followed by its correction: "Fui a el al restaurante" is "Fui al restaurante". A grammar slip is corrected too: "I have danced: He bailando" is "He bailado", "la viaje" is "el viaje", "es una viaje muy larga" is "Es un viaje muy largo", "prefiro" is "Prefiero", "2 veces al dia" is "dos veces al día". Check every word's spelling and gender against standard Spanish: never copy a mistake, however it is written in the notes.
+- Each answer between " / " is a whole answer the student could type on its own: "Le dije eso" = "I told him that / I told her that / I told you that (usted)", never "I told him / her / you that". Give only true translations, never an awkward or literal one: "¿Estás viendo?" = "Are you watching? (tú)".
+- A brackets note such as (tú) goes at the end of an answer, never inside it.
+- A sentence starts with a capital; a word or short expression does not.
 - A noun keeps the article the notes give it ("la niña", "un hijo"). A verb is given as the notes give it, usually the infinitive.
 - The English back lists the answers to accept, separated by " / ", the most natural one FIRST: the app shows only the first. "Tuve una reunión" = "I had a meeting". Where "you" could be tú, usted or ustedes, say which in brackets at the end of the first answer: "¿Qué hiciste?" = "What did you do? (tú)".
 - "category": "V" for a single word or a short expression of up to three words ("la fecha", "andar en bici", "ni tanto"), "E" for a phrase or sentence ("Fui al trabajo caminando").
@@ -107,7 +110,10 @@ Here is the class:
 {BLOCK_TEXT}
 ---`;
 
-export const CADERNO_MODEL = "claude-haiku-4-5";
+// Not Haiku, as the French reading is: nobody looks over what this adds, and
+// in its first real read Haiku kept Laura's "la viaje" and "prefiro" and wrote
+// "I told him / her / you that" (2026-11-07).
+export const CADERNO_MODEL = "claude-sonnet-5-5";
 
 export function cadernoPrompt(block) {
   const prompt = CADERNO_PROMPT.replace("{BLOCK_TEXT}", block.text);
