@@ -30,6 +30,11 @@ off.due_after = new Date(Date.parse(off.due_after) + 9 * DAY).toISOString();
 
 const state = { migrated: true, kept: [], methods: new Set() };
 const server = http.createServer((req, res) => {
+  // A fresh connection for every request. On GitHub's runs of Nov 11 the save
+  // failed with "fetch failed" before reaching here, after seconds of checking
+  // with the stand-in's connections idle: by every sign a connection the
+  // stand-in had already closed, reused for the save.
+  res.setHeader("connection", "close");
   const url = new URL(req.url, "http://x");
   state.methods.add(`${req.method} ${url.pathname}`);
   let body = "";
@@ -67,7 +72,12 @@ const server = http.createServer((req, res) => {
   });
 });
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
-const db = createClient(`http://127.0.0.1:${server.address().port}`, KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+// A request that never reaches the stand-in says why, which "fetch failed" alone doesn't.
+const traced = (...a) => fetch(...a).catch((e) => {
+  console.log(`  (a request to the stand-in failed: ${[e.cause?.code, e.cause?.message].filter(Boolean).join(" ") || e.message})`);
+  throw e;
+});
+const db = createClient(`http://127.0.0.1:${server.address().port}`, KEY, { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: traced } });
 
 const { checkEveryone, saveReports, latestReports, STATUS_SCHEDULE } = await import("../../api/_lib/statusDaily.js");
 
