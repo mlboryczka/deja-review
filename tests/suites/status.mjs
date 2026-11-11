@@ -135,7 +135,8 @@ console.log("\n  following FSRS");
 }
 {
   const rec = clone(base);
-  const row = rec.answers.find((r) => r.counted && Date.parse(r.answered_at) > Date.parse(`${CHECKS_START}T12:00:00`) + 5 * DAY);
+  // A right answer: a second one after a miss is the repeat, which counts.
+  const row = rec.answers.find((r) => r.counted && r.correct && Date.parse(r.answered_at) > Date.parse(`${CHECKS_START}T12:00:00`) + 5 * DAY);
   rec.answers.push({ ...row, id: "dup-1", answered_at: new Date(Date.parse(row.answered_at) + 60000).toISOString() });
   failsOnly(check(rec), "one-a-day", "a second answer counted on the same day fails");
 }
@@ -716,10 +717,12 @@ const lessonCard = base.cards.find((c) => String(c.source).startsWith("lesson:")
   // What a list only seems to hold is never failed by the rule: it waits for
   // Claude, like any look-alike.
   const rec2 = clone(base);
-  addCard(rec2, { front: "se lever, acheter, amener", back: "to get up, to buy, to bring", created_at: later(9) });
-  addCard(rec2, { front: "amener", back: "to bring (someone)", created_at: later(2) });
-  addCard(rec2, { front: "La semaine prochaine, il va faire froid", back: "Next week, it's going to be cold", created_at: later(9) });
-  addCard(rec2, { front: "la semaine prochaine", back: "next week", created_at: later(2) });
+  // Balayer and demain matin: not amener or la semaine prochaine, which
+  // Leçons 10 and 6 have as cards (2026-11-11).
+  addCard(rec2, { front: "se lever, acheter, balayer", back: "to get up, to buy, to sweep", created_at: later(9) });
+  addCard(rec2, { front: "balayer", back: "to sweep (the floor)", created_at: later(2) });
+  addCard(rec2, { front: "Demain matin, il va faire froid", back: "Tomorrow morning, it's going to be cold", created_at: later(9) });
+  addCard(rec2, { front: "demain matin", back: "tomorrow morning", created_at: later(2) });
   const w = result(check(rec2, { pairs: standInVerdicts(base.cards) }), "repeats");
   ck("  but different words grouped on one card, or a word inside a sentence, only wait for Claude", w.status === "wait" && /2 look-alike pairs are still to be put to Claude/.test(w.summary), w.summary);
 }
