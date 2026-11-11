@@ -95,7 +95,10 @@ ck("and the report names the card", (fsrs?.details || []).some((d) => /comes bac
 
 console.log("\n  kept for the Status window");
 const saved = await saveReports(db, reports);
-ck("the reports are kept, one row a student", saved.ok && state.kept.length === 2);
+// What the save said, and what reached the stand-in: on Nov 11 GitHub's run
+// (43094579586) kept nothing, where every run here keeps both rows.
+ck("the reports are kept, one row a student", saved.ok && state.kept.length === 2,
+   JSON.stringify({ saved, kept: state.kept.length, methods: [...state.methods].filter((m) => m.includes("status_reports")) }));
 const row = state.kept.find((r) => r.user_email === "faulty@example.com");
 ck("each with whether it passed, how many checks failed, how many answers were judged and the report",
    row && row.ok === false && row.failing >= 1 && row.answers > 0 && Array.isArray(row.report?.results) && row.user_id === OTHER,
