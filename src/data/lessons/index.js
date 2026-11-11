@@ -17,6 +17,11 @@ import lecon2 from "./lecon2.js";
 import lecon3 from "./lecon3.js";
 import lecon4 from "./lecon4.js";
 import lecon5 from "./lecon5.js";
+import lecon6 from "./lecon6.js";
+import lecon7 from "./lecon7.js";
+import lecon8 from "./lecon8.js";
+import lecon9 from "./lecon9.js";
+import lecon10 from "./lecon10.js";
 import { makeCatalogue } from "./catalogue.js";
 
 // How a stored card names which lesson card it is. Defined in src/lib, not
@@ -32,7 +37,7 @@ export {
 
 // New lessons go at the end. Where a lesson's cards come in the order a
 // student meets them is the meeting order, below, not its place here.
-const ALL = [imperatif, adverbes, lecon2, lecon3, lecon4, lecon5, lecon1];
+const ALL = [imperatif, adverbes, lecon2, lecon3, lecon4, lecon5, lecon1, lecon6, lecon7, lecon8, lecon9, lecon10];
 
 // The order a student meets the lessons' new cards in on Cards: part of every
 // lesson card's rank (lessonRank). Leçon 1 comes before Leçons 2 to 5, though
@@ -51,8 +56,13 @@ const ALL = [imperatif, adverbes, lecon2, lecon3, lecon4, lecon5, lecon1];
 // page, where the cards are all the same width, they need their heading.
 export const FRENCH = makeCatalogue({
   lessons: ALL,
-  meetingOrder: ["imperatif", "adverbes", "lecon1", "lecon2", "lecon3", "lecon4", "lecon5"],
-  groups: [{ title: "Basic Lessons", folds: true, ids: ["lecon1", "lecon2", "lecon3", "lecon4", "lecon5"] }],
+  meetingOrder: [
+    "imperatif", "adverbes", "lecon1", "lecon2", "lecon3", "lecon4", "lecon5",
+    "lecon6", "lecon7", "lecon8", "lecon9", "lecon10",
+  ],
+  groups: [{ title: "Basic Lessons", folds: true, ids: [
+    "lecon1", "lecon2", "lecon3", "lecon4", "lecon5", "lecon6", "lecon7", "lecon8", "lecon9", "lecon10",
+  ] }],
 });
 
 export const {

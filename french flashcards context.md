@@ -232,8 +232,8 @@ lesson's `teachingOrder` of sections, then each card's place in the lesson
 weeks of class*), newest class first; then *Older classes*, the words from the
 most classes first (`dates.length`); then undated cards; then unseen lesson
 cards, lesson by lesson in `MEETING_ORDER` (`src/data/lessons/index.js`):
-L'impératif, the adverbs, then Leçons 1 to 5 in number order, though Leçon 1
-was added last (owner, 2026-10-06). A card the student added themselves, from
+L'impératif, the adverbs, then Leçons 1 to 10 in number order, though Leçon 1
+was added after Leçons 2 to 5 (owner, 2026-10-06). A card the student added themselves, from
 the tutor or (since 2026-10-09) with "Add to my cards" in Podcasts, is dated
 by its `created_at` (`addedByStudent`, `src/lib/sessionQueue.js`). Ties come
 in random order.
@@ -1745,14 +1745,16 @@ From this project's history:
 
 A lesson is a fixed set of cards made from a teacher's materials, the same for
 every student. Lessons are in `src/data/lessons/`; `LESSONS` in `index.js` is
-the catalogue. There are seven: L'impératif (108 cards, from Laura Caufour's
+the catalogue. There are twelve: L'impératif (108 cards, from Laura Caufour's
 LFL METHOD sheets), Adjectif ou adverbe ? (81 cards, written for the app), and
-her beginner Leçons 1 to 5, titled in English in the app (owner, 2026-10-06):
+her beginner Leçons 1 to 10, titled in English in the app (owner, 2026-10-06):
 Lesson 1 · Être (57), Lesson 2 · Aller (63), Lesson 3 · Avoir (62), Lesson 4 ·
--er verbs (78) and Lesson 5 · Vouloir and pouvoir (58).
+-er verbs (78), Lesson 5 · Vouloir and pouvoir (58), Lesson 6 · Adjectives
+(112), Lesson 7 · The passé composé (78), Lesson 8 · On and faire (71),
+Lesson 9 · Voir and venir (76) and Lesson 10 · Dire and devoir (85).
 
 - **The Lessons page, the sidebar and Stats show `LESSON_GROUPS`**, not
-  `LESSONS`: Lessons 1 to 5 come first, under the heading "Basic Lessons", in
+  `LESSONS`: Lessons 1 to 10 come first, under the heading "Basic Lessons", in
   number order (owner, 2026-10-06), though Lesson 1 was added after Lessons 2
   to 5. The other lessons follow, under "More lessons" on the Lessons page
   and with no heading in the sidebar, where the indent sets them apart.
@@ -1932,6 +1934,22 @@ tab: no typed card can check pronunciation.
 - A phrase card's typo tolerance lets "Je suis bien" pass for "Je vais bien",
   the être / aller mistake Leçon 2 warns about. Cards marked exactly carry
   that contrast instead; a real fix is a marking change, not proposed yet.
+
+### Leçons 6 to 10
+
+`lecon6.js` to `lecon10.js` are the next five of Laura's beginner lessons,
+from the same Drive folder, built 2026-10-14 in the session "Laura's lessons
+6-10 flashcards" (drafts and their review page in
+`.claude/lessons-6-10-draft/`). Leçons 8 and 9 were corrected 2026-10-20 to
+"on est partis" when on means we (Académie française, Larousse, OQLF; sources
+in their header comments). The owner put them in the app without reviewing
+them (2026-11-11: "i just want these integrated into the app without
+review"). Leçon 6 is Laura's three parts as one lesson (owner, 2026-10-14).
+
+- They sit under "Basic Lessons" and come after Leçon 5 in the meeting order.
+- Unlike Leçons 1 to 5 they are not in `ON_BY_DEFAULT`: like any lesson
+  added later, each starts off on Cards for every student until they switch
+  it on or answer a card in it, so nobody's daily cards change.
 
 ---
 
