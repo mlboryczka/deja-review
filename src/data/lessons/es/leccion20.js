@@ -17,12 +17,16 @@
 //   "¿Siempre pides tacos sin cebolla?" / "Do you always order tacos without onion?"
 //                                                  an irregular verb form, in a phrase
 //
-// WHY THESE ARE EXACT CARDS. A phrase card is marked with typo tolerance, and
-// the mistakes this lesson is about are a letter or two long: "Quiero un
-// café" passes for "Quisiera un café", "pedieron" for "pidieron", "con mi" for
-// "conmigo". So the e → i forms, quisiera, the pronouns after para and con,
-// and cuesta or cuestan and son are asked on arrow cards; the phrase cards
-// are there for meaning.
+// WHY THESE WERE EXACT CARDS. A phrase card is marked with typo tolerance,
+// and the mistakes this lesson is about are a letter or two long: "Quiero un
+// café" passes for "Quisiera un café", "pedieron" for "pidieron", "con mi"
+// for "conmigo". So the e → i forms, quisiera, the pronouns after para and
+// con, and cuesta or cuestan and son were asked on arrow cards. Those went
+// with every grammar card on 2026-10-25 (see below), and every item of her
+// sheet is on the Exercises page. On the phrase cards the irregular forms and
+// the numbers are typed exactly (irregularForms.js, exactWords.js), cuesta
+// and cuestan among them since 2026-11-13: "El café cuestan cuarenta y cinco
+// pesos" is wrong. "con mi" for "conmigo" still passes as Close enough.
 //
 // Sampled, not transcribed. Pedir, new, in the present for all six persons
 // and in the preterite for yo, él / ella and ellos / ellas, where it changes

@@ -439,9 +439,10 @@ function exactWordsTyped(typed, answer, exactWords) {
 // between commas or semicolons is an answer on its own, however long. "ça
 // sert à rien" = "that serves no purpose, that's useless" refused "that's
 // useless" (the owner, 2026-10-09) because "that serves no purpose" is four
-// words. Only when the side shown has no comma: "Quand il pleut, je reste à
-// la maison" = "When it rains, I stay at home" is one sentence, and "I stay
-// at home" isn't the answer.
+// words. Only when the side shown is a few words with no comma (see
+// hasMeaningList): "Quand il pleut, je reste à la maison" = "When it rains, I
+// stay at home" is one sentence, and "I stay at home" isn't the answer. The
+// whole answer, all its meanings typed, is right as well.
 //
 // `articles` says which leading words are articles, which may be left off
 // and must have the right gender: "fr", the French app's (French and English
@@ -461,6 +462,17 @@ function exactWordsTyped(typed, answer, exactWords) {
 // "Ayer puse la computadora en la sla" is close enough, "Ayer poní la
 // computadora en la sala" is wrong, and "Ayer pusé…" is right, its accent
 // changing no tense.
+// Whether the English for a shown word or phrase may be a list of meanings,
+// each right on its own. Only for a word or short phrase without a comma: a
+// sentence's English is one answer, so "If I were you" alone isn't right for
+// "Yo en tu lugar no le diría nada" = "If I were you, I wouldn't tell him
+// anything" (code check 2026-11-07, no. 3), and "Quand il pleut, je reste à
+// la maison" isn't answered by "I stay at home".
+function hasMeaningList(shown) {
+  const text = String(shown || "").trim();
+  return !!text && text.split(/\s+/).length <= 4 && !/[,;→]/.test(text);
+}
+
 function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings = false, articles = "fr", accents = false, exactWords = null } = {}) {
   const t = normalize(typed);
   if (!t) return { match: false };
@@ -490,6 +502,9 @@ function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings =
       if (tooLong) {
         alternatives.push(sp);
       } else {
+        // The whole answer is right too, and tried first, so typing all of
+        // it is an exact match, not a "Close enough" against one of its parts.
+        if (subParts.length > 1) alternatives.push(sp);
         for (const ap of subParts) alternatives.push(ap);
       }
     }
@@ -510,6 +525,11 @@ function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings =
   // An answer right but for its accents, kept while the other answers are
   // tried: one of them may be right with them.
   let accentMiss = false;
+  // Likewise an answer right but for its article's gender: "une enfant" is
+  // the wrong article for "un enfant", but right once accepted as an
+  // alternate, so every alternative is tried before saying so (code check
+  // 2026-11-07, no. 1).
+  let articleMiss = false;
 
   for (const alt of alternatives) {
     const a = normalize(alt);
@@ -521,9 +541,7 @@ function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings =
     if (!articlesCompatible(typedSplit.article, answerSplit.article)) {
       // Record that the article was wrong specifically, so we can feedback
       // "wrong article" instead of just "wrong"
-      if (normalize(typedSplit.rest) === normalize(answerSplit.rest)) {
-        return { match: false, wrongArticle: true };
-      }
+      if (normalize(typedSplit.rest) === normalize(answerSplit.rest)) articleMiss = true;
       continue;
     }
     const tRest = typedSplit.rest;
@@ -567,6 +585,7 @@ function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings =
       return { match: true, close: dist > 0 };
     }
   }
+  if (articleMiss) return { match: false, wrongArticle: true };
   return accentMiss ? { match: false, wrongAccent: true } : { match: false };
 }
 
@@ -2462,7 +2481,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
     const frShown = stripParens(card.f) || "";
     const meaningList = isTwoWay(card) ||
       (/;/.test(String(card.b || "")) && frShown.trim().split(/\s+/).length <= 4);
-    const meanings = card.shownDir === "fr" && !drill && meaningList && !/[,;→]/.test(frShown);
+    const meanings = card.shownDir === "fr" && !drill && meaningList && hasMeaningList(frShown);
     // In Spanish, which leading words are articles depends on the answer's
     // language and the kind of card (see matchAnswer).
     const articles = !spanish ? "fr"

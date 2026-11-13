@@ -15,14 +15,18 @@
 //   "James se va porque está enfermo" / "James is leaving because he's sick"
 //                                                  an irregular verb form, in a phrase
 //
-// WHY THE CHOICES ARE ON EXACT CARDS. Phrase cards are marked with typo
+// WHY THE CHOICES WERE ON EXACT CARDS. Phrase cards are marked with typo
 // tolerance, and the mistakes this lesson is about are small: "me duele mi
 // cabeza" is two letters from "me duele la cabeza", and "no quiero algo" is
 // not far from "no quiero nada" in a long sentence. So the article with the
-// body, algo or nada, alguien or nadie, and preterite or haber are all gap
-// cards marked exactly, and the phrase cards are there for meaning. "¡Me
-// voy!" and "¡Ya voy!" stay phrase cards: they are two letters apart in six,
-// and the matcher allows one at that length.
+// body, algo or nada, alguien or nadie, and preterite or haber were gap cards
+// marked exactly. Those went with every grammar card on 2026-10-25 (see
+// below), and every item of her sheet is on the Exercises page. On the phrase
+// cards duele is typed exactly (irregularForms.js, since 2026-11-13), so "me
+// duelo" is wrong, but no word list can tell "mi cabeza" from "la cabeza":
+// that slip still passes as Close enough. "¡Me voy!" and "¡Ya voy!" stay
+// phrase cards: they are two letters apart in six, and the matcher allows
+// one at that length.
 //
 // Sampled, not transcribed: each card teaches something no other card does.
 //   - Ex. 1 (write a sentence with each verb) became the drills: the six

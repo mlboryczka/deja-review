@@ -15,13 +15,16 @@
 //   "¿Cómo eras en tu infancia?" / "What were you like in your childhood?"
 //                                                  an irregular verb form, in a phrase
 //
-// WHY IMPERFECT OR PRETERITE IS ON EXACT CARDS. A phrase card is marked with
+// WHY IMPERFECT OR PRETERITE WAS ON EXACT CARDS. A phrase card is marked with
 // typo tolerance, and in a sentence "jugué" and "jugaba" are a letter or two
-// apart: "Leía un libro cuando llegaba mi hermano" would pass as Close
-// enough. So the choice her lesson makes in "Leía un libro cuando llegó mi
-// hermano" and "Ayer jugué afuera / Cuando era niño, jugaba afuera" is on
-// exact gap cards, and so is había, which her lesson warns is never
-// habían.
+// apart. So the choice her lesson makes in "Leía un libro cuando llegó mi
+// hermano" and "Ayer jugué afuera / Cuando era niño, jugaba afuera" was on
+// exact gap cards, and so was había, which her lesson warns is never habían.
+// Those went with every grammar card on 2026-10-25 (see below), and every
+// item of her sheet is on the Exercises page. The phrase cards forgive these
+// slips: only irregular forms, numbers and months are typed exactly
+// (irregularForms.js, exactWords.js), and había, cenábamos and dedicaban are
+// regular.
 //
 // Sampled, not transcribed: each card teaches something no other card does.
 //   - The pattern: her model verbs hablar (-aba) and vivir (-ía, the same

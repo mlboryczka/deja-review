@@ -603,8 +603,8 @@ console.log("\n  marking — Spanish articles and ¿ ¡, French unchanged");
   const file = path.join(os.tmpdir(), `logic-matcher-${process.pid}.mjs`);
   // The one import the matcher needs: which Spanish accents count.
   const accents = new URL("../../src/lib/spanishAccents.js", import.meta.url).href;
-  fs.writeFileSync(file, `import { accentCounts } from ${JSON.stringify(accents)};\n` + app.slice(start, end) + "\nexport { matchAnswer };\n");
-  const { matchAnswer } = await import(`file://${file}?t=${Date.now()}`);
+  fs.writeFileSync(file, `import { accentCounts } from ${JSON.stringify(accents)};\n` + app.slice(start, end) + "\nexport { matchAnswer, hasMeaningList };\n");
+  const { matchAnswer, hasMeaningList } = await import(`file://${file}?t=${Date.now()}`);
   fs.unlinkSync(file);
   const ok = (typed, answer, opts) => matchAnswer(typed, answer, [], opts).match === true;
   ck("a Spanish question typed without ¿ is right", ok("Como estas?", "¿Cómo estás?", { articles: "none" }));
@@ -632,6 +632,26 @@ console.log("\n  marking — Spanish articles and ¿ ¡, French unchanged");
   ck("French answers are still marked accents aside", ok("tres bien", "très bien") && ok("evidemment", "évidemment"));
   ck("French still forgives a left-off article", ok("chemin de fer", "le chemin de fer"));
   ck("and still checks its gender", matchAnswer("la vélo", "le vélo").wrongArticle === true);
+  // An accepted answer with the other article stays accepted (code check
+  // 2026-11-07, no. 1): the first alternative used to answer "wrong article"
+  // before the accepted one was tried.
+  ck("une enfant, once accepted for un enfant, is right next time",
+     matchAnswer("une enfant", "un enfant", ["une enfant"]).match === true &&
+     matchAnswer("una turista", "un turista / una turista", [], { articles: "es" }).match === true);
+  // A sentence's English is one answer (code check 2026-11-07, no. 3): "If I
+  // were you" alone was right for "Yo en tu lugar no le diría nada".
+  const tuLugar = "If I were you, I wouldn't tell him anything / If I were you, I wouldn't say anything to him";
+  const tuLugarOpts = { meanings: hasMeaningList("Yo en tu lugar no le diría nada"), articles: "en" };
+  ck("half a sentence's English is not right",
+     !ok("If I were you", tuLugar, tuLugarOpts) && !ok("I wouldn't tell him anything", tuLugar, tuLugarOpts));
+  ck("and the whole of it is right, not just close",
+     matchAnswer("If I were you, I wouldn't tell him anything", tuLugar, [], tuLugarOpts).close !== true &&
+     ok("If I were you, I wouldn't tell him anything", tuLugar, tuLugarOpts));
+  ck("a short phrase still has a list of meanings: that's useless for ça sert à rien",
+     hasMeaningList("ça sert à rien") &&
+     ok("that's useless", "that serves no purpose, that's useless", { meanings: true }) &&
+     matchAnswer("that serves no purpose, that's useless", "that serves no purpose, that's useless", [], { meanings: true }).close !== true);
+  ck("and le enfant is still the wrong article", matchAnswer("le enfant", "un enfant", ["une enfant"]).wrongArticle === true);
   // On a Spanish card the irregular verb forms, numbers and months are marked
   // exactly (owner, 2026-10-25): the tolerance let "poní" through for puse,
   // and "setenta" for sesenta.
@@ -657,6 +677,13 @@ console.log("\n  marking — Spanish articles and ¿ ¡, French unchanged");
      ok("Ayer pusé la computadora en la sala", put, verbs) && ok("No se", "No sé", verbs));
   ck("one whose accent changes the tense is a wrong accent",
      matchAnswer("Ella hablo con Ana", "Ella habló con Ana", [], { ...es, exactWords: new Map([["habló", ["habló"]]]) }).wrongAccent === true);
+  ck("the forms the code check of 2026-11-07 found missing are wrong when mistyped (no. 2)",
+     !ok("Ella no puede venir ayer", "Ella no pudo venir ayer", verbs) &&
+     !ok("El café cuestan cuarenta y cinco pesos", "El café cuesta cuarenta y cinco pesos", verbs) &&
+     !ok("¡Sigues derecho!", "¡Sigue derecho!", verbs) &&
+     !ok("Siempre nos han encantado viajar", "Siempre nos ha encantado viajar", verbs) &&
+     !ok("Yo en tu lugar no le decía nada", "Yo en tu lugar no le diría nada", verbs));
+  ck("and a slip elsewhere in them is still close enough", ok("Ella no pudo venir aller", "Ella no pudo venir ayer", verbs));
   ck("se, not on the list, is never asked for as sé", ok("Mi esposa se lama Linda", "Mi esposa se llama Linda", verbs));
 }
 
@@ -687,6 +714,37 @@ console.log("\n  Spanish lessons — no front in two of them");
     .filter(([f, , , s]) => s === "verbforms" && !words(f).some((w) => IRREGULAR_FORMS.has(w)))
     .map(([f]) => `${l.id}: ${f}`));
   ck("every verb-form phrase holds an irregular form", bare.length === 0, bare.join(" | "));
+  // And on every Spanish front, not only the verb-form phrases, an irregular
+  // form is on the list (code check 2026-11-07, no. 2: pudo, cuesta, sigue
+  // and others were missing, so "El café cuestan…" passed). Checked against
+  // the irregular forms below, of the verbs the lessons use. A form with a
+  // pronoun joined on (dime, dímelo, hazme, diviértete) is skipped and kept
+  // off the list, as the check's final review said.
+  const KNOWN_IRREGULAR = (
+    "pudo pude pudiste pudimos pudieron tenga tengas tengan cuesta cuestan duele duelen " +
+    "estuve estuviste estuvo estuvimos estuvieron sigue siguen sigues siga sigas sigan " +
+    "ha han has he hemos hay hubo mientas miente miento mienten pierdo pierde pierden pierdes " +
+    "llueve llueva mide mido miden harías haría haríamos harían hará haré podría podrías " +
+    "podríamos podrían podré podrá tendré tendrá tendría tendríamos diré dirá diría vendrá vendría " +
+    "querrá querría sabré sabría saldría saldríamos saldrían siento siente sienten sintió " +
+    "cierra cierro empieza empiezo empiezan juega juego juegan vuelvo vuelves vuelven " +
+    "encuentro encuentra muestra piensa pienso piensan muero murió haga hagas hagan ponga " +
+    "salga venga vengas diga digas digan sea sean vaya vayas vayan vayamos sepa dé den esté " +
+    "estén tuviera pudiera hubiera dijera hiciera quisiera quisieras tuvo tuviste tuvieron " +
+    "quisieron quisimos supimos supo trajo traje trajeron caigo cayó cayeron oiga traiga " +
+    "sirve sirven pida pidan repito repiten consigo elijo elige recuerdo recuerda recuerdas " +
+    "almuerzo almuerza despierto despierta despiertan pruebo prueba suena nieva huele " +
+    "mueve muevo devuelvo devuelve comienza comienzo conduzco traduzco ofrezco parezco " +
+    "conozca conozcas durmiendo pidiendo sintiendo leyendo oyendo trayendo diciendo viniendo"
+  ).split(" ");
+  const JOINED = new Set(["dime", "dímelo", "hazme", "diviértete"]);
+  const { SPANISH_EXACT: EXACT_ES } = await import("../../src/data/lessons/es/exactWords.js");
+  const missing = new Set();
+  for (const lesson of SPANISH.LESSONS) for (const [f] of lesson.cards) {
+    for (const w of words(f)) if (!JOINED.has(w) && KNOWN_IRREGULAR.includes(w) && !EXACT_ES.has(w)) missing.add(`${w} (${lesson.id}: ${f})`);
+  }
+  ck("every irregular form on a Spanish front is typed exactly", missing.size === 0, [...missing].join(" | "));
+  ck("a form with a pronoun joined on stays off the list", [...JOINED].every((w) => !IRREGULAR_FORMS.has(w)));
 }
 
 // "Replace my existing deck" deleted the whole deck before adding the upload,
@@ -785,6 +843,26 @@ console.log("\n  reconcileLessons — a reworded lesson card keeps its row");
   const done = reconcileLessons([LESSON], [row("finir (impératif) → tu", 5)]);
   ck("once renamed, nothing more is written",
      !done.retext.length && !done.missing.length && !done.stale.length, JSON.stringify(done));
+}
+
+// A lesson may correct the English a card shows (code check 2026-11-07, no.
+// 11: "¿Qué tienen sobre México?" showed no "(ustedes)"). The students' copies
+// take the new English on the same row, so their schedule, answers and
+// accepted answers stay with it.
+console.log("\n  reconcileLessons — a corrected English side reaches existing copies");
+{
+  const es3 = SPANISH.LESSONS.find((l) => l.id === "leccion3");
+  const card = es3.cards.find(([f]) => f === "¿Qué tienen sobre México?");
+  ck("the card shows (ustedes), last, where the prompt keeps it", /\(ustedes\)$/.test(card[1]), card[1]);
+  const key = lessonCardKey(card[0]);
+  const row = (b, extra = {}) => ({ f: card[0], b, row_id: 9, source: lessonSource("leccion3", key), fsrs_state: 2, en_fsrs_state: 2, ...extra });
+  const LESSON = { id: "leccion3", cards: [card] };
+  const r = reconcileLessons([LESSON], [row(card[5])]);
+  ck("a copy with the old English is rewritten on its own row",
+     r.retext.length === 1 && r.retext[0].row_id === 9 && r.retext[0].back === card[1] && r.retext[0].front === card[0] &&
+     !r.missing.length && !r.stale.length && !r.archive.length, JSON.stringify(r));
+  ck("a copy the student edited is left alone", reconcileLessons([LESSON], [row("What have you got on Mexico?")]).retext.length === 0);
+  ck("once rewritten, nothing more is written", reconcileLessons([LESSON], [row(card[1])]).retext.length === 0);
 }
 
 // From feedback: grammar drills filed as vocab, and prompts that give the

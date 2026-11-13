@@ -160,7 +160,12 @@ export const CARDS = [
 
   // ── Sentences (ex. 7 and 8, and the dialogue), each for what no other card has
   ["¿Tienen libros sobre la historia de México?", "Do you have books about the history of Mexico? / Do you have any books about the history of Mexico? (ustedes)", "E", "phrases"],
-  ["¿Qué tienen sobre México?", "What do you have about Mexico? / What do you have on Mexico? (ustedes) / What do they have about Mexico?", "E", "phrases"],
+  // "(ustedes)" goes last: the app shows the note of the first or last
+  // answer only, so in the middle it never showed, and tienes and tiene were
+  // marked wrong (code check 2026-11-07, no. 11). The sixth element is the
+  // old English, rewritten on the students' copies (lessonSync.js).
+  ["¿Qué tienen sobre México?", "What do you have about Mexico? / What do you have on Mexico? / What do they have about Mexico? (ustedes)", "E", "phrases", null,
+    "What do you have about Mexico? / What do you have on Mexico? (ustedes) / What do they have about Mexico?"],
   ["También busco un regalo para mi papá", "I'm also looking for a present for my dad / I'm also looking for a gift for my dad / I am also looking for a present for my dad / I'm also looking for a present for my father", "E", "phrases"],
   ["Tienen descuentos en los audífonos", "They have discounts on the earphones / They have discounts on the earbuds / They have discounts on the headphones / You have discounts on the earphones (ustedes)", "E", "phrases"],
   ["Voy a llevar el libro y los audífonos", "I'm going to take the book and the earphones / I am going to take the book and the earphones / I'm going to take the book and the earbuds", "E", "phrases"],

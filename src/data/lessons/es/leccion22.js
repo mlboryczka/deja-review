@@ -21,19 +21,19 @@
 // asks for (¿Usted abriría…?), and its participle, abierto, is a Lesson 21
 // card.
 //
-// WHY "WOULD" OR "USED TO" IS ON EXACT CARDS. Phrase cards are marked with
+// WHY "WOULD" OR "USED TO" WAS ON EXACT CARDS. Phrase cards are marked with
 // typo tolerance, and in a long sentence "iríamos" is two letters from
-// "íbamos", so "De niños, iríamos a la playa…" would pass on a phrase card:
-// the very mistake her ATTENTION box is about. So her ex. 6 sentences are
-// exact gap cards. The same goes for the phrase cards "Yo en tu lugar no le
-// diría nada" ("decía" passes as close enough) and "¡Sería genial!" ("Era
-// genial" passes): they are there for meaning, and the exact cards
-// "decir → Yo en tu lugar, no le ___ nada" and "ser (condicional) → él/ella"
-// hold the form. "Nos acostaríamos más temprano" is held the same way by
-// "acostarse (condicional) → nosotros" ("acostábamos" passes on the phrase
-// card), which is also the lesson's one regular -ar verb in the conditional.
-// Closing that gap on phrase cards needs a change to the app's fuzzy
-// marking, not to this file.
+// "íbamos": the very mistake her ATTENTION box is about. So her ex. 6
+// sentences were exact gap cards, and "decir → Yo en tu lugar, no le ___
+// nada", "ser (condicional) → él/ella" and "acostarse (condicional) →
+// nosotros" held the forms of three phrase cards. Those went with every
+// grammar card on 2026-10-25 (see below), and every item of her sheet is on
+// the Exercises page. On the phrase cards the irregular conditionals are
+// typed exactly (irregularForms.js): diría, harías, podría and saldríamos, so
+// "Yo en tu lugar no le decía nada" is wrong. The regular ones are still
+// forgiven: "Era genial" passes for "¡Sería genial!", and "acostábamos" for
+// acostaríamos. "Nos acostaríamos más temprano" is the lesson's one regular
+// -ar verb in the conditional.
 //
 // Sampled, not transcribed: each card teaches something no other card does.
 //   - Ex. 2 (conjugate ten verbs in the conditional): ser and ir as drills,

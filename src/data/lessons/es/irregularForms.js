@@ -42,4 +42,12 @@ export const IRREGULAR_FORMS = new Set([
   "ven", "vendría", "vengo", "veo", "vi", "viene", "vienen", "vienes", "vine",
   "vinieron", "vinimos", "viniste", "vino", "vio", "viste", "visten",
   "vistes", "vistieron", "visto", "voy", "vuelva", "vuelve",
+  // The forms of the phrase cards the drills never had, which the code check
+  // of 2026-11-07 found missing: "Ella no puede venir ayer" passed for "Ella
+  // no pudo venir ayer", "El café cuestan…" for "El café cuesta…". A form
+  // with a pronoun joined on (dime, dímelo, hazme, diviértete) stays off the
+  // list (the check's final review).
+  "cuesta", "cuestan", "duele", "duelen", "estuviste", "ha", "harías", "hay",
+  "hemos", "llueve", "mide", "mientas", "pierdo", "podría", "pudo",
+  "saldríamos", "sigue", "siento", "tenga",
 ]);

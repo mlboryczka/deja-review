@@ -20,13 +20,14 @@
 //   "Hago deporte dos veces por semana" / "I do sports twice a week"
 //                                                  an irregular verb form, in a phrase
 //
-// WHY "A, DE O NADA" IS ON EXACT CARDS. A phrase card is marked fuzzily, and
-// "Acabo a llegar" is two letters from "Acabo de llegar": it would pass as
-// close enough. So the little word is asked on exact gap cards, and the phrase
-// card "Acabo de llegar" is there for the meaning. The same holds for the
-// tense on the phrase cards: "Ella no puede venir ayer" passes for "Ella no
-// pudo venir ayer". The preterite is checked exactly on the drills and the
-// ex. 3 gap cards; the phrase cards are there for meaning.
+// WHY "A, DE O NADA" WAS ON EXACT CARDS. A phrase card is marked with typo
+// tolerance, and "Acabo a llegar" is two letters from "Acabo de llegar". So
+// the little word was asked on exact gap cards, and the preterite on the
+// drills and the ex. 3 gap cards. Those went with every grammar card on
+// 2026-10-25 (see below), and every item of her sheet is on the Exercises
+// page. On the phrase cards "Acabo a llegar" still passes as Close enough,
+// but "Ella no puede venir ayer" doesn't: pudo is on the list of forms typed
+// exactly (irregularForms.js, since 2026-11-13).
 //
 // Sampled, not transcribed: each card teaches something no other card does.
 //   - The irregular preterites: one full table for hacer (the lesson's verb),

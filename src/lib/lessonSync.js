@@ -57,6 +57,8 @@ export const ADOPTED_SOURCE = "cahier-upload";
  *             the rename neither retires the row nor resets its FSRS state.
  *             Only rows whose stored front is still exactly the old text are
  *             rewritten — one the user edited is theirs and is left alone.
+ *             Likewise a card whose sixth element is the back it used to
+ *             have: a row still showing that old back takes the new one.
  *   recat   — { row_id, category, back } for rows the lesson now asks as a
  *             word or a phrase although they were written as grammar cards:
  *             the Spanish module's sentences to translate, when its grammar
@@ -139,7 +141,7 @@ export function reconcileLessons(lessons, deckCards, archivedCards = []) {
 
   for (const lesson of lessons) {
     const want = new Map(
-      lesson.cards.map(([f, b, c, , was]) => [lessonCardKey(was ?? f), { f, b, c, was }])
+      lesson.cards.map(([f, b, c, , was, wasBack]) => [lessonCardKey(was ?? f), { f, b, c, was, wasBack }])
     );
     const have = (deckCards || []).filter((card) => lessonIdOf(card) === lesson.id);
     const claimed = new Set();
@@ -156,6 +158,13 @@ export function reconcileLessons(lessons, deckCards, archivedCards = []) {
           claimed.add(stored);
           const c = want.get(stored);
           if (c.was && card.f === c.was && card.row_id != null) {
+            retext.push({ row_id: card.row_id, front: c.f, back: c.b });
+          } else if (c.wasBack && card.f === c.f && card.b === c.wasBack && card.row_id != null) {
+            // The lesson corrected the English it shows (a sixth element, the
+            // back it used to have): written to rows still showing the old
+            // one, so the prompt changes and nothing else does. "¿Qué tienen
+            // sobre México?" lost its "(ustedes)" on screen (code check
+            // 2026-11-07, no. 11).
             retext.push({ row_id: card.row_id, front: c.f, back: c.b });
           }
           if (card.cat === "gram" && (c.c === "V" || c.c === "E") && card.row_id != null) {

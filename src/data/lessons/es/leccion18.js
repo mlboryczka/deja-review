@@ -16,17 +16,18 @@
 //   "Vuelve pronto a Guadalajara" / "Come back to Guadalajara soon"
 //                                                  an irregular verb form, in a phrase
 //
-// WHY THE FORMS ARE ON EXACT CARDS. A phrase card is marked with typo
+// WHY THE FORMS WERE ON ARROW CARDS. A phrase card is marked with typo
 // tolerance, and the mistakes this lesson is about are a letter or two long:
-// "No me dices eso" passes for "No me digas eso", and "Dime lo" is near
-// enough to "Dímelo" too. So every form is asked on an arrow card (the drills
-// and her ex. 1, 2, 5, 6 and 7), and the phrase cards are there for meaning.
-// Checked with the app's matcher: on the phrase cards, "No me dices eso" and
-// "No me diga eso" pass for "No me digas eso", "Dime" for "Dímelo" and "No se
-// preocupe" for "¡No te preocupes!", all as Close enough. Each of those forms
-// is also asked exactly: no digas and no me lo digas, dímelo (her ex. 7), and
-// preocuparse → no te preocupes and no se preocupe. Closing the gap on the
-// phrase cards needs a change to the fuzzy marking, not this file.
+// "No me dices eso" passed for "No me digas eso". So every form was asked on
+// an arrow card (the drills and her ex. 1, 2, 5, 6 and 7). Those went with
+// every grammar card on 2026-10-25 (see below), and every item of her sheet
+// is on the Exercises page. On the phrase cards an irregular form is now
+// typed exactly (irregularForms.js): digas, sigue, pierdo and mientas, so "No
+// me dices eso" and "¡Sigues derecho!" are wrong. A regular form is still
+// forgiven ("No se preocupe" passes for "¡No te preocupes!"), and so is a
+// form with its pronoun joined on (dime, dímelo, hazme, diviértete), which
+// the code check of 2026-11-07 kept off that list: "Dime" passes for
+// "Dímelo".
 //
 // Sampled, not transcribed. The drills take the model verbs of her table
 // (hablar for -ar, comer for -er, volver for a vowel change), her eight short
