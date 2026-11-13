@@ -33,6 +33,9 @@ import lecon18 from "./lecon18.js";
 import lecon19 from "./lecon19.js";
 import lecon20 from "./lecon20.js";
 import gerondif from "./gerondif.js";
+import plusqueparfait from "./plusqueparfait.js";
+import voiepassive from "./voiepassive.js";
+import pronomsrelatifs from "./pronomsrelatifs.js";
 import { makeCatalogue } from "./catalogue.js";
 import { frenchStagesOf } from "./stages.js";
 import { stageIds } from "./es/stages.js";
@@ -53,7 +56,7 @@ export {
 const ALL = [
   imperatif, adverbes, lecon2, lecon3, lecon4, lecon5, lecon1, lecon6, lecon7, lecon8, lecon9, lecon10,
   lecon11, lecon12, lecon13, lecon14, lecon15, lecon16, lecon17, lecon18, lecon19, lecon20,
-  gerondif,
+  gerondif, plusqueparfait, voiepassive, pronomsrelatifs,
 ];
 
 // The order a student meets the lessons' new cards in on Cards: part of every

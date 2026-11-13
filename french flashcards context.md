@@ -1745,8 +1745,9 @@ From this project's history:
 
 A lesson is a fixed set of cards made from a teacher's materials, the same for
 every student. Lessons are in `src/data/lessons/`; `LESSONS` in `index.js` is
-the catalogue. There are twenty-three: L'impératif (108 cards) and Le
-gérondif (41 cards), topic lessons from Laura Caufour's LFL METHOD sheets,
+the catalogue. There are twenty-six: L'impératif (108 cards), Le gérondif
+(41), Le plus-que-parfait (49), La voie passive (29) and Les pronoms relatifs
+(40), topic lessons from Laura Caufour's LFL METHOD sheets,
 Adjectif ou adverbe ? (81 cards, written for the app), and her beginner
 Leçons 1 to 20, titled in English in the app (owner, 2026-10-06):
 Lesson 1 · Être (57), Lesson 2 · Aller (63), Lesson 3 · Avoir (62), Lesson 4 ·
@@ -1988,7 +1989,11 @@ costs (draft and her sheets in `.claude/topic-lessons-draft/gerondif/`); it
 is the only one with her answer key. It was checked by two helpers, one for
 the French and one against her sheets and the building-lessons rules, and
 its header lists every departure from her sheets. Like every lesson added
-later, it starts off on Cards.
+later, it starts off on Cards. Le plus-que-parfait, La voie passive and Les
+pronoms relatifs followed the same day, the same way (owner: "build another
+3, and let's see how much my usage allowance moves"); none has her answer
+key, so their answers were written for the app. Drafts in
+`.claude/topic-lessons-draft/`.
 
 ---
 

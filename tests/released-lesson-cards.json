@@ -15537,6 +15537,484 @@
         "key": "5br10",
         "front": "Appelle-moi en arrivant"
       }
+    ],
+    "plusqueparfait": [
+      {
+        "key": "npm8sz",
+        "front": "la veille"
+      },
+      {
+        "key": "h9p5xm",
+        "front": "l'année précédente"
+      },
+      {
+        "key": "18q1i6u",
+        "front": "à ce moment-là"
+      },
+      {
+        "key": "h5uhhq",
+        "front": "faire (plus-que-parfait) → je"
+      },
+      {
+        "key": "13m2pwi",
+        "front": "être (plus-que-parfait) → il"
+      },
+      {
+        "key": "7q3vm8",
+        "front": "aller (plus-que-parfait) → ils"
+      },
+      {
+        "key": "1t5zv8t",
+        "front": "prendre (plus-que-parfait) → nous"
+      },
+      {
+        "key": "1lpbveo",
+        "front": "sortir (plus-que-parfait) → nous"
+      },
+      {
+        "key": "14cgh06",
+        "front": "entendre (plus-que-parfait) → tu"
+      },
+      {
+        "key": "1tom6zd",
+        "front": "pouvoir (plus-que-parfait) → vous"
+      },
+      {
+        "key": "8zt1vv",
+        "front": "venir (plus-que-parfait) → je"
+      },
+      {
+        "key": "un1mpa",
+        "front": "ouvrir (plus-que-parfait) → je"
+      },
+      {
+        "key": "1dxn4ob",
+        "front": "mourir (plus-que-parfait) → il"
+      },
+      {
+        "key": "1f8ufww",
+        "front": "J'ai mangé une soupe il y a deux jours → au plus-que-parfait"
+      },
+      {
+        "key": "1atvktx",
+        "front": "Il a pris le métro hier → au plus-que-parfait"
+      },
+      {
+        "key": "1k6qx3d",
+        "front": "Elle est arrivée à l'heure → au plus-que-parfait"
+      },
+      {
+        "key": "zabsim",
+        "front": "J'ai mal dormi toute la semaine dernière → au plus-que-parfait"
+      },
+      {
+        "key": "ywhi8m",
+        "front": "On les a vus au supermarché → au plus-que-parfait"
+      },
+      {
+        "key": "fjxo4e",
+        "front": "Il a plu toute la journée → au plus-que-parfait"
+      },
+      {
+        "key": "vorm1n",
+        "front": "Le bébé s'est réveillé il y a deux heures → au plus-que-parfait"
+      },
+      {
+        "key": "fie5ti",
+        "front": "Ils ont fait construire leur maison l'année dernière → au plus-que-parfait"
+      },
+      {
+        "key": "81jw5b",
+        "front": "Tu avais acheté les fleurs au marché ? → Oui, …"
+      },
+      {
+        "key": "sekvo5",
+        "front": "Tu avais reçu la lettre le matin même ? → Oui, …"
+      },
+      {
+        "key": "cijuwe",
+        "front": "Tes amis avaient déjà vu le film ? → Oui, …"
+      },
+      {
+        "key": "jxnhlo",
+        "front": "Tu avais répondu à tes parents ? → Oui, …"
+      },
+      {
+        "key": "153p1he",
+        "front": "Tu étais parti à l'heure ? → Non, …"
+      },
+      {
+        "key": "1ta2bdu",
+        "front": "Vous aviez tout bu ? → Non, …"
+      },
+      {
+        "key": "b0lwal",
+        "front": "Tu avais acheté des noix de cajou au marché ? → Non, …"
+      },
+      {
+        "key": "tc1c1i",
+        "front": "Tu t'étais endormi sur le canapé ? → Non, …"
+      },
+      {
+        "key": "19mb7ql",
+        "front": "avoir → J'ai pensé qu'il ___ un problème"
+      },
+      {
+        "key": "1ogs6ce",
+        "front": "ne pas pouvoir → Il m'a expliqué qu'il ___ faire l'exercice"
+      },
+      {
+        "key": "197ltia",
+        "front": "partir → Je lui ai dit qu'on ___ la veille"
+      },
+      {
+        "key": "sxdqna",
+        "front": "déménager → Mes amis ne savaient pas que j'___ l'année précédente"
+      },
+      {
+        "key": "1qguxxw",
+        "front": "pouvoir → Si j'___ venir, tu aurais été content"
+      },
+      {
+        "key": "1naocgr",
+        "front": "dire → Si tu m'___ ça, je serais parti plus tôt"
+      },
+      {
+        "key": "147mzhh",
+        "front": "ne pas pleuvoir → S'il ___, on serait sortis"
+      },
+      {
+        "key": "pp0ctg",
+        "front": "la voir → J'ai déjeuné avec Liliane hier. Ça faisait longtemps que ___"
+      },
+      {
+        "key": "yls2f4",
+        "front": "y aller → Morgane est allée à Brest le week-end dernier. Ça faisait longtemps qu'___"
+      },
+      {
+        "key": "3hlgzq",
+        "front": "leur parler → J'ai eu mes parents au téléphone. Ça faisait longtemps que ___"
+      },
+      {
+        "key": "1sgf1v2",
+        "front": "faire du vélo → J'ai fait du vélo hier. Ça faisait 20 ans que ___"
+      },
+      {
+        "key": "1pl4a0w",
+        "front": "J'étais parti trois minutes avant"
+      },
+      {
+        "key": "f8n0mt",
+        "front": "Je n'avais pas eu le temps"
+      },
+      {
+        "key": "g7kz7n",
+        "front": "Il n'était pas encore arrivé quand je suis parti"
+      },
+      {
+        "key": "10pkuz1",
+        "front": "Ils s'étaient vus avant"
+      },
+      {
+        "key": "4git26",
+        "front": "Je n'avais jamais vu la neige avant d'aller à Chamonix"
+      },
+      {
+        "key": "3eicej",
+        "front": "Ils n'avaient pas beaucoup dormi la veille"
+      },
+      {
+        "key": "1l0klzv",
+        "front": "Il m'a dit qu'il avait eu le temps"
+      },
+      {
+        "key": "1gfpa75",
+        "front": "Il m'a dit qu'il avait le temps"
+      },
+      {
+        "key": "pnkn8k",
+        "front": "J'en avais acheté au supermarché"
+      }
+    ],
+    "voiepassive": [
+      {
+        "key": "rbs57s",
+        "front": "livrer (présent) → Les colis ___ à l'heure"
+      },
+      {
+        "key": "ictc9x",
+        "front": "nettoyer (présent) → La chambre ___ tous les jours"
+      },
+      {
+        "key": "l8dxr2",
+        "front": "peindre (présent) → Les murs ___ chaque année"
+      },
+      {
+        "key": "h4qmns",
+        "front": "écrire (passé composé) → Cette chanson ___ par Jean-Jacques Goldman"
+      },
+      {
+        "key": "ltttwl",
+        "front": "vendre (passé composé) → La maison ___ par l'agent immobilier"
+      },
+      {
+        "key": "1zsz0f",
+        "front": "choisir (passé composé) → Ils ___ parmi 30 candidats"
+      },
+      {
+        "key": "1nvvip3",
+        "front": "tourner (passé composé) → Le film ___ en Alaska"
+      },
+      {
+        "key": "1k10w6s",
+        "front": "accuser (passé composé) → Elle ___ de meurtre"
+      },
+      {
+        "key": "uldc5h",
+        "front": "juger (passé composé) → Ils ___ par une cour internationale"
+      },
+      {
+        "key": "jhztam",
+        "front": "annoncer (futur) → Le gagnant ___ demain"
+      },
+      {
+        "key": "1lhqevj",
+        "front": "choisir (infinitif) → Il veut ___"
+      },
+      {
+        "key": "12q1kvn",
+        "front": "sélectionner (conditionnel passé) → Si j'avais travaillé plus, ___"
+      },
+      {
+        "key": "7lze6j",
+        "front": "habiller (imparfait) → Avant, les actrices ___ par Chanel"
+      },
+      {
+        "key": "13c4dcm",
+        "front": "J'ai été licencié → avec se faire"
+      },
+      {
+        "key": "8lqf5j",
+        "front": "Ma voiture a été volée → avec se faire"
+      },
+      {
+        "key": "qos8u5",
+        "front": "Elle a été virée → avec se faire"
+      },
+      {
+        "key": "1s9nsou",
+        "front": "Tu penses que tu vas être licencié ? → avec se faire"
+      },
+      {
+        "key": "14y4j2l",
+        "front": "Elle a été expulsée → avec se faire"
+      },
+      {
+        "key": "1h4knoa",
+        "front": "On m'a dit que c'était dangereux là-bas"
+      },
+      {
+        "key": "f9lnly",
+        "front": "On ne m'a pas demandé mon opinion"
+      },
+      {
+        "key": "d4vja1",
+        "front": "On ne lui a donné aucune explication"
+      },
+      {
+        "key": "p8hr72",
+        "front": "On a besoin de plus de médecins à l'hôpital"
+      },
+      {
+        "key": "1nyz37b",
+        "front": "On nous a donné une carte"
+      },
+      {
+        "key": "fysfoo",
+        "front": "On leur a demandé de partir plus tôt"
+      },
+      {
+        "key": "1sh06d5",
+        "front": "On ne m'a rien dit"
+      },
+      {
+        "key": "g2rxbh",
+        "front": "On t'a tiré dessus"
+      },
+      {
+        "key": "yf2yy1",
+        "front": "On lui a sauté dessus dans la rue"
+      },
+      {
+        "key": "1heffuo",
+        "front": "Ils n'aiment pas qu'on leur crie dessus"
+      },
+      {
+        "key": "1dgqxdr",
+        "front": "Je me suis fait rentrer dedans"
+      }
+    ],
+    "pronomsrelatifs": [
+      {
+        "key": "1gi1jbl",
+        "front": "qui ou que → Mon frère a pris l'argent ___ était dans le tiroir"
+      },
+      {
+        "key": "stzdh7",
+        "front": "qui ou que → C'est ton professeur ___ j'ai vu là-bas ?"
+      },
+      {
+        "key": "1myib4w",
+        "front": "qui ou que → Au cinéma, j'ai vu un film ___ j'ai adoré"
+      },
+      {
+        "key": "15ppohq",
+        "front": "qui ou que → C'est l'homme ___ j'aime"
+      },
+      {
+        "key": "17nm3oh",
+        "front": "qui ou que → C'est l'homme ___ m'aime"
+      },
+      {
+        "key": "1x6g10b",
+        "front": "qui ou que → Le restaurant ___ Camille adorait a fermé"
+      },
+      {
+        "key": "1fnnzll",
+        "front": "qui ou que → C'est lui ___ est parti ou c'est elle ?"
+      },
+      {
+        "key": "hjpta4",
+        "front": "qui ou que → J'ai mis à la banque l'argent ___ tu m'avais donné"
+      },
+      {
+        "key": "auiekk",
+        "front": "qui, que ou où → C'est l'année ___ je suis né"
+      },
+      {
+        "key": "15m262j",
+        "front": "qui, que ou où → Le canapé ___ il est assis n'est pas confortable"
+      },
+      {
+        "key": "gxcow",
+        "front": "qui, que ou où → Je ne trouve plus la rue ___ je suis garé"
+      },
+      {
+        "key": "128ny5k",
+        "front": "que ou dont → Les patients ___ elle s'est occupée sont sur cette liste"
+      },
+      {
+        "key": "1v4ybqc",
+        "front": "que ou dont → C'est la voiture ___ j'ai besoin"
+      },
+      {
+        "key": "ye6xdw",
+        "front": "que ou dont → C'est le chien ___ Maxime a peur"
+      },
+      {
+        "key": "1uiccq8",
+        "front": "que ou dont → Le bateau ___ je rêve est très cher"
+      },
+      {
+        "key": "anc8fk",
+        "front": "que ou dont → C'est le petit garçon ___ la mère travaille pour L'Oréal"
+      },
+      {
+        "key": "1qmg1xe",
+        "front": "que ou dont → Le gilet ___ les boutons sont bleus a rétréci"
+      },
+      {
+        "key": "fjmsef",
+        "front": "que ou dont → Le risotto ___ j'ai mangé hier était délicieux"
+      },
+      {
+        "key": "1on08zb",
+        "front": "ce qui, ce que ou quoi → Je suis tout le temps fatigué, je ne sais pas ___ faire"
+      },
+      {
+        "key": "1rwwudu",
+        "front": "ce qui, ce que ou quoi → Je ne comprends pas ___ tu veux dire"
+      },
+      {
+        "key": "8o1oq7",
+        "front": "ce qui, ce que ou quoi → ___ me manque le plus, c'est le fromage !"
+      },
+      {
+        "key": "es26fi",
+        "front": "ce qui, ce que ou quoi → J'adore ___ tu portes"
+      },
+      {
+        "key": "3zqfph",
+        "front": "ce qui, ce que ou quoi → Oui, c'est justement ___ m'embête"
+      },
+      {
+        "key": "24q8qm",
+        "front": "ce qui, ce que ou quoi → J'ai faim mais je ne sais pas ___ manger"
+      },
+      {
+        "key": "b0my2f",
+        "front": "ce qui, ce que ou quoi → C'est ___ m'a fait peur"
+      },
+      {
+        "key": "2o8pq9",
+        "front": "ce qui, ce que ou quoi → Tu peux répéter ___ tu as dit au début ?"
+      },
+      {
+        "key": "1lxh95u",
+        "front": "ce que ou ce dont → Je ne comprends pas ___ il parle"
+      },
+      {
+        "key": "vw8u00",
+        "front": "J'adore les livres qui parlent de la Révolution française"
+      },
+      {
+        "key": "n8dim1",
+        "front": "J'adore les chaussures que tu as achetées"
+      },
+      {
+        "key": "qga9sv",
+        "front": "Je suis arrivé le jour où il est parti"
+      },
+      {
+        "key": "hxhzms",
+        "front": "Je ne comprends pas ce qu'il veut"
+      },
+      {
+        "key": "1h8t5ml",
+        "front": "Je ne sais pas quoi dire"
+      },
+      {
+        "key": "1ejbp2e",
+        "front": "Je ne sais pas ce qui se passe"
+      },
+      {
+        "key": "1q2hlv7",
+        "front": "C'est la personne dont je t'ai parlé"
+      },
+      {
+        "key": "1r3q8i4",
+        "front": "C'est exactement ce dont j'avais besoin !"
+      },
+      {
+        "key": "cm9euj",
+        "front": "Je l'ai rencontré l'année où mon grand-père est mort"
+      },
+      {
+        "key": "1eptsju",
+        "front": "Il a commencé à pleuvoir au moment où je suis arrivé"
+      },
+      {
+        "key": "1uvc0me",
+        "front": "J'ai décidé d'arrêter le jour où j'ai rencontré Hugo"
+      },
+      {
+        "key": "1l6diqh",
+        "front": "Mes parents ont vendu la maison où nous sommes nés"
+      },
+      {
+        "key": "95a0l3",
+        "front": "C'est l'école où je suis allé"
+      }
     ]
   },
   "retired": {
