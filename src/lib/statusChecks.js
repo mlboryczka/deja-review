@@ -856,6 +856,19 @@ export function predictions(idx, ctx) {
   return out;
 }
 
+// A failing statistical check (2026-11-13). `details` are only the groups
+// that fail; the groups that pass or are too few to judge are `notes`, shown
+// beneath them but never raised as problems. `raise` is what the morning
+// check raises: each failing group by its name, which stays the same from day
+// to day, with its sentence and figures beneath. Until then every line was
+// raised, passing ones too, keyed by its counts, so a problem that kept
+// failing came back as new every morning.
+const failingGroups = (bad, notes) => ({
+  details: bad.map((b) => b.line),
+  notes,
+  raise: bad.map((b) => ({ key: b.group, detail: b.line })),
+});
+
 function checkPredictions(idx, ctx) {
   const out = { id: "predictions", title: "FSRS's predictions match your results" };
   const ps = predictions(idx, ctx);
@@ -869,15 +882,16 @@ function checkPredictions(idx, ctx) {
     const g = ps.filter((x) => x.p >= lo && x.p < hi);
     if (!g.length) continue;
     const e = mean(g.map((x) => x.p)), a = mean(g.map((x) => (x.got ? 1 : 0)));
-    const line = `Cards FSRS gave ${pct(lo)}–${pct(Math.min(hi, 1))}: expected ${pct(e)}, you got ${pct(a)} right (${plural(g.length, "answer")}).`;
-    if (g.length >= BAND_MIN && Math.abs(a - e) > 0.1) bad.push(line);
+    const group = `Cards FSRS gave ${pct(lo)}–${pct(Math.min(hi, 1))}`;
+    const line = `${group}: expected ${pct(e)}, you got ${pct(a)} right (${plural(g.length, "answer")}).`;
+    if (g.length >= BAND_MIN && Math.abs(a - e) > 0.1) bad.push({ group, line });
     else lines.push(line);
   }
   if (ps.length >= OVERALL_MIN && Math.abs(actual - expected) > 0.05) {
-    bad.unshift(`Overall FSRS expected ${pct(expected)} right and you got ${pct(actual)}, over ${plural(ps.length, "review")}.`);
+    bad.unshift({ group: "Overall", line: `Overall FSRS expected ${pct(expected)} right and you got ${pct(actual)}, over ${plural(ps.length, "review")}.` });
   }
   const summary = `Expected ${pct(expected)} right, you got ${pct(actual)} (${plural(ps.length, "review")}, last 30 days).`;
-  if (bad.length) return { ...out, status: "fail", summary, details: [...bad, ...lines] };
+  if (bad.length) return { ...out, status: "fail", summary, ...failingGroups(bad, lines) };
   if (ps.length < OVERALL_MIN) return { ...out, status: "wait", summary: `${summary} Too few to judge yet: needs ${OVERALL_MIN}.`, details: lines };
   return { ...out, status: "pass", summary, details: lines };
 }
@@ -955,10 +969,10 @@ function checkFirstGaps(idx, ctx) {
     if (g.length < FIRST_GAP_MIN) { lines.push(`${line} Too few to judge yet: needs ${FIRST_GAP_MIN}.`); continue; }
     judged++;
     if (Math.abs(a - e) > FIRST_GAP_OFF) {
-      bad.push(`${line} ${a > e ? "They come back sooner than they need to." : "They wait longer than they should."}`);
+      bad.push({ group: words, line: `${line} ${a > e ? "They come back sooner than they need to." : "They wait longer than they should."}` });
     } else lines.push(line);
   }
-  if (bad.length) return { ...out, status: "fail", summary: `${bad.length === 2 ? "Both first gaps are" : "A first gap is"} off by more than ${pct(FIRST_GAP_OFF)}. ${using}`, details: [...bad, ...lines] };
+  if (bad.length) return { ...out, status: "fail", summary: `${bad.length === 2 ? "Both first gaps are" : "A first gap is"} off by more than ${pct(FIRST_GAP_OFF)}. ${using}`, ...failingGroups(bad, lines) };
   if (!judged) return { ...out, status: "wait", summary: `Too few second answers in the last 30 days to judge yet. ${using}`, details: lines };
   return { ...out, status: "pass", summary: `Second answers match what's expected. ${using}`, details: lines };
 }
@@ -990,7 +1004,9 @@ function checkOwnSettings(idx, ctx) {
   }
   const due = fitDue({ answers: before, checkedAt: s.fit_checked_at || null, checkedAnswers: s.fit_checked_answers ?? null, now: openedAt });
   if (due) {
-    return { ...out, status: "fail", summary: `Your own settings were due a try when you studied on ${dayLabel(lastDay)}, but none happened. ${using}${lastTry}`, details: [] };
+    // Raised by the check alone: the summary names the day, which moves.
+    const summary = `Your own settings were due a try when you studied on ${dayLabel(lastDay)}, but none happened. ${using}${lastTry}`;
+    return { ...out, status: "fail", summary, details: [], raise: [{ key: "", detail: summary }] };
   }
   if (now < FIRST_FIT) {
     return { ...out, status: "wait", summary: `Your own settings are first tried at ${FIRST_FIT} answers that count; you have ${now}. ${using}`, details: [] };
@@ -1300,6 +1316,20 @@ export function runStatusChecks({
   };
 }
 
+// The problems the morning check (scripts/status-check.mjs) raises for a
+// failing check, each a line that is also its key in the raised list, and
+// what goes beneath it. A check that says what to raise (the FSRS
+// predictions, first gaps and own settings, 2026-11-13) is raised by the
+// group that fails, or by the check alone, with its changing figures beneath,
+// so the next morning it is "raised before" rather than new. Any other is
+// raised line by line, as before.
+export function raisedProblems(prefix, check) {
+  if (check.raise) {
+    return check.raise.map(({ key, detail }) => ({ line: `${prefix}: ${check.title}${key ? `: ${key}` : ""}`, detail }));
+  }
+  return (check.details.length ? check.details : [check.summary]).map((d) => ({ line: `${prefix}: ${check.title}: ${d}` }));
+}
+
 // The results as plain text, to paste to Claude.
 export function statusText(report) {
   const lines = [`Status check, ${report.checkedAt.slice(0, 16).replace("T", " ")} UTC — answers from ${report.from} on.`];
@@ -1307,6 +1337,7 @@ export function statusText(report) {
     lines.push(`\n[${r.status.toUpperCase()}] ${r.title}: ${r.summary}`);
     for (const d of r.details) lines.push(`  - ${d}`);
     if (r.more) lines.push(`  - and ${r.more} more`);
+    for (const n of r.notes || []) lines.push(`  - ${n}`);
   }
   if (report.judging) lines.push(`\n${judgingText(report.judging)}`);
   return lines.join("\n");

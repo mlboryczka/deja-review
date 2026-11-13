@@ -985,7 +985,10 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   // The daily check is the French deck's: it fits the settings from French
   // answers and writes their estimates to French cards. The Spanish deck uses
   // the settings it gives.
-  const fsrs = useFsrsSettings(user, { cards: userCards, freshSeq: deckFreshSeq, dir, onEstimatesChanged: reloadDeck, daily: !spanish });
+  // The cards a set is dealt from (candidatesFrom, below), so a lesson switched
+  // off doesn't count as cards left undone.
+  const dealtFromRef = useRef(null);
+  const fsrs = useFsrsSettings(user, { cards: userCards, freshSeq: deckFreshSeq, dir, dealtFromRef, onEstimatesChanged: reloadDeck, daily: !spanish });
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const profileRef = useRef(null);
 
@@ -1385,6 +1388,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
     if (lessonFilter !== "all") return pool;
     return pool.filter((c) => onCards(c, { scope, lessonsOn, lessonIds }));
   }, [poolFrom, lessonFilter, scope, lessonsOn, lessonIds]);
+  dealtFromRef.current = candidatesFrom;
 
   // The record of each set dealt (lib/dealLog.js), for the status check. Never
   // waited on and never retried: a set is studied the same whether its record
@@ -2761,6 +2765,10 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
           english: card.b,
           user_answer: typedAnswer,
           expected_answer: correctText,
+          // A drill is answered in French or Spanish, so Claude isn't told
+          // its answer is English. The same rule as submitTyped's.
+          drill: card.shownDir === "fr" && String(card.f || "").includes("→") &&
+            (isConjugationDrill(card.f) || !!lessonIdOf(card)),
           // Spanish cards are judged as Spanish, and an accepted answer is
           // kept with the Spanish deck (api/review-answer.js).
           ...(spanish ? { course: "es" } : {}),

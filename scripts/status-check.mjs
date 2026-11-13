@@ -93,6 +93,16 @@ if (missing.length) {
 //
 // The last line says which: "All clear.", "Nothing new: ..." or "Something new
 // needs looking at."; the exit code is 0, 0 and 1.
+// A failing check's problems, each with what goes beneath it
+// (raisedProblems, src/lib/statusChecks.js).
+async function raise(prefix, c, problems, detail) {
+  const { raisedProblems } = await import("../src/lib/statusChecks.js");
+  for (const { line, detail: d } of raisedProblems(prefix, c)) {
+    problems.push(line);
+    if (d) detail.set(line, d);
+  }
+}
+
 function finish({ problems, detail, raised, raisedFile, unreadable }) {
   const fresh = problems.filter((x) => !raised[x]);
   const old = problems.filter((x) => raised[x]);
@@ -145,6 +155,7 @@ if (args.includes("--test-app")) {
   let raised = {};
   try { raised = JSON.parse(fs.readFileSync(RAISED_FILE, "utf8")); } catch {}
   const problems = [];
+  const detail = new Map();
   let unreadable = false;
   const [r] = await checkEveryone(db, { examples: Infinity, only: new Set([owner]), rulesFrom: RULES_FROM });
   console.log(`The test app (dejareview-mlb.vercel.app), judged by its own version of the checks, on ${owner}'s record:`);
@@ -156,7 +167,7 @@ if (args.includes("--test-app")) {
   } else {
     console.log(statusText(r.report).split("\n").map((l) => `  ${l}`).join("\n"));
     for (const c of r.report.results.filter((x) => x.status === "fail")) {
-      for (const d of c.details.length ? c.details : [c.summary]) problems.push(`Test app: ${r.user_email}: ${c.title}: ${d}`);
+      await raise(`Test app: ${r.user_email}`, c, problems, detail);
     }
   }
   // The Spanish deck, judged the same way (the Spanish module, test app only,
@@ -175,10 +186,10 @@ if (args.includes("--test-app")) {
   } else {
     console.log(statusText(es.report).split("\n").map((l) => `  ${l}`).join("\n"));
     for (const c of es.report.results.filter((x) => x.status === "fail")) {
-      for (const d of c.details.length ? c.details : [c.summary]) problems.push(`Test app (Spanish): ${es.user_email}: ${c.title}: ${d}`);
+      await raise(`Test app (Spanish): ${es.user_email}`, c, problems, detail);
     }
   }
-  finish({ problems, detail: new Map(), raised, raisedFile: RAISED_FILE, unreadable });
+  finish({ problems, detail, raised, raisedFile: RAISED_FILE, unreadable });
 }
 
 if (args.includes("--everyone")) {
@@ -207,7 +218,7 @@ if (args.includes("--everyone")) {
     console.log(`\n  ${r.user_email}: ${r.answers} answers, ${r.failing} check${r.failing === 1 ? "" : "s"} failing.`);
     console.log(statusText(r.report).split("\n").map((l) => `    ${l}`).join("\n"));
     for (const c of r.report.results.filter((x) => x.status === "fail")) {
-      for (const d of c.details.length ? c.details : [c.summary]) problems.push(`${r.user_email}: ${c.title}: ${d}`);
+      await raise(r.user_email, c, problems, detail);
     }
   }
 

@@ -21,6 +21,8 @@ import {
 import { buildHistories, fittingSequences, replayHistory, studyDayNumber } from "../../src/lib/fsrsHistory.js";
 import { makeScheduler, scheduleAnswer, applySettings, scheduler as live, Rating } from "../../src/lib/spacedRepetition.js";
 import { endOfLocalDay } from "../../src/lib/studyDay.js";
+import { leftDueCards } from "../../src/lib/sessionQueue.js";
+import { onCards } from "../../src/lib/lessonChoice.js";
 import { fitUser } from "../../api/fsrs-fit.js";
 import * as binding from "@open-spaced-repetition/binding";
 import { createEmptyCard } from "ts-fsrs";
@@ -50,6 +52,39 @@ console.log("\n  the target: the student's choice, or automatic");
   ck("a study day is recorded once: the first open of the day wins", days.length === 1 && days[0].behind === true, JSON.stringify(days));
   const many = Array.from({ length: 20 }, (_, i) => `2026-10-${String(i + 1).padStart(2, "0")}`).reduce((d, date) => recordStudyDay(d, date, false), []);
   ck("and only the last 14 are kept", many.length === 14 && many[0].date === "2026-10-07", `${many.length} from ${many[0].date}`);
+}
+
+console.log("\n  a day counts as behind only with due cards really left undone (2026-11-13)");
+{
+  // Thursday 5 November: habiter is due both ways at 7am. Under Mixed the
+  // app deals it French side up only (one way a day), and the student answers
+  // it. On Friday its English side is still overdue, but that was the app's
+  // choice, not the student's: until 2026-11-13 Friday counted as behind.
+  const at = (d, h) => new Date(2026, 10, d, h).getTime();
+  const iso = (ms) => new Date(ms).toISOString();
+  const habiter = {
+    id: 1, front: "habiter", back: "to live", cat: "vocab", source: null,
+    fsrs_state: 2, stability: 3, reps: 3, next_due_at: iso(at(8, 9)), last_review: iso(at(5, 8)), last_answer_correct: true,
+    en_fsrs_state: 2, en_stability: 3, en_reps: 3, en_next_due_at: iso(at(5, 7)), en_last_review: iso(at(1, 9)), en_last_answer_correct: true,
+  };
+  ck("a word's other way held back for the next day: not behind",
+     leftDueCards([habiter], { now: at(6, 9), direction: "mix" }) === false);
+  const skipped = { ...habiter, last_review: iso(at(2, 8)), next_due_at: iso(at(5, 7)) };
+  ck("the same word not studied at all on Thursday: behind",
+     leftDueCards([skipped], { now: at(6, 9), direction: "mix" }) === true);
+  ck("studying English → French, a word due only French side up isn't waiting",
+     leftDueCards([{ ...skipped, en_next_due_at: iso(at(9, 7)), en_last_review: iso(at(4, 8)) }], { now: at(6, 9), direction: "en" }) === false);
+  // A lesson switched off isn't dealt, so its due cards aren't left undone.
+  // The app passes the cards it deals from (candidatesFrom, the same onCards).
+  const lessonCard = { ...skipped, id: 2, front: "la maison", source: "lesson:lecon3#x" };
+  const dealtFrom = (cards, lessonsOn) => cards.filter((c) => onCards(c, { scope: "all", lessonsOn, lessonIds: ["lecon3"] }));
+  ck("a due card in a lesson switched off: not behind",
+     leftDueCards(dealtFrom([habiter, lessonCard], new Set()), { now: at(6, 9), direction: "mix" }) === false);
+  ck("and behind once that lesson is switched on",
+     leftDueCards(dealtFrom([habiter, lessonCard], new Set(["lecon3"])), { now: at(6, 9), direction: "mix" }) === true);
+  ck("a card due today isn't left over", leftDueCards([{ ...skipped, next_due_at: iso(at(6, 7)), en_next_due_at: iso(at(6, 7)) }], { now: at(6, 9) }) === false);
+  ck("nothing about the cards is changed",
+     habiter.en_next_due_at === iso(at(5, 7)) && habiter.next_due_at === iso(at(8, 9)) && skipped.next_due_at === iso(at(5, 7)));
 }
 
 console.log("\n  when a fit is tried");

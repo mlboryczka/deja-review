@@ -638,6 +638,26 @@ console.log("\n  a card that is one item of another card's list is that card (th
        none.decisions.length === 1 && none.decisions[0].action === "wait",
      JSON.stringify([different.decisions.map((d) => [d.card.front, d.action]), none.decisions.map((d) => [d.card.front, d.action])]));
 
+  // Spanish, the same way (2026-11-13): "una niña" is the student's card for
+  // the "la niña" of "la niña / la chica", so "la chica" becomes a card.
+  // Until then the Spanish articles counted, so the list was joined whole to
+  // "una niña" and "la chica" was lost.
+  for (const [list, back, have, other] of [
+    ["la niña / la chica", "the girl", "una niña", "la chica"],
+    ["la recámara / el cuarto", "the bedroom", "una recámara", "el cuarto"],
+  ]) {
+    const m = await matchNewCards({
+      incoming: [{ front: list, back, category: "V", dates: ["2026-11-05"] }],
+      deck: [{ id: 1, front: have, back: back.replace("the", "a"), dates: [], source: "lesson:es-leccion4#x" }],
+      ask: async (pairs) => pairs.map(() => "same"),
+      language: "es",
+    });
+    ck(`  Spanish: "${list}" beside "${have}" — that item gains the date, and "${other}" becomes a card`,
+       m.decisions.length === 2 && m.decisions.some((d) => d.action === "join" && d.row?.id === 1) &&
+         m.decisions.some((d) => d.action === "insert" && d.insert.front === other),
+       JSON.stringify(m.decisions.map((d) => [d.card.front, d.action, d.insert?.front])));
+  }
+
   // The upload and the sync, against a deck with the list cards: an item
   // the rule is sure of only adds its class date, with no question; one
   // worded differently is put to Claude, and its "same" adds the date; what

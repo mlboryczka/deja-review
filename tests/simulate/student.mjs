@@ -12,7 +12,7 @@
 //
 // Needs TZ set before any date is made (the runners set America/New_York).
 
-import { buildSession, placeRetry, applyAnswer, countsAnswer, BLOCK_SIZE } from "../../src/lib/sessionQueue.js";
+import { buildSession, placeRetry, applyAnswer, countsAnswer, leftDueCards, BLOCK_SIZE } from "../../src/lib/sessionQueue.js";
 import { RE_QUEUE_OFFSET, State, applySettings, settingsInUse, makeScheduler } from "../../src/lib/spacedRepetition.js";
 import { sideOf, sideColumns, isTwoWay, otherDirection, directionsOf } from "../../src/lib/directions.js";
 import { reviewedToday, localISODate, startOfLocalDay } from "../../src/lib/studyDay.js";
@@ -280,10 +280,9 @@ export function simulate({
     // the automatic target has its say (useFsrsSettings).
     reload(deck);
     const today = localISODate(new Date(now));
-    const behind = deck.some((c) => directionsOf(c).some((d) => {
-      const x = sideOf(c, d);
-      return x.fsrs_state !== State.New && x.next_due_at && Date.parse(x.next_due_at) < startOfLocalDay(new Date(now));
-    }));
+    // The app's own rule (leftDueCards): a word's other way held back for
+    // the next day isn't left undone.
+    const behind = leftDueCards(deck, { now, direction });
     settings.days = recordStudyDay(settings.days, today, behind);
     if (settings.target_mode === "auto") {
       const next = nextAutoTarget({ target: settings.target, days: settings.days, changedAt: settings.target_changed_at, today });

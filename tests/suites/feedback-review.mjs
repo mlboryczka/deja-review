@@ -29,7 +29,7 @@ const anthropic = createServer((req, res) => {
 await new Promise((r) => anthropic.listen(0, "127.0.0.1", r));
 process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${anthropic.address().port}`;
 
-const { handleFeedbackRequest, shapeReview, SENDER_WINDOW_MS, FEEDBACK_MODEL } =
+const { handleFeedbackRequest, shapeReview, SENDER_WINDOW_MS, FEEDBACK_MODEL, FEEDBACK_COLUMNS } =
   await import("../../api/_lib/feedbackReview.js");
 
 const OWNER = { id: "owner", email: "owner@example.com" };
@@ -38,6 +38,9 @@ const KEY = "sk-ant-server";
 const NOW = Date.parse("2026-10-04T12:00:00Z");
 const ago = (ms) => new Date(NOW - ms).toISOString();
 const SCREENSHOT = "data:image/png;base64,iVBORw0KGgo=";
+
+const onlyColumns = (row) =>
+  row ? Object.fromEntries(FEEDBACK_COLUMNS.split(",").map((k) => [k, row[k] ?? null])) : null;
 
 // The same five operations as supabaseFeedbackStore, on plain arrays.
 function memoryStore() {
@@ -59,11 +62,13 @@ function memoryStore() {
       { id: 20, user_id: "owner", front: "grimper", back: "to climb up", source: "lesson:verbes#abc", stability: 3, reps: 1 },
       { id: 21, user_id: "student", front: "la colline", back: "the hill", source: null, stability: 1, reps: 1 },
     ],
-    async feedback(id) { return s.entries.find((f) => f.id === id) || null; },
+    // Only the columns the real store reads, so a column left out of
+    // FEEDBACK_COLUMNS fails here too (Revert was refused for that, 2026-11-07).
+    async feedback(id) { return onlyColumns(s.entries.find((f) => f.id === id)); },
     async newestUnreviewed(userId, sinceIso) {
-      return s.entries
+      return onlyColumns(s.entries
         .filter((f) => f.user_id === userId && !f.review && !f.resolved_at && f.created_at >= sinceIso)
-        .sort((a, b) => b.created_at.localeCompare(a.created_at))[0] || null;
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))[0]);
     },
     async card({ userId, rowId, front, includeArchived = false }) {
       const row = rowId != null

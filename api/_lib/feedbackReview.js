@@ -325,8 +325,9 @@ async function revert(row, user, store) {
 
 // The store, on Supabase with the service role. The service role ignores RLS,
 // so every card read and write is held to the feedback sender's user_id here.
-const FEEDBACK_COLUMNS =
-  "id,user_id,user_email,message,page,screenshot,card_context,created_at,resolved_at,review";
+// resolution is read by Revert, which looks for the note an applied fix left.
+export const FEEDBACK_COLUMNS =
+  "id,user_id,user_email,message,page,screenshot,card_context,created_at,resolved_at,resolution,review";
 
 export function supabaseFeedbackStore(db) {
   const shapeCard = (row, includeArchived = false) =>

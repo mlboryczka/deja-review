@@ -41,7 +41,7 @@
 //   après"): "ensuite" becomes a card. Each item's own questions are asked
 //   in the same call, in case they are needed.
 
-import { cardIndex, isSureMatch, isNearListPart, listParts, looseKey, formsOfOneWord } from "./sameCard.js";
+import { cardIndex, isSureMatch, isNearListPart, listParts, looseKeyFor, formsOfOneWord } from "./sameCard.js";
 
 const isArchivedRow = (row) => typeof row?.source === "string" && row.source.startsWith("archived:");
 const datesOf = (c) => (Array.isArray(c?.dates) ? c.dates.filter((d) => typeof d === "string") : []);
@@ -69,6 +69,11 @@ export function senseLabel(back) {
 // each item's `card` has the list card as `from`.
 export async function matchNewCards({ incoming, deck, ask, language = "fr" }) {
   const index = cardIndex(deck || [], { language });
+  // Items are told apart the course's way: a Spanish item with another
+  // article ("una niña" in "la niña / la chica") is that item, as a French one
+  // is (2026-11-13; until then the Spanish list was joined whole).
+  const looseKey = looseKeyFor(language);
+  const isNearItem = (card, list) => isNearListPart(card, list, language);
   const decisions = [];
   const asking = [];
   // A card of this run that is still undecided stands in the index for itself,
@@ -92,7 +97,7 @@ export async function matchNewCards({ incoming, deck, ask, language = "fr" }) {
     if (row) { d.action = "join"; d.target = row; return d; }
     const k = looseKey(item.front);
     const near = index.near(item);
-    d.tied = near.filter((r) => isNearListPart(r, list) && looseKey(r.front) === k);
+    d.tied = near.filter((r) => isNearItem(r, list) && looseKey(r.front) === k);
     d.near = near.filter((r) => !d.tied.includes(r));
     d.action = d.near.length || d.tied.length ? "ask" : "insert";
     if (d.near.length) asking.push(d);
@@ -129,7 +134,7 @@ export async function matchNewCards({ incoming, deck, ask, language = "fr" }) {
     decisionOf.set(card, d);
     // A look-alike that may be one of this list card's items: if Claude calls
     // them the same card, the list is decided item by item after all.
-    if (near.some((r) => isNearListPart(r, card))) d.items = itemsOf(card).map((item) => itemDecision(item, card));
+    if (near.some((r) => isNearItem(r, card))) d.items = itemsOf(card).map((item) => itemDecision(item, card));
     const self = { front: card.front, back: card.back, dates: datesOf(card), source: card.source || "cahier-upload" };
     standIn.set(self, d);
     index.add(self);
@@ -183,7 +188,7 @@ export async function matchNewCards({ incoming, deck, ask, language = "fr" }) {
     } else {
       const vs = verdictsFor(d);
       const same = vs.filter((p) => p.verdict === "same").map((p) => p.a);
-      const whole = d.items ? same.filter((r) => !isNearListPart(r, d.card)) : same;
+      const whole = d.items ? same.filter((r) => !isNearItem(r, d.card)) : same;
       if (whole.length) {
         out = followTo(best(whole), d.card);
       } else if (same.length) {

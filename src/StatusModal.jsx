@@ -107,7 +107,7 @@ export default function StatusModal({ open, onClose, status }) {
                 <span style={S.rowText}>
                   <span style={S.rowTitle}>{r.title}</span>
                   <span style={S.rowSummary}>{r.summary}</span>
-                  {r.status === "fail" && r.details.map((d, i) => <span key={i} style={S.detail}>{d}</span>)}
+                  {r.status === "fail" && [...r.details, ...(r.notes || [])].map((d, i) => <span key={i} style={S.detail}>{d}</span>)}
                   {r.status === "fail" && r.more > 0 && <span style={S.detail}>And {r.more} more.</span>}
                 </span>
               </div>

@@ -295,11 +295,15 @@ export function formsOfOneWord(a, b) {
 // accents, articles and brackets set aside, is one of the list's items.
 // "après" (after) and "ensuite / après" (then / afterwards), which the sure
 // rule leaves to Claude. Whether it is the same card is Claude's to say.
-export function isNearListPart(card, list) {
+// `language` "es" compares the Spanish way, with the Spanish articles set
+// aside (spanishLooseKey): "una niña" is an item of "la niña / la chica" as
+// "une voiture" is of "la voiture / la bagnole" (2026-11-13).
+export function isNearListPart(card, list, language = "fr") {
   if (!card?.front || !list?.front || isDrillFront(card.front) || isDrillFront(list.front)) return false;
   if (partsOf(card.front).length >= 2) return false;
-  const k = looseKey(card.front);
-  return !!k && partsOf(list.front).some((p) => looseKey(p) === k);
+  const loose = looseKeyFor(language);
+  const k = loose(card.front);
+  return !!k && partsOf(list.front).some((p) => loose(p) === k);
 }
 
 // ── The near search ─────────────────────────────────────────────────────────
@@ -335,6 +339,9 @@ export function spanishLooseKey(front) {
   const s = stripAccents(String(front ?? "").normalize("NFC").toLowerCase()).replace(/\([^)]*\)/g, " ");
   return s.replace(/[^a-z0-9ñ ]+/g, " ").replace(/\b(?:el|la|los|las|un|una|unos|unas)\b/g, " ").replace(/\s+/g, " ").trim();
 }
+
+// The near key for a course: the Spanish one for "es", the French otherwise.
+export const looseKeyFor = (language = "fr") => (language === "es" ? spanishLooseKey : looseKey);
 
 // The parts of a list card: "manquer / rater", "japonais, japonaise".
 export function partsOf(front) {

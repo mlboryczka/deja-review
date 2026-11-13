@@ -43,7 +43,7 @@ await new Promise((r) => anthropic.listen(0, "127.0.0.1", r));
 process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${anthropic.address().port}`;
 
 const {
-  handleAnswerChecks, readVerdict, verdictRow, summarize, agrees, answerPrompt, ownerCall, runAnswerTest, answerPasses, answerJudge,
+  handleAnswerChecks, readVerdict, verdictRow, summarize, agrees, answerPrompt, ownerCall, runAnswerTest, answerPasses, answerJudge, isDrillCard,
   ANSWER_MODEL, ANSWER_PROMPT_VERSION, ASKS_PER_CASE,
 } = await import("../../api/_lib/answerChecks.js");
 const { isDue, regressions, pooled } = await import("../../api/_lib/evalRuns.js");
@@ -93,6 +93,25 @@ console.log("\n  what is saved for each verdict");
   ck("the English side asked becomes direction en", verdictRow({ user: STUDENT, direction: "en", typed: "x", verdict: "accept" }).direction === "en");
   ck("the question names the typed and the expected answer",
      answerPrompt({ direction: "fr", french: "une grenouille", expected: "a frog", typed: "a toad" }).includes('The user typed: "a toad"'));
+  // Until 2026-11-13 an English-first card quoted the French as "the English
+  // side", and a drill's French answer was called English.
+  const enFirst = answerPrompt({ direction: "en", french: "¿De dónde eres?", english: "Where are you from?",
+    expected: "¿De dónde eres?", typed: "de donde eres", language: "Spanish" });
+  ck("an English-first card shows Claude the English the student saw",
+     enFirst.includes('The card showed the English side: "Where are you from?"') &&
+     enFirst.includes('The expected Spanish answer was: "¿De dónde eres?"'), enFirst.split("\n").slice(2, 4).join(" | "));
+  const frFirst = answerPrompt({ direction: "fr", french: "une grenouille", english: "a frog", expected: "a frog", typed: "a toad" });
+  ck("a French-first card still shows the French and expects English",
+     frFirst.includes('The card showed the French side: "une grenouille"') && frFirst.includes('The expected English answer was: "a frog"'));
+  const drill = answerPrompt({ direction: "fr", french: "être → je", english: "je suis", expected: "je suis", typed: "je suis",
+    drill: isDrillCard({ direction: "fr", french: "être → je", said: true }) });
+  ck("a drill's expected answer is called French, not English",
+     drill.includes('The expected French answer was: "je suis"') && !drill.includes("expected English"));
+  ck("the app's word decides a drill; a saved answer goes by the arrow",
+     isDrillCard({ direction: "fr", french: "si + imparfait → conditionnel", said: false }) === false &&
+     isDrillCard({ direction: "fr", french: "relatif → adverbe" }) === true &&
+     isDrillCard({ direction: "en", french: "relatif → adverbe", said: true }) === false &&
+     isDrillCard({ direction: "fr", french: "une grenouille" }) === false);
 }
 
 console.log("\n  agreeing with the owner");
@@ -189,6 +208,17 @@ console.log("\n  the test, as the server runs it on its own");
   ck("the same answer disputed twice is one case, kept under its first id, judged by the stronger call",
      one.length === 1 && one[0].id === "r1" && one[0].says === "accept" && one[0].from === "accept-anyway" && calls.length === ASKS_PER_CASE,
      JSON.stringify(one));
+
+  const english = memoryStore();
+  await english.save(verdictRow({ user: OWNER, card_id: "une grenouille", direction: "en", french: "une grenouille", english: "a frog", expected: "une grenouille", typed: "un grenouille", verdict: "reject", reasoning: "" }));
+  await english.save(verdictRow({ user: OWNER, card_id: "être → je", direction: "fr", french: "être → je", english: "je suis", expected: "je suis", typed: "j'suis", verdict: "reject", reasoning: "" }));
+  calls = [];
+  verdicts = { "un grenouille": ["reject"], "j'suis": ["reject"] };
+  await runAnswerTest({ store: english, apiKey: KEY, adminEmail: OWNER.email });
+  ck("the test shows an English-first card's English, as the app does",
+     calls.some((c) => c.messages[0].content.includes('The card showed the English side: "a frog"')) &&
+     !calls.some((c) => c.messages[0].content.includes('English side: "une grenouille"')));
+  ck("and calls a drill's answer French", calls.some((c) => c.messages[0].content.includes('The expected French answer was: "je suis"')));
 
   refuse = true;
   calls = [];

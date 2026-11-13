@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "./supabase";
-import { applySettings, State } from "./lib/spacedRepetition";
+import { applySettings } from "./lib/spacedRepetition";
 import {
   TARGET_CHOICES, DEFAULT_TARGET, targetOf, recordStudyDay, nextAutoTarget, settingsKind,
 } from "./lib/fsrsSettings";
-import { directionsOf, isTwoWay, sideOf } from "./lib/directions";
-import { localISODate, startOfLocalDay } from "./lib/studyDay";
+import { leftDueCards } from "./lib/sessionQueue";
+import { localISODate } from "./lib/studyDay";
 
 // The student's own FSRS settings (migration_012), applied to the scheduler.
 //
@@ -31,7 +31,9 @@ export function choiceOf(row) {
   return hit ? hit[0] : "standard";
 }
 
-export function useFsrsSettings(user, { cards, freshSeq, dir, onEstimatesChanged, daily = true }) {
+// `dealtFromRef.current`, once set, picks the cards a set is dealt from out of
+// the deck (the Cards page's candidatesFrom: lessons switched off left out).
+export function useFsrsSettings(user, { cards, freshSeq, dir, dealtFromRef, onEstimatesChanged, daily = true }) {
   const userId = user?.id ?? null;
   const [row, setRow] = useState(null);
   const [setUp, setSetUp] = useState(false);
@@ -96,21 +98,13 @@ export function useFsrsSettings(user, { cards, freshSeq, dir, onEstimatesChanged
     try { localStorage.setItem(DAILY_KEY + userId, today); } catch {}
 
     (async () => {
-      // Due cards left over from earlier days, the way the student is
-      // studying: in EN→FR, a word due only French side up isn't waiting.
-      const start = startOfLocalDay(new Date());
-      let behind = false;
-      for (const c of cards) {
-        for (const d of directionsOf(c)) {
-          if (isTwoWay(c) && dir !== "mix" && d !== dir) continue;
-          const s = sideOf(c, d);
-          if ((s.fsrs_state ?? State.New) !== State.New && s.next_due_at && new Date(s.next_due_at).getTime() < start) {
-            behind = true;
-            break;
-          }
-        }
-        if (behind) break;
-      }
+      // Due cards left over from earlier days that the app would have dealt
+      // (leftDueCards): the way the student is studying (in EN→FR, a word due
+      // only French side up isn't waiting), a word's other way held back for
+      // the next day isn't, and nor is a lesson switched off (`dealtFromRef`,
+      // the Cards page's own choice of cards).
+      const dealtFrom = dealtFromRef?.current;
+      const behind = leftDueCards(dealtFrom ? dealtFrom(cards) : cards, { direction: dir });
       const days = recordStudyDay(row?.days, today, behind);
       const fields = { days };
       if ((row?.target_mode ?? "auto") === "auto") {

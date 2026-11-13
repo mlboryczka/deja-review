@@ -11,7 +11,7 @@ process.env.TZ = "America/New_York";
 
 import { checker } from "../check.mjs";
 import { simulate, TIME_ZONE, lessonRank, detourRepeats, standInVerdicts } from "../simulate/student.mjs";
-import { runStatusChecks, statusText, CHECKS_START, lookalikes, judgingText } from "../../src/lib/statusChecks.js";
+import { runStatusChecks, statusText, raisedProblems, CHECKS_START, lookalikes, judgingText } from "../../src/lib/statusChecks.js";
 import { reviewRow, withoutExtras, REVIEW_EXTRAS, missingColumn } from "../../src/lib/reviewLog.js";
 import { dealRow, missingTable } from "../../src/lib/dealLog.js";
 import { buildSession } from "../../src/lib/sessionQueue.js";
@@ -499,6 +499,33 @@ console.log("\n  FSRS's predictions against results");
   ck("  naming the overall gap", /expected 9\d% right and you got 50%/.test(p.details[0]), p.details[0]);
   const few = runStatusChecks({ answers: answers.slice(0, 60), cards: [], timeZone: TIME_ZONE, now: t0 + DAY });
   ck("but 60 such reviews are too few to judge, and wait", result(few, "predictions").status === "wait", result(few, "predictions").summary);
+
+  // Only the group that fails is a problem, known by its name, not its
+  // counts (2026-11-13). Before, every line was raised, passing ones too,
+  // each keyed with its counts, so a group that kept failing was new daily.
+  // 180 reviews FSRS was sure of (half missed) and 100 it gave about 73%
+  // (75% right), so the high band fails and the 70%–80% one doesn't. Under
+  // 300 in all, so there is no overall line.
+  const mixed = (n) => [
+    ...answers.slice(0, n),
+    ...Array.from({ length: 100 }, (_, i) => ({ ...answers[0], id: `m${i}`, card_id: 1000 + i,
+      answered_at: new Date(t0 + (500 + i) * 60000).toISOString(), correct: i % 4 < 3, stability_before: 0.3,
+      last_review_before: new Date(t0 - 2 * DAY).toISOString() })),
+  ];
+  const day1 = result(runStatusChecks({ answers: mixed(180), cards: [], timeZone: TIME_ZONE, now: t0 + DAY }), "predictions");
+  const day2 = result(runStatusChecks({ answers: mixed(196), cards: [], timeZone: TIME_ZONE, now: t0 + DAY }), "predictions");
+  const lines1 = raisedProblems("me@example.com", day1).map((x) => x.line);
+  const lines2 = raisedProblems("me@example.com", day2).map((x) => x.line);
+  ck("a failing band is the only problem raised; the band that matches is a note beneath",
+     day1.status === "fail" && day1.details.length === 1 && /^Cards FSRS gave 9/.test(day1.details[0]) &&
+       day1.notes.some((n) => /^Cards FSRS gave 70%–80%: expected 7\d%/.test(n)) && lines1.length === 1,
+     JSON.stringify({ details: day1.details, notes: day1.notes, lines1 }));
+  ck("  known by its check and band, without counts, so the next day it is the same problem",
+     lines1.length === 1 && lines1[0] === lines2[0] && !/\d+ answers/.test(lines1[0]) &&
+       /^me@example\.com: FSRS's predictions match your results: Cards FSRS gave 9\d%–100%$/.test(lines1[0]),
+     JSON.stringify([lines1, lines2]));
+  ck("  with its figures beneath", /you got 50% right \(180 answers\)/.test(raisedProblems("x", day1)[0].detail), raisedProblems("x", day1)[0].detail);
+  ck("  and the Status text still shows the matching band", /Cards FSRS gave 70%–80%: expected 7\d%/.test(statusText({ checkedAt: new Date(t0).toISOString(), from: CHECKS_START, results: [day1] })));
 }
 
 // ── A word's first gap, and the student's own settings (2026-10-14) ────
@@ -525,6 +552,11 @@ console.log("\n  a new word's first gap");
   const missed = words({ n: 120, first: false, gap: 1, right: 36, from: 500 });
   const r2 = judge(missed);
   ck("words missed first, 30% right the next day where 78% was expected: fails, waiting too long", r2.status === "fail" && /They wait longer than they should\./.test(r2.details[0]), r2.details[0]);
+  const both = judge([...knew, ...words({ n: 30, first: false, gap: 1, right: 20, from: 900 })]);
+  ck("  only the failing group is raised, by its name; the one too few to judge is a note",
+     JSON.stringify(raisedProblems("me", both).map((x) => x.line)) === JSON.stringify(["me: A new word's first gap suits how you remember: Words you got right the first time"]) &&
+       both.details.length === 1 && both.notes.length === 1 && /Too few/.test(both.notes[0]),
+     JSON.stringify({ raised: raisedProblems("me", both), notes: both.notes }));
   const fitted = { weights: STARTING_WEIGHTS.map((x, i) => (i === 2 ? 40 : x)), fitted_at: new Date(t0).toISOString(), fit_result: { inUse: "first-gaps" } };
   const r3 = judge(knew, fitted);
   ck("with first gaps fitted to that student, the same answers pass", r3.status === "pass", `${r3.status}: ${r3.summary} ${r3.details[0]}`);
@@ -548,6 +580,9 @@ console.log("\n  your own settings, tried when due");
   const judge = (settings) => result(runStatusChecks({ answers: rows, cards: [], settings, timeZone: TIME_ZONE, now: lastDay + 3600000 }), "own-settings");
   const never = judge({ weights: null, target: 0.9 });
   ck("400 answers that count and never tried: fails, naming the day", never.status === "fail" && /due a try when you studied on \w{3} \d+/.test(never.summary), never.summary);
+  const [p] = raisedProblems("me", never);
+  ck("  raised by the check alone, the day beneath, so it stays one problem from day to day",
+     p.line === "me: Your own settings were tried when due" && p.detail === never.summary, JSON.stringify(p));
   const today = judge({ weights: null, target: 0.9, fit_checked_at: new Date(lastDay - 600000).toISOString(), fit_checked_answers: 400, fit_result: { adopted: false, inUse: "start" } });
   ck("tried that day: passes, saying it kept what was in use", today.status === "pass" && /kept what was in use/.test(today.summary), today.summary);
   const recent = judge({ weights: null, target: 0.9, fit_checked_at: new Date(lastDay - 3 * DAY).toISOString(), fit_checked_answers: 380 });

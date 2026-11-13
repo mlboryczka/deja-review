@@ -69,7 +69,7 @@
 // state in applyAnswer().
 
 import { State, scheduleAnswer } from "./spacedRepetition.js";
-import { endOfLocalDay, localISODate, localISODateDaysAgo, reviewedToday } from "./studyDay.js";
+import { endOfLocalDay, localISODate, localISODateDaysAgo, reviewedToday, startOfLocalDay } from "./studyDay.js";
 import { lessonIdOf } from "./lessonSource.js";
 import { sideOf, sideColumns, directionsOf, isTwoWay, otherDirection, itemKey } from "./directions.js";
 
@@ -321,6 +321,19 @@ export function buildSession(cards, opts = {}) {
     dueRemaining: dueToday - dueTaken.length,
     newAvailable: fresh.length,
   };
+}
+
+// Whether the student left due cards undone before today: a way of a card
+// due before today began that the app would still have dealt the day before.
+// `cards` are the cards a set is dealt from (on Cards, the lessons switched
+// on), `direction` the direction setting. A word's other way, held back for
+// the next day because one way was answered (one way a day), isn't counted,
+// and nor is a card in a lesson switched off. Until 2026-11-13 both were, so
+// "Automatic" eased the target for a student who had done every card dealt.
+// Used by "How much to remember" (useFsrsSettings) and the simulated student.
+export function leftDueCards(cards, { now = Date.now(), direction = "mix" } = {}) {
+  const endOfYesterday = startOfLocalDay(new Date(now)) - 1;
+  return buildSession(cards, { now: endOfYesterday, direction, target: 0 }).dueRemaining > 0;
 }
 
 // Going through a lesson again, once nothing in it is due and none of its

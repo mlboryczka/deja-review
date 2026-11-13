@@ -32,7 +32,7 @@ import { createClient } from "@supabase/supabase-js";
 import { requireUser, isAdmin, adminEmail } from "./_lib/auth.js";
 import { requireAnthropicKey, resolveAnthropicKey } from "./_lib/anthropicKey.js";
 import { handleFeedbackRequest, supabaseFeedbackStore } from "./_lib/feedbackReview.js";
-import { askClaude, verdictRow, handleAnswerChecks, supabaseAnswerStore } from "./_lib/answerChecks.js";
+import { askClaude, isDrillCard, verdictRow, handleAnswerChecks, supabaseAnswerStore } from "./_lib/answerChecks.js";
 import { handleExerciseRequest, supabaseExerciseStore } from "./_lib/exercises.js";
 import { podcastsOpenTo } from "../src/lib/testApp.js";
 import { allowIphoneApp } from "./_lib/cors.js";
@@ -88,6 +88,7 @@ export default async function handler(req, res) {
     expected_answer,
     force,
     course,
+    drill,
   } = req.body || {};
   // A Spanish card (the Spanish module, 2026-10-22): judged as Spanish, an
   // accepted answer kept with the Spanish deck, and its verdict kept in
@@ -125,7 +126,8 @@ export default async function handler(req, res) {
 
   try {
     const { verdict, reasoning, readable } = await askClaude({
-      apiKey, direction, french, expected: expected_answer, typed: user_answer, language,
+      apiKey, direction, french, english, expected: expected_answer, typed: user_answer, language,
+      drill: isDrillCard({ direction, french, said: drill }),
     });
 
     // Kept whatever it says. Never holds up the answer: a failed save (or no
