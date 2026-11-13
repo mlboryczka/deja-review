@@ -232,7 +232,7 @@ lesson's `teachingOrder` of sections, then each card's place in the lesson
 weeks of class*), newest class first; then *Older classes*, the words from the
 most classes first (`dates.length`); then undated cards; then unseen lesson
 cards, lesson by lesson in `MEETING_ORDER` (`src/data/lessons/index.js`):
-L'impératif, the adverbs, then Leçons 1 to 10 in number order, though Leçon 1
+L'impératif, the adverbs, then Leçons 1 to 20 in number order, though Leçon 1
 was added after Leçons 2 to 5 (owner, 2026-10-06). A card the student added themselves, from
 the tutor or (since 2026-10-09) with "Add to my cards" in Podcasts, is dated
 by its `created_at` (`addedByStudent`, `src/lib/sessionQueue.js`). Ties come
@@ -1745,16 +1745,22 @@ From this project's history:
 
 A lesson is a fixed set of cards made from a teacher's materials, the same for
 every student. Lessons are in `src/data/lessons/`; `LESSONS` in `index.js` is
-the catalogue. There are twelve: L'impératif (108 cards, from Laura Caufour's
-LFL METHOD sheets), Adjectif ou adverbe ? (81 cards, written for the app), and
-her beginner Leçons 1 to 10, titled in English in the app (owner, 2026-10-06):
+the catalogue. There are twenty-two: L'impératif (108 cards, from Laura
+Caufour's LFL METHOD sheets), Adjectif ou adverbe ? (81 cards, written for the
+app), and her beginner Leçons 1 to 20, titled in English in the app (owner,
+2026-10-06):
 Lesson 1 · Être (57), Lesson 2 · Aller (63), Lesson 3 · Avoir (62), Lesson 4 ·
 -er verbs (78), Lesson 5 · Vouloir and pouvoir (58), Lesson 6 · Adjectives
 (112), Lesson 7 · The passé composé (78), Lesson 8 · On and faire (71),
-Lesson 9 · Voir and venir (76) and Lesson 10 · Dire and devoir (85).
+Lesson 9 · Voir and venir (76), Lesson 10 · Dire and devoir (85), Lesson 11 ·
+Verbs with se (112), Lesson 12 · Connaître and mettre (90), Lesson 13 · The
+imperfect (75), Lesson 14 · Asking questions (67), Lesson 15 · Imparfait or
+passé composé (92), Lesson 16 · Recevoir and entendre (102), Lesson 17 ·
+Sortir and boire (85), Lesson 18 · Répondre and partir (68), Lesson 19 · The
+conditional (90) and Lesson 20 · Lire and écrire (91).
 
 - **The Lessons page, the sidebar and Stats show `LESSON_GROUPS`**, not
-  `LESSONS`: Lessons 1 to 10 come first, under the heading "Basic Lessons", in
+  `LESSONS`: Lessons 1 to 20 come first, under the heading "Basic Lessons", in
   number order (owner, 2026-10-06), though Lesson 1 was added after Lessons 2
   to 5. The other lessons follow, under "More lessons" on the Lessons page
   and with no heading in the sidebar, where the indent sets them apart.
@@ -1950,6 +1956,18 @@ review"). Leçon 6 is Laura's three parts as one lesson (owner, 2026-10-14).
 - Unlike Leçons 1 to 5 they are not in `ON_BY_DEFAULT`: like any lesson
   added later, each starts off on Cards for every student until they switch
   it on or answer a card in it, so nobody's daily cards change.
+
+### Leçons 11 to 20
+
+`lecon11.js` to `lecon20.js` are the rest of Laura's beginner course, built
+2026-10-19 and 2026-10-20 in the same session (drafts and review page in
+`.claude/lessons-11-20-draft/`). Her Leçons 12, 13, 14 and 18 have no answer
+key, so their answers were written for the app and checked against
+dictionaries; each header comment lists every departure from her sheets and
+its source. The owner added them without reviewing them (2026-11-13: "add all
+laura's lessons to our french module"). Like Leçons 6 to 10 they sit under
+"Basic Lessons", come after Leçon 10 in the meeting order, and start off on
+Cards for every student.
 
 ---
 

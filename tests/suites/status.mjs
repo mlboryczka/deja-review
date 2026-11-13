@@ -717,9 +717,9 @@ const lessonCard = base.cards.find((c) => String(c.source).startsWith("lesson:")
   // What a list only seems to hold is never failed by the rule: it waits for
   // Claude, like any look-alike.
   const rec2 = clone(base);
-  // Balayer and demain matin: not amener or la semaine prochaine, which
-  // Leçons 10 and 6 have as cards (2026-11-11).
-  addCard(rec2, { front: "se lever, acheter, balayer", back: "to get up, to buy, to sweep", created_at: later(9) });
+  // Housework and demain matin: none of them is a lesson card. Amener, la
+  // semaine prochaine, se lever and acheter are (Leçons 10, 6 and 11).
+  addCard(rec2, { front: "repasser, plier, balayer", back: "to iron, to fold, to sweep", created_at: later(9) });
   addCard(rec2, { front: "balayer", back: "to sweep (the floor)", created_at: later(2) });
   addCard(rec2, { front: "Demain matin, il va faire froid", back: "Tomorrow morning, it's going to be cold", created_at: later(9) });
   addCard(rec2, { front: "demain matin", back: "tomorrow morning", created_at: later(2) });
