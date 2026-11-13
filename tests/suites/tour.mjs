@@ -11,7 +11,7 @@
 // lesson sync fills it with every lesson's cards, unanswered, and with no
 // lesson switched on Cards has nothing to deal.
 
-import { openApp, finish, checker } from "../harness.mjs";
+import { openApp, finish, checker, pageOf } from "../harness.mjs";
 import { LESSONS } from "../../src/data/lessons/index.js";
 import { TOUR_LESSON } from "../../src/lib/tourSteps.js";
 
@@ -33,7 +33,7 @@ function makeStudent({ metadata = {} } = {}) {
         status: 200, contentType: "application/json",
         headers: { "access-control-allow-origin": "*" }, body: JSON.stringify(body),
       });
-      if (req.method() === "GET") return json(rows);
+      if (req.method() === "GET") return json(pageOf(req.url(), rows));
       if (req.method() === "POST") {
         for (const row of JSON.parse(req.postData() || "[]")) {
           const existing = rows.find((r) => r.front === row.front);

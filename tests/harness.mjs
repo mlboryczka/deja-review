@@ -83,6 +83,17 @@ export async function openApp({ width = 1400, height = 900, route, studyMode = "
   return { browser, page };
 }
 
+// One page of rows, as the database serves it. The app reads a deck 1,000
+// cards at a time (.range(), sent as offset and limit) until a page comes back
+// short; a stand-in that answers every page with the whole deck keeps it
+// asking forever once the deck passes 1,000, which every new deck did when
+// Laura's Leçons 11 to 20 went in (2026-11-13).
+export function pageOf(url, rows) {
+  const q = new URL(url).searchParams;
+  const offset = Number(q.get("offset") || 0);
+  return q.has("limit") ? rows.slice(offset, offset + Number(q.get("limit"))) : rows.slice(offset);
+}
+
 // The deck the mock actually served, so suites never hard-code a card count.
 export async function servedDeck() {
   const res = await fetch(`${MOCK}/rest/v1/user_cards`);

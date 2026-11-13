@@ -13,7 +13,7 @@
 // update and delete — so what the app writes is what it reads back, and the
 // assertions are about what the student ends up with rather than about which
 // requests went out.
-import { openApp, finish, checker, settled } from "../harness.mjs";
+import { openApp, finish, checker, settled, pageOf } from "../harness.mjs";
 import LESSON from "../../src/data/lessons/imperatif.js";
 import { LESSONS } from "../../src/data/lessons/index.js";
 import { lessonCardKey } from "../../src/lib/lessonSource.js";
@@ -61,7 +61,7 @@ function makeStore(seed = [], { before016 = false } = {}) {
           body: JSON.stringify({ code: "42703", message: "column user_cards.archived_reason does not exist" }),
         });
       }
-      if (method === "GET") { reads.served++; return json(rows); }
+      if (method === "GET") { reads.served++; return json(pageOf(req.url(), rows)); }
 
       if (method === "POST") {
         const sent = JSON.parse(req.postData() || "[]");
