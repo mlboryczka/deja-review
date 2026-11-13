@@ -3609,7 +3609,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
                   title={exLessonsFolded ? "Show the lessons" : "Hide the lessons"}
                 >
                   <span style={{ ...S.sideChevron, ...(exLessonsFolded ? null : S.sideChevronOpen), marginLeft:0 }} aria-hidden="true">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                   </span>
                 </button>
               )}
@@ -3656,7 +3656,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
                 {!sidebarMin && label}
                 {m === "lessons" && !sidebarMin && (
                   <span style={lessonsOpen ? { ...S.sideChevron, ...S.sideChevronOpen } : S.sideChevron} aria-hidden="true">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                   </span>
                 )}
               </button>
@@ -6248,9 +6248,11 @@ const S = {
   sideNav: { display:"flex", flexDirection:"column", gap:4, flexGrow:0, flexShrink:1, flexBasis:"auto", minHeight:0, overflowY:"auto", overflowX:"hidden" },
   sideNavMin: { display:"flex", flexDirection:"column", gap:4, flexGrow:0, flexShrink:0, flexBasis:"auto", minHeight:"auto", overflowY:"visible", overflowX:"visible" },
   sideFeedbackDock: { flexGrow:1, flexShrink:1, flexBasis:"auto", minHeight:0, display:"flex", flexDirection:"column", justifyContent:"flex-end", padding:"24px 16px 12px", boxSizing:"border-box" },
-  // All exercises and the arrow that folds the lessons under it.
+  // All exercises and the arrow that folds the lessons under it. right:28
+  // puts the arrow's middle 42px in, in the column every other arrow uses
+  // (see sideChevron).
   sideItemWrap: { position:"relative", display:"flex", flexDirection:"column" },
-  sideFoldBtn: { position:"absolute", top:"50%", right:20, transform:"translateY(-50%)", display:"flex", alignItems:"center", justifyContent:"center", width:28, height:28, padding:0, border:"none", background:"transparent", color:"rgba(3,22,50,0.6)", cursor:"pointer", borderRadius:T.radius.md },
+  sideFoldBtn: { position:"absolute", top:"50%", right:28, transform:"translateY(-50%)", display:"flex", alignItems:"center", justifyContent:"center", width:28, height:28, padding:0, border:"none", background:"transparent", color:"rgba(3,22,50,0.6)", cursor:"pointer", borderRadius:T.radius.md },
   // Indented to sit under its parent nav item, and quieter than one: a lesson
   // is a place inside Lessons, not a peer of Cards and Stats.
   // Every nav style declares all FOUR border sides, even the three it does not
@@ -6281,7 +6283,9 @@ const S = {
   sideSubItemNested: { paddingLeft:80 },
   // A part of a lesson, under that lesson's row (Exercises' Lesson 7, 8, 12).
   sideSubItemPart: { paddingLeft:96 },
-  sideGroup: { display:"flex", alignItems:"center", width:"100%", padding:"9px 32px 5px 64px", border:"none", background:"transparent", cursor:"pointer", fontFamily:T.font.sans, fontSize:13, fontWeight:600, color:"rgba(3,22,50,0.7)", textAlign:"left", boxSizing:"border-box" },
+  // 36px on the right, as a lesson row's 32px plus the 4px kept for its red
+  // bar, so the stage arrows sit in the same column as the lesson arrows.
+  sideGroup: { display:"flex", alignItems:"center", width:"100%", padding:"9px 36px 5px 64px", border:"none", background:"transparent", cursor:"pointer", fontFamily:T.font.sans, fontSize:13, fontWeight:600, color:"rgba(3,22,50,0.7)", textAlign:"left", boxSizing:"border-box" },
   sideSubItemActive: { color:T.color.secondary, fontWeight:700, borderRightColor:T.color.secondary, background:"rgba(255,255,255,0.5)" },
   sideItem: { display:"flex", alignItems:"center", gap:14, padding:"14px 32px", border:"none", borderTopWidth:0, borderTopStyle:"solid", borderTopColor:"transparent", borderBottomWidth:0, borderBottomStyle:"solid", borderBottomColor:"transparent", borderLeftWidth:0, borderLeftStyle:"solid", borderLeftColor:"transparent", borderRightWidth:4, borderRightStyle:"solid", borderRightColor:"transparent", background:"transparent", cursor:"pointer", fontFamily:T.font.sans, fontSize:13, fontWeight:600, color:"rgba(3,22,50,0.6)", textTransform:"uppercase", letterSpacing:"0.1em", textAlign:"left", transition:"all 0.2s" },
   // Minimized: the item is just its icon, centred in the rail. The right-edge
@@ -6290,6 +6294,9 @@ const S = {
   sideItemActive: { color:T.color.secondary, borderRightColor:T.color.secondary, background:"rgba(255,255,255,0.5)" },
   sideIcon: { display:"flex", alignItems:"center", flexShrink:0 },
   // The arrow on Lessons: down while its lessons are folded away, up while they show.
+  // Every sidebar arrow is 12px with its middle 42px in from the sidebar's
+  // right edge (owner, 2026-11-12: they sat in three columns, 34, 38 and 42px
+  // in, and the top one was 14px).
   sideChevron: { display:"flex", marginLeft:"auto", opacity:0.7, transition:"transform 0.2s" },
   sideChevronOpen: { transform:"rotate(180deg)" },
   // ── The Flashcards / Podcasts switch (owner only, 2026-10-09) ────────
