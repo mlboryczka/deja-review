@@ -1745,10 +1745,10 @@ From this project's history:
 
 A lesson is a fixed set of cards made from a teacher's materials, the same for
 every student. Lessons are in `src/data/lessons/`; `LESSONS` in `index.js` is
-the catalogue. There are twenty-two: L'impératif (108 cards, from Laura
-Caufour's LFL METHOD sheets), Adjectif ou adverbe ? (81 cards, written for the
-app), and her beginner Leçons 1 to 20, titled in English in the app (owner,
-2026-10-06):
+the catalogue. There are twenty-three: L'impératif (108 cards) and Le
+gérondif (41 cards), topic lessons from Laura Caufour's LFL METHOD sheets,
+Adjectif ou adverbe ? (81 cards, written for the app), and her beginner
+Leçons 1 to 20, titled in English in the app (owner, 2026-10-06):
 Lesson 1 · Être (57), Lesson 2 · Aller (63), Lesson 3 · Avoir (62), Lesson 4 ·
 -er verbs (78), Lesson 5 · Vouloir and pouvoir (58), Lesson 6 · Adjectives
 (112), Lesson 7 · The passé composé (78), Lesson 8 · On and faire (71),
@@ -1974,6 +1974,21 @@ its source. The owner added them without reviewing them (2026-11-13: "add all
 laura's lessons to our french module"). Like Leçons 6 to 10 they sit under
 "Basic Lessons", come after Leçon 10 in the meeting order, and start off on
 Cards for every student.
+
+### Her topic lessons
+
+Besides Leçons 1 to 20, her Drive folder Français has topic lessons, each in
+its own folder with a lesson sheet and an exercise sheet: L'impératif (built
+2026-09-08), Le gérondif, Les démonstratifs, Le subjonctif présent, Le
+subjonctif passé, Communication, Le plus-que-parfait, La négation, Les
+pronoms, La condition, Le pronom EN, La voie passive and Les pronoms relatifs.
+The owner asked for them all (2026-11-13), in no stage: "each their own
+category". Le gérondif was built first, on 2026-11-13, to measure what one
+costs (draft and her sheets in `.claude/topic-lessons-draft/gerondif/`); it
+is the only one with her answer key. It was checked by two helpers, one for
+the French and one against her sheets and the building-lessons rules, and
+its header lists every departure from her sheets. Like every lesson added
+later, it starts off on Cards.
 
 ---
 
