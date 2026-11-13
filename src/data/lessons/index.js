@@ -33,6 +33,8 @@ import lecon18 from "./lecon18.js";
 import lecon19 from "./lecon19.js";
 import lecon20 from "./lecon20.js";
 import { makeCatalogue } from "./catalogue.js";
+import { frenchStagesOf } from "./stages.js";
+import { stageIds } from "./es/stages.js";
 
 // How a stored card names which lesson card it is. Defined in src/lib, not
 // here, so the sync reconciler can use it without importing every lesson's
@@ -61,24 +63,27 @@ const ALL = [
 // How the catalogue is shown: on the Lessons page, in the sidebar and on
 // Stats. Separate from the list above, whose order is part of every card's
 // rank (lessonRank), so that list only ever grows at the end. Laura's
-// numbered beginner lessons come first, together under one heading and in
-// number order, though Leçon 1 was added after Leçons 2 to 5 (owner,
-// 2026-10-06). Every other lesson follows. In the sidebar only a group that
-// `folds` gets a heading, with its lessons indented beneath it; the rest sit
-// at the usual indent, which is enough to set them apart. On the Lessons
-// page, where the cards are all the same width, they need their heading.
-export const FRENCH = makeCatalogue({
-  lessons: ALL,
-  meetingOrder: [
-    "imperatif", "adverbes", "lecon1", "lecon2", "lecon3", "lecon4", "lecon5",
-    "lecon6", "lecon7", "lecon8", "lecon9", "lecon10",
-    "lecon11", "lecon12", "lecon13", "lecon14", "lecon15", "lecon16", "lecon17", "lecon18", "lecon19", "lecon20",
-  ],
-  groups: [{ title: "Basic Lessons", folds: true, ids: [
-    "lecon1", "lecon2", "lecon3", "lecon4", "lecon5", "lecon6", "lecon7", "lecon8", "lecon9", "lecon10",
-    "lecon11", "lecon12", "lecon13", "lecon14", "lecon15", "lecon16", "lecon17", "lecon18", "lecon19", "lecon20",
-  ] }],
-});
+// numbered beginner lessons come first, in number order, though Leçon 1 was
+// added after Leçons 2 to 5 (owner, 2026-10-06): since 2026-11-13 in four
+// stages of five (./stages.js), as the Spanish lessons are, where they were
+// all under "Basic Lessons". Every other lesson follows, each on its own. In
+// the sidebar a stage opens and closes as Spanish's do; the other lessons sit
+// after the stages at the usual indent. On the Lessons page they have the
+// heading "More lessons".
+const LESSON_STAGES = frenchStagesOf(ALL);
+
+export const FRENCH = {
+  ...makeCatalogue({
+    lessons: ALL,
+    meetingOrder: [
+      "imperatif", "adverbes", "lecon1", "lecon2", "lecon3", "lecon4", "lecon5",
+      "lecon6", "lecon7", "lecon8", "lecon9", "lecon10",
+      "lecon11", "lecon12", "lecon13", "lecon14", "lecon15", "lecon16", "lecon17", "lecon18", "lecon19", "lecon20",
+    ],
+    groups: LESSON_STAGES.map((stage) => ({ title: stage.title, folds: true, ids: stageIds(stage) })),
+  }),
+  LESSON_STAGES,
+};
 
 export const {
   LESSONS, LESSON_GROUPS, LESSONS_SHOWN, lessonById, lessonRank, lessonBackFor, cardInstructionFor,

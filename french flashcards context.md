@@ -1760,14 +1760,20 @@ Sortir and boire (85), Lesson 18 · Répondre and partir (68), Lesson 19 · The
 conditional (90) and Lesson 20 · Lire and écrire (91).
 
 - **The Lessons page, the sidebar and Stats show `LESSON_GROUPS`**, not
-  `LESSONS`: Lessons 1 to 20 come first, under the heading "Basic Lessons", in
-  number order (owner, 2026-10-06), though Lesson 1 was added after Lessons 2
-  to 5. The other lessons follow, under "More lessons" on the Lessons page
-  and with no heading in the sidebar, where the indent sets them apart.
-  `LESSONS` keeps the order lessons were added in, because a lesson's place
-  there is part of every one of its cards' rank. "Basic Lessons" has its own
-  arrow, in the sidebar and on the Lessons page, and folds its five away; the
-  sidebar never folds it over the lesson open.
+  `LESSONS`: Lessons 1 to 20 come first, in number order (owner,
+  2026-10-06), though Lesson 1 was added after Lessons 2 to 5. Since
+  2026-11-13 (owner: "great do it") they are in four stages of five, as the
+  Spanish lessons are (`src/data/lessons/stages.js`): Lessons 1–5 · The
+  present, Lessons 6–10 · Describing and the past, Lessons 11–15 · Se verbs
+  and the imperfect, Lessons 16–20 · Pronouns to the conditional. Before,
+  they were all under "Basic Lessons". In the sidebar a stage opens and
+  closes as Spanish's do: the one with the lesson you're on is open, opening
+  another closes it, and a closed one still shows the lesson you're in. On
+  the Lessons page and in Progress by Lesson each stage folds on its own. The
+  other lessons, each its own subject (owner, 2026-11-13), follow the stages
+  one by one, under "More lessons" on the Lessons page. `LESSONS` keeps the
+  order lessons were added in, because a lesson's place there is part of
+  every one of its cards' rank.
 
 - A card is `[front, back, category, section, previousFront?]`. The front is
   always the French, because the app reads it aloud and cleans it as French.

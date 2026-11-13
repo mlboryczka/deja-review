@@ -3664,7 +3664,8 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
                   under it as a sub-item, so picking one is a single click
                   rather than a trip through the catalogue. Not on the rail,
                   which has no room to nest anything. In Spanish they are in
-                  the same stages as on Exercises (owner, 2026-11-07). */}
+                  the same stages as on Exercises (owner, 2026-11-07), and
+                  French has stages of its own (2026-11-13). */}
               {m === "lessons" && !sidebarMin && lessonsOpen && LESSON_STAGES && (
                 <SideStages
                   stages={LESSON_STAGES}
@@ -3676,7 +3677,10 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
                   data="lesson"
                 />
               )}
-              {m === "lessons" && !sidebarMin && lessonsOpen && !LESSON_STAGES && LESSON_GROUPS.map((group) => {
+              {/* Without stages, every group; with them, the lessons in no
+                  stage, which follow the stages one by one: French
+                  L'impératif and the adverbs (owner, 2026-11-13). */}
+              {m === "lessons" && !sidebarMin && lessonsOpen && LESSON_GROUPS.filter((group) => !LESSON_STAGES || !group.folds).map((group) => {
                 // Folded, it still shows the lesson you're in. (It used to
                 // refuse to fold there, so the press did nothing you could
                 // see.)
