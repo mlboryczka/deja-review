@@ -76,9 +76,9 @@
 // since the answer-yes cards take their answer without the Sí.
 //
 // Blind spots of the fuzzy phrase cards, closed by exact cards elsewhere:
-// shown "Can I try?", "¿Quiero intentarlo?" passes as close enough (want
-// against can is pinned by the word cards and the drills); shown "Excuse me
-// (usted)", "Disculpa" passes (the "Disculpa → con usted" card is exact).
+// "¿Quiero intentarlo?" is wrong for "Can I try?" now that quiero, an
+// irregular verb form, is held exact; shown "Excuse me (usted)", "Disculpa"
+// still passes as close enough (the "Disculpa → con usted" card is exact).
 //
 // WHERE THE CARDS GO BEYOND HER SHEETS:
 //   - The answer-yes cards also take their answer without the Sí the prompt

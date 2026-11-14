@@ -38,15 +38,16 @@
 // job (below). Ex. 4 keeps the sentences that teach something no other card
 // does.
 //
-// WHY SER, THE PRONOUNS AND THE NATIONALITIES ARE ALSO ON EXACT CARDS. Word
-// and phrase cards are marked with typo tolerance: "Ella eres mexicana"
-// passes for "Ella es mexicana", "ellas" for "she", "ellos" for "they (women
-// only)", "nosotras" for "we (men, or men and women)", and "Soy mexicano,
-// pero vivo en Los Ángeles" for the woman's sentence. So every form of ser is
-// asked exactly (the six drills, the ex. 1 gaps and the ex. 2 answers), and
-// the two nationality endings that aren't just -o to -a by two gap cards.
-// The phrase cards are there for meaning. Closing the gap on the phrase
-// cards needs a change to the app's fuzzy marking, not to this file.
+// HOW THE SER, PRONOUN AND NATIONALITY CARDS ARE MARKED (as of 2026-11-14).
+// Word and phrase cards forgive a letter or two, but every irregular verb
+// form is held exact: "Ella eres mexicana" is wrong for "Ella es mexicana".
+// The forms of ser are asked exactly anyway (the six drills, the ex. 1 gaps
+// and the ex. 2 answers), and the two nationality endings that aren't just
+// -o to -a by two gap cards. What still passes as close enough on a word or
+// phrase card, because the app holds only verb forms, numbers and months
+// exact: "ustedes" for usted, "ellas" for ella, and "Soy mexicano, pero vivo
+// en Los Ángeles" for the woman's sentence. The phrase cards are there for
+// meaning.
 //
 // THE ESTAR SENTENCES ARE PHRASE CARDS ONLY. The sheet's ATENCIÓN box says
 // estar comes in Lección 2 and gives four sentences to learn by heart
@@ -58,8 +59,8 @@
 // Ser or estar is not asked exactly until Lección 2, which teaches it; until
 // then "¿Por qué eres en Los Ángeles?" would pass that card as close enough.
 //
-// "por qué" / "why": "porque" ("because") passes for it as close enough (one
-// space apart). Lección 2 teaches the pair on exact cards.
+// "por qué" / "why": "porque" ("because") still passes for it as close enough
+// (one space apart). Lección 2 teaches the pair on exact cards.
 //
 // Vocabulary is ex. 3's list. Its nouns stay bare (esposo, esposa, año,
 // clase de español), as in the French Leçon 1: el and la are Lección 2's

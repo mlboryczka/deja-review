@@ -22,9 +22,9 @@
 // The drills are her three model verbs' two patterns: hablar for -ar, and
 // comer for -er and -ir, which share one set of endings; vivir is in the
 // notes' table and in the gap cards (vivieron, salió, escribieron). Every
-// accent in an answer is written, but no card turns on one: hablo and habló
-// differ only by the accent, which the app doesn't mark, so her ex. 2 "hablo
-// / habló" is not a card. The spelling drills ask only for yo, the one
+// accent in an answer is written, and the app now marks the ones that change
+// a verb's tense (hablo is not habló), but her ex. 2 "hablo / habló" is not a
+// card here. The spelling drills ask only for yo, the one
 // person that changes; "La reunión ___ a las diez" shows that the others
 // don't (empezó).
 //
@@ -74,12 +74,13 @@
 // un buen día?"; "What time is it?" is a phrase card. "Last night" is carded
 // as "anoche / ayer en la noche": the dialogue says ayer en la noche, and
 // anoche is just as right. "At night" and "last night" are two letters
-// apart, so on those word cards typo tolerance passes "last night" for en la
-// noche and "at night" for anoche, and "ayer en la noche" passes for "at
-// night" because it contains en la noche. So the choice is also asked on an
+// apart, so on those word cards typo tolerance can pass "last night" for en
+// la noche and "at night" for anoche, and "ayer en la noche" for "at night"
+// because it contains en la noche (neither word is a verb form, number or
+// month, which are all the app holds exact). So the choice is also asked on an
 // exact card, "anoche o en la noche → Siempre leo ___" (en la noche, or por
 // la noche, which a teacher would accept). It is not one of her exercises.
-// The word cards still let the confusion through; only a change to the
+// The word cards may still let the confusion through; only a change to the
 // app's fuzzy marking closes that.
 //
 // Where this departs from the sheets:

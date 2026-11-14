@@ -172,5 +172,37 @@ export async function updateCard(admin, req, res) {
     return res.status(500).json({ error: updErr.message });
   }
 
+  // The answers the student had accepted are filed under the card's French
+  // (or Spanish) side, lowercased: move the 'fr' ones, whose answers are
+  // English and still hold, to the new side, so they aren't marked wrong again
+  // (code check 2026-11-07, no. 16). The schedule and answer history sit on
+  // the card itself and stay. Failing here never fails the edit.
+  const oldKey = String(existing.front || "").toLowerCase().trim();
+  const newKey = front.trim().toLowerCase();
+  if (oldKey && newKey && oldKey !== newKey) {
+    try {
+      const altTable = spanish ? "es_card_alternates" : "card_alternates";
+      const { data: old, error: readErr } = await admin
+        .from(altTable)
+        .select("direction, alternate_text")
+        .eq("user_id", userId)
+        .eq("card_id", oldKey)
+        .eq("direction", "fr");
+      if (readErr) throw readErr;
+      if (old?.length) {
+        const { error: putErr } = await admin.from(altTable).upsert(
+          old.map((r) => ({ user_id: userId, card_id: newKey, direction: r.direction, alternate_text: r.alternate_text })),
+          { onConflict: "user_id,card_id,direction,alternate_text", ignoreDuplicates: true }
+        );
+        if (putErr) throw putErr;
+        const { error: delErr } = await admin.from(altTable).delete()
+          .eq("user_id", userId).eq("card_id", oldKey).eq("direction", "fr");
+        if (delErr) throw delErr;
+      }
+    } catch (e) {
+      console.error("[admin-update-card] moving accepted answers failed:", e?.message || e);
+    }
+  }
+
   return res.status(200).json({ ok: true, row: updated });
 }

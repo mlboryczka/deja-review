@@ -1304,6 +1304,23 @@ console.log("\n  a removed card is kept, out of study, and never comes back");
   ck("a card taken out for another reason (a repeat) stays out (409)", repeat.code === 409 && isOut(db.tables.user_cards.find((r) => r.id === 43)), String(repeat.code));
   const notTheirs = await call({ action: "restore", row_id: 42 });
   ck("another student's card can't be put back (403)", notTheirs.code === 403, String(notTheirs.code));
+
+  // Code check 2026-11-07, no. 16: editing a card's French keeps the answers
+  // the student had accepted for it.
+  db.tables.card_alternates = [
+    { user_id: USER, card_id: "un tabouret", direction: "fr", alternate_text: "a seat" },
+    { user_id: USER, card_id: "un tabouret", direction: "en", alternate_text: "un siège" },
+    { user_id: "someone-else", card_id: "un tabouret", direction: "fr", alternate_text: "a chair" },
+  ];
+  const progressBefore = JSON.stringify(db.tables.user_cards.find((r) => r.id === 41));
+  const edit = await call({ row_id: 41, front: "Un tabouret haut", back: "a stool" });
+  const alts = db.tables.card_alternates;
+  ck("editing the French side moves the accepted English answers to the new side",
+     edit.code === 200 && alts.some((r) => r.user_id === USER && r.card_id === "un tabouret haut" && r.direction === "fr" && r.alternate_text === "a seat") &&
+       !alts.some((r) => r.user_id === USER && r.card_id === "un tabouret" && r.direction === "fr"), `${edit.code} ${JSON.stringify(alts)}`);
+  ck("another student's answers stay where they were, and the schedule is untouched",
+     alts.some((r) => r.user_id === "someone-else" && r.card_id === "un tabouret") &&
+       db.tables.user_cards.find((r) => r.id === 41).stability === 3.5);
 }
 
 console.log("\n  the lesson sync uses the same rule");

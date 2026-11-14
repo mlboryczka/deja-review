@@ -23,16 +23,16 @@
 //                                                  an irregular verb form, in a phrase
 //
 // WHY SER OR ESTAR, ESTAR OR IR, AND POR QUÉ OR PORQUE ARE ON EXACT CARDS.
-// Phrase cards are marked with typo tolerance, and the very mistakes this
-// lesson is about pass on them as close enough: "Soy muy bien" for "Estoy
-// muy bien" (the ATENCIÓN box's "soy bien"), "Soy a la playa" for "Voy a la
-// playa", "¿Cómo eres?" for "¿Cómo estás?", "porque" for "por qué". So the
+// Since 2026-10-25 the app holds every irregular verb form exact on a phrase
+// card, so "Soy muy bien" for "Estoy muy bien", "Soy a la playa" for "Voy a
+// la playa" and "¿Cómo eres?" for "¿Cómo estás?" are marked wrong there too.
+// What a phrase card still lets through is a word that isn't a verb form,
+// number or month: "porque" for "por qué" passes as close enough. So the
 // sheet's sentences where it matters are exact gap cards: ex. 2 (ser or
 // estar, seven of its ten sentences, plus ex. 5's "They are here in
 // Guadalajara"), ex. 1 nos. 12 and 13 with the verb left for the student to
 // choose (estar en, ir a), and two por qué or porque cards. The phrase cards
-// are there for meaning. Closing the gap on the phrase cards needs a change
-// to the app's fuzzy marking, not to this file.
+// are there for meaning.
 //
 // Sampled, not transcribed: each card teaches something no other card does.
 // Ex. 1 keeps five of its sixteen sentences: a noun subject with estar (mi

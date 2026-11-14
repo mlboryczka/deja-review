@@ -1318,6 +1318,18 @@ console.log("\n  the tutor — several pictures with one question");
   ck("pictures the page held back are counted", /sent 2 pictures here; they are no longer attached/.test(flat(held[0])), flat(held[0]));
 }
 
+// Code check 2026-11-07, no. 17: the editors' notes in Spanish Lessons 1, 2, 5, 6
+// and 8 describe the marking as it is, not as it was before 2026-10-25.
+console.log("\n  Spanish lesson notes — what the cards catch now");
+{
+  const read = (n) => readFileSync(new URL(`../../src/data/lessons/es/leccion${n}.js`, import.meta.url), "utf8");
+  ck("Lessons 1 and 2 no longer say the verb mix-ups pass on phrase cards",
+     !/Ella eres mexicana" passes/.test(read(1)) && !/pass on them as close enough/.test(read(2)) &&
+     /is wrong for "Ella es mexicana"/.test(read(1)) && /marked wrong there too/.test(read(2)));
+  ck("Lesson 5 says ¿Quiero intentarlo? is wrong now", /is wrong for "Can I try\?"/.test(read(5)));
+  ck("Lesson 8 no longer says the app doesn't mark an accent", !/which the app doesn't mark/.test(read(8)));
+}
+
 const n = ck.fails();
 console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
 process.exit(n ? 1 : 0);

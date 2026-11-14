@@ -39,9 +39,10 @@
 // says to start with No, since the answer-yes cards take their answer
 // without the Sí.
 //
-// A blind spot of the fuzzy cards: on "el sábado" / "on Saturday" and "Los
-// sábados vamos al parque", the English speaker's "en el sábado" passes as
-// close enough, since it contains the answer. The exact card "domingo → ___
+// A blind spot of the fuzzy cards that is still open: typed for "el sábado"
+// (shown "on Saturday") or for "Los sábados vamos al parque", the English
+// speaker's "en el sábado" passes as close enough, since it contains the
+// answer, and the app holds only verb forms, numbers and months exact. The exact card "domingo → ___
 // voy a ir al cine" (her ex. 8 no. 14) marks it wrong, and a bare "domingo"
 // too. Her rule (no word for "on") is in the Days tab.
 //
