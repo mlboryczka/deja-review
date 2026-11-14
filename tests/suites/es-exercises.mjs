@@ -57,6 +57,7 @@ import { checker } from "../check.mjs";
 import { EXERCISE_LESSONS, EXERCISES_BY_ID, LEFT_OUT, numbered } from "../../src/data/exercises/es/index.js";
 import { LESSON_TEXTS } from "../../src/data/exercises/es/texts.js";
 import { EXERCISE_GROUPS, EXERCISE_TITLES, exerciseGroupOf } from "../../src/data/exercises/es/titles.js";
+import { readFileSync } from "node:fs";
 import { plain, bare, kindOf, markByKey, typedText, keyAnswer, itemKey, findItem, isAnswered, hintText, hintLevels, keyReason, markedNow, countsAsRight, acceptedNow, isAccepted } from "../../src/lib/exerciseMarking.js";
 import { accentCounts } from "../../src/lib/spanishAccents.js";
 import { handleExerciseRequest, markPrompt, readMark, markFromReply, MARK_SYSTEM, REVIEW_SYSTEM, supabaseExerciseStore } from "../../api/_lib/exercises.js";
@@ -526,6 +527,34 @@ ck("a right verdict carries no correction", readMark({ verdict: "right", note: "
     lesson7.title === "Lesson 7 · Describing people" && lesson7.parts.map((p) => p.title).join() === "Part 1,Part 2,Part 3" &&
       stages[1].rows[1].id === "leccion8" && stages[1].rows[1].title === "Lesson 8 · The preterite"
   );
+}
+
+// Code check 2026-11-07, batch 4: nos. 19, 39 to 44.
+console.log("\n  the key — ñ, dashes, pm, true-or-false corrections, blank width");
+{
+  const bano = { prompt: "¿Dónde está el baño?", answer: "Voy al baño." };
+  ck("el bano is right for baño, as a missing ñ anywhere", markByKey(bano, "Voy al bano")?.verdict === "right");
+  ck("bañó for baño is still a tense mistake", markByKey(bano, "Voy al bañó")?.verdict === "almost");
+  const ense = { prompt: "x", answer: "Le enseñó la foto." };
+  ck("ensenó is right for enseñó, enseño is Almost", markByKey(ense, "Le ensenó la foto")?.verdict === "right" && markByKey(ense, "Le enseño la foto")?.verdict === "almost");
+  ck("and its Why names the accent only for the vowel", /enseñó/.test(keyReason(ense, "Le enseño la foto")) && keyReason(ense, "Le ensenó la foto") === "");
+  const nothing = { prompt: "Yo no veo ___.", gaps: [["nada", "—", "-"]] };
+  ck("a dash alone in a blank is nada, and can be submitted", isAnswered(nothing, ["—"]) && markByKey(nothing, ["-"])?.verdict === "right" && markByKey(nothing, ["–"])?.verdict === "right");
+  ck("a blank left empty is still not answered", !isAnswered(nothing, [""]));
+  const hora = { prompt: "x", answer: "It's 2:39 p.m." };
+  ck("pm, PM, p.m. and p. m. are all p.m.", ["It's 2:39 pm", "It's 2:39 PM", "It's 2:39 p.m.", "It's 2:39 p. m."].every((t) => markByKey(hora, t)?.verdict === "right"));
+  ck("and a mí or I am are left alone", plain("a mí") === "a mí" && plain("I am") === "i am");
+  const tf = { prompt: "x", truth: true, answer: "Verdadero. Jessica es la esposa de James.", also: [] };
+  const mk = markByKey(tf, { truth: true, text: "Jesica es la esposa de James." });
+  ck("a true-or-false Almost carries the key's whole answer to show as Correct", mk?.verdict === "almost" && mk.correct === "Verdadero. Jessica es la esposa de James.", JSON.stringify(mk));
+  const l17 = (await import("../../src/data/exercises/es/leccion17.js")).default ?? null;
+  const ex3 = l17?.exercises?.find((e) => e.n === 3);
+  ck("Lesson 17's example is written with dashes, like its key", !!ex3 && !/\|/.test(ex3.example) && / – /.test(ex3.example), ex3?.example);
+  ck("a bar typed instead of a dash is the same as a dash", markByKey({ prompt: "x", answer: "lo – oír – usted" }, "lo | oír | usted")?.verdict === "right");
+  const l16 = (await import("../../src/data/exercises/es/leccion16.js")).default ?? null;
+  ck("Lesson 16 no longer promises a translation shown after answering", !!l16 && !/shown after you answer/.test(JSON.stringify(l16)));
+  const page = readFileSync(new URL("../../src/ExercisesPage.jsx", import.meta.url), "utf8");
+  ck("every blank of an exercise has one width", /gapWidth\(exercise\.items\)/.test(page) && /width: gapW\b/.test(page));
 }
 
 const n = ck.fails();

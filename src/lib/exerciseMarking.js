@@ -27,7 +27,7 @@
 //
 // Pure, plain JS: the page imports it, and so do the server and the tests.
 
-import { accentCounts } from "./spanishAccents.js";
+import { accentSlip } from "./spanishAccents.js";
 
 // Accents the Real Academia no longer asks for but still allows, on solo and
 // the demonstratives: "sólo" and "éste" are right where the key has "solo"
@@ -51,7 +51,10 @@ export function plain(s) {
     .toLowerCase()
     .replace(/(^|[.!?¿¡]\s*)no\s*,/g, "$1no§ ")
     .replace(/[’‘ʼ`]/g, "'")
-    .replace(/[¿¡?!.,;:"“”«»()\[\]…–—\-/]+/g, " ")
+    // a.m. and p.m. in any spelling are one word, am or pm: "2:39 pm" is
+    // "2:39 p.m." (code check 2026-11-07, no. 41).
+    .replace(/(^|[^\p{L}])([ap])\.\s?m\.?(?!\p{L})/gu, "$1$2m")
+    .replace(/[¿¡?!.,;:"“”«»()\[\]…–—\-/|]+/g, " ")
     .replace(/\s+/g, " ")
     .trim()
     .split(" ")
@@ -82,7 +85,7 @@ const answersOf = (item) => [item?.answer, ...(Array.isArray(item?.also) ? item.
 // plain(), and accents don't move words, so they line up word for word.
 function countingSlips(t, a) {
   const want = a.split(" ");
-  return t.split(" ").map((w, i) => [w, want[i]]).filter(([w, r]) => w !== r && accentCounts(r));
+  return t.split(" ").map((w, i) => [w, want[i]]).filter(([w, r]) => w !== r && accentSlip(w, r));
 }
 
 // One wrong, missing, extra or swapped letter between two different words.
@@ -128,7 +131,7 @@ function slipsAgainst(typed, answer) {
   while (i < t.length && j < a.length) {
     const [x, y] = [bare(t[i]), bare(a[j])];
     if (x === y) {
-      if (t[i] !== a[j] && accentCounts(a[j])) slips.push({ t: [i], a: [j] });
+      if (t[i] !== a[j] && accentSlip(t[i], a[j])) slips.push({ t: [i], a: [j] });
       i++; j++;
     } else if (isSlip(t[i], a[j], a[j + 1])) {
       slips.push({ t: [i], a: [j] });
@@ -176,9 +179,12 @@ const truthSentence = (s) => String(s ?? "").replace(/^\s*(verdadero|falso)\s*[.
 //   truth   { truth: true|false, text: "…" }
 //   other   "…"
 // Whether it is complete enough to mark.
+// A dash alone in a blank is "nada" (code check 2026-11-07, no. 40): the keys
+// list "—" and "-" for it, and plain() would set it aside as punctuation.
+const gapText = (t) => (/^\s*[-–—]+\s*$/.test(String(t ?? "")) ? "nada" : t);
 export function isAnswered(item, typed) {
   const kind = kindOf(item);
-  if (kind === "gaps") return Array.isArray(typed) && typed.length === item.gaps.length && typed.every((t) => plain(t));
+  if (kind === "gaps") return Array.isArray(typed) && typed.length === item.gaps.length && typed.every((t) => plain(gapText(t)));
   if (kind === "truth") return typeof typed?.truth === "boolean" && !!plain(typed?.text);
   return !!plain(typed);
 }
@@ -194,14 +200,19 @@ export function markByKey(item, typed) {
   if (!isAnswered(item, typed)) return null;
   const kind = kindOf(item);
   if (kind === "gaps") {
-    const each = item.gaps.map((list, i) => against(typed[i], list));
+    const each = item.gaps.map((list, i) => against(gapText(typed[i]), list));
     if (each.some((v) => v === null)) return null;
     return each.every((v) => v.mark === "right") ? { verdict: "right" } : almostFor(each);
   }
   if (kind === "truth") {
     if (typed.truth !== item.truth) return { verdict: "wrong", truth: true };
     const v = against(truthSentence(typed.text), answersOf(item).map(truthSentence));
-    return !v ? null : v.mark === "right" ? { verdict: "right" } : almostFor([v]);
+    if (!v) return null;
+    if (v.mark === "right") return { verdict: "right" };
+    // The key's own answer it comes closest to, with its Verdadero. or Falso.,
+    // so the correction shown is the student's sentence put right (no. 39).
+    const correct = v.answer === undefined ? undefined : answersOf(item).find((a) => truthSentence(a) === v.answer);
+    return { ...almostFor([v]), ...(correct ? { correct } : {}) };
   }
   // Free writing matches only its own example word for word: anything else
   // is Claude's to judge.
@@ -251,7 +262,9 @@ export function keyReason(item, line) {
   // ("Habló", not "habló").
   const pairs = [];
   let slips = false;
-  const written = (s) => String(s ?? "").normalize("NFC").replace(/[¿¡?!.,;:"“”«»()\[\]…–—\-/]+/g, " ").trim().split(/\s+/);
+  const written = (s) => String(s ?? "").normalize("NFC")
+    .replace(/(^|[^\p{L}])([ap])\.\s?[mM]\.?(?!\p{L})/gu, "$1$2m")
+    .replace(/[¿¡?!.,;:"“”«»()\[\]…–—\-/|]+/g, " ").trim().split(/\s+/);
   const name = (typed, answers) => {
     const found = against(typed, answers, { slips: kind !== "open" });
     if (!found?.answer) return;
@@ -261,7 +274,7 @@ export function keyReason(item, line) {
       slips = true;
       for (const { t, a } of found.slips) pairs.push(`"${a.map((j) => wantAs[j] ?? want[j]).join(" ")}", not "${t.map((i) => typedAs[i] ?? got[i]).join(" ")}"`);
     } else {
-      got.forEach((w, i) => { if (w !== want[i] && accentCounts(want[i])) pairs.push(`"${wantAs[i] ?? want[i]}", not "${typedAs[i] ?? w}"`); });
+      got.forEach((w, i) => { if (w !== want[i] && accentSlip(w, want[i])) pairs.push(`"${wantAs[i] ?? want[i]}", not "${typedAs[i] ?? w}"`); });
     }
   };
   if (kind === "gaps") {

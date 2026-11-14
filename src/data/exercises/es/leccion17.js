@@ -60,7 +60,7 @@ export default {
       title: "Gramática",
       instruction: "Encontrar todos los pronombres de objeto directo (lo, la, los, las) del diálogo. Después, decir con qué verbo van y qué palabras reemplazan.",
       english: "Every lo, la, los and las in the dialogue (Natalia and her math teacher) is given here in its sentence. For each one, write the pronoun, the verb it goes with and the words it stands for, like the example row.",
-      example: "lo (no lo oigo bien) | oír | usted (el profesor)",
+      example: "lo – oír – usted (el profesor)",
       items: [
         { prompt: "Natalia: «Sí, ahora sí lo oigo.»", answer: "lo – oír – usted (el profesor)",
           also: ["lo – oír – el profesor", "lo – oír – usted", "lo – oigo – usted (el profesor)", "lo – oigo – el profesor"] },

@@ -19,4 +19,11 @@ import { TENSE_ACCENT_WORDS } from "../data/lessons/es/tenseAccents.js";
 
 // Whether a slip in the accents of `right`, a word of the right answer,
 // makes the answer wrong.
+// A missing ñ on such a word is forgiven like any other: "bano" is baño
+// (code check 2026-11-07, no. 19), so only a different vowel accent counts:
+// "enseño" for enseñó is still the wrong tense.
+export const accentSlip = (typed, right) => {
+  const noTilde = (w) => String(w ?? "").normalize("NFC").toLowerCase().replace(/ñ/g, "n");
+  return accentCounts(right) && noTilde(typed) !== noTilde(right);
+};
 export const accentCounts = (right) => TENSE_ACCENT_WORDS.has(String(right ?? "").normalize("NFC").toLowerCase());

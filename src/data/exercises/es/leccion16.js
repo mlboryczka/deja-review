@@ -56,7 +56,7 @@ export default {
       n: 3,
       title: "Comprensión escrita",
       instruction: "Traducir el texto de la lección al inglés, con mucha atención a los tiempos de los verbos. Después, comparar con la traducción de la lección.",
-      english: "Translate the lesson's text into English, one paragraph at a time, minding the tense of each verb. Then compare with the lesson's translation, shown after you answer.",
+      english: "Translate the lesson's text into English, one paragraph at a time, minding the tense of each verb. Then compare with the translation in the lesson itself.",
       items: [
         { prompt: "Regresé tarde del trabajo. Estaba haciendo mi maleta cuando el taxista me llamó. Me dijo que me esperaba abajo. Salí del departamento a las cuatro y media de la tarde.",
           open: true, long: true,

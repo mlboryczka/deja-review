@@ -685,6 +685,35 @@ console.log("\n  marking — Spanish articles and ¿ ¡, French unchanged");
      !ok("Yo en tu lugar no le decía nada", "Yo en tu lugar no le diría nada", verbs));
   ck("and a slip elsewhere in them is still close enough", ok("Ella no pudo venir aller", "Ella no pudo venir ayer", verbs));
   ck("se, not on the list, is never asked for as sé", ok("Mi esposa se lama Linda", "Mi esposa se llama Linda", verbs));
+  // Code check 2026-11-07, no. 12: the tutor's grammar cards are marked exactly.
+  ck("a tutor grammar card is marked exactly: bien qu'il pleut is not bien qu'il pleuve",
+     matchAnswer("bien qu'il pleut", "bien qu'il pleuve", [], { exact: true }).match === false &&
+     ok("bien qu'il pleuve", "bien qu'il pleuve", { exact: true }) &&
+     /card\.source === "tutor-chat"/.test(app));
+  // No. 13: à is not the English "a".
+  ck("à la maison is not right as maison, nor à droite as droite",
+     !ok("maison", "à la maison") && matchAnswer("droite", "à droite").close === true &&
+     matchAnswer("à droite", "à droite").close !== true && ok("a droite", "à droite"));
+  ck("but a cat is still a cat", ok("cat", "a cat", { articles: "en" }) && ok("cat", "a cat"));
+  // No. 14: a number without its hyphen.
+  ck("forty five is forty-five, forty four still is not",
+     ok("The coffee is forty five pesos", "The coffee is forty-five pesos", en) && !ok("The coffee is forty four pesos", "The coffee is forty-five pesos", en) &&
+     ok("The coffee is forty-five pesos", "The coffee is forty-five pesos", en));
+  // No. 15: l' may be left off like le and la.
+  ck("IA for l'IA, eau pétillante for l'eau pétillante, and the wrong gender still refused",
+     ok("IA", "l'IA (l'intelligence artificielle)") && matchAnswer("eau pétillante", "l'eau pétillante").close !== true &&
+     ok("eau pétillante", "l'eau pétillante") && ok("l'eau", "l'eau") && matchAnswer("abord", "d'abord").close === true);
+  ck("a Spanish article is no French article: colline is right for une colline, not for una colline",
+     ok("colline", "une colline") && !ok("colline", "una colline"));
+  // No. 18: a figure for an English number word.
+  ck("a figure counts for the number word: 3 for three, 7th for seventh, 2nd floor for second floor",
+     ok("I have 3 brothers", "I have three brothers", en) && ok("the 7th", "the seventh", en) && ok("on the 2nd floor", "on the second floor", en) &&
+     !ok("I have 4 brothers", "I have three brothers", en) && !ok("8th", "seventh", en));
+  // No. 19: a missing ñ on a word whose accent counts.
+  ck("el bano is right for el baño, bañó is still a tense mistake, enseño for enseñó too",
+     ok("Voy al bano", "Voy al baño", es) && ok("Le ensenó la foto", "Le enseñó la foto", es) &&
+     matchAnswer("Le enseño la foto", "Le enseñó la foto", [], es).wrongAccent === true &&
+     matchAnswer("Voy al bañó", "Voy al baño", [], es).wrongAccent === true && ok("Llamame manana", "Llámame mañana", es));
 }
 
 // A Spanish card's row is found by its front (es_user_cards is unique on

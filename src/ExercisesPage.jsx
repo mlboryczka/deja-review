@@ -443,6 +443,7 @@ function ExerciseBlock({ user, lesson, exercise, store, again, onStartAgain, foc
   let answered = 0, right = 0;
   const keys = exercise.items.map((_, i) => itemKey(lesson.id, exercise.n, i));
   const shown = keys.map((k) => shownAnswer(store.latest, again, lesson.id, exercise.n, k));
+  const gapW = gapWidth(exercise.items);
   for (const a of shown) if (a && !a.pending) { answered++; if (countsAsRight(a.verdict)) right++; }
   return (
     <section style={S.ex} data-exercise={exercise.n}>
@@ -470,6 +471,7 @@ function ExerciseBlock({ user, lesson, exercise, store, again, onStartAgain, foc
               focusNext={focusNext}
               onNeedKey={onNeedKey}
               askTutor={askTutor}
+              gapW={gapW}
             />
           </Fragment>
         ))}
@@ -491,11 +493,14 @@ const emptyTyped = (item) => {
 
 // Every short gap is the same width, so its size doesn't give the answer
 // away; a long answer gets the room it needs.
-const gapWidth = (list) => `${Math.max(9, Math.min(24, Math.max(...list.map((s) => s.length)) + 2))}ch`;
+// away; a long answer gets the room it needs. Every blank of an exercise is
+// the width of its widest answer, so a wider one never tells which blank
+// needs the personal a (code check 2026-11-07, no. 44).
+const gapWidth = (items) => `${Math.max(9, Math.min(24, Math.max(0, ...items.flatMap((it) => (Array.isArray(it.gaps) ? it.gaps.flat() : [])).map((s) => String(s).length)) + 2))}ch`;
 
 let ticketSeq = 0;
 
-function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext, onNeedKey, askTutor }) {
+function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext, onNeedKey, askTutor, gapW }) {
   const kind = kindOf(item);
   const draftKey = `${user?.id}|${key}`;
   const [typed, setTypedState] = useState(() => drafts.get(draftKey) ?? emptyTyped(item));
@@ -591,7 +596,7 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
                   <Fragment key={i}>
                     <Rich text={part} />
                     {i < all.length - 1 && (
-                      <input                        style={{ ...S.gap, width: gapWidth(item.gaps[i]) }}
+                      <input                        style={{ ...S.gap, width: gapW }}
                         value={typed[i] || ""}
                         onChange={(e) => setTyped(typed.map((v, j) => (j === i ? e.target.value : v)))}
                         onKeyDown={onEnter}

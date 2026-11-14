@@ -288,6 +288,10 @@ function normalize(s) {
     // by a character the reader can't see.
     // ¿ and ¡ open a Spanish question or exclamation (the Spanish module):
     // "Cómo estás?" typed without them is the same answer.
+    // A leading elided l' ("l'eau", "l'IA") is the article l, so it may be
+    // left off like le and la (code check 2026-11-07, no. 15). The apostrophe
+    // is removed below, which made "l'eau" one word that never split.
+    .replace(/^\s*l['’](?=\S)/, "l ")
     .replace(/[.,!?;:""''«»’‘“”…¿¡]/g, "")
     .replace(/\s+/g, " ")
     .trim();
@@ -296,20 +300,24 @@ function normalize(s) {
 const EN_PARTICLES = new Set(["to", "the", "a", "an"]);
 // French, and the Spanish module's el, los, las, una, unos and unas, which
 // carry gender just the same: "la mano" is not "el mano".
-const FR_ARTICLES = new Set(["le", "la", "les", "un", "une", "des", "du", "de", "l'", "d'", "el", "los", "las", "una", "unos", "unas"]);
+const FR_ARTICLES = new Set(["le", "la", "les", "un", "une", "des", "du", "de", "l", "el", "los", "las", "una", "unos", "unas"]);
 // Which leading words count as an article, by `articles` (see matchAnswer):
-// both languages' for French, as always; in the Spanish module only the
+// both languages' for French (d' is no article: "abord" is not "d'abord"); in the Spanish module only the
 // answer's own language, so a Spanish "le" (him, her) or "a" (to) is never
 // set aside as a French or English article.
 const ARTICLES = {
-  fr: /^(to |the |a |an |le |la |les |un |une |des |du |de |l'|d'|el |los |las |una |unos |unas )/i,
+  fr: /^(to |the |a |an |le |la |les |un |une |des |du |de |l )/i,
   es: /^(el |la |los |las |un |una |unos |unas )/i,
   en: /^(to |the |a |an )/i,
 };
 // Separate leading article from content
-function splitArticle(s, articles = "fr") {
+// `graveA`: the text began with "à", which normalize() has made an "a": a
+// French preposition, never the English article (code check 2026-11-07, no.
+// 13), so "maison" is not "à la maison".
+const startsWithGraveA = (raw) => /^\s*à(\s|$)/i.test(String(raw || ""));
+function splitArticle(s, articles = "fr", graveA = false) {
   const re = ARTICLES[articles];
-  const m = re ? s.match(re) : null;
+  const m = re && !(graveA && /^a /.test(s)) ? s.match(re) : null;
   if (m) {
     const article = m[0].trim().toLowerCase();
     return { article, rest: s.slice(m[0].length).trim() };
@@ -385,6 +393,7 @@ const OLD_ACCENTS = new Map([
   ["ése", "ese"], ["ésa", "esa"], ["ésos", "esos"], ["ésas", "esas"],
   ["aquél", "aquel"], ["aquélla", "aquella"], ["aquéllos", "aquellos"], ["aquéllas", "aquellas"],
 ]);
+const noTilde = (w) => w.replace(/ñ/g, "n");
 function accentsRight(typed, answer) {
   const forms = new Map();
   for (const w of keepAccents(answer).split(" ")) {
@@ -395,6 +404,10 @@ function accentsRight(typed, answer) {
   for (const w of keepAccents(typed).split(" ")) {
     const fs = forms.get(withoutAccents(w));
     if (!fs || fs.has(w)) continue;
+    // A missing ñ is no mistake even on a word whose accent counts: "bano"
+    // for baño (code check 2026-11-07, no. 19). Only the vowel's accent
+    // decides: "enseño" for enseñó is still the wrong tense.
+    if ([...fs].some((f) => noTilde(f) === noTilde(w))) continue;
     if (OLD_ACCENTS.has(w) && fs.has(OLD_ACCENTS.get(w))) continue;
     if (![...fs].some(accentCounts)) continue;
     return false;
@@ -409,17 +422,36 @@ function accentsRight(typed, answer) {
 // each was typed, "accent" when one was typed but for an accent that counts,
 // and "missing" when one wasn't typed at all: "poní" for puse, "setenta" for
 // sesenta, "July" for June.
+// Each typed word that is another spelling of an exact word the answer has
+// becomes that word: "3" for three, "7th" for seventh (code check 2026-11-07,
+// no. 18). Without it the figure counted only where the typo tolerance
+// happened to cover the difference.
+function foldFigures(typed, answer, exactWords) {
+  const swap = new Map();
+  for (const w of keepAccents(answer).split(" ")) {
+    const ways = exactWords.get(w);
+    if (ways) for (const x of ways) if (x !== w) swap.set(x, w);
+  }
+  if (!swap.size) return typed;
+  return String(typed).split(/(\s+)/).map((part) => {
+    const k = keepAccents(part);
+    return swap.has(k) ? swap.get(k) : part;
+  }).join("");
+}
 function exactWordsTyped(typed, answer, exactWords) {
   if (!exactWords) return "right";
   const want = keepAccents(answer).split(" ").filter((w) => exactWords.has(w) || /\d/.test(w));
   if (!want.length) return "right";
   const words = keepAccents(typed).split(" ");
   const asTyped = new Set(words);
+  // A number typed without its hyphen ("forty five") is the same words
+  // (code check 2026-11-07, no. 14); "forty four" still isn't forty-five.
+  const spaced = ` ${words.join(" ").replace(/-/g, " ")} `;
   const bare = new Set(words.map(withoutAccents));
   let accent = false;
   for (const w of want) {
     const ways = exactWords.get(w) || [w];
-    if (ways.some((x) => asTyped.has(x))) continue;
+    if (ways.some((x) => asTyped.has(x) || (x.includes("-") && spaced.includes(` ${x.replace(/-/g, " ")} `)))) continue;
     if (!ways.some((x) => bare.has(withoutAccents(x)))) return "missing";
     if (accentCounts(w)) accent = true;
   }
@@ -534,9 +566,12 @@ function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings =
   for (const alt of alternatives) {
     const a = normalize(alt);
     if (!a) continue;
+    // A figure typed for a number word ("3" for three) is that word.
+    const typedHere = exactWords ? foldFigures(typed, alt, exactWords) : typed;
+    const tt = normalize(typedHere);
     // Split article off both sides
-    const typedSplit = splitArticle(t, articles);
-    const answerSplit = splitArticle(a, articles);
+    const typedSplit = splitArticle(tt, articles, startsWithGraveA(typed));
+    const answerSplit = splitArticle(a, articles, startsWithGraveA(alt));
     // Enforce French gender on articles
     if (!articlesCompatible(typedSplit.article, answerSplit.article)) {
       // Record that the article was wrong specifically, so we can feedback
@@ -548,18 +583,18 @@ function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings =
     const aRest = answerSplit.rest;
     // Exact match
     if (tRest === aRest) {
-      if (accents && !accentsRight(typed, alt)) { accentMiss = true; continue; }
+      if (accents && !accentsRight(typedHere, alt)) { accentMiss = true; continue; }
       return { match: true };
     }
     // Every match below forgives something, but never in one of exactWords:
     // one typed wrong fails this answer, one wrong only in its accents is
     // wrong for them.
-    const exactAre = exactWordsTyped(typed, alt, exactWords);
+    const exactAre = exactWordsTyped(typedHere, alt, exactWords);
     // Substring match (user typed part of a longer answer)
     if ((aRest.includes(tRest) && tRest.length >= Math.max(4, aRest.length - 3)) ||
         (tRest.includes(aRest) && aRest.length >= 4)) {
       if (exactAre === "missing") continue;
-      if (exactAre === "accent" || (accents && !accentsRight(typed, alt))) { accentMiss = true; continue; }
+      if (exactAre === "accent" || (accents && !accentsRight(typedHere, alt))) { accentMiss = true; continue; }
       return { match: true, close: true };
     }
     // Token-set overlap: only accepts word-order changes, not wrong/missing words.
@@ -571,7 +606,7 @@ function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings =
       for (const tok of tTokens) if (aTokens.has(tok)) shared++;
       if (shared === tTokens.size && shared === aTokens.size) {
         if (exactAre === "missing") continue;
-        if (exactAre === "accent" || (accents && !accentsRight(typed, alt))) { accentMiss = true; continue; }
+        if (exactAre === "accent" || (accents && !accentsRight(typedHere, alt))) { accentMiss = true; continue; }
         return { match: true, close: true };
       }
     }
@@ -581,7 +616,7 @@ function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings =
     const threshold = longest <= 4 ? 0 : longest <= 8 ? 1 : longest <= 14 ? 2 : 3;
     if (dist <= threshold) {
       if (exactAre === "missing") continue;
-      if (exactAre === "accent" || (accents && !accentsRight(typed, alt))) { accentMiss = true; continue; }
+      if (exactAre === "accent" || (accents && !accentsRight(typedHere, alt))) { accentMiss = true; continue; }
       return { match: true, close: dist > 0 };
     }
   }
@@ -2468,8 +2503,10 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
     // a subjunctive is right with or without its que.
     // Only a real drill or a lesson card: a leftover rule card with an arrow
     // ("si + imparfait → conditionnel") has English prose for an answer.
+    // The tutor's grammar cards too ("Il pleut. → bien que"), which have a
+    // French answer by design (code check 2026-11-07, no. 12).
     const drill = card.shownDir === "fr" && String(card.f || "").includes("→") &&
-      (isConjugationDrill(card.f) || !!lessonIdOf(card));
+      (isConjugationDrill(card.f) || !!lessonIdOf(card) || card.source === "tutor-chat");
     const extraAlts = [
       ...(alternates[altKey] || []),
       ...(drill ? drillAlternates(card.f, card.b) : []),
