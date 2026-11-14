@@ -4,7 +4,9 @@
 // exception is the deploy owner, whose requests fall back to the server's
 // ANTHROPIC_API_KEY so their own use of the app is unchanged, and on the
 // owner's test app the few accounts they named (src/lib/testApp.js; owner,
-// 2026-10-19).
+// 2026-10-19). Two things outside this file also spend the server's key for
+// other people: the linked cahier's parsing (api/cahier-sync.js) and Claude's
+// review of feedback, held to a few a day per sender (api/_lib/feedbackReview.js).
 //
 // Before this, /api/chat and /api/split-senses accepted any signed-in caller
 // and /api/review-answer accepted anyone at all — all three billing the

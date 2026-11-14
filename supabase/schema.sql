@@ -285,6 +285,22 @@ create policy "Users can submit beta feedback"
   on public.beta_feedback for insert
   with check (auth.role() = 'authenticated');
 
+-- Applied on top of the rule above: feedback only in the sender's own account
+-- and email, with no review and not marked as dealt with (migration_028).
+create policy "Feedback only in the sender's own name"
+  on public.beta_feedback
+  as restrictive
+  for insert
+  to authenticated
+  with check (
+    user_id = auth.uid()
+    and lower(coalesce(user_email, '')) = lower(coalesce(auth.jwt() ->> 'email', ''))
+    and review is null
+    and reviewed_at is null
+    and resolved_at is null
+    and resolution is null
+  );
+
 create policy "Users can read own beta feedback"
   on public.beta_feedback for select
   using (auth.uid() = user_id);

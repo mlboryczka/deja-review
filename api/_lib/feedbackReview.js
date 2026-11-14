@@ -14,10 +14,14 @@
 //              for every open entry that has no review yet.
 //              Without one: the sender's own browser, straight after sending.
 //              It gets the newest unreviewed entry the sender wrote in the
-//              last few minutes, so a student can cause one review per piece
-//              of feedback they send, and no more.
+//              last few minutes.
 //            The server's key pays either way: the reviews are for the owner
-//            (owner, 2026-10-04).
+//            (owner, 2026-10-04). So that a stranger can't run up the bill,
+//            each sender other than the owner gets SENDER_DAILY_REVIEWS a day,
+//            by either way; over it the entry waits as "Not reviewed yet"
+//            until the owner presses Ask Claude ({ asked: true }), which always
+//            reviews. Each entry is claimed before Claude is asked, so it is
+//            reviewed once even when asked for several times at once.
 //   apply    Admin only. Writes Claude's corrected card over the card, in
 //            place, so it keeps its schedule, its answer history and its place
 //            in any set; or, for "remove", archives the card, which takes it
@@ -43,6 +47,25 @@ export const FEEDBACK_MODEL = "claude-opus-5-5";
 
 // How long after sending the sender's browser may ask for the review.
 export const SENDER_WINDOW_MS = 10 * 60 * 1000;
+
+// Reviews a day on the server's key for each sender other than the owner
+// (code check of 2026-11-07, problem 10). Over it, the entry waits in View
+// feedback as "Not reviewed yet", where the owner's Ask Claude still reviews it.
+export const SENDER_DAILY_REVIEWS = 5;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// While a review is under way, reviewed_at holds when it was claimed and the
+// entry has no review from that moment. A claim older than this is taken to
+// have failed (the server stops any request after 60 seconds, maxDuration in
+// api/review-answer.js), and the entry can be claimed again.
+export const CLAIM_MS = 10 * 60 * 1000;
+
+export function reviewInFlight(row, now = Date.now()) {
+  const claimed = row?.reviewed_at ? Date.parse(row.reviewed_at) : NaN;
+  if (!(claimed > now - CLAIM_MS)) return false;
+  const saved = row.review?.at ? Date.parse(row.review.at) : NaN;
+  return saved !== claimed;
+}
 
 // Anthropic refuses images over 5MB. A bigger screenshot is left out and the
 // review goes ahead on the words and the card.
@@ -200,14 +223,43 @@ export async function handleFeedbackRequest({ body, user, isAdmin, store, apiKey
       row = await store.newestUnreviewed(user.id, new Date(now - SENDER_WINDOW_MS).toISOString());
       if (!row) return reply(200, { ok: true, review: null });
     }
+    // Nothing reviewed: what the entry had stays as it was.
+    const unchanged = (why) => reply(200, { ok: true, id: row.id, review: row.review ?? null, [why]: true });
+    if (reviewInFlight(row, now)) return unchanged("pending");
     if (!apiKey) {
       return reply(503, { error: "The server has no Anthropic key, so Claude can't review feedback." });
     }
-    const ctx = row.card_context;
-    const card = ctx && row.user_id
-      ? await store.card({ userId: row.user_id, rowId: ctx.row_id ?? null, front: ctx.front, course: courseOfFeedback(row) })
-      : null;
-    const review = shapeReview(await askClaude({ apiKey, row, card }), card);
+    // The entry is claimed before Claude is asked, so when several requests
+    // ask at once only one of them pays for a review.
+    const seen = row.reviewed_at ?? null;
+    const claimedAt = new Date(now).toISOString();
+    if (!(await store.claim(row.id, { seen, at: claimedAt }))) return unchanged("pending");
+    const release = () => store.release(row.id, { claimed: claimedAt, back: seen });
+    // A sender other than the owner gets SENDER_DAILY_REVIEWS a day on the
+    // server's key, counting this one, whether their browser asks or View
+    // feedback does. The owner pressing Ask Claude or Review again always goes
+    // ahead.
+    const ownersOwn = isAdmin && row.user_id === user.id;
+    const askedByOwner = isAdmin && body?.asked === true;
+    if (!ownersOwn && !askedByOwner) {
+      const used = await store.reviewsSince(row.user_id ?? null, new Date(now - DAY_MS).toISOString());
+      if (used > SENDER_DAILY_REVIEWS) {
+        await release();
+        return unchanged("limited");
+      }
+    }
+    let review;
+    try {
+      const ctx = row.card_context;
+      const card = ctx && row.user_id
+        ? await store.card({ userId: row.user_id, rowId: ctx.row_id ?? null, front: ctx.front, course: courseOfFeedback(row) })
+        : null;
+      review = shapeReview(await askClaude({ apiKey, row, card }), card);
+    } catch (e) {
+      // Let go of the claim, so the entry can be asked for again at once.
+      await release().catch(() => {});
+      throw e;
+    }
     await store.saveReview(row.id, review);
     return reply(200, { ok: true, id: row.id, review });
   }
@@ -327,7 +379,7 @@ async function revert(row, user, store) {
 // so every card read and write is held to the feedback sender's user_id here.
 // resolution is read by Revert, which looks for the note an applied fix left.
 export const FEEDBACK_COLUMNS =
-  "id,user_id,user_email,message,page,screenshot,card_context,created_at,resolved_at,resolution,review";
+  "id,user_id,user_email,message,page,screenshot,card_context,created_at,resolved_at,resolution,review,reviewed_at";
 
 export function supabaseFeedbackStore(db) {
   const shapeCard = (row, includeArchived = false) =>
@@ -372,6 +424,31 @@ export function supabaseFeedbackStore(db) {
       const { data, error } = await db.from(table).select(columns).eq("user_id", userId).ilike("front", key).limit(10);
       if (error) throw new Error(error.message);
       return shapeCard((data || []).find((r) => String(r.front || "").trim().toLowerCase() === key.toLowerCase()));
+    },
+
+    // Takes the entry for one review: only if reviewed_at is still what was
+    // read, so of several requests at once exactly one gets it.
+    async claim(id, { seen, at }) {
+      let q = db.from("beta_feedback").update({ reviewed_at: at }).eq("id", id);
+      q = seen == null ? q.is("reviewed_at", null) : q.eq("reviewed_at", seen);
+      const { data, error } = await q.select("id");
+      if (error) throw new Error(error.message);
+      return (data || []).length === 1;
+    },
+
+    // Gives a claim back, unless something else has claimed the entry since.
+    async release(id, { claimed, back }) {
+      const { error } = await db.from("beta_feedback").update({ reviewed_at: back }).eq("id", id).eq("reviewed_at", claimed);
+      if (error) throw new Error(error.message);
+    },
+
+    // The sender's entries reviewed, or being reviewed, since then.
+    async reviewsSince(userId, sinceIso) {
+      let q = db.from("beta_feedback").select("id", { count: "exact", head: true }).gte("reviewed_at", sinceIso);
+      q = userId == null ? q.is("user_id", null) : q.eq("user_id", userId);
+      const { count, error } = await q;
+      if (error) throw new Error(error.message);
+      return count ?? 0;
     },
 
     async saveReview(id, review) {

@@ -31,7 +31,9 @@ export const podcastsOpenTo = ({ isOwner, signedIn, host }) =>
 // 2026-10-19: "she can just use mine ... only laura and I have access").
 // By account id, not email: this repo is public, and an id names nobody.
 // Anyone else who signs in there (any account can) still brings their own
-// key, so the owner's account can't be spent by a stranger.
+// key for everything they ask Claude. The one thing the owner's account pays
+// for, for anyone, is Claude's review of feedback, and that is held to a few
+// reviews a day per sender (SENDER_DAILY_REVIEWS, api/_lib/feedbackReview.js).
 export const OWNERS_KEY_ON_TEST_APP = [
   "44097b1d-3321-4c7c-9585-f8a59de7c153", // Laura Caufour
 ];

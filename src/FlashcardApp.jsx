@@ -5394,10 +5394,14 @@ function FeedbackReviewModal({ user, onClose, onOwnCardChanged }) {
   // Development runs effects twice; each review is a paid call to Claude.
   const started = useRef(false);
 
-  const review = useCallback(async (item) => {
+  // asked: the owner pressed Ask Claude or Review again, which reviews even a
+  // sender who has had their reviews for the day (api/_lib/feedbackReview.js).
+  // Opening View feedback asks without it, so over the limit the entry keeps
+  // what it had and waits as "Not reviewed yet".
+  const review = useCallback(async (item, { asked = false } = {}) => {
     patch(item.id, { reviewing: true, error: null, errorCode: null });
     try {
-      const { review: r } = await feedbackRequest({ action: "review", id: item.id });
+      const { review: r } = await feedbackRequest({ action: "review", id: item.id, ...(asked ? { asked: true } : {}) });
       if (!mounted.current) return;
       setItems((list) => list.map((x) => (x.id === item.id ? { ...x, review: r } : x)));
       patch(item.id, { reviewing: false });
@@ -5480,7 +5484,7 @@ function FeedbackReviewModal({ user, onClose, onOwnCardChanged }) {
                         state={states[item.id] || {}}
                         onApply={() => act(item, "apply")}
                         onDismiss={() => act(item, "dismiss")}
-                        onReview={() => review(item)}
+                        onReview={() => review(item, { asked: true })}
                         onRevert={() => act(item, "revert")}
                       />
                     )}

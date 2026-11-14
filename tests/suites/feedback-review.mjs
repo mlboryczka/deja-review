@@ -29,8 +29,10 @@ const anthropic = createServer((req, res) => {
 await new Promise((r) => anthropic.listen(0, "127.0.0.1", r));
 process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${anthropic.address().port}`;
 
-const { handleFeedbackRequest, shapeReview, SENDER_WINDOW_MS, FEEDBACK_MODEL, FEEDBACK_COLUMNS } =
-  await import("../../api/_lib/feedbackReview.js");
+const { handleFeedbackRequest, shapeReview, SENDER_WINDOW_MS, FEEDBACK_MODEL, FEEDBACK_COLUMNS,
+  SENDER_DAILY_REVIEWS, CLAIM_MS } = await import("../../api/_lib/feedbackReview.js");
+import { readFileSync } from "node:fs";
+import { localPostgres } from "../local-postgres.mjs";
 
 const OWNER = { id: "owner", email: "owner@example.com" };
 const STUDENT = { id: "student", email: "student@example.com" };
@@ -82,7 +84,22 @@ function memoryStore() {
       Object.assign(s.deck.find((c) => c.id === rowId && c.user_id === userId), { source });
       return { error: null };
     },
-    async saveReview(id, review) { Object.assign(s.entries.find((f) => f.id === id), { review }); },
+    async saveReview(id, review) { Object.assign(s.entries.find((f) => f.id === id), { review, reviewed_at: review.at }); },
+    // As the real store: the claim holds only if reviewed_at is still what
+    // was read, all in one step.
+    async claim(id, { seen, at }) {
+      const f = s.entries.find((x) => x.id === id);
+      if ((f.reviewed_at ?? null) !== seen) return false;
+      f.reviewed_at = at;
+      return true;
+    },
+    async release(id, { claimed, back }) {
+      const f = s.entries.find((x) => x.id === id);
+      if (f.reviewed_at === claimed) f.reviewed_at = back;
+    },
+    async reviewsSince(userId, sinceIso) {
+      return s.entries.filter((f) => (f.user_id ?? null) === userId && f.reviewed_at && f.reviewed_at >= sinceIso).length;
+    },
     async updateCard(rowId, userId, { front, back }) {
       const row = s.deck.find((c) => c.id === rowId && c.user_id === userId);
       if (s.deck.some((c) => c !== row && c.user_id === userId && c.front === front)) {
@@ -287,6 +304,156 @@ console.log("\n  a review that suggests nothing usable");
   const r = await run(store, OWNER, { action: "review", id: 1 }, { apiKey: null });
   ck("without the server's key nothing is reviewed or saved",
      r.status === 503 && calls.length === 0 && store.entries[0].review === null, `HTTP ${r.status}`);
+}
+
+// Code check of 2026-11-07, problem 10: a stranger can't run up the owner's
+// Claude bill. Each sender other than the owner gets a few reviews a day.
+console.log("\n  a few reviews a day per sender, on the server's key");
+{
+  // A student who has had their reviews for the day, and sends one more.
+  const withUsed = (n) => {
+    const store = memoryStore();
+    for (let i = 0; i < n; i++) {
+      store.entries.push({ id: 100 + i, user_id: "student", user_email: "student@example.com", message: `note ${i}`,
+        card_context: null, created_at: ago(7_200_000), resolved_at: null,
+        review: { kind: "none", at: ago(3_600_000) }, reviewed_at: ago(3_600_000) });
+    }
+    return store;
+  };
+  answer = { kind: "none", reasoning: "Nothing to change." };
+
+  let store = withUsed(SENDER_DAILY_REVIEWS - 1);
+  calls = [];
+  let r = await run(store, STUDENT, { action: "review" });
+  ck(`the ${SENDER_DAILY_REVIEWS}th of the day is reviewed`, r.json.review?.kind === "none" && calls.length === 1, JSON.stringify(r.json).slice(0, 100));
+
+  store = withUsed(SENDER_DAILY_REVIEWS);
+  calls = [];
+  r = await run(store, STUDENT, { action: "review" });
+  ck("one more from the sender's browser is not", r.status === 200 && r.json.limited === true && r.json.review === null && calls.length === 0,
+     `${calls.length} call(s) ${JSON.stringify(r.json)}`);
+  ck("  and it waits as not reviewed, free to be claimed again", store.entries[0].review === null && store.entries[0].reviewed_at == null);
+  r = await run(store, OWNER, { action: "review", id: 1 });
+  ck("opening View feedback doesn't review it either", r.json.limited === true && r.json.review === null && calls.length === 0);
+  r = await run(store, STUDENT, { action: "review", id: 1, asked: true });
+  ck("a student can't claim the owner's Ask Claude", r.status === 403 && calls.length === 0, `HTTP ${r.status}`);
+  r = await run(store, OWNER, { action: "review", id: 1, asked: true });
+  ck("the owner's Ask Claude still reviews it", r.json.review?.kind === "none" && calls.length === 1 && store.entries[0].review?.kind === "none");
+
+  // Reviews older than a day don't count.
+  store = withUsed(SENDER_DAILY_REVIEWS);
+  for (const f of store.entries.filter((x) => x.id >= 100)) f.reviewed_at = ago(25 * 3_600_000);
+  calls = [];
+  r = await run(store, STUDENT, { action: "review" });
+  ck("reviews from yesterday don't count", r.json.review?.kind === "none" && calls.length === 1);
+
+  // The owner's own feedback has no limit.
+  store = memoryStore();
+  for (let i = 0; i < SENDER_DAILY_REVIEWS + 2; i++) {
+    store.entries.push({ id: 200 + i, user_id: "owner", user_email: "owner@example.com", message: `mine ${i}`,
+      card_context: null, created_at: ago(60_000), resolved_at: null, review: { kind: "none", at: ago(60_000) }, reviewed_at: ago(60_000) });
+  }
+  calls = [];
+  r = await run(store, OWNER, { action: "review", id: 3 });
+  ck("the owner's own feedback is reviewed whatever the count", r.json.review && calls.length === 1);
+
+  // Over the limit, an older review on the entry is kept, not wiped.
+  store = withUsed(SENDER_DAILY_REVIEWS + 1);
+  calls = [];
+  r = await run(store, OWNER, { action: "review", id: 100 });
+  ck("a re-review over the limit keeps the review it had", r.json.limited === true && r.json.review?.kind === "none" && store.entries.find((f) => f.id === 100).review?.kind === "none" && calls.length === 0);
+}
+
+console.log("\n  each piece of feedback is reviewed once");
+{
+  const store = memoryStore();
+  calls = [];
+  answer = { kind: "card", reasoning: "Colline is a hill.", front: "une colline", back: "a hill" };
+  const all = await Promise.all(Array.from({ length: 6 }, () => run(store, STUDENT, { action: "review" })));
+  ck("six requests at the same moment pay for one review", calls.length === 1, `${calls.length} call(s)`);
+  ck("  one gets the review, the others are told it is under way",
+     all.filter((x) => x.json.review?.kind === "card").length === 1 && all.filter((x) => x.json.pending).length === 5,
+     JSON.stringify(all.map((x) => x.json.pending ? "pending" : x.json.review?.kind)));
+  ck("  and the review is saved", store.entries[0].review?.kind === "card");
+
+  const both = await Promise.all([run(store, OWNER, { action: "review", id: 3 }), run(store, OWNER, { action: "review", id: 3 })]);
+  ck("View feedback open twice at once reviews an entry once", calls.length === 2 && both.filter((x) => x.json.pending).length === 1,
+     `${calls.length} call(s)`);
+
+  // A review under way, or one that died: reviewed_at set, no review.
+  const fresh = memoryStore();
+  fresh.entries[0].reviewed_at = ago(60_000);
+  calls = [];
+  let r = await run(fresh, OWNER, { action: "review", id: 1 });
+  ck("an entry being reviewed isn't reviewed again", r.json.pending === true && calls.length === 0);
+  fresh.entries[0].reviewed_at = ago(CLAIM_MS + 60_000);
+  r = await run(fresh, OWNER, { action: "review", id: 1 });
+  ck("one whose review died long ago is", r.json.review?.kind === "card" && calls.length === 1);
+
+  // A review that fails lets go of the entry.
+  const failing = memoryStore();
+  failing.card = async () => { throw new Error("database down"); };
+  calls = [];
+  let threw = null;
+  try { await run(failing, OWNER, { action: "review", id: 1 }); } catch (e) { threw = e; }
+  ck("a failed review gives the entry back, to be asked for again",
+     /database down/.test(threw?.message || "") && failing.entries[0].reviewed_at == null && calls.length === 0);
+}
+
+// Code check of 2026-11-07, problem 9: feedback only in the sender's own name
+// (migration_028). Send feedback on both apps sends the signed-in account's
+// own id and email; the database refuses anything else.
+console.log("\n  feedback only in the sender's own name");
+{
+  const src = readFileSync(new URL("../../src/BetaFeedback.jsx", import.meta.url), "utf8");
+  const base = src.match(/const base = \{([\s\S]*?)\};/)?.[1] || "";
+  ck("Send feedback names the signed-in account and its email",
+     /user_id: user\?\.id \|\| null/.test(base) && /user_email: user\?\.email \|\| null/.test(base), base);
+  ck("  and sends no review and nothing marked as dealt with",
+     !/\b(review|reviewed_at|resolved_at|resolution)\s*[:=]/.test(src.slice(src.indexOf("async function handleSubmit"), src.indexOf("requestReview();"))));
+
+  const { db: pg, why } = await localPostgres();
+  if (!pg) console.log(`  (not run here: migration_028 on a local Postgres; ${why})`);
+  else {
+    try {
+      const ME = "00000000-0000-0000-0000-00000000f001", OTHER = "00000000-0000-0000-0000-00000000f002";
+      // Supabase lets signed-in users reach the auth functions and add rows,
+      // leaving the rest to the table's rules; the stand-in doesn't, by itself.
+      const setup = pg.sql(`
+        grant usage on schema auth to authenticated;
+        grant insert on public.beta_feedback to authenticated;
+        insert into auth.users (id, email) values ('${ME}', 'me@example.com'), ('${OTHER}', 'owner@example.com');`);
+      const as = (cols, vals) => pg.sql(`
+        begin;
+        set local role authenticated;
+        select set_config('request.jwt.claim.sub', '${ME}', true), set_config('request.jwt.claims', '{"sub":"${ME}","role":"authenticated","email":"Me@Example.com"}', true);
+        insert into public.beta_feedback (${cols}) values (${vals});
+        commit;`);
+      ck("(the local database is set up)", setup.ok, setup.err);
+      ck("my own feedback, with every column Send feedback fills, goes in",
+         as("user_id, user_email, message, page, user_agent, screenshot, card_context", `'${ME}', 'me@example.com', 'hi', 'study', 'UA', 'data:image/png;base64,x', '{"front":"a"}'`).ok);
+      ck("so does a bare one", as("user_id, user_email, message", `'${ME}', 'me@example.com', 'hi'`).ok);
+      const refused = {
+        "another account": `'${OTHER}', 'me@example.com', 'hi'`,
+        "someone else's email": `'${ME}', 'owner@example.com', 'hi'`,
+        "no account": `null, 'me@example.com', 'hi'`,
+      };
+      for (const [what, vals] of Object.entries(refused)) {
+        const r = as("user_id, user_email, message", vals);
+        ck(`feedback under ${what} is refused`, !r.ok && /row-level security/.test(r.err), r.err.split("\n")[0]);
+      }
+      for (const [col, v] of [["review", `'{"kind":"card"}'`], ["reviewed_at", "now()"], ["resolved_at", "now()"], ["resolution", "'done'"]]) {
+        const r = as(`user_id, user_email, message, ${col}`, `'${ME}', 'me@example.com', 'hi', ${v}`);
+        ck(`feedback arriving with ${col} already set is refused`, !r.ok && /row-level security/.test(r.err), r.err.split("\n")[0]);
+      }
+      const count = pg.sql(`select count(*) from public.beta_feedback where user_id = '${ME}';`);
+      ck("exactly the two of my own were kept", count.out === "2", count.out);
+      const again = pg.sql(readFileSync(new URL("../../migrations/migration_028_feedback_own_name.sql", import.meta.url), "utf8"));
+      ck("migration_028 can be run again", again.ok, again.err);
+    } finally {
+      pg.stop();
+    }
+  }
 }
 
 // A feedback sent from the Spanish module (2026-10-22): its card is looked
