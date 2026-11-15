@@ -68,6 +68,10 @@ const SPENDERS = [
    { user_answer: "a hill", expected_answer: "a hill", card_id: "une colline" }],
   ["/api/review-answer (feedback)", "../../api/review-answer.js", { feedback: { action: "review" } }],
   ["/api/cahier-parse", "../../api/cahier-parse.js", { text: "bonjour = hello" }],
+  // The notes upload and the linked notebook both call Claude.
+  ["/api/parse-cahier (extract)", "../../api/parse-cahier.js", { action: "extract", text: "bonjour = hello" }],
+  ["/api/parse-cahier (commit)", "../../api/parse-cahier.js", { action: "commit", classes: [] }],
+  ["/api/cahier-sync", "../../api/cahier-sync.js", { action: "sync" }],
   // Podcasts (2026-10-09): the three actions that can call Claude. Owner only,
   // so the forged admin token below matters here too.
   ["/api/podcasts (episode: writing its questions)", "../../api/podcasts.js",

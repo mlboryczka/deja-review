@@ -19,15 +19,21 @@ Anthropic for Claude.
    whole file into the editor and click **Run**. You should see "Success. No
    rows returned." This creates the tables, with row-level security so that
    each user can only see their own data.
-3. Run each file in `migrations/` the same way, in number order, from 002 to
-   017. Migrations 002 and 009 have the same email placeholder to replace.
-   Migration 003 has the original owner's address where the placeholder would
-   be, so replace that with yours too.
+3. Run every file in `migrations/` the same way, in number order, from 002 to
+   the highest number in the folder (028 at the time of writing). Do not stop
+   at an older number: a copy built from `supabase/schema.sql` needs 025 to
+   save notes, and 024 and 025 replace the notes-saving functions that 016 and
+   023 install. Migrations 002 and 009 have the same email placeholder to
+   replace. Migration 003 has the original owner's address where the
+   placeholder would be, so replace that with yours too.
 
-Any migration can safely be run again except two. Running 004 again would
+Any migration can safely be run again except four. Running 004 again would
 blank the card numbers in the log of corrections. Running 007 again would
 overwrite every answered card's schedule with a guess and make them all due at
-once.
+once. Running 016 again after 025, or 023 again after 024, puts the older
+version of the notes-saving function back, and saving notes fails until 025
+(or 024) is run once more. If that happens, run 025 and 024 again; nothing is
+lost.
 
 ## 3. Set the sign-in addresses
 

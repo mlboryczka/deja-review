@@ -44,16 +44,29 @@ process.on("exit", cleanup);
 for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => { cleanup(); process.exit(130); });
 
 function background(cmd, args, opts = {}) {
-  const c = spawn(cmd, args, { cwd: ROOT, detached: true, stdio: "ignore", ...opts });
+  const c = spawn(cmd, args, { cwd: ROOT, detached: true, stdio: ["ignore", "ignore", "pipe"], ...opts });
+  // If it exits before it answers (its port already taken, say), waitFor stops
+  // the run and shows what it said, instead of driving someone else's server.
+  c.exitedWith = null;
+  c.stderrText = "";
+  c.stderr.on("data", (d) => { c.stderrText = (c.stderrText + d).slice(-2000); });
+  c.on("exit", (code) => { c.exitedWith = code ?? "a signal"; });
   children.push(c);
   return c;
 }
 
-async function waitFor(url, label, timeoutMs = 45000) {
+async function waitFor(url, label, child, timeoutMs = 45000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
+    if (child.exitedWith !== null) {
+      throw new Error(`${label} stopped (exit ${child.exitedWith}) before it answered at ${url}. Something else may be using that port.\n${child.stderrText.trim()}`);
+    }
     try {
       await fetch(url);
+      // Answered, but make sure it is ours: it may have died just now because
+      // another server already held the port.
+      await new Promise((r) => setTimeout(r, 300));
+      if (child.exitedWith !== null) continue;
       return;
     } catch {
       await new Promise((r) => setTimeout(r, 300));
@@ -86,11 +99,11 @@ if (suites.some(NEEDS_BROWSER)) {
   );
   envWritten = true;
 
-  background(process.execPath, [join(HERE, "mock-supabase.mjs")]);
-  await waitFor("http://127.0.0.1:5999/rest/v1/user_cards", "mock Supabase");
+  const mock = background(process.execPath, [join(HERE, "mock-supabase.mjs")]);
+  await waitFor("http://127.0.0.1:5999/rest/v1/user_cards", "mock Supabase", mock);
 
-  background("npx", ["vite", "--port", "5173", "--strictPort"]);
-  await waitFor("http://localhost:5173/", "vite dev server");
+  const vite = background("npx", ["vite", "--port", "5173", "--strictPort"]);
+  await waitFor("http://localhost:5173/", "vite dev server", vite);
 }
 
 // A browser suite that fails gets one more try. Their timing checks can fail

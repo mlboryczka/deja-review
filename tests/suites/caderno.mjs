@@ -201,8 +201,9 @@ const V1 = caderno(
 
 // ── The caderno's functions, on a real Postgres ───────────────────────────
 {
-  const { db: pg, why } = await localPostgres();
-  if (!pg) console.log(`  (not run here: the caderno's save on a local Postgres; ${why})`);
+  const { db: pg, why, broken } = await localPostgres();
+  if (broken) ck("every SQL file loads on a real Postgres", false, why);
+  else if (!pg) console.log(`  (not run here: the caderno's save on a local Postgres; ${why})`);
   else {
     try {
       const U = "00000000-0000-0000-0000-0000000000e6", RUN = "22222222-2222-2222-2222-222222222222";

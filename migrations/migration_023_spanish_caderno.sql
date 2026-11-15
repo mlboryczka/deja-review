@@ -22,7 +22,8 @@
 --                   French cards and the owner's checks read it as French.
 --
 -- Nothing existing is changed: no French card, link or record is touched.
--- Run it once in Supabase's SQL editor; running it again is safe. Until it
+-- Run it once in Supabase's SQL editor. Running it again is safe except that
+-- it puts back the older notes-saving function: run 024 again afterwards. Until it
 -- is run, linking the caderno says this migration is needed, and nothing
 -- else in the app changes.
 

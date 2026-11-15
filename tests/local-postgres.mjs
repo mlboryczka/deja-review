@@ -27,6 +27,10 @@ do $$ begin
   if not exists (select 1 from pg_roles where rolname = 'service_role') then create role service_role nologin bypassrls; end if;
 end $$;
 create schema auth;
+grant usage on schema public, auth to anon, authenticated, service_role;
+alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
+alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
 create table auth.users (id uuid primary key, email text);
 create function auth.uid() returns uuid language sql stable as $f$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $f$;
 create function auth.jwt() returns jsonb language sql stable as $f$ select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $f$;
@@ -47,7 +51,9 @@ const freePort = () =>
   });
 
 // { db: { sql(text) -> { ok, out, err }, stop() } }, or { db: null, why }
-// when Postgres isn't here, won't start, or the schema won't load.
+// when Postgres isn't here or won't start ("not run here"), or
+// { db: null, why, broken: true } when it runs but a SQL file won't load: that
+// is a fault in the file, and every suite that uses this fails on it.
 export async function localPostgres() {
   if (!["initdb", "pg_ctl", "psql"].every(has)) return { db: null, why: "no Postgres installed here" };
   const dir = mkdtempSync(join(tmpdir(), "ff-pg-"));
@@ -74,7 +80,7 @@ export async function localPostgres() {
     ...readdirSync(join(ROOT, "migrations")).filter((f) => f.endsWith(".sql")).sort().map((f) => join(ROOT, "migrations", f))];
   for (const f of files) {
     const r = psql(["-f", f]);
-    if (!r.ok) { stop(); return { db: null, why: `${f.split("/").pop()} wouldn't load: ${r.err.split("\n")[0]}` }; }
+    if (!r.ok) { stop(); return { db: null, broken: true, why: `${f.split("/").pop()} wouldn't load: ${r.err.split("\n")[0]}` }; }
   }
   return { db: { sql: (text) => psql(["-c", text]), stop } };
 }

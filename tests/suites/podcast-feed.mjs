@@ -522,14 +522,14 @@ console.log("\n  The database update (migration_017)");
   ck("every policy is dropped before it is made, so it runs twice",
      [...sql.matchAll(/create policy "([^"]+)"/g)].every((m) => sql.includes(`drop policy if exists "${m[1]}"`)));
 
-  const { db: pg, why } = await localPostgres();
+  const { db: pg, why, broken } = await localPostgres();
   if (!pg) {
-    // Postgres is here but this file won't load: that is this file's fault.
-    if (/migration_017/.test(why || "")) ck("every migration loads, migration_017 included", false, why);
+    // Postgres is here but a file won't load: that is the file's fault.
+    if (broken) ck("every SQL file loads on a real Postgres", false, why);
     else console.log(`  (not run here: the real tables on a local Postgres; ${why})`);
   } else {
     try {
-      ck("every migration loads, migration_017 included", true);
+      ck("every SQL file loads on a real Postgres", true);
       const again = pg.sql(`\\i ${new URL("../../migrations/migration_017_podcasts.sql", import.meta.url).pathname}`);
       ck("it runs a second time without an error", again.ok, again.ok ? "" : again.err.split("\n")[0]);
 

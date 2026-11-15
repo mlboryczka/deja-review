@@ -412,8 +412,9 @@ console.log("\n  feedback only in the sender's own name");
   ck("  and sends no review and nothing marked as dealt with",
      !/\b(review|reviewed_at|resolved_at|resolution)\s*[:=]/.test(src.slice(src.indexOf("async function handleSubmit"), src.indexOf("requestReview();"))));
 
-  const { db: pg, why } = await localPostgres();
-  if (!pg) console.log(`  (not run here: migration_028 on a local Postgres; ${why})`);
+  const { db: pg, why, broken } = await localPostgres();
+  if (broken) ck("every SQL file loads on a real Postgres", false, why);
+  else if (!pg) console.log(`  (not run here: migration_028 on a local Postgres; ${why})`);
   else {
     try {
       const ME = "00000000-0000-0000-0000-00000000f001", OTHER = "00000000-0000-0000-0000-00000000f002";

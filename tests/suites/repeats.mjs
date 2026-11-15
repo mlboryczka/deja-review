@@ -1057,8 +1057,9 @@ console.log("\n  Replace works by class, never deletes, and leaves lesson and tu
   }
   // Where this machine has Postgres, the real function is run on real rows.
   {
-    const { db: pg, why } = await localPostgres();
-    if (!pg) console.log(`  (not run here: the real save_notes_reading on a local Postgres; ${why})`);
+    const { db: pg, why, broken } = await localPostgres();
+    if (broken) ck("every SQL file loads on a real Postgres", false, why);
+    else if (!pg) console.log(`  (not run here: the real save_notes_reading on a local Postgres; ${why})`);
     else {
       try {
         const U = "00000000-0000-0000-0000-0000000000a1", RUN = "11111111-1111-1111-1111-111111111111";
