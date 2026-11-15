@@ -146,6 +146,28 @@ console.log("\n  the test, as the server runs it on its own");
   ck("past the time limit nothing is read, and no run is kept", reads.length === 0 && !!late.skipped && store.saved.length === before + 1, JSON.stringify(late));
 }
 
+console.log("\n  code check 80, 86, 89, 90, 93");
+{
+  const base = { id: "u1", user_id: "x", card_id: "k1", action: "edit", category: "front", original_front: "à l'heure", original_back: "on time", corrected_front: "a l'heure", corrected_back: "on time" };
+  const undo = { ...base, id: "u2", original_front: "a l'heure", corrected_front: "à l'heure" };
+  const cs = buildCases([base, undo], new Map(), blocks);
+  ck("a tutor change and its Undo cancel: neither is a case", cs.length === 0, String(cs.length));
+  const other = { ...undo, id: "u3", corrected_front: "à l'heure!" };
+  ck("an edit that isn't the exact reverse stays a case", buildCases([base, other], new Map(), blocks).length === 2);
+  const withSource = (source) => new Map([["k1", { id: "k1", front: "à l'heure", back: "on time", dates: [], source }]]);
+  const one = { ...base, id: "s1", corrected_front: "à l'heure!" };
+  ck("a correction of a tutor card, a podcast card or a lesson card isn't a case",
+     ["tutor-chat", "podcast:jef", "lesson:lecon3#a1"].every((src) => buildCases([one], withSource(src), blocks).length === 0));
+  ck("one of a notes card is", buildCases([one], withSource("cahier-upload"), blocks).length === 1);
+  const { readingPathOf, NOTES_PROMPT_VERSION: v } = await import("../../api/_lib/notesChecks.js");
+  const text = "x\nconst MONTHS_FR = 1;\nexport default async function handler() { A }\nexport function sliceIntoBlocks() { B }";
+  ck("the version ignores the request handler, and not the reading path",
+     !readingPathOf(text).includes("A") && readingPathOf(text).includes("MONTHS_FR") && readingPathOf(text).includes("B") && /^[0-9a-f]{7}$/.test(v));
+  const failing = { async corrections() { return { error: "down" }; }, async cards() { return { rows: [] }; }, async link() { return {}; }, async runs() { return { rows: [] }; }, async saveRun() { return {}; } };
+  const r = await runNotesTest({ store: failing, readDoc: async () => "", blocksOf: () => [], read: async () => [] });
+  ck("a failed read of the corrections is said, not 'no corrections yet'", /couldn't read the corrections: down/.test(r.skipped || ""), JSON.stringify(r));
+}
+
 console.log("\n  counting");
 {
   ck("a reading that failed doesn't count against Claude",

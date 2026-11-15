@@ -303,6 +303,25 @@ console.log("\n  what the Status window is told");
      st.notes.regressions.length === 1 && /“une propositiond” again, which you corrected to “une proposition”/.test(st.notes.regressions[0]), JSON.stringify(st.notes.regressions));
   ck("one it has always made isn't", !st.notes.regressions.some((t) => /Naza/.test(t)));
   ck("a test with one run has nothing to compare, so nothing is named", st.answers.regressions.length === 0 && st.answers.latest.passed === 1);
+
+  // Code check 90 and 92: a Spanish case is found in es_answer_reviews, and a
+  // failed lookup is said, not reported as nothing wrong.
+  const spanish = {
+    ...tables,
+    eval_runs: [
+      { id: "a2", kind: "answers", ran_at: "2026-10-13T15:00:00Z", version: "v2", cases: 1, passed: 0, results: [{ id: "es1", says: "accept", got: ["reject", "reject", "reject"] }] },
+      { id: "a1", kind: "answers", ran_at: "2026-10-06T15:00:00Z", version: "v1", cases: 1, passed: 1, results: [{ id: "es1", says: "accept", got: ["accept", "accept", "accept"] }] },
+    ],
+    answer_reviews: [],
+    es_answer_reviews: [{ id: "es1", typed: "estoy", expected: "I am" }],
+  };
+  const es = await evalStatus({ from: (t) => query(spanish[t]) });
+  ck("a Spanish answer Claude now marks wrong is named, not dropped", es.answers.regressions.length === 1 && /“estoy” for “I am”/.test(es.answers.regressions[0]), JSON.stringify(es.answers));
+  const broken = { ...spanish, answer_reviews: undefined };
+  const bad = await evalStatus({ from: (t) => (t === "answer_reviews" ? { select: () => ({ in: async () => ({ data: null, error: { message: "down" } }) }) } : query(spanish[t])) });
+  ck("a failed lookup is passed on as an error", /couldn't read the cases/.test(bad.answers.error || ""), JSON.stringify(bad.answers));
+  const { ANSWER_PROMPT_VERSION } = await import("../../api/_lib/answerChecks.js");
+  ck("the answer test's version hashes the Spanish question too", /^[0-9a-f]{7}$/.test(ANSWER_PROMPT_VERSION) && ANSWER_PROMPT_VERSION !== "a691631", ANSWER_PROMPT_VERSION);
 }
 
 console.log("\n  before the database update");

@@ -640,6 +640,16 @@ console.log("\n  scripts/record-cleanup-reasons.mjs");
   fs.rmSync(dir, { recursive: true, force: true });
 }
 
+console.log("\n  code check 84: only the clean-up's put-aways are right answers");
+{
+  const { repeatsCases } = await import("../../api/_lib/repeatsChecks.js");
+  const kept = [{ id: "k", front: "le cas", back: "case" }];
+  const dup = (id, archived_at) => ({ id, front: "un cas", back: "a case", merged_into: "k", archived_at });
+  const ids = (d) => repeatsCases({ duplicates: d, kept }).map((c) => c.id).filter((i) => i.startsWith("dup:"));
+  ck("a repeat the clean-up put away is a 'same' case", ids([dup("d1", "2026-10-07T10:00:00Z")]).join() === "dup:d1");
+  ck("one the daily run put away on Claude's own verdict is not", ids([dup("d2", "2026-10-20T04:00:00Z")]).length === 0);
+}
+
 server.close();
 const n = ck.fails();
 console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");

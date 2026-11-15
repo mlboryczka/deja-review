@@ -51,10 +51,18 @@ const WAITING = "Waiting for the database update (migration_016).";
 // merged_into }); `kept`: the cards they repeat ({ id, front, back }). Card A
 // is the card kept, B the one put away, as a card-writer meets them: the
 // card the student has, and the same thing made again.
+// The daily run began putting repeats away on its own verdicts on 2026-10-12
+// (statusDaily.js putAwayRepeats, the same rows). Those are Claude's calls, not
+// the owner's, so they are no right answers to test Claude against: only the
+// clean-up's put-aways, from before then, count. (A column marking the daily
+// run's own would need a database change; the date needs none.)
+export const PUT_AWAY_BY_CHECK_FROM = "2026-10-12";
+
 export function repeatsCases({ duplicates = [], kept = [] } = {}) {
   const byId = new Map(kept.map((c) => [String(c.id), c]));
   const same = [];
   for (const d of duplicates) {
+    if (d.archived_at && String(d.archived_at).slice(0, 10) >= PUT_AWAY_BY_CHECK_FROM) continue;
     const k = d.merged_into == null ? null : byId.get(String(d.merged_into));
     if (!k || !d.front || !k.front) continue;
     same.push({ id: `dup:${d.id}`, says: "same", a: { front: k.front, back: k.back }, b: { front: d.front, back: d.back } });
@@ -135,7 +143,7 @@ export function supabaseRepeatsStore(db) {
   const out = ({ data, error }) => (gone(error) ? { missing: true } : error ? { error: error.message } : { rows: data });
   return {
     async duplicates() {
-      const r = out(await db.from("user_cards").select("id, front, back, merged_into, archived_reason")
+      const r = out(await db.from("user_cards").select("id, front, back, merged_into, archived_reason, archived_at")
         .eq("archived_reason", "duplicate").order("id", { ascending: true }).limit(2000));
       return r.rows ? { rows: r.rows.filter((x) => x.merged_into != null) } : r;
     },

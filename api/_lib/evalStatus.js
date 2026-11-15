@@ -1,8 +1,7 @@
-// What the Status window and its red dot need from the tests of Claude's work
+// What the morning check needs from the tests of Claude's work
 // (api/_lib/evalRuns.js): for each test, its last run and the cases a change
 // to how Claude is asked made it get wrong, named in plain words. Read with the
-// service role by /api/admin-users?view=status, for the admin only, and by the
-// morning check (scripts/status-check.mjs --everyone).
+// service role by the morning check (scripts/status-check.mjs --everyone).
 //
 //   answers  Claude's marking of typed answers
 //   notes    Claude reading class notes into cards
@@ -10,7 +9,7 @@
 //            (since 2026-10-06; api/_lib/repeatsChecks.js)
 
 import { regressions } from "./evalRuns.js";
-import { answerJudge } from "./answerChecks.js";
+import { answerJudge, supabaseAnswerStore } from "./answerChecks.js";
 import { notesJudge } from "./notesChecks.js";
 import { repeatsJudge, repeatsSlip } from "./repeatsChecks.js";
 import { missingTable } from "../../src/lib/dealLog.js";
@@ -36,10 +35,20 @@ export async function evalStatus(db) {
     const ids = regressions(a.latest, a.previous, answerJudge, (c) => c.says);
     let named = [];
     if (ids.length) {
-      const { data } = await db.from("answer_reviews").select("id, typed, expected").in("id", ids);
-      named = (data || []).map((r) => `Since the last change to how Claude is asked, it gets “${r.typed}” for “${r.expected}” wrong, which it got right before.`);
+      // Both languages' verdicts: a Spanish case is in es_answer_reviews.
+      const got = await supabaseAnswerStore(db).get(ids);
+      if (got.error) { out.answers = { error: `couldn't read the cases it got wrong: ${got.error}`, regressions: [] }; }
+      else {
+        const byId = new Map((got.rows || []).map((r) => [r.id, r]));
+        named = ids.map((id) => {
+          const r = byId.get(id);
+          return r
+            ? `Since the last change to how Claude is asked, it gets “${r.typed}” for “${r.expected}” wrong, which it got right before.`
+            : `Since the last change to how Claude is asked, it gets a case wrong that it got right before (case ${id}, no longer on record).`;
+        });
+      }
     }
-    out.answers = { latest: brief(a.latest), regressions: named };
+    if (!out.answers) out.answers = { latest: brief(a.latest), regressions: named };
   }
 
   const n = await lastTwo(db, "notes");
@@ -48,14 +57,15 @@ export async function evalStatus(db) {
     const ids = regressions(n.latest, n.previous, notesJudge, (c) => c.date || "");
     let named = [];
     if (ids.length) {
-      const { data } = await db.from("parse_corrections").select("id, action, original_front, corrected_front, original_back, corrected_back").in("id", ids);
+      const { data, error } = await db.from("parse_corrections").select("id, action, original_front, corrected_front, original_back, corrected_back").in("id", ids);
+      if (error) out.notes = { error: `couldn't read the corrections it got wrong: ${error.message}`, regressions: [] };
       named = (data || []).map((c) => (c.action === "delete"
         ? `Since the last change to how your cahier is read, Claude is making “${c.original_front}” into a card again, which you deleted.`
         : c.original_front === c.corrected_front
           ? `Since the last change to how your cahier is read, Claude is writing “${c.original_back}” on “${c.corrected_front}” again, which you corrected to “${c.corrected_back}”.`
           : `Since the last change to how your cahier is read, Claude is making “${c.original_front}” again, which you corrected to “${c.corrected_front}”.`));
     }
-    out.notes = { latest: brief(n.latest), regressions: named };
+    if (!out.notes) out.notes = { latest: brief(n.latest), regressions: named };
   }
 
   // Each case carries both cards' text, since half of them (the keep-apart

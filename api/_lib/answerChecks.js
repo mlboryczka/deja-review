@@ -90,6 +90,9 @@ export const ANSWER_PROMPT_VERSION = createHash("sha1")
   .update(answerPrompt({ direction: "fr", french: "\u0001", english: "\u0004", expected: "\u0002", typed: "\u0003" }))
   .update(answerPrompt({ direction: "en", french: "\u0001", english: "\u0004", expected: "\u0002", typed: "\u0003" }))
   .update(answerPrompt({ direction: "fr", french: "\u0001", english: "\u0004", expected: "\u0002", typed: "\u0003", drill: true }))
+  // The Spanish question, both ways round: its wording changes the version too.
+  .update(answerPrompt({ direction: "fr", french: "\u0001", english: "\u0004", expected: "\u0002", typed: "\u0003", language: "Spanish" }))
+  .update(answerPrompt({ direction: "en", french: "\u0001", english: "\u0004", expected: "\u0002", typed: "\u0003", language: "Spanish" }))
   .digest("hex")
   .slice(0, 7);
 
@@ -249,6 +252,7 @@ function cases(rows, adminEmail) {
 export async function runAnswerTest({ store, apiKey, adminEmail, deadline = Infinity }) {
   const listed = await store.list();
   if (listed.missing) return { skipped: WAITING };
+  if (listed.error) return { skipped: `couldn't read the marked answers: ${listed.error}` };
   const all = cases(listed.rows || [], adminEmail);
   const chosen = all.slice(0, MAX_CASES);
   if (!chosen.length) return { skipped: "No answers to test yet." };
