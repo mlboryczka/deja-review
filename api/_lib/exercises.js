@@ -51,6 +51,10 @@ export const MARK_TIME_MS = 40 * 1000;
 // nothing pasted in by mistake is sent on.
 const MAX_TYPED = 4000;
 
+// One rule for the first marking and the second look, so they cannot drift apart:
+// the comma after an opening No is kept (the key and plain() keep it too).
+export const PUNCTUATION_RULE = "Ignore capitals and punctuation, ¿ and ¡ included, except where a comma changes the meaning: 'No, tengo tiempo' (no, I have time) is not 'No tengo tiempo'.";
+
 export const MARK_SYSTEM = `You mark one answer from an English-speaking beginner learning Latin American Spanish (Mexican usage: 'ustedes' for 'you' to several people, never 'vosotros' or 'vos'; the preterite as the everyday past). The learner is doing a written exercise from their course's worksheet, one item at a time. The course's answer key didn't have their answer, so you decide.
 
 You are given the lesson, the exercise's instruction in Spanish and in English, the sheet's example if it has one, the item, the answers the key accepts (for free writing, one example of a good answer), the lesson's text when the exercise is about it, and the learner's answer.
@@ -64,7 +68,7 @@ Verdicts:
   - One word written as two, or two as one ('por que' for 'porque', 'aveces' for 'a veces').
 - Any other missing or wrong accent, and a missing ñ, is no slip at all: the answer is 'right' if it is otherwise right ('estan' for 'están', 'esta' for the verb 'está', 'tu' for 'tú', 'como' for 'cómo', 'manana' for 'mañana').
 - 'wrong': anything else: a different word, including a different one- or two-letter word ('me' for 'se', 'de' for 'en'), a word left out or added, a word off by more than one letter, which isn't two slips ('suena' for 'sonó', 'eres' for 'es', 'despertes' for 'despiertas'), a wrong meaning, or an answer that doesn't do what the instruction asks (for example the present when the exercise asks for the preterite, unless the form is only one letter off).
-- Ignore capitals and punctuation, ¿ and ¡ included, except where a comma changes the meaning: 'No, tengo tiempo' (no, I have time) is not 'No tengo tiempo'.
+- ${PUNCTUATION_RULE}
 - For a gap item the learner typed only the words in [brackets]; judge those words in their sentence.
 - For a true-or-false item the learner already chose Verdadero or Falso correctly; judge the sentence that confirms or corrects the statement: it must agree with the lesson's text and be correct Spanish.
 
@@ -283,7 +287,7 @@ export const REVIEW_SYSTEM = `You look again at one answer from an English-speak
 You are given the lesson, the exercise's instruction in Spanish and in English, the sheet's example if it has one, the item, the answers the key accepts (for free writing, one example of a good answer), the lesson's text when the exercise is about it, the learner's answer, and how the app marked it.
 
 Verdicts:
-- 'accept': correct Spanish (or correct English, where the item asks for English) that does what the item and the instruction ask, which a Mexican Spanish teacher would accept, even if it differs from the key. Judge by the English the learner is shown: a correct translation of those English words is fine even where the key's wording or the lesson's text fits the conversation better ('Veo' for 'I see', where the text says 'Ya veo'). A missing or wrong accent, and a missing ñ, never count against it unless the accent changes a verb's tense or person. Ignore capitals and punctuation.
+- 'accept': correct Spanish (or correct English, where the item asks for English) that does what the item and the instruction ask, which a Mexican Spanish teacher would accept, even if it differs from the key. Judge by the English the learner is shown: a correct translation of those English words is fine even where the key's wording or the lesson's text fits the conversation better ('Veo' for 'I see', where the text says 'Ya veo'). A missing or wrong accent, and a missing ñ, never count against it unless the accent changes a verb's tense or person. ${PUNCTUATION_RULE}
 - 'reject': it has a real mistake.
 - 'uncertain': whether it is right depends on something the item doesn't settle.
 - For a gap item the learner typed only the words in [brackets]; judge those words in their sentence.

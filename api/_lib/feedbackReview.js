@@ -113,13 +113,17 @@ const quoted = (front, back) => `front "${front}", back "${back}"`;
 // otherwise the French deck, as every entry before Spanish was. Spanish cards
 // are numbered apart, so a Spanish row id looked up among French cards could
 // find a French card.
-export const courseOfFeedback = (row) => (row?.card_context?.course === "es" ? "es" : "fr");
+// Feedback with no card carries no course, so a page that starts with "Spanish "
+// (every Spanish page of the app does, src/FlashcardApp.jsx) counts as Spanish
+// too: Exercises, Dialogues, Lessons and Stats are all sent with no card.
+export const courseOfFeedback = (row) =>
+  row?.card_context?.course === "es" || /^Spanish\b/.test(row?.page || "") ? "es" : "fr";
 const cardsTable = (course) => (course === "es" ? "es_user_cards" : "user_cards");
 
 // Read before the feedback when it is about the Spanish module, so the review
 // judges Spanish as Spanish. Said here rather than in SYSTEM_PROMPT, whose
 // wording is the French review's and stays as it is.
-const SPANISH_NOTE = "This feedback is from the Spanish part of the app. Its cards have Latin American Spanish on the front and English on the back, built from Spanish lessons; everything said above about French applies to Spanish instead, except that Spanish answers are marked with the accents that change a verb's tense or person (\"hablo\" is wrong for \"habló\") and no other accents (\"esta\" is right for the verb \"está\"). Check every claim about Spanish yourself.";
+const SPANISH_NOTE = "This feedback is from the Spanish part of the app. Its cards have Latin American Spanish on the front and English on the back, and come from the lessons, from the student's own class notes (the caderno) and from the tutor. Everything said above about French applies to Spanish instead, except how answers are marked. On a card, small slips are forgiven, but irregular verb forms, numbers and months must be typed exactly, both ways ('sesenta', not 'sesneta'). Gender is checked only on word cards, when the student types Spanish. Only the accents that change a verb's tense or person count ('hablo' is wrong for 'habló'); no other accent does ('esta' is right for the verb 'está'). Only one answer is shown on a card. On Exercises and Dialogues an answer is marked right, almost or wrong, and an almost counts as right. Check every claim about Spanish yourself.";
 
 // What Claude is told about one entry.
 export function describeFeedback(row, card, { screenshot = false } = {}) {
