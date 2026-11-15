@@ -2,10 +2,17 @@
 //
 // An archived card keeps its row, and the row keeps where it came from:
 // `source` gains an "archived:" prefix ("archived:cahier-upload"). The deck
-// loader drops those rows, so an archived card is not studied, listed or
-// counted anywhere, and nothing about it is lost until someone deletes it:
-//
-//   delete from user_cards where source like 'archived:%';
+// loader returns those rows apart from the deck (`archived` in useUserDeck),
+// so an archived card is not studied or listed, but the rows are still used
+// and must not be deleted in bulk:
+//   - lesson sync reads them to keep a card the student removed, or a lesson
+//     card taken out, from coming back (lib/lessonSync.js);
+//   - notes matching reads them (lib/cardMatch.js);
+//   - "Replace my existing deck" restores the ones it took out itself
+//     (lib/replaceDeck.js);
+//   - the Lessons page counts them towards "cards in your deck".
+// Deleting a row also deletes every answer recorded on it (card_reviews
+// cascades), so there is no command here for deleting archived rows.
 //
 // A prefix on an existing column rather than an archived_at column, because
 // this needed no migration. Two things follow from the row still existing:

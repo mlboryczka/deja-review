@@ -40,9 +40,17 @@ export function useFsrsSettings(user, { cards, freshSeq, dir, dealtFromRef, onEs
   const [readSeq, setReadSeq] = useState(0);
   const [lastFit, setLastFit] = useState(null);
   const dailyRan = useRef(null);
+  // Bumped to read the settings again after a failed read, and when the page
+  // comes back into view, so a dropped connection doesn't leave the whole
+  // session on the starting settings.
+  const [readTry, setReadTry] = useState(0);
+  const [dayTick, setDayTick] = useState(0);
+  const failedRead = useRef(false);
+  const readFailures = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
+    let retryTimer = null;
     setRow(null);
     setSetUp(false);
     if (!userId) return;
@@ -51,15 +59,40 @@ export function useFsrsSettings(user, { cards, freshSeq, dir, dealtFromRef, onEs
         .from("fsrs_settings").select("*").eq("user_id", userId).maybeSingle();
       if (cancelled) return;
       if (error) {
-        if (!missing(error)) console.error("Load FSRS settings failed:", error);
+        if (!missing(error)) {
+          console.error("Load FSRS settings failed:", error);
+          failedRead.current = true;
+          // 5s, 10s, 20s ... up to five minutes between tries.
+          const wait = Math.min(300000, 5000 * 2 ** readFailures.current);
+          readFailures.current += 1;
+          retryTimer = setTimeout(() => setReadTry((n) => n + 1), wait);
+        }
         return;
       }
+      failedRead.current = false;
+      readFailures.current = 0;
       setRow(data || null);
       setSetUp(true);
       setReadSeq((n) => n + 1);
     })();
-    return () => { cancelled = true; };
-  }, [userId]);
+    return () => { cancelled = true; clearTimeout(retryTimer); };
+  }, [userId, readTry]);
+
+  // Coming back to the page: read the settings again if the last read failed,
+  // and look at whether a new study day has begun while it stood open.
+  useEffect(() => {
+    const onBack = () => {
+      if (document.visibilityState === "hidden") return;
+      if (failedRead.current) setReadTry((n) => n + 1);
+      if (dailyRan.current && dailyRan.current !== localISODate()) setDayTick((n) => n + 1);
+    };
+    document.addEventListener("visibilitychange", onBack);
+    window.addEventListener("focus", onBack);
+    return () => {
+      document.removeEventListener("visibilitychange", onBack);
+      window.removeEventListener("focus", onBack);
+    };
+  }, []);
 
   const reread = useCallback(async () => {
     if (!userId) return;
@@ -98,6 +131,21 @@ export function useFsrsSettings(user, { cards, freshSeq, dir, dealtFromRef, onEs
     try { localStorage.setItem(DAILY_KEY + userId, today); } catch {}
 
     (async () => {
+      // The settings as they are now: another device may have recorded days
+      // since this page read them, and the whole list is written back.
+      let current = row;
+      {
+        const { data, error } = await supabase
+          .from("fsrs_settings").select("*").eq("user_id", userId).maybeSingle();
+        if (error) {
+          // Not recorded: let the next look at the day try again.
+          dailyRan.current = null;
+          try { localStorage.removeItem(DAILY_KEY + userId); } catch {}
+          return;
+        }
+        current = data || null;
+        setRow(current);
+      }
       // Due cards left over from earlier days that the app would have dealt
       // (leftDueCards): the way the student is studying (in EN→FR, a word due
       // only French side up isn't waiting), a word's other way held back for
@@ -105,11 +153,13 @@ export function useFsrsSettings(user, { cards, freshSeq, dir, dealtFromRef, onEs
       // the Cards page's own choice of cards).
       const dealtFrom = dealtFromRef?.current;
       const behind = leftDueCards(dealtFrom ? dealtFrom(cards) : cards, { direction: dir });
-      const days = recordStudyDay(row?.days, today, behind);
+      const days = recordStudyDay(current?.days, today, behind);
       const fields = { days };
-      if ((row?.target_mode ?? "auto") === "auto") {
-        const target = targetOf(row);
-        const next = nextAutoTarget({ target, days, changedAt: row?.target_changed_at ?? null, today });
+      if ((current?.target_mode ?? "auto") === "auto") {
+        const target = targetOf(current);
+        // The wait is counted in the student's study days, like `today`.
+        const changedAt = current?.target_changed_at ? localISODate(new Date(current.target_changed_at)) : null;
+        const next = nextAutoTarget({ target, days, changedAt, today });
         if (next !== target) Object.assign(fields, { target: next, target_changed_at: new Date().toISOString() });
       }
       await save(fields);
@@ -135,16 +185,19 @@ export function useFsrsSettings(user, { cards, freshSeq, dir, dealtFromRef, onEs
       }
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, setUp, readSeq, freshSeq, daily]);
+  }, [userId, setUp, readSeq, freshSeq, daily, dayTick]);
 
   // The student's own choice. Automatic starts again from 90%.
   const setChoice = useCallback((choice) => {
     if (!(choice in TARGET_CHOICES)) return null;
+    // Pressing the option already chosen changes nothing: an automatic target
+    // that has eased keeps its place, and the week's wait isn't restarted.
+    if (row && choice === choiceOf(row)) return null;
     if (choice === "auto") {
       return save({ target_mode: "auto", target: DEFAULT_TARGET, target_changed_at: new Date().toISOString() });
     }
     return save({ target_mode: "fixed", target: TARGET_CHOICES[choice], target_changed_at: new Date().toISOString() });
-  }, [save]);
+  }, [save, row]);
 
   return {
     setUp,

@@ -164,6 +164,12 @@ export function useUserDeck(user, { table = "user_cards", store = user?.id } = {
   // The table isn't there: the Spanish deck before migration_020 is run.
   const [missing, setMissing] = useState(false);
   const [reloadCounter, setReloadCounter] = useState(0);
+  // The deck could not be read, and it is tried again (5s, 10s, 20s ... up to
+  // five minutes). While this is set the deck on screen may be the browser's
+  // old copy, so FlashcardApp says so.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const loadFailures = useRef(0);
+  const retryTimer = useRef(null);
   // The user whose deck is currently on screen. A refetch for that same user
   // (reload() after an edit, a delete, an upload, a card added from the tutor
   // chat) is a *background* refetch: it must not flip `loaded` back off.
@@ -196,12 +202,17 @@ export function useUserDeck(user, { table = "user_cards", store = user?.id } = {
     }
     // A cached deck counts as loaded: the refetch below is then a background
     // refresh, exactly like a reload after an edit.
-    const cached = readCache(storeId);
+    // Only on the first load for this user: a reload (an edit, "Check
+    // again") must keep the deck in memory, answers given since the last
+    // fetch included, until the refetch lands. The browser's copy is only as
+    // new as that fetch.
+    const known = loadedForUser.current === userId;
+    const cached = known ? null : readCache(storeId);
     if (cached) {
       setCards(cached);
       setLoaded(true);
       loadedForUser.current = userId;
-    } else if (loadedForUser.current !== userId) {
+    } else if (!known) {
       setLoaded(false);
     }
     (async () => {
@@ -257,6 +268,11 @@ export function useUserDeck(user, { table = "user_cards", store = user?.id } = {
           setCards((prev) => (prev.length ? prev : []));
           setLoaded(true);
           loadedForUser.current = userId;
+          setLoadFailed(true);
+          clearTimeout(retryTimer.current);
+          retryTimer.current = setTimeout(() => setReloadCounter((n) => n + 1),
+            Math.min(300000, 5000 * 2 ** loadFailures.current));
+          loadFailures.current += 1;
           return;
         }
         allRows = allRows.concat(data || []);
@@ -280,6 +296,8 @@ export function useUserDeck(user, { table = "user_cards", store = user?.id } = {
         if (w.at < hourAgo) localAnswers.current.delete(rowId);
         else mine.set(rowId, w.cols);
       }
+      loadFailures.current = 0;
+      setLoadFailed(false);
       setCards(withLocalAnswers(shaped, mine));
       setFetched((f) => ({ seq: f.seq + 1, at: startedAt }));
       setLoaded(true);
@@ -290,6 +308,7 @@ export function useUserDeck(user, { table = "user_cards", store = user?.id } = {
 
     return () => {
       cancelled = true;
+      clearTimeout(retryTimer.current);
     };
   }, [userId, storeId, table, reloadCounter]);
 
@@ -342,5 +361,5 @@ export function useUserDeck(user, { table = "user_cards", store = user?.id } = {
     try { if (storeId) localStorage.removeItem(CACHE_PREFIX + storeId); } catch {}
   }, [storeId]);
 
-  return { cards, archived, loaded, missing, reload, patch, patchAll, add, drop, freshSeq: fetched.seq, fetchedAt: fetched.at };
+  return { cards, archived, loaded, missing, reload, patch, patchAll, add, drop, freshSeq: fetched.seq, fetchedAt: fetched.at, loadFailed };
 }

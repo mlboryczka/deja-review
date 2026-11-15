@@ -101,7 +101,7 @@ export async function fitUser({ admin, userId, timeZone, now = Date.now(), optim
 
   if (fitDue({ answers, checkedAt: row?.fit_checked_at, checkedAnswers: row?.fit_checked_answers, now })) {
     const opt = optimizer || (await import("@open-spaced-repetition/binding"));
-    fit = await tryFit(opt, sequences, weights);
+    fit = await tryFit(opt, sequences, weights, usableWeights(row?.weights) ? Date.parse(row.fitted_at) : null);
     const at = new Date(now).toISOString();
     // The kind of settings in use after this try, kept with its result:
     // settingsKind() reads it back.
@@ -146,13 +146,27 @@ export async function fitUser({ admin, userId, timeZone, now = Date.now(), optim
 // A tie between the two goes to "first-gaps", which changes less. Fitted with
 // FSRS's same-day rule on: the repeat after a miss counts since 2026-10-14,
 // and its weights (w17–w19) are fitted from those repeats like the rest.
-async function tryFit(opt, sequences, current) {
+//
+// When the settings in use are themselves a fit (`fittedAtMs`), the test is
+// the newest fifth of the answers given AFTER that fit, so neither set of
+// settings was made from an answer it is judged on; the new fit trains on
+// everything before the test, the answers since the old fit included. With
+// too few answers since, the try waits (and is still recorded by the caller).
+export function testStart(itemTimes, fittedAtMs) {
+  const n = itemTimes.length;
+  if (!Number.isFinite(fittedAtMs)) return Math.floor(n * 0.8);
+  const firstAfter = itemTimes.findIndex((t) => t > fittedAtMs);
+  if (firstAfter < 0) return n;
+  return firstAfter + Math.floor((n - firstAfter) * 0.8);
+}
+
+async function tryFit(opt, sequences, current, fittedAtMs = null) {
   const items = [];
   for (const s of sequences) {
     for (let k = 1; k < s.length; k++) items.push({ reviews: s.slice(0, k + 1), at: s[k].at });
   }
   items.sort((a, b) => a.at - b.at);
-  const cut = Math.floor(items.length * 0.8);
+  const cut = testStart(items.map((it) => it.at), fittedAtMs);
   const toItems = (list) => list.map((it) =>
     new opt.FSRSBindingItem(it.reviews.map((r) => new opt.FSRSBindingReview(r.rating, r.deltaT))));
   const train = toItems(items.slice(0, cut));

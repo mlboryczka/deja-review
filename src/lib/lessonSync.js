@@ -137,6 +137,9 @@ export function reconcileLessons(lessons, deckCards, archivedCards = []) {
   const ownCards = [...(deckCards || []), ...outOfStudy].filter((card) => !lessonIdOf(card));
   const own = new Set(ownCards.map((card) => card.f));
   const ownIndex = cardIndex(ownCards.map((card) => ({ front: card.f, back: card.b, source: card.source })));
+  // Every front the deck has, in study or out of it: the database allows one
+  // card per front, so a card cannot be renamed onto one of them.
+  const allFronts = new Set([...(deckCards || []), ...outOfStudy].map((card) => card.f));
   const ownHas = (c) => own.has(c.f) || !!ownIndex.sure({ front: c.f, back: c.b });
 
   for (const lesson of lessons) {
@@ -158,7 +161,10 @@ export function reconcileLessons(lessons, deckCards, archivedCards = []) {
           claimed.add(stored);
           const c = want.get(stored);
           if (c.was && card.f === c.was && card.row_id != null) {
-            retext.push({ row_id: card.row_id, front: c.f, back: c.b });
+            // The new wording is already a card of the student's: the rename
+            // would be refused by the database and stop the whole update.
+            if (allFronts.has(c.f) || ownHas(c)) taken.push({ lesson: lesson.id, front: c.f });
+            else retext.push({ row_id: card.row_id, front: c.f, back: c.b });
           } else if (c.wasBack && card.f === c.f && card.b === c.wasBack && card.row_id != null) {
             // The lesson corrected the English it shows (a sixth element, the
             // back it used to have): written to rows still showing the old

@@ -285,7 +285,7 @@ export function simulate({
     const behind = leftDueCards(deck, { now, direction });
     settings.days = recordStudyDay(settings.days, today, behind);
     if (settings.target_mode === "auto") {
-      const next = nextAutoTarget({ target: settings.target, days: settings.days, changedAt: settings.target_changed_at, today });
+      const next = nextAutoTarget({ target: settings.target, days: settings.days, changedAt: settings.target_changed_at ? localISODate(new Date(settings.target_changed_at)) : null, today });
       if (next !== settings.target) {
         settings.target = next;
         settings.target_changed_at = new Date(now).toISOString();
