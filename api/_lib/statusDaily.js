@@ -10,8 +10,8 @@
 //   once a day, from /api/cahier-daily's second schedule (vercel.json), and
 //   the results kept in status_reports (migration_015);
 //
-//   when the owner presses "Check everyone now" in the Status window, through
-//   /api/admin-users?view=status&run=1.
+//   by the daily run, and by the morning check (scripts/status-check.mjs
+//   --everyone --record).
 //
 // The morning check on the owner's Mac (scripts/status-check.mjs --everyone)
 // runs the same checks, read-only, and reads the kept reports.
@@ -116,6 +116,12 @@ export async function loadStudent(db, student, { course = "fr" } = {}) {
   };
 }
 
+// The time zone rows saved without one are read in: the student's latest, from
+// the answer answered last (answers are in id order, which is random).
+export function latestZoneOf(answers) {
+  return answers.reduce((best, r) => (r.time_zone && (!best || Date.parse(r.answered_at) >= Date.parse(best.answered_at)) ? r : best), null)?.time_zone || null;
+}
+
 // The checks on a loaded record, as the report kept for it. `examples`: how
 // many lines of each check to keep (the checks' own default when left out);
 // the morning check on the Mac asks for all, so none goes unraised.
@@ -123,7 +129,7 @@ export function reportFor(rec, { now = Date.now(), examples, rulesFrom } = {}) {
   const { student } = rec;
   if (rec.error) return { user_id: student.id, user_email: student.email, ok: false, error: rec.error };
   // Rows saved without a time zone are read in the student's latest one.
-  const latestZone = [...rec.answers].reverse().find((r) => r.time_zone)?.time_zone || null;
+    const latestZone = latestZoneOf(rec.answers);
   const report = runStatusChecks({
     answers: rec.answers,
     cards: rec.cards,
@@ -183,7 +189,7 @@ export async function checkEveryone(db, { now = Date.now(), judge = null, exampl
   const loaded = [];
   if (course !== "fr") judge = null;
   for (const student of await listStudents(db)) {
-    if (only && !only.has(student.email)) continue;
+    if (only && !only.has(student.email) && !only.has(student.id)) continue;
     try {
       const rec = await loadStudent(db, student, { course });
       if (rec) loaded.push(rec);

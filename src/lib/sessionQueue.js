@@ -142,10 +142,10 @@ export const addedByStudent = (card) =>
 // (addedByStudent: the tutor chat, a podcast passage) came up in no class, so
 // it is dated by the day it was added: it counts as recent for two weeks,
 // then joins the older pile as a word seen once.
-export function classDaysOf(card) {
+export function classDaysOf(card, dayOf = localISODate) {
   if (addedByStudent(card) && card.created_at) {
     const t = new Date(card.created_at);
-    if (!Number.isNaN(t.getTime())) return [localISODate(t)];
+    if (!Number.isNaN(t.getTime())) return [dayOf(t)];
   }
   return (Array.isArray(card?.dates) ? card.dates : []).filter(
     (d) => typeof d === "string" && ISO_DAY.test(d)

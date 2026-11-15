@@ -889,6 +889,26 @@ console.log("\n  nothing deleted, removed or corrected back");
   ck("  and when there was nothing to ask, says why", /none put to Claude this morning \(waiting for the database update/.test(judgingText({ asked: 0, left: 0, skipped: "waiting for the database update (migration_016)" })));
 }
 
+console.log("\n  code check 81, 82, 87, 91");
+{
+  const { classDaysOf } = await import("../../src/lib/sessionQueue.js");
+  const card = { source: "tutor-chat", created_at: "2026-11-06T07:00:00Z", dates: [] };
+  const paris = (t) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(t);
+  const la = (t) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles" }).format(t);
+  ck("a tutor card is dated by the zone it is given, not the process's",
+     classDaysOf(card, paris)[0] === "2026-11-06" && classDaysOf(card, la)[0] === "2026-11-05");
+  const rec = simulate({ days: 40, seed: 7, cards: 260, student: "typical" });
+  const bad = rec.answers.map((a, i) => (a.counted && a.state_before === 2 && i % 40 === 0 ? { ...a, difficulty_after: (a.difficulty_after ?? 5) + 2 } : a));
+  const r = check({ ...rec, answers: bad }).results.find((x) => x.id === "scheduling" || /scheduled the way FSRS/.test(x.title));
+  ck("an FSRS mismatch in difficulty names the difficulty, not the same stability twice",
+     r.status === "fail" && r.details.some((d) => /its difficulty came out as/.test(d)) && !r.details.some((d) => /memory estimate came out as ([\d.]+) days, where FSRS gives \1 days/.test(d)), r.details?.[0]);
+  const es = check(rec, { course: "es" }).results.find((x) => x.id === "own-settings");
+  ck("on the Spanish deck, own settings aren't judged, and it says why", es.status === "wait" && /French/.test(es.summary), es.summary);
+  const { latestZoneOf } = await import("../../api/_lib/statusDaily.js");
+  ck("the latest zone is that of the answer answered last, whatever the id order",
+     latestZoneOf([{ answered_at: "2026-11-02T10:00:00Z", time_zone: "Europe/Paris" }, { answered_at: "2026-11-01T10:00:00Z", time_zone: "America/Los_Angeles" }, { answered_at: "2026-11-03T10:00:00Z", time_zone: null }]) === "Europe/Paris");
+}
+
 const n = ck.fails();
 console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
 process.exit(n ? 1 : 0);

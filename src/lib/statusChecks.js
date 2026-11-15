@@ -307,7 +307,17 @@ function checkScheduling(idx, ctx) {
     const inSpread = gotDays >= want.spread.min_ivl && gotDays <= want.spread.max_ivl;
     if (gotDays === want.days) exact++;
     if (!sOk || !dOk) {
-      bad.push(`${nameOf(idx, r.card_id, r.direction)} on ${when(ms(r.answered_at), tz)}: its memory estimate came out as ${r.stability_after?.toFixed(1)} days, where FSRS gives ${want.stability.toFixed(1)}.`);
+      // Name the figure that is off, with enough decimals to tell them apart.
+      const who = `${nameOf(idx, r.card_id, r.direction)} on ${when(ms(r.answered_at), tz)}`;
+      if (!sOk) {
+        const a = Number(r.stability_after), b = want.stability;
+        const digits = a.toFixed(1) === b.toFixed(1) ? 3 : 1;
+        bad.push(`${who}: its memory estimate came out as ${a.toFixed(digits)} days, where FSRS gives ${b.toFixed(digits)}.`);
+      } else {
+        const a = Number(r.difficulty_after), b = want.difficulty;
+        const digits = a.toFixed(1) === b.toFixed(1) ? 3 : 1;
+        bad.push(`${who}: its difficulty came out as ${a.toFixed(digits)}, where FSRS gives ${b.toFixed(digits)}.`);
+      }
     } else if (gotDays !== want.days && !inSpread) {
       bad.push(`${nameOf(idx, r.card_id, r.direction)} on ${when(ms(r.answered_at), tz)}: comes back in ${plural(gotDays, "day")}, where FSRS says ${plural(want.days, "day")}.`);
     }
@@ -586,7 +596,7 @@ function checkDueFirst(idx, ctx) {
 // Where a new card comes in the agreed order (sessionQueue's orderNewCards),
 // as a sort key: lower comes first. Cards with equal keys are shuffled.
 // `has` says which of its class dates count: those the app knew of then.
-function newCardKey(card, { lessonMode, cutoff, lessonRank }, has = () => true) {
+function newCardKey(card, { lessonMode, cutoff, lessonRank, dayOf }, has = () => true) {
   const rank = lessonRank ? lessonRank(card) : null;
   const r = Number.isFinite(rank) ? rank : Infinity;
   if (lessonMode) return [r];
@@ -594,7 +604,7 @@ function newCardKey(card, { lessonMode, cutoff, lessonRank }, has = () => true) 
   // A card the student added (the tutor, a podcast passage) is dated by the
   // day it was added, which the app always knew: not a class whose notes may
   // not have arrived yet.
-  const days = classDaysOf(card).filter((d) => addedByStudent(card) || has(d)).sort();
+  const days = classDaysOf(card, dayOf).filter((d) => addedByStudent(card) || has(d)).sort();
   if (!days.length) return [2];
   const latest = days[days.length - 1];
   if (latest >= cutoff) return [0, -labelNo(latest), -days.length];
@@ -625,7 +635,10 @@ function checkNewOrder(idx, ctx) {
     const today = dayNo(at, tz);
     const { items, lessonMode } = candidateItems(idx, d, at, ctx.course);
     const cutoff = dayIso(today - RECENT_DAYS);
-    const opts = { lessonMode, cutoff, lessonRank: ctx.lessonRank };
+    // A card the student added is dated by the set's own time zone, as the
+    // student's app dates it, not the zone this script happens to run in.
+    const dayOf = (t) => dayIso(dayNo(t.getTime(), tz));
+    const opts = { lessonMode, cutoff, lessonRank: ctx.lessonRank, dayOf };
     // The class dates the app knew of when it dealt the set. A date after
     // the set's day it can't have (notes come after the class); one whose
     // notes had arrived it had; any other is uncertain, and an order that
@@ -655,7 +668,7 @@ function checkNewOrder(idx, ctx) {
       said: saidThen(card, x),
       changed: changed(card),
       unplaced: unplaced(card),
-      unsure: addedByStudent(card) ? [] : classDaysOf(card).filter((iso) => known(iso) === "maybe"),
+      unsure: addedByStudent(card) ? [] : classDaysOf(card, dayOf).filter((iso) => known(iso) === "maybe"),
       key: newCardKey(card, opts, sure),
     });
     // Among earlier notes, two counted cards come most said first; two
@@ -805,11 +818,15 @@ function checkDealt(idx, ctx) {
   let checked = 0;
   let prev = null;
   const setsByDay = new Map();
+  const allSets = [];
   for (const d of idx.sets) {
     const day = dayNo(ms(d.dealt_at), idx.tzOf(d));
     if (!setsByDay.has(day)) setsByDay.set(day, []);
-    setsByDay.get(day).push({ t: ms(d.dealt_at), keys: new Set([...(d.items || []), ...(d.kept || [])].map((x) => keyOf(x.c, x.d))) });
+    const entry = { t: ms(d.dealt_at), keys: new Set([...(d.items || []), ...(d.kept || [])].map((x) => keyOf(x.c, x.d))) };
+    setsByDay.get(day).push(entry);
+    allSets.push(entry);
   }
+  allSets.sort((a, b) => a.t - b.t);
   for (const r of idx.rows) {
     if (!ctx.inWindow(r)) { prev = r; continue; }
     const at = ms(r.answered_at);
@@ -823,7 +840,16 @@ function checkDealt(idx, ctx) {
     checked++;
     const today = dayNo(at, tz);
     const k = keyOf(r.card_id, r.direction);
-    const inASet = (setsByDay.get(today) || []).some((d) => d.t <= at + 1000 && d.keys.has(k));
+    // A set dealt before 4am is still on screen after it until the app deals
+    // the next one, so when no set came in between, the last set of an
+    // earlier day counts too.
+    const sameDay = setsByDay.get(today) || [];
+    let inASet = sameDay.some((d) => d.t <= at + 1000 && d.keys.has(k));
+    if (!inASet && !sameDay.some((d) => d.t <= at + 1000)) {
+      const earlier = allSets.filter((d) => d.t <= at + 1000);
+      const still = earlier[earlier.length - 1];
+      inASet = !!still && still.keys.has(k);
+    }
     if (!inASet) bad.push(`${nameOf(idx, r.card_id, r.direction)} was asked on ${when(at, tz)} without being in any set dealt that day.`);
   }
   if (!checked && !bad.length) return { ...out, status: "wait", summary: ctx.dealsOn ? "No answers to check yet." : ctx.dealsWaiting, details: [] };
@@ -985,6 +1011,9 @@ function checkFirstGaps(idx, ctx) {
 function checkOwnSettings(idx, ctx) {
   const out = { id: "own-settings", title: "Your own settings were tried when due" };
   const s = ctx.settings;
+  // The Spanish deck never asks for a try: settings are fitted from French
+  // answers only (api/fsrs-fit.js), so Spanish answers can't be judged here.
+  if (ctx.course === "es") return { ...out, status: "wait", summary: "The Spanish deck uses the French deck's settings, which are tried from French answers and judged in the French report.", details: [] };
   const counted = idx.rows.filter((r) => r.counted);
   if (!s) return { ...out, status: "wait", summary: "No settings on record yet.", details: [] };
   if (!counted.length) return { ...out, status: "wait", summary: "No answers yet.", details: [] };
