@@ -4,13 +4,12 @@
 //   node scripts/resolve-disputes.mjs            # adjudicate, write nothing
 //   node scripts/resolve-disputes.mjs --apply    # and record the outcomes
 //
-// A dispute is raised from the study view and adjudicated by /api/review-answer
-// there and then — but only while that request succeeds. Anything that timed
-// out, was raised before the endpoint existed, or was left at "uncertain" sits
-// unresolved in feedback_submissions with nobody looking at it.
+// This only clears an OLD backlog left in feedback_submissions. A dispute is
+// now raised from the study view and settled by /api/review-answer there and
+// then; nothing writes feedback_submissions any more (since 2026-04-15).
 //
-// For each pending row this asks Claude the same question the endpoint asks,
-// and then:
+// For each pending row this asks Claude the app's own question (the code the
+// endpoint uses), and then:
 //   accept    → the answer is added to card_alternates, so it is accepted from
 //               now on, and the row is marked approved
 //   reject    → the row is marked rejected, with the reasoning recorded
@@ -29,7 +28,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import Anthropic from "@anthropic-ai/sdk";
+import { askClaude, isDrillCard } from "../api/_lib/answerChecks.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const APPLY = process.argv.includes("--apply");
@@ -63,59 +62,26 @@ const db = (p, init = {}) =>
     },
   });
 
-// Same question /api/review-answer asks, and the same narrowness: this decides
-// whether ONE typed answer was acceptable for ONE card, not whether the card is
-// any good.
-const VERDICT_TOOL = {
-  name: "record_verdict",
-  description: "Record whether the learner's typed answer should have been accepted.",
-  input_schema: {
-    type: "object",
-    properties: {
-      verdict: {
-        type: "string",
-        enum: ["accept", "reject", "uncertain"],
-        description:
-          "accept if it is a correct rendering of the card, reject if it is wrong, uncertain if it genuinely turns on something you cannot see.",
-      },
-      reasoning: { type: "string", description: "One sentence the learner will read." },
-    },
-    required: ["verdict", "reasoning"],
-  },
-};
-
-const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
-
+// The app's own question, asked through the app's own code (askClaude and
+// answerPrompt in api/_lib/answerChecks.js): the same prompt, model and rules
+// as a dispute raised in the app today, correct gender included. It decides
+// whether ONE typed answer was acceptable for ONE card.
+// Its verdicts are not written to answer_reviews: that table is what the
+// owner's tests read, and an old refusal saved there would read as a call the
+// owner made. Only card_alternates and feedback_submissions are written.
 async function adjudicate(row) {
-  const asked = row.direction === "fr" ? row.card_front : row.card_back;
   const expected = row.direction === "fr" ? row.card_back : row.card_front;
-
-  const msg = await anthropic.messages.create({
-    model: "claude-opus-5",
-    max_tokens: 1000,
-    system:
-      "You adjudicate a single flashcard answer for an English-speaking learner of French. " +
-      "Accept an answer that means the same thing as the expected one — a synonym, a different " +
-      "register, a missing article where the card's own front does not supply one, a spelling " +
-      "slip that leaves the word unambiguous. Reject a different word, a wrong gender where the " +
-      "card is teaching gender, or a guess that happens to be close. Be decisive; reserve " +
-      "'uncertain' for a genuine ambiguity in the card itself.",
-    tools: [VERDICT_TOOL],
-    tool_choice: { type: "tool", name: "record_verdict" },
-    messages: [
-      {
-        role: "user",
-        content:
-          `Card: ${row.card_front}  —  ${row.card_back}\n` +
-          `Shown: ${asked}\nExpected: ${expected}\nThey typed: ${row.user_answer}`,
-      },
-    ],
+  const r = await askClaude({
+    apiKey: ANTHROPIC_API_KEY,
+    direction: row.direction,
+    french: row.card_front,
+    english: row.card_back,
+    expected,
+    typed: row.user_answer,
+    language: "French",
+    drill: isDrillCard({ direction: row.direction, french: row.card_front }),
   });
-
-  const call = (msg.content || []).find(
-    (b) => b.type === "tool_use" && b.name === "record_verdict"
-  );
-  return call?.input || null;
+  return r.readable ? { verdict: r.verdict, reasoning: r.reasoning } : null;
 }
 
 // SETTLED, 2026-09-12: the live table has `status`

@@ -4,11 +4,10 @@
 //   node scripts/fix-multi-sense.mjs            # scan + audit, write nothing
 //   node scripts/fix-multi-sense.mjs --apply    # and perform the writes
 //
-// The machinery for this has existed for a while — the scanner in
-// src/lib/multiSense.js, the audit in api/_lib/splitSenses.js, the writer in
-// api/_lib/applySplits.js — but nothing ever invoked it. The UI that drove it was
-// removed on the grounds that deck maintenance is not a task to hand a
-// student, which left it with no caller at all. This is the caller.
+// The shortlist is src/lib/multiSense.js (its own 0.3 threshold), the audit's
+// prompt and schema are api/_lib/splitSenses.js, and the writes are
+// scripts/lib/multiSenseWrites.mjs. Nothing else runs them: the profile-menu
+// window that once drove this was removed (2026-09-08).
 //
 // It talks to Supabase and Anthropic directly rather than through the
 // serverless functions, because those require a signed-in browser session.
@@ -23,7 +22,10 @@
 // sense and keeps its history — it is still the card you have been studying,
 // with the other headword's glosses removed. The remaining senses are new rows
 // starting from New, which is honest: you have never been tested on them
-// alone. They take the original's class dates, as api/_lib/applySplits.js does.
+// alone. They take the original's class dates. The new senses are written first, so a
+// failure leaves the original as it was; the original is then rewritten only
+// while it still has the front it had when the deck was read. The script does
+// its own writes, so it does not carry the original's batch_id over.
 //
 // What it never does (fixed 2026-09-29; before, --apply could have):
 //   • overwrite a card. A new sense whose front the deck already has is not
@@ -41,6 +43,9 @@ import Anthropic from "@anthropic-ai/sdk";
 import { findMultiSenseCards } from "../src/lib/multiSense.js";
 import { ARCHIVE_PREFIX } from "../src/lib/archive.js";
 import { SYSTEM_PROMPT, REPORT_TOOL, MODEL, MAX_CARDS } from "../api/_lib/splitSenses.js";
+import { CAT_DB_TO_UI } from "../src/lib/cardCategories.js";
+import { cardIndex } from "../src/lib/sameCard.js";
+import { applySplit, holderOf, dbCategory } from "./lib/multiSenseWrites.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const APPLY = process.argv.includes("--apply");
@@ -101,7 +106,8 @@ async function audit(batch) {
     row_id: String(c.id),
     front: c.front,
     back: c.back,
-    category: c.category,
+    // The audit prompt names the long forms (vocab, expr, gram, pron).
+    category: CAT_DB_TO_UI[c.category] || c.category,
   }));
 
   const msg = await anthropic.messages.create({
@@ -138,40 +144,7 @@ function usable(result, original) {
   return true;
 }
 
-// ── 3. the writes ───────────────────────────────────────────────────────────
-// `adds` are only the senses the deck doesn't already have (see the plan).
-async function applySplit(original, first, adds) {
-  const upd = await db(`user_cards?id=eq.${original.id}`, {
-    method: "PATCH",
-    headers: { Prefer: "return=minimal" },
-    body: JSON.stringify({
-      front: first.front.trim(),
-      back: first.back.trim(),
-      category: first.category || original.category,
-    }),
-  });
-  if (!upd.ok) throw new Error(`update ${original.id}: ${upd.status} ${await upd.text()}`);
-  if (!adds.length) return 0;
-
-  // A plain insert, never an upsert: a front that is already there makes this
-  // fail instead of overwriting that card's answer, dates and source.
-  const ins = await db("user_cards", {
-    method: "POST",
-    headers: { Prefer: "return=minimal" },
-    body: JSON.stringify(
-      adds.map((c) => ({
-        user_id: original.user_id,
-        front: c.front.trim(),
-        back: c.back.trim(),
-        category: c.category || original.category,
-        dates: Array.isArray(original.dates) ? original.dates : [],
-        source: "sense-split",
-      }))
-    ),
-  });
-  if (!ins.ok) throw new Error(`insert for ${original.id}: ${ins.status} ${await ins.text()}`);
-  return adds.length;
-}
+// ── 3. the writes: scripts/lib/multiSenseWrites.mjs ─────────────────────────
 
 // ── run ─────────────────────────────────────────────────────────────────────
 const deck = await loadDeck();
@@ -191,15 +164,16 @@ const suspects = findMultiSenseCards(inStudy);
 console.log(`Shortlisted by the local scanner: ${suspects.length}`);
 if (!suspects.length) process.exit(0);
 
-// Every front each student has, archived and lesson cards included, so no
-// split is planned onto a card that is already there. Kept up to date as the
-// plan goes, so two splits in one run can't both add the same front.
-const frontKey = (f) => String(f || "").trim().toLowerCase();
-const frontsByUser = new Map();
+// Every card each student has, archived and lesson cards included, indexed the
+// way the rest of the app decides two cards are the same (src/lib/sameCard.js),
+// so no split is planned onto a card that is already there. Kept up to date as
+// the plan goes, so two splits in one run can't both add the same sense.
+const indexByUser = new Map();
 for (const c of deck) {
-  if (!frontsByUser.has(c.user_id)) frontsByUser.set(c.user_id, new Set());
-  frontsByUser.get(c.user_id).add(frontKey(c.front));
+  if (!indexByUser.has(c.user_id)) indexByUser.set(c.user_id, []);
+  indexByUser.get(c.user_id).push(c);
 }
+for (const [u, rows] of indexByUser) indexByUser.set(u, cardIndex(rows));
 
 const byId = new Map(suspects.map((r) => [String(r.id), r]));
 const plans = [];
@@ -208,6 +182,7 @@ let kept = 0;
 let newCards = 0;
 let refused = 0;
 let alreadyThere = 0;
+let halfDone = 0;
 
 for (let i = 0; i < suspects.length; i += MAX_CARDS) {
   const batch = suspects.slice(i, i + MAX_CARDS);
@@ -233,24 +208,28 @@ for (let i = 0; i < suspects.length; i += MAX_CARDS) {
       }
       continue;
     }
-    const fronts = frontsByUser.get(original.user_id);
+    const index = indexByUser.get(original.user_id);
     const [first, ...rest] = r.cards;
-    if (frontKey(first.front) !== frontKey(original.front) && fronts.has(frontKey(first.front))) {
+    const clash = holderOf(index, original, first);
+    if (clash) {
       refused++;
-      console.log(`    ~ refused: "${first.front}" is already another card — ${original.front}`);
+      console.log(`    ~ refused: "${first.front}" is already another card ("${clash.front}") — ${original.front}`);
       continue;
     }
-    const adds = rest.filter((c) => !fronts.has(frontKey(c.front)));
-    const skipped = rest.filter((c) => fronts.has(frontKey(c.front)));
+    const adds = [];
+    const skipped = [];
+    for (const c of rest) {
+      const held = holderOf(index, original, c);
+      if (held) { skipped.push(c); continue; }
+      adds.push(c);
+      index.add({ user_id: original.user_id, front: c.front.trim(), back: c.back.trim(), source: "sense-split" });
+    }
     alreadyThere += skipped.length;
-    fronts.delete(frontKey(original.front));
-    fronts.add(frontKey(first.front));
-    for (const c of adds) fronts.add(frontKey(c.front));
     plans.push({ original, first, adds });
     splits++;
     console.log(`    ✂ ${original.front}  [${original.back}]`);
-    console.log(`        → ${first.front}  —  ${first.back}   (this card, history kept)`);
-    for (const c of adds) console.log(`        → ${c.front}  —  ${c.back}   (new card)`);
+    console.log(`        → ${first.front}  —  ${first.back}   [${dbCategory(first.category, original.category)}]  (this card, history kept)`);
+    for (const c of adds) console.log(`        → ${c.front}  —  ${c.back}   [${dbCategory(c.category, original.category)}]  (new card)`);
     for (const c of skipped) console.log(`        (not added: "${c.front}" is already a card in this deck)`);
     console.log(`        (${r.reason})`);
   }
@@ -272,9 +251,15 @@ if (APPLY && plans.length) {
 
   for (const { original, first, adds } of plans) {
     try {
-      newCards += await applySplit(original, first, adds);
+      const { added, half } = await applySplit(db, original, first, adds);
+      newCards += added;
+      if (half) {
+        halfDone++;
+        splits--;
+        console.log(`    HALF DONE for ${original.front}: ${half}`);
+      }
     } catch (e) {
-      console.log(`    WRITE FAILED for ${original.front}: ${e.message}`);
+      console.log(`    WRITE FAILED for ${original.front}: ${e.message} (nothing changed on this card)`);
       splits--;
     }
   }
@@ -284,6 +269,7 @@ if (APPLY && plans.length) {
 
 console.log(
   `\n${APPLY ? "Applied" : "Would apply"}: ${splits} split(s), ${newCards} new card(s). ` +
-    `Kept ${kept}. Refused ${refused}. Senses already in the deck, not added: ${alreadyThere}.`
+    `Kept ${kept}. Refused ${refused}. Senses already in the deck, not added: ${alreadyThere}.` +
+    (halfDone ? ` HALF DONE: ${halfDone} (senses added, original not rewritten: see above).` : "")
 );
 if (!APPLY) console.log("Nothing was written. Re-run with --apply to perform it.");

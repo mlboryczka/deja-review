@@ -34,7 +34,24 @@ const APPLY = args.includes("--apply");
 const ALL = args.includes("--all");
 const noteAt = args.indexOf("--note");
 const NOTE = noteAt >= 0 ? args[noteAt + 1] : null;
-const IDS = args.filter((a, i) => /^\d+$/.test(a) && (noteAt < 0 || i !== noteAt + 1)).map(Number);
+// Ids are numbers, written 57, #57 or 42,43. Anything else is refused by name,
+// so a run with --apply cannot quietly resolve nothing and say it went well.
+const ID_ARG = /^#?\d+(,#?\d+)*$/;
+const rest = args.filter((a, i) => !(noteAt >= 0 && i === noteAt + 1));
+const odd = rest.filter((a) => !["--apply", "--all", "--note"].includes(a) && !ID_ARG.test(a));
+if (odd.length) {
+  console.error(`Not understood: ${odd.join(", ")}. Give feedback ids as numbers (57, #57 or 42,43), plus --note "…", --apply or --all.`);
+  process.exit(1);
+}
+if (noteAt >= 0 && (NOTE === undefined || NOTE === null || NOTE.startsWith("--"))) {
+  console.error('--note needs the note after it: --note "what was done".');
+  process.exit(1);
+}
+const IDS = rest.filter((a) => ID_ARG.test(a)).flatMap((a) => a.split(",")).map((a) => Number(a.replace("#", "")));
+if (APPLY && !ALL && IDS.length === 0) {
+  console.error("--apply needs at least one feedback id, or --all.");
+  process.exit(1);
+}
 
 for (const file of [".env.local", ".env"]) {
   const p = path.join(ROOT, file);

@@ -6,8 +6,8 @@
 // unrelated headwords. That card can't be studied (there is no single right
 // answer) and FSRS can't schedule it (there is no single "did you recall it").
 //
-// This is the cheap first pass: it runs over the whole deck in the browser and
-// shortlists the cards worth sending to Claude, so a 9,000-card deck costs one
+// This is the cheap first pass: scripts/fix-multi-sense.mjs runs it over the
+// whole deck and shortlists the cards worth sending to Claude, so a 9,000-card deck costs one
 // scan rather than 9,000 API calls. It deliberately over-selects — deciding
 // whether two glosses are really two headwords needs judgement, and that
 // happens in api/_lib/splitSenses.js.
@@ -24,7 +24,8 @@ const STOP_WORDS = new Set([
   "one", "someone", "something", "oneself",
 ]);
 
-// Divergence threshold, matching the parser's own polysemy splitter.
+// Divergence threshold: this script's own (the parser's splitter that it once
+// matched was removed).
 const THRESHOLD = 0.3;
 
 function contentWords(text) {

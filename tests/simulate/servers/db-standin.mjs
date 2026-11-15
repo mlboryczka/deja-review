@@ -148,7 +148,7 @@ const SCHEMA = {
   beta_feedback: {
     pk: ["id"],
     cols: {
-      id: C("uuid", { notNull: true, def: uuid }),
+      id: C("bigint", { identity: true, notNull: true }),
       user_id: C("uuid"),
       user_email: C("text"),
       message: C("text", { notNull: true }),

@@ -1,95 +1,77 @@
-// Exercise api/_lib/applySplits.js against a fake Supabase, checking the parts that
-// would quietly corrupt a deck: ownership, malformed splits, and which row
-// keeps its scheduling history.
+// The writing step of scripts/fix-multi-sense.mjs (scripts/lib/multiSenseWrites.mjs),
+// run against a stand-in for the database's REST interface, never the live one:
+// which category a card gets, new senses before the original is rewritten, the
+// original left alone when it changed meanwhile, and the check for a card the
+// deck already has. Then the corrections log (api/parse-corrections.js).
 import { readFileSync } from 'node:fs';
 import { checker } from '../check.mjs';
+import { applySplit, holderOf, dbCategory } from '../../scripts/lib/multiSenseWrites.mjs';
+import { cardIndex } from '../../src/lib/sameCard.js';
 
 const ck = checker();
-
-const ME='user-me', THEM='user-them';
-const ROWS = [
-  { id:'r1', user_id:ME,   front:'les frais', back:'the costs; the expenses; fresh', category:'V', dates:['2025-05-01'], batch_id:'b1' },
-  { id:'r2', user_id:THEM, front:'le voile',  back:'the veil; the sail',             category:'V', dates:[],            batch_id:null },
-  { id:'r3', user_id:ME,   front:'le tour',   back:'the tour; the trick',            category:'V', dates:[],            batch_id:null },
-];
-let updates=[], inserted=[];
-const fakeAdmin = {
-  auth: { getUser: async (t) => t==='good' ? ({data:{user:{id:ME}}}) : ({error:{message:'bad'}}) },
-  from() {
-    const q = {
-      _sel:null, _filters:{},
-      select(){ return q; },
-      in(col, vals){ q._rows = ROWS.filter(r=>vals.includes(r[col])); return Promise.resolve({data:q._rows}); },
-      update(patch){ q._patch=patch; return q; },
-      eq(col,val){ (q._filters[col]=val); if(col==='user_id'){ 
-        if(q._filters.id){ const row=ROWS.find(r=>r.id===q._filters.id);
-          if(!row||row.user_id!==val) return Promise.resolve({error:{message:'no row'}});
-          updates.push({id:q._filters.id, ...q._patch}); return Promise.resolve({error:null}); }
-      } return q; },
-      insert(rows){ inserted.push(...rows); return { select: async () => ({data: rows.map((_,i)=>({id:'new'+i}))}) }; },
-    };
-    return q;
-  },
-};
-globalThis.__fakeAdmin = fakeAdmin;
-
-process.env.SUPABASE_URL='http://x';
-process.env.SUPABASE_SERVICE_ROLE_KEY='k';
-
-// Load the real handler with createClient swapped for the fake above, so the
-// endpoint's own logic is what's under test.
-const handlerSrc = readFileSync(new URL('../../api/_lib/applySplits.js', import.meta.url), 'utf8')
-  .replace('import { createClient } from "@supabase/supabase-js";',
-           'const createClient = () => globalThis.__fakeAdmin;');
-const mod = await import('data:text/javascript;base64,' + Buffer.from(handlerSrc).toString('base64'));
-const handler = mod.default;
-
+process.env.SUPABASE_URL = 'http://x';
+process.env.SUPABASE_SERVICE_ROLE_KEY = 'k';
 function mkRes(){ const r={code:null,body:null}; r.status=(c)=>{r.code=c;return r;}; r.json=(o)=>{r.body=o;return r;}; return r; }
 
-console.log('\n  ownership');
-let res = mkRes();
-await handler({method:'POST', headers:{authorization:'Bearer good'}, body:{splits:[
-  {row_id:'r2', cards:[{front:'le voile',back:'the veil',category:'vocab'},{front:'la voile',back:'the sail',category:'vocab'}]},
-]}}, res);
-ck('another user\'s card is refused', res.body?.updated===0 && res.body?.skipped?.[0]?.reason?.includes('not your card'),
-   JSON.stringify(res.body));
-ck('nothing was inserted for it', inserted.length===0, `${inserted.length}`);
+// A stand-in `db(path, init)`: records the calls, answers as set per test.
+function standIn({ insertOk = true, patchRows = [{ id: 1 }], patchOk = true } = {}) {
+  const calls = [];
+  const db = async (p, init = {}) => {
+    calls.push({ p, method: init.method || 'GET', body: init.body ? JSON.parse(init.body) : null });
+    if (init.method === 'POST') return { ok: insertOk, status: insertOk ? 201 : 409, text: async () => 'duplicate key', json: async () => [] };
+    return { ok: patchOk, status: patchOk ? 200 : 500, text: async () => 'boom', json: async () => patchRows };
+  };
+  return { db, calls };
+}
+const original = { id: 1, user_id: 'u', front: 'les frais', back: 'the costs; fresh', category: 'V', dates: ['2025-05-01'] };
+const first = { front: 'les frais', back: 'the costs', category: 'vocab' };
+const sense = { front: 'frais (adj)', back: 'fresh', category: 'gram' };
 
-console.log('\n  malformed splits');
-updates=[]; inserted=[]; res=mkRes();
-await handler({method:'POST', headers:{authorization:'Bearer good'}, body:{splits:[
-  {row_id:'r1', cards:[{front:'les frais',back:'the costs',category:'vocab'}]},                       // only one card
-  {row_id:'r3', cards:[{front:'le tour',back:'the tour',category:'vocab'},{front:'le tour',back:'the trick',category:'vocab'}]}, // duplicate fronts
-]}}, res);
-ck('a one-card "split" is refused', res.body?.skipped?.some(s=>s.row_id==='r1'), JSON.stringify(res.body?.skipped));
-ck('duplicate fronts are refused', res.body?.skipped?.some(s=>s.row_id==='r3'));
-ck('nothing written', updates.length===0 && inserted.length===0);
+console.log('\n  the kind saved for each card');
+ck('Claude\'s long names become the stored codes', dbCategory('vocab', 'E') === 'V' && dbCategory('expr', 'V') === 'E' && dbCategory('gram', 'V') === 'G' && dbCategory('pron', 'V') === 'P');
+ck('a code already stored is kept, and an unknown word falls back to the card\'s own', dbCategory('G', 'V') === 'G' && dbCategory('nonsense', 'E') === 'E' && dbCategory(undefined, 'P') === 'P');
+{
+  const { db, calls } = standIn();
+  await applySplit(db, original, first, [sense]);
+  ck('the new card is saved as G, not "gram"', calls[0].body[0].category === 'G', JSON.stringify(calls[0].body));
+  ck('the rewritten card is saved as V', calls[1].body.category === 'V', JSON.stringify(calls[1].body));
+}
 
-console.log('\n  the happy path');
-updates=[]; inserted=[]; res=mkRes();
-await handler({method:'POST', headers:{authorization:'Bearer good'}, body:{splits:[
-  {row_id:'r1', cards:[
-    {front:'les frais', back:'the costs / the expenses', category:'vocab'},
-    {front:'frais (adj)', back:'fresh', category:'vocab'}]},
-]}}, res);
-ck('original row rewritten as the first sense', updates.length===1 && updates[0].id==='r1' && updates[0].back==='the costs / the expenses',
-   JSON.stringify(updates));
-ck('second sense inserted as a new card', inserted.length===1 && inserted[0].front==='frais (adj)', JSON.stringify(inserted.map(i=>i.front)));
-ck('new card belongs to the caller', inserted[0]?.user_id===ME);
-ck('new card inherits the lesson dates', JSON.stringify(inserted[0]?.dates)===JSON.stringify(['2025-05-01']));
-ck('new card carries no scheduling history', !('stability' in inserted[0]) && !('next_due_at' in inserted[0]) && !('reps' in inserted[0]),
-   Object.keys(inserted[0]||{}).join(','));
-ck('either way round: it starts new asked in English too', !Object.keys(inserted[0]||{}).some((k) => k.startsWith('en_')),
-   Object.keys(inserted[0]||{}).join(','));
-ck('the rewritten row keeps both ways\' schedules: only its text and type change',
-   Object.keys(updates[0]||{}).every((k) => ['id','front','back','category'].includes(k)), Object.keys(updates[0]||{}).join(','));
-ck('category mapped back to a DB code', inserted[0]?.category==='V', inserted[0]?.category);
-ck('reported honestly', res.body?.updated===1 && res.body?.inserted===1, JSON.stringify(res.body));
+console.log('\n  new cards first');
+{
+  const { db, calls } = standIn();
+  const r = await applySplit(db, original, first, [sense]);
+  ck('the senses are inserted before the original is changed', calls[0].method === 'POST' && calls[1].method === 'PATCH', calls.map((c) => c.method).join());
+  ck('the new card takes the class dates and no history', JSON.stringify(calls[0].body[0].dates) === '["2025-05-01"]' && !('stability' in calls[0].body[0]) && calls[0].body[0].user_id === 'u');
+  ck('the original is changed only while it has the front it had', /front=eq\.les%20frais/.test(calls[1].p), calls[1].p);
+  ck('a finished split reports no half', r.added === 1 && r.half === null);
+}
+{
+  const { db, calls } = standIn({ insertOk: false });
+  let err = null;
+  try { await applySplit(db, original, first, [sense]); } catch (e) { err = e; }
+  ck('if the insert fails the original is not touched', !!err && calls.length === 1 && calls[0].method === 'POST');
+}
+{
+  const { db } = standIn({ patchRows: [] });
+  const r = await applySplit(db, original, first, [sense]);
+  ck('a card that changed meanwhile is reported as half done', r.added === 1 && /changed since the deck was read/.test(r.half), JSON.stringify(r));
+}
+{
+  const { db } = standIn({ patchOk: false });
+  const r = await applySplit(db, original, first, [sense]);
+  ck('a failed rewrite is reported as half done, not as nothing', r.added === 1 && /^the other senses were added/.test(r.half), JSON.stringify(r));
+}
 
-console.log('\n  bad token');
-res=mkRes();
-await handler({method:'POST', headers:{authorization:'Bearer nope'}, body:{splits:[{row_id:'r1',cards:[]}]}}, res);
-ck('rejected', res.code===401, `${res.code}`);
+console.log('\n  a card the deck already has');
+{
+  const deck = [original, { id: 2, user_id: 'u', front: 'frais', back: 'fresh', category: 'V' }, { id: 3, user_id: 'u', front: 'le fils', back: 'the son', category: 'V' }];
+  const index = cardIndex(deck);
+  ck('"frais (adj)" is the deck\'s own "frais"', holderOf(index, original, { front: 'frais (adj)', back: 'fresh' })?.id === 2);
+  ck('"un fils" is the deck\'s own "le fils"', holderOf(index, original, { front: 'un fils', back: 'the son' })?.id === 3);
+  ck('the card being split is not its own clash', holderOf(index, original, { front: 'les frais', back: 'the costs' }) === null);
+  ck('a sense the deck lacks is free', holderOf(index, original, { front: 'la voile', back: 'the sail' }) === null);
+}
 
 // ── The corrections log (api/parse-corrections.js) ──────────────────────────
 // handlePost read `admin_user` from handler's scope, which it can't see, so
