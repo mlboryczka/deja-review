@@ -58,7 +58,14 @@ function storeFor(userId) {
     };
     // An answer accepted with "My answer should be accepted": right now, so it
     // isn't asked again, and the key takes it from now on (as on Exercises).
-    s.accept = (key, line) => {
+    // `how` as on Exercises: not "kept" means Right here only, not remembered.
+    s.accept = (key, line, how = "kept") => {
+      if (how !== "kept") {
+        const id = parseItemKey(key)?.lesson;
+        if (id) s.rows = { ...s.rows, [id]: (s.rows[id] || []).map((r) => (r.key === key ? { ...r, verdict: "right", accepted: how } : r)) };
+        s.emit();
+        return;
+      }
       s.accepted = { ...s.accepted, [key]: new Set([...(s.accepted[key] || []), line]) };
       const id = parseItemKey(key)?.lesson;
       if (id) s.rows = { ...s.rows, [id]: (s.rows[id] || []).map((r) => (r.key === key ? acceptedNow(r, s.accepted) : r)) };
@@ -602,7 +609,7 @@ function SentenceBox({ item, itemKeyValue: key, user, store, onNeedKey }) {
 // nothing under it, however it was worded.
 function Marked({ item, answer, user, store }) {
   const [why, setWhy] = useState(false);
-  const dispute = useAnswerDispute({ user, answer, onAccepted: (line) => store.accept(answer.key, line) });
+  const dispute = useAnswerDispute({ user, answer, onAccepted: (line, how) => store.accept(answer.key, line, how) });
   if (answer.pending) {
     return (
       <>
@@ -637,7 +644,7 @@ function Marked({ item, answer, user, store }) {
         </div>
       )}
       {(dispute.state?.step === "accepted" || answer.accepted) && (
-        <div style={M.quiet} data-dialogue-accepted>{acceptedLine(dispute.state)}</div>
+        <div style={M.quiet} data-dialogue-accepted>{acceptedLine(dispute.state, answer)}</div>
       )}
       {dispute.state?.step === "error" && <div style={M.error} role="alert">{dispute.state.message}</div>}
       {answer.unsaved && <div style={M.quiet}>This answer was marked but not saved, so it won’t be here next time.</div>}

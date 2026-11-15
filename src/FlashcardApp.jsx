@@ -3997,7 +3997,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
               // podcasts/mine…), not just "podcasts": the review reads it as
               // "from the <page> page".
               currentPage={podcastsOn ? `podcasts/${podView.view}` : exercisesOn ? `Spanish exercises/${exView.lesson || "all"}` : dialoguesOn ? `Spanish dialogues/${dgView.lesson || "all"}` : spanish ? `Spanish ${mode}` : mode}
-              currentCard={mode === "study" ? card : null}
+              currentCard={mode === "study" && !sessionDone ? card : null}
               course={course.id}
               open={showFeedback}
               onOpen={openFeedback}
@@ -4148,6 +4148,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
             // get the list of codes too, and their pick was refused without a
             // word; Cancel on it called off a removal they had just said yes
             // to (2026-10-06).
+            let removalCategory = null;
             if (isAdmin) {
               // duplicate_detected is the default: by far the commonest
               // reason. Anything not on the menu falls back to it.
@@ -4169,13 +4170,18 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
               );
               // Pressing Cancel returns null — treat as abort.
               if (categoryInput === null) return;
-              const category = CATEGORY_MENU.includes(categoryInput.trim())
+              removalCategory = CATEGORY_MENU.includes(categoryInput.trim())
                 ? categoryInput.trim()
                 : "duplicate_detected";
+            }
 
-              // Logged first, as the removal is a correction of Claude's reading.
+            const ok = await deleteCard(editingCard.row_id);
+            if (!ok) return;
+            // Logged only once the removal has worked, as a saved edit is, so a
+            // failed removal leaves no "delete" in the ledger.
+            if (isAdmin && removalCategory) {
               logCorrection({
-                category,
+                category: removalCategory,
                 action: CORRECTION_ACTIONS.DELETE,
                 card_id: editingCard.row_id,
                 batch_id: editingCard.batch_id || null,
@@ -4184,9 +4190,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
                 ...(spanish ? { course: "es" } : {}),
               });
             }
-
-            const ok = await deleteCard(editingCard.row_id);
-            if (ok) setEditingCard(null);
+            setEditingCard(null);
           }}
         />
       )}
@@ -5083,7 +5087,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
                             <div style={S.feedbackRow}>
                               {feedbackState === "submitting" && <span style={S.feedbackPending}>Reviewing your answer…</span>}
                               {feedbackState === "submitted" && feedbackVerdict?.verdict === "accept" && (
-                                <div style={S.feedbackMsg}>This answer will be accepted from now on.</div>
+                                <div style={S.feedbackMsg}>{feedbackVerdict.kept === false ? "Accepted this time, but it couldn’t be saved. Try again later." : "This answer will be accepted from now on."}</div>
                               )}
                               {feedbackState === "submitted" && (feedbackVerdict?.verdict === "reject" || feedbackVerdict?.verdict === "uncertain") && (
                                 <div style={S.feedbackMsg}>
@@ -5498,6 +5502,7 @@ function FeedbackReview({ item, state, onApply, onDismiss, onReview, onRevert })
 function FeedbackReviewModal({ user, onClose, onOwnCardChanged }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [resolvable, setResolvable] = useState(true);
   // A database without migration_014 has no review column, so nothing can be
   // reviewed or kept.
@@ -5534,7 +5539,13 @@ function FeedbackReviewModal({ user, onClose, onOwnCardChanged }) {
     started.current = true;
     (async () => {
       const { data, error, resolvable } = await loadOpenFeedback();
-      if (error) console.error("Failed to load feedback:", error);
+      if (error) {
+        console.error("Failed to load feedback:", error);
+        if (!mounted.current) return;
+        setLoadError(error.message || "unknown error");
+        setLoading(false);
+        return;
+      }
       const canReview = resolvable && (data.length === 0 || data.some((x) => "review" in x));
       setItems(data);
       setResolvable(resolvable);
@@ -5579,7 +5590,7 @@ function FeedbackReviewModal({ user, onClose, onOwnCardChanged }) {
       <div data-feedback-log style={S.feedbackModalBox} onClick={e => e.stopPropagation()}>
         <div style={S.fbLogHeader}>
           <h2 style={S.fbLogTitle}>Feedback</h2>
-          {!loading && <span style={S.fbLogCount}>{openCount} open</span>}
+          {!loading && !loadError && <span style={S.fbLogCount}>{openCount} open</span>}
           <span style={{ flex: 1 }} />
           <button aria-label="Close" style={S.fbLogClose} onClick={onClose}>×</button>
         </div>
@@ -5587,6 +5598,8 @@ function FeedbackReviewModal({ user, onClose, onOwnCardChanged }) {
         {resolvable && !reviewable && <div style={S.fbLogNote}>{NEEDS_MIGRATION_014}</div>}
         {loading ? (
           <div style={S.fbLogEmpty}>Loading…</div>
+        ) : loadError ? (
+          <div style={S.fbLogEmpty} data-feedback-load-error>Couldn't load the feedback: {loadError}</div>
         ) : items.length === 0 ? (
           <div style={S.fbLogEmpty}>No open feedback.</div>
         ) : (

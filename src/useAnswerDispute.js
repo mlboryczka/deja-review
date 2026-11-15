@@ -18,8 +18,11 @@ export function useAnswerDispute({ user, answer, onAccepted }) {
     try {
       const r = await disputeAnswer({ key: answer.key, typed: answer.typed, verdict: answer.verdict, force }, { supabase, user });
       if (r.verdict === "accept") {
-        onAccepted?.(answer.typed);
-        setState({ step: "accepted", kept: r.saved !== false, missing: !!r.missing });
+        const kept = r.saved !== false, missing = !!r.missing;
+        // How it went is passed on, so the page keeps it with the answer: it
+        // is still there when the lesson is opened again.
+        onAccepted?.(answer.typed, missing ? "missing" : kept ? "kept" : "unkept");
+        setState({ step: "accepted", kept, missing });
       } else {
         setState({ step: "declined", reasoning: r.reasoning || "" });
       }
@@ -31,8 +34,11 @@ export function useAnswerDispute({ user, answer, onAccepted }) {
 }
 
 // What an accepted answer says under it.
-export function acceptedLine(state) {
-  if (state?.missing) return "Accepted for now, but not kept: the database needs one update (migration_027).";
-  if (state && state.kept === false) return "Accepted for now, but it couldn’t be kept. Try again later.";
+// `answer.accepted` is "missing" or "unkept" when it was not kept, and is read
+// when the dispute's own state is gone (the lesson was opened again).
+export function acceptedLine(state, answer) {
+  const how = state?.missing ? "missing" : state && state.kept === false ? "unkept" : answer?.accepted;
+  if (how === "missing") return "Accepted for now, but not kept: the database needs one update (migration_027).";
+  if (how === "unkept") return "Accepted for now, but it couldn’t be kept. Try again later.";
   return "This answer will be accepted from now on.";
 }

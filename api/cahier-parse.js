@@ -33,6 +33,7 @@ import {
   splitSlashPairs,
 } from "./parse-cahier.js";
 import { allowIphoneApp } from "./_lib/cors.js";
+import { claudeError } from "./_lib/podcasts.js";
 export const config = {
   api: {
     bodyParser: { sizeLimit: "10mb" },
@@ -124,7 +125,7 @@ export async function readClasses({ admin, userId, apiKey, body = {} }) {
     work.map((b) =>
       b.text.trim().length < 20
         ? Promise.resolve([])
-        : extractCardsFromBlock(anthropic, b).catch((e) => ({ __error: e?.message || String(e), date: b.date }))
+        : extractCardsFromBlock(anthropic, b).catch((e) => { console.error("class read failed:", e); return { __error: claudeError(e, "read this class").json.error, date: b.date }; })
     )
   );
   for (const r of results) {

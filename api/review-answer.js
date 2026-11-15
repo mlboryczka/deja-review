@@ -36,6 +36,7 @@ import { askClaude, isDrillCard, verdictRow, handleAnswerChecks, supabaseAnswerS
 import { handleExerciseRequest, supabaseExerciseStore } from "./_lib/exercises.js";
 import { podcastsOpenTo } from "../src/lib/testApp.js";
 import { allowIphoneApp } from "./_lib/cors.js";
+import { claudeError } from "./_lib/podcasts.js";
 
 export const config = { maxDuration: 60 };
 
@@ -49,7 +50,8 @@ export const config = { maxDuration: 60 };
 // migration_020): the answer is kept with the Spanish deck.
 async function recordAlternate({ userId, card_id, direction, user_answer, table = "card_alternates" }) {
   const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
-  if (!card_id || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return;
+  // Nothing to keep without a card (or a database to keep it in): not a failure.
+  if (!card_id || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return true;
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
@@ -63,7 +65,9 @@ async function recordAlternate({ userId, card_id, direction, user_answer, table 
     { onConflict: "user_id,card_id,direction,alternate_text" }
   );
   // Don't fail the request over it — the verdict is still worth returning.
+  // Whether it was kept is returned, so the student is told when it wasn't.
   if (error) console.error("card_alternates write failed:", error.message);
+  return !error;
 }
 
 export default async function handler(req, res) {
@@ -111,8 +115,12 @@ export default async function handler(req, res) {
   // nothing was written — while the UI said "this answer will be
   // remembered". It wasn't. It is now.
   if (force === true) {
-    await recordAlternate({ userId: user.id, card_id, direction, user_answer, table: alternatesTable });
-    await answerStore()?.overridden({ user_id: user.id, card_id, direction, typed: user_answer, course: spanish ? "es" : "fr" });
+    const kept = await recordAlternate({ userId: user.id, card_id, direction, user_answer, table: alternatesTable });
+    const overridden = await answerStore()?.overridden({ user_id: user.id, card_id, direction, typed: user_answer, course: spanish ? "es" : "fr" });
+    if (overridden?.error) console.error("override not recorded:", overridden.error);
+    if (!kept) {
+      return res.status(500).json({ error: "Your answer couldn't be saved, so it wasn't accepted. Try again in a moment." });
+    }
     return res.status(200).json({
       ok: true,
       verdict: "accept",
@@ -148,23 +156,17 @@ export default async function handler(req, res) {
       });
     }
 
+    let kept = true;
     if (verdict === "accept") {
-      await recordAlternate({ userId: user.id, card_id, direction, user_answer, table: alternatesTable });
+      kept = await recordAlternate({ userId: user.id, card_id, direction, user_answer, table: alternatesTable });
     }
 
-    return res.status(200).json({ ok: true, verdict, reasoning });
+    return res.status(200).json({ ok: true, verdict, reasoning, ...(kept ? {} : { kept: false }) });
   } catch (err) {
     console.error("review-answer failed:", err);
-    if (err instanceof Anthropic.AuthenticationError) {
-      return res.status(401).json({
-        error: "Anthropic rejected that API key. Check it in your profile menu.",
-        code: "bad_key",
-      });
-    }
-    if (err instanceof Anthropic.RateLimitError) {
-      return res.status(429).json({ error: "Rate limited — give it a moment." });
-    }
-    return res.status(500).json({ error: err.message });
+    // A plain sentence, never Anthropic's raw error text (api/_lib/podcasts.js).
+    const { status, json } = claudeError(err, "look at your answer");
+    return res.status(status).json(json);
   }
 }
 

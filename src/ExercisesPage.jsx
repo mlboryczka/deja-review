@@ -76,7 +76,15 @@ function storeFor(userId) {
     };
     // An answer accepted with "My answer should be accepted": right now, and
     // the key takes it from now on.
-    s.accept = (key, line) => {
+    // `how` is "kept" or, when the server could not keep it, "missing" or
+    // "unkept": then it shows as Right here but is not added to what marks
+    // answers, so it is asked about again once the page is read afresh.
+    s.accept = (key, line, how = "kept") => {
+      if (how !== "kept") {
+        if (s.latest[key]) s.latest = { ...s.latest, [key]: { ...s.latest[key], verdict: "right", accepted: how } };
+        s.emit();
+        return;
+      }
       s.accepted = { ...s.accepted, [key]: new Set([...(s.accepted[key] || []), line]) };
       if (s.latest[key]) s.latest = { ...s.latest, [key]: acceptedNow(s.latest[key], s.accepted) };
       s.emit();
@@ -728,7 +736,7 @@ function TypedLine({ text }) {
 function Marked({ item, answer, user, store }) {
   const kind = kindOf(item);
   const [why, setWhy] = useState(false);
-  const dispute = useAnswerDispute({ user, answer, onAccepted: (line) => store.accept(answer.key, line) });
+  const dispute = useAnswerDispute({ user, answer, onAccepted: (line, how) => store.accept(answer.key, line, how) });
   if (answer.pending) {
     return (
       <>
@@ -781,7 +789,7 @@ function Marked({ item, answer, user, store }) {
         </div>
       )}
       {(dispute.state?.step === "accepted" || answer.accepted) && (
-        <div style={M.quiet} data-ex-accepted>{acceptedLine(dispute.state)}</div>
+        <div style={M.quiet} data-ex-accepted>{acceptedLine(dispute.state, answer)}</div>
       )}
       {dispute.state?.step === "error" && <div style={M.error} role="alert">{dispute.state.message}</div>}
       {answer.unsaved && <div style={M.quiet}>This answer was marked but not saved, so it won’t be here next time.</div>}

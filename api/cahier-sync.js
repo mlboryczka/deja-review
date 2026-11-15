@@ -65,6 +65,7 @@ import {
   cardsFromExtracted,
 } from "./parse-cahier.js";
 import { allowIphoneApp } from "./_lib/cors.js";
+import { claudeError } from "./_lib/podcasts.js";
 
 export const config = { maxDuration: 300 };
 
@@ -270,7 +271,7 @@ export async function syncUser({ admin, apiKey, userId, url, limit, force = fals
     const results = await Promise.all(
       batch.map((p) =>
         reader.extract(anthropic, { date: p.date, text: p.text, newLines: p.partial ? p.newLines : null })
-          .catch((e) => ({ error: e.message }))
+          .catch((e) => { console.error("class read failed:", e); return { error: claudeError(e, "read this class").json.error }; })
       )
     );
     const parsed = [];
