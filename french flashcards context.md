@@ -1745,9 +1745,10 @@ From this project's history:
 
 A lesson is a fixed set of cards made from a teacher's materials, the same for
 every student. Lessons are in `src/data/lessons/`; `LESSONS` in `index.js` is
-the catalogue. There are twenty-six: L'impératif (108 cards), Le gérondif
-(41), Le plus-que-parfait (49), La voie passive (29) and Les pronoms relatifs
-(40), topic lessons from Laura Caufour's LFL METHOD sheets,
+the catalogue. There are thirty: L'impératif (108 cards), Le gérondif
+(41), Le plus-que-parfait (49), La voie passive (29), Les pronoms relatifs
+(40), Le subjonctif présent (52), Le subjonctif passé (35), La condition (38)
+and Communication (48), topic lessons from Laura Caufour's LFL METHOD sheets,
 Adjectif ou adverbe ? (81 cards, written for the app), and her beginner
 Leçons 1 to 20, titled in English in the app (owner, 2026-10-06):
 Lesson 1 · Être (57), Lesson 2 · Aller (63), Lesson 3 · Avoir (62), Lesson 4 ·
@@ -1994,6 +1995,21 @@ pronoms relatifs followed the same day, the same way (owner: "build another
 3, and let's see how much my usage allowance moves"); none has her answer
 key, so their answers were written for the app. Drafts in
 `.claude/topic-lessons-draft/`.
+
+Le subjonctif présent, Le subjonctif passé, La condition and Communication
+followed on 2026-11-15 (owner's morning review: build the other eight, in two
+chats of four, on the test app only, without reviewing them first), built the
+same way, with two checking helpers per lesson. Without English, a gap often
+takes two tenses ("S'il part à l'heure" or "S'il est parti à l'heure, il sera
+là dans 2 heures"), so their gaps carry a time word (ce matin, hier, demain,
+maintenant), as Leçon 19's do. Their phrase cards don't check the
+subjunctive: typed in French, "J'ai peur qu'ils sont en retard" passes as
+close enough for "… soient …", so the forms are checked by the exact drills
+and gaps, as in Leçon 19. Two of her rules were corrected against a source:
+il est probable que takes the indicative (CNRTL, "probable"), and si becomes
+s' only before il and ils (French Wiktionary, "si"). Communication is mostly
+phrase cards, as her sheet recommends ("créer un paquet de cartes ANKI avec
+toutes ces expressions").
 
 ---
 

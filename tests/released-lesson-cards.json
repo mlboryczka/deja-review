@@ -16015,6 +16015,706 @@
         "key": "95a0l3",
         "front": "C'est l'école où je suis allé"
       }
+    ],
+    "subjonctif": [
+      {
+        "key": "1c2q6z4",
+        "front": "regarder (subjonctif) → nous"
+      },
+      {
+        "key": "14vyacm",
+        "front": "finir (subjonctif) → je"
+      },
+      {
+        "key": "mf3lsn",
+        "front": "prendre (subjonctif) → ils"
+      },
+      {
+        "key": "tjact0",
+        "front": "prendre (subjonctif) → nous"
+      },
+      {
+        "key": "l3ckfm",
+        "front": "venir (subjonctif) → je"
+      },
+      {
+        "key": "1kxc931",
+        "front": "être (subjonctif) → tu"
+      },
+      {
+        "key": "1hla9rt",
+        "front": "être (subjonctif) → nous"
+      },
+      {
+        "key": "1l6tdbp",
+        "front": "avoir (subjonctif) → il"
+      },
+      {
+        "key": "d7nq7y",
+        "front": "aller (subjonctif) → je"
+      },
+      {
+        "key": "14g4hp0",
+        "front": "aller (subjonctif) → nous"
+      },
+      {
+        "key": "shu0cz",
+        "front": "faire (subjonctif) → vous"
+      },
+      {
+        "key": "109kwig",
+        "front": "savoir (subjonctif) → nous"
+      },
+      {
+        "key": "209abg",
+        "front": "pouvoir (subjonctif) → tu"
+      },
+      {
+        "key": "fdrd13",
+        "front": "vouloir (subjonctif) → ils"
+      },
+      {
+        "key": "1fg6svu",
+        "front": "Il doit me donner son adresse → avec il faut que"
+      },
+      {
+        "key": "y1xrpo",
+        "front": "Tu dois faire tes devoirs avant ce soir → avec il faut que"
+      },
+      {
+        "key": "1fg1ii9",
+        "front": "Je dois être là-bas à 10h → avec il faut que"
+      },
+      {
+        "key": "z5qi9i",
+        "front": "Tu dois y aller maintenant → avec il faut que"
+      },
+      {
+        "key": "h6mcp7",
+        "front": "Tu dois lui répondre → avec il faut que"
+      },
+      {
+        "key": "1hfbya4",
+        "front": "Vous devez sortir par la porte de derrière → avec il faut que"
+      },
+      {
+        "key": "3gf84i",
+        "front": "prendre → J'aimerais qu'il ___ une douche"
+      },
+      {
+        "key": "dhpybx",
+        "front": "être → Je préfère que vous ___ honnêtes avec moi"
+      },
+      {
+        "key": "16e7zm6",
+        "front": "apprendre → Je veux qu'ils ___ leur leçon"
+      },
+      {
+        "key": "1xs49a6",
+        "front": "traduire → Tu veux que je ___ ?"
+      },
+      {
+        "key": "17g0s7a",
+        "front": "arrêter → J'aimerais que tu ___ ça"
+      },
+      {
+        "key": "1g1ub1f",
+        "front": "être → Je suis content que vous ___ à la maison"
+      },
+      {
+        "key": "ikgrh8",
+        "front": "écouter → C'est très important que vous ___"
+      },
+      {
+        "key": "ok1bu7",
+        "front": "fermer → J'ai peur qu'ils ne ___ pas la porte"
+      },
+      {
+        "key": "11fcmcw",
+        "front": "savoir → Il est très content que je le ___"
+      },
+      {
+        "key": "nawl38",
+        "front": "vouloir → Je suis déçu que tu ne ___ pas m'aider"
+      },
+      {
+        "key": "170y2wk",
+        "front": "pouvoir → C'est génial qu'on ___ se voir"
+      },
+      {
+        "key": "xgkk36",
+        "front": "partir → Je pense qu'il va arriver avant que tu ___"
+      },
+      {
+        "key": "13l3j9t",
+        "front": "dire → Je vais continuer jusqu'à ce qu'il me ___ d'arrêter"
+      },
+      {
+        "key": "u7oz9w",
+        "front": "être → J'attendrai ici, à moins qu'il ___ en retard"
+      },
+      {
+        "key": "1ra5050",
+        "front": "entrer → Je vais laisser la porte ouverte pour que tu ___"
+      },
+      {
+        "key": "ymojqy",
+        "front": "comprendre → Je parle lentement pour qu'il ___"
+      },
+      {
+        "key": "opk523",
+        "front": "Je dois arriver avant que la réunion commence"
+      },
+      {
+        "key": "1vhfpsg",
+        "front": "J'aimerais chanter une chanson au karaoké"
+      },
+      {
+        "key": "rbgszn",
+        "front": "Je vais te dire ça avant d'oublier"
+      },
+      {
+        "key": "xwot8h",
+        "front": "Il veut me voir avant que je commence à travailler"
+      },
+      {
+        "key": "19iqv2j",
+        "front": "être → Je suis sûr qu'ils ___ là demain"
+      },
+      {
+        "key": "hfrnzv",
+        "front": "ne pas être → Je suppose que le médecin ___ encore là"
+      },
+      {
+        "key": "18a8ku9",
+        "front": "être → Je suis étonné que tu ne ___ pas fatigué"
+      },
+      {
+        "key": "mf1p4d",
+        "front": "devoir → Mon médecin m'a dit que je ___ manger plus de légumes"
+      },
+      {
+        "key": "wrd9f7",
+        "front": "commander → Le serveur ne veut pas que je ___ la salade"
+      },
+      {
+        "key": "120xba9",
+        "front": "ne plus pleuvoir → Je vais rester jusqu'à ce qu'il ___"
+      },
+      {
+        "key": "iq0jf",
+        "front": "Il faut que vous preniez le métro"
+      },
+      {
+        "key": "1gu4rhu",
+        "front": "Ils veulent que je parle à leur conférence"
+      },
+      {
+        "key": "1wfclmi",
+        "front": "Qu'est-ce que tu veux que je fasse ?"
+      },
+      {
+        "key": "105ennc",
+        "front": "J'ai peur qu'ils soient en retard"
+      },
+      {
+        "key": "owg0n7",
+        "front": "C'est génial qu'elle vienne t'aider"
+      },
+      {
+        "key": "1gfi2ze",
+        "front": "Je suis désolé que tu aies des problèmes"
+      }
+    ],
+    "subjonctifpasse": [
+      {
+        "key": "1o9uzjy",
+        "front": "prendre (subjonctif passé) → je"
+      },
+      {
+        "key": "1qx8857",
+        "front": "comprendre (subjonctif passé) → vous"
+      },
+      {
+        "key": "jbpv4r",
+        "front": "faire (subjonctif passé) → il"
+      },
+      {
+        "key": "ulh8pu",
+        "front": "pouvoir (subjonctif passé) → je"
+      },
+      {
+        "key": "ock84p",
+        "front": "avoir (subjonctif passé) → tu"
+      },
+      {
+        "key": "yminll",
+        "front": "être (subjonctif passé) → nous"
+      },
+      {
+        "key": "1hfu504",
+        "front": "aller (subjonctif passé) → nous"
+      },
+      {
+        "key": "15v0tlf",
+        "front": "partir (subjonctif passé) → elle"
+      },
+      {
+        "key": "d1tyiz",
+        "front": "venir (subjonctif passé) → ils"
+      },
+      {
+        "key": "110ni2y",
+        "front": "se lever (subjonctif passé) → il"
+      },
+      {
+        "key": "725zj4",
+        "front": "Tu attends que j'aie fini mon projet ? → Oui, …"
+      },
+      {
+        "key": "1omegcg",
+        "front": "Léa est contente que tu l'aies appelée ? → Oui, …"
+      },
+      {
+        "key": "8i53eb",
+        "front": "Il doute que tu aies été sincère ? → Oui, …"
+      },
+      {
+        "key": "v0spx8",
+        "front": "Il est encore énervé que tu lui aies menti ? → Oui, …"
+      },
+      {
+        "key": "miejxx",
+        "front": "Marie est déçue que tu n'aies pas pu venir ? → Oui, …"
+      },
+      {
+        "key": "pqogmn",
+        "front": "Il est très étonné que j'aie bien compris la leçon → à la forme négative"
+      },
+      {
+        "key": "1mwjonh",
+        "front": "Je suis surpris qu'il soit arrivé → à la forme négative"
+      },
+      {
+        "key": "14vyfhs",
+        "front": "Je doute qu'il se soit levé avant 10h → à la forme négative"
+      },
+      {
+        "key": "wb1jm7",
+        "front": "Je regrette qu'elle t'ait appelé pendant le cours → à la forme négative"
+      },
+      {
+        "key": "jintgo",
+        "front": "C'est mieux qu'elle ait lu le livre avant de partir → à la forme négative"
+      },
+      {
+        "key": "l3k5c1",
+        "front": "être → Quel dommage que tu ne ___ pas là lundi prochain"
+      },
+      {
+        "key": "1fa47ip",
+        "front": "prendre → Je suis désolé qu'il l'___ comme ça hier"
+      },
+      {
+        "key": "1mxnjrx",
+        "front": "pouvoir → Je suis très content que vous ___ parler hier"
+      },
+      {
+        "key": "1d926gj",
+        "front": "pouvoir → C'est vraiment génial que tu ___ me parler maintenant"
+      },
+      {
+        "key": "tcfzhi",
+        "front": "ne pas pouvoir → Je suis énervé qu'on ___ se voir hier soir"
+      },
+      {
+        "key": "xnl9fb",
+        "front": "dire → Je suis désolé ___ ça"
+      },
+      {
+        "key": "1wf1u73",
+        "front": "arriver → Je suis étonné ___ à l'heure"
+      },
+      {
+        "key": "6mv5ih",
+        "front": "ne pas parler → J'ai peur ___ assez fort"
+      },
+      {
+        "key": "425lg6",
+        "front": "rater → Je suis déçu ___ mon examen"
+      },
+      {
+        "key": "1y8gdnc",
+        "front": "C'est génial qu'elle ait réussi ses examens !"
+      },
+      {
+        "key": "sro4c8",
+        "front": "J'ai peur qu'ils n'aient pas compris"
+      },
+      {
+        "key": "103cwfj",
+        "front": "Quel dommage que tu n'aies pas pu voir le spectacle"
+      },
+      {
+        "key": "2l53wf",
+        "front": "Je ne pense pas qu'il ait eu le temps de l'appeler"
+      },
+      {
+        "key": "1md11ou",
+        "front": "Je regrette d'être parti si tôt"
+      },
+      {
+        "key": "1obahrn",
+        "front": "Je suis désolé de ne pas t'avoir appelé"
+      }
+    ],
+    "condition": [
+      {
+        "key": "sl84yt",
+        "front": "être → Si tu ___ libre pour déjeuner, on peut aller chez Georges"
+      },
+      {
+        "key": "kpu1hi",
+        "front": "rater → Qu'est-ce que tu vas faire si tu ___ ton train demain ?"
+      },
+      {
+        "key": "1k0o77u",
+        "front": "ne pas marcher → Comment tu vas aller au travail si ta voiture ___ ?"
+      },
+      {
+        "key": "1965b33",
+        "front": "appeler → Si ton professeur est absent, ___-moi"
+      },
+      {
+        "key": "1t8lxki",
+        "front": "être → Si tu lui dis ça, il ___ très en colère"
+      },
+      {
+        "key": "mp17y6",
+        "front": "partir → S'il ___ à l'heure ce matin, il sera là dans 2 heures"
+      },
+      {
+        "key": "1y2aycc",
+        "front": "envoyer → S'ils ___ la lettre hier, tu vas la recevoir demain"
+      },
+      {
+        "key": "9uuxv4",
+        "front": "ne pas comprendre → S'il ___ ça hier, il ne va pas comprendre le film"
+      },
+      {
+        "key": "3f1qjo",
+        "front": "ne rien dire → S'ils ___ hier, c'est mieux d'attendre ici"
+      },
+      {
+        "key": "1ijy29q",
+        "front": "regarder → Si tu as déjà regardé la première partie, ___ la deuxième maintenant !"
+      },
+      {
+        "key": "19y8e8d",
+        "front": "aller (conditionnel passé) → je"
+      },
+      {
+        "key": "1xscowb",
+        "front": "pouvoir (conditionnel passé) → tu"
+      },
+      {
+        "key": "1yw3b16",
+        "front": "faire (conditionnel passé) → nous"
+      },
+      {
+        "key": "17bunui",
+        "front": "venir (conditionnel passé) → ils"
+      },
+      {
+        "key": "mc18iz",
+        "front": "avoir → Si j'___ plus d'argent, je voyagerais plus"
+      },
+      {
+        "key": "5a0u8m",
+        "front": "pouvoir → Si tu ne fumais pas, tu ___ courir plus"
+      },
+      {
+        "key": "1f261me",
+        "front": "savoir → S'il ___ nager, il pourrait surfer avec moi"
+      },
+      {
+        "key": "kwzonr",
+        "front": "vivre → S'ils n'étaient pas ensemble, ils ne ___ pas à la campagne maintenant"
+      },
+      {
+        "key": "1hvqkke",
+        "front": "acheter → Si j'aimais l'électro, j'___ des billets pour le festival de l'été dernier"
+      },
+      {
+        "key": "1adyni7",
+        "front": "savoir → Si j'___, je ne serais pas allé là-bas"
+      },
+      {
+        "key": "fuh951",
+        "front": "ne pas rentrer → Si elle ___ à la maison, j'aurais appelé la police"
+      },
+      {
+        "key": "15s9iok",
+        "front": "dire → Si tu l'avais appelé hier, il te l'___"
+      },
+      {
+        "key": "u1ux4y",
+        "front": "arriver → Si j'avais pu partir à l'heure hier, je ___ à l'heure"
+      },
+      {
+        "key": "najfz4",
+        "front": "ne pas trouver → Si tu ne m'avais pas montré le chemin hier soir, je ___ ta maison"
+      },
+      {
+        "key": "6bjyuh",
+        "front": "pouvoir → Si je n'avais pas porté cette chemise hier, je ___ la mettre aujourd'hui"
+      },
+      {
+        "key": "2xljzf",
+        "front": "Si tu as le temps → en réalité"
+      },
+      {
+        "key": "1umeutb",
+        "front": "S'il est parti à l'heure → en réalité"
+      },
+      {
+        "key": "1bwbi16",
+        "front": "Si j'étais français → en réalité"
+      },
+      {
+        "key": "pnzghh",
+        "front": "Si j'avais un four, je ferais une tarte → en réalité"
+      },
+      {
+        "key": "le6x6p",
+        "front": "Si j'avais su → en réalité"
+      },
+      {
+        "key": "19d4b2j",
+        "front": "Si j'étais parti à l'heure → en réalité"
+      },
+      {
+        "key": "1wmo9zb",
+        "front": "Si tu veux savoir, appelle-moi"
+      },
+      {
+        "key": "182knpl",
+        "front": "Prends du pain si tu as très faim"
+      },
+      {
+        "key": "1ffp9k6",
+        "front": "Si tu n'as pas entendu, je peux répéter"
+      },
+      {
+        "key": "1hte9ax",
+        "front": "Si j'avais le temps, je viendrais te voir"
+      },
+      {
+        "key": "gyiptc",
+        "front": "Si j'avais eu le temps, je t'aurais appelé"
+      },
+      {
+        "key": "1rix8qb",
+        "front": "Si tu avais été plus gentil avec lui, il aurait été plus gentil avec toi"
+      },
+      {
+        "key": "1qovox4",
+        "front": "Je parlerais couramment français si je l'avais appris quand j'étais petit"
+      }
+    ],
+    "communication": [
+      {
+        "key": "1pup79a",
+        "front": "Je n'ai pas compris le dernier mot"
+      },
+      {
+        "key": "1iip4kt",
+        "front": "Je n'ai pas entendu la fin de la phrase"
+      },
+      {
+        "key": "1ab5zjz",
+        "front": "Je n'ai rien compris !"
+      },
+      {
+        "key": "1wf3uj4",
+        "front": "Qu'est-ce que ça veut dire, garagiste ?"
+      },
+      {
+        "key": "xqsypb",
+        "front": "Tu peux répéter la dernière phrase ?"
+      },
+      {
+        "key": "fikosy",
+        "front": "Tu peux reformuler ?"
+      },
+      {
+        "key": "1otpngo",
+        "front": "Tu sais comment on dit ça en anglais ?"
+      },
+      {
+        "key": "1yef7l2",
+        "front": "Les enfants de ma sœur sont en vacances → tu n'as pas compris « de ma sœur »"
+      },
+      {
+        "key": "vylctr",
+        "front": "Le film a commencé à 20h30 → tu n'as pas compris « à 20h30 »"
+      },
+      {
+        "key": "1tfdz3",
+        "front": "J'ai marché 8km → tu n'as pas compris « 8km »"
+      },
+      {
+        "key": "181clrr",
+        "front": "Il est allé chez le garagiste → tu n'as pas compris « chez le garagiste »"
+      },
+      {
+        "key": "df6xsv",
+        "front": "Il est mort le 19 décembre → tu n'as pas compris « le 19 décembre »"
+      },
+      {
+        "key": "1xml3fg",
+        "front": "Ça se dit bien comme ça ?"
+      },
+      {
+        "key": "washp8",
+        "front": "Tu vois ce que je veux dire ?"
+      },
+      {
+        "key": "1ow9oak",
+        "front": "C'est clair ou tu veux que je réexplique ?"
+      },
+      {
+        "key": "w65yl",
+        "front": "Tu as compris ce que j'ai dit ?"
+      },
+      {
+        "key": "1tlub6g",
+        "front": "Non, attends, je me suis mal exprimé"
+      },
+      {
+        "key": "1ye70sb",
+        "front": "Ce n'est pas ce que je voulais dire"
+      },
+      {
+        "key": "i5i158",
+        "front": "Je voulais dire que …"
+      },
+      {
+        "key": "wmwmud",
+        "front": "C'est ce que je voulais dire !"
+      },
+      {
+        "key": "xfddp8",
+        "front": "J'ai oublié ce mot"
+      },
+      {
+        "key": "1r01s2r",
+        "front": "Je ne sais pas comment on dit ça, tu peux m'aider ?"
+      },
+      {
+        "key": "14hxljj",
+        "front": "Ah, comment on dit ça… ça m'échappe"
+      },
+      {
+        "key": "ern77q",
+        "front": "un truc"
+      },
+      {
+        "key": "1fi95rz",
+        "front": "un pantalon, mais plus court → le mot"
+      },
+      {
+        "key": "i0t2b7",
+        "front": "un restaurant, mais pas pour manger, seulement pour boire → le mot"
+      },
+      {
+        "key": "1p67uut",
+        "front": "l'animal blanc et noir qui ressemble à un cheval → le mot"
+      },
+      {
+        "key": "vwt39z",
+        "front": "Quand tu vas chez le médecin, c'est parce que tu es … → le mot"
+      },
+      {
+        "key": "h87uvx",
+        "front": "Quand tu ne dois pas payer quelque chose, c'est … → le mot"
+      },
+      {
+        "key": "1ex3ejz",
+        "front": "Le rendez-vous était à 9h et je suis arrivée à 10h, donc j'étais … → le mot"
+      },
+      {
+        "key": "lc3ps6",
+        "front": "l'amour → le contraire"
+      },
+      {
+        "key": "3cb5l6",
+        "front": "content → le contraire"
+      },
+      {
+        "key": "1e34wdz",
+        "front": "chaud → le nom"
+      },
+      {
+        "key": "wnp3bh",
+        "front": "la jalousie → l'adjectif"
+      },
+      {
+        "key": "1mhhbzi",
+        "front": "J'ai fermé la porte avec la clé"
+      },
+      {
+        "key": "191wyf8",
+        "front": "Ma famille peut m'aider"
+      },
+      {
+        "key": "mnmu12",
+        "front": "J'étais malade donc je suis resté à la maison"
+      },
+      {
+        "key": "1ecpl5",
+        "front": "C'est un objet qui a cette forme-là"
+      },
+      {
+        "key": "1l5iqdc",
+        "front": "C'est grand comme ça"
+      },
+      {
+        "key": "n6d5fy",
+        "front": "Comment s'appelle cette partie du corps ?"
+      },
+      {
+        "key": "fmq6xt",
+        "front": "On s'est couchés tard"
+      },
+      {
+        "key": "i5jw09",
+        "front": "Je n'ai pas de réseau"
+      },
+      {
+        "key": "tcamfc",
+        "front": "Je n'ai plus d'essence"
+      },
+      {
+        "key": "ql9ffm",
+        "front": "Tu ne me comprends pas"
+      },
+      {
+        "key": "1hh4h85",
+        "front": "Elle a les cheveux attachés"
+      },
+      {
+        "key": "1dbeqls",
+        "front": "Tu fais un régime ?"
+      },
+      {
+        "key": "l99leb",
+        "front": "On n'est pas arrivés à l'heure"
+      },
+      {
+        "key": "1nba7pf",
+        "front": "Je n'ai pas pu joindre mon patron à cause du décalage horaire"
+      }
     ]
   },
   "retired": {
