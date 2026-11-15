@@ -424,8 +424,18 @@ const right = first.item.gaps.map((g) => g[0]);
   asked.length = 0;
   const again = await handleExerciseRequest({ body: { action: "answer", key: k, typed: "Después me baño, lavo los dientes, me maquillo y me visto." }, user, store: st, apiKey: null, ask: ask(null) });
   ck("an accepted answer is right from then on, by the key, with no call and no key", again.status === 200 && again.json.answer.verdict === "right" && again.json.answer.markedBy === "key" && asked.length === 0);
-  const other = await handleExerciseRequest({ body: { action: "answer", key: k, typed: "despues me baño" }, user: { id: "u-2" }, store: st, apiKey: null, ask: ask(null) });
-  ck("only for the student who had it accepted", other.status === 402);
+  const other = await handleExerciseRequest({ body: { action: "answer", key: k, typed: "Después me baño, lavo los dientes, me maquillo y me visto." }, user: { id: "u-2" }, store: st, apiKey: null, ask: ask(null) });
+  ck("only for the student who had it accepted: another student sending the same line is not let through", other.status === 402);
+  // The real store reads with the service key, so its own user filter is the
+  // only thing keeping one student's acceptance from counting for another.
+  {
+    const rows = [{ user_id: "u-1", item_key: k, accepted: true, typed: line }];
+    const fakeDb = { from: () => { const f = {}; const q = { select: () => q, eq: (c, v) => { f[c] = v; return q; },
+      then: (res) => res({ data: rows.filter((r) => Object.entries(f).every(([c, v]) => r[c] === v)), error: null }) }; return q; } };
+    const real = supabaseExerciseStore(fakeDb);
+    const mine = await real.accepted("u-1", k), theirs = await real.accepted("u-2", k);
+    ck("the real store gives a student only the lines they had accepted", mine.lines.length === 1 && theirs.lines.length === 0, JSON.stringify({ mine, theirs }));
+  }
   const yes = await handleExerciseRequest({ body: { action: "dispute", key: k, typed: "otra cosa", verdict: "almost" }, user, store: st, apiKey: () => ({ key: "k" }), review: review({ verdict: "accept", reasoning: "That is fine too." }) });
   ck("Claude can accept it itself", yes.json.verdict === "accept" && disputes.at(-1).accepted === true && disputes.at(-1).review === "accept" && !disputes.at(-1).forced);
   const odd = await handleExerciseRequest({ body: { action: "dispute", key: k, typed: line }, user, store: st, apiKey: () => ({ key: "k" }), review: review({ verdict: "maybe" }) });

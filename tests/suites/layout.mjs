@@ -167,7 +167,12 @@ for (const height of [900, 800, 700, 640, 560]) {
     const el = [...document.querySelectorAll("div")].find(
       (d) => getComputedStyle(d).transformStyle === "preserve-3d"
     );
-    return parseFloat(getComputedStyle(el.children[0].querySelector("div")).fontSize);
+    // The prompt itself: the face's own div that is neither the lesson badge nor
+    // the small instruction line a drill card puts above it ("Present tense, with nous").
+    const prompt = [...el.children[0].children].find(
+      (d) => d.tagName === "DIV" && !d.classList.contains("card-badge") && !d.hasAttribute("data-card-instruction")
+    );
+    return parseFloat(getComputedStyle(prompt).fontSize);
   });
   ck(
     `${height}px + panel: the card is still usable`,
@@ -214,10 +219,11 @@ console.log("\n  nothing scrolls sideways, at any width");
 // horizontally to. The decorative blur circles in the card area sit
 // deliberately outside their container (left:-60 / right:-60), and a shell
 // that didn't clip them made the page wider than the window. Measured against
-// documentElement.clientWidth rather than a remembered number. There is no
-// phone layout (the owner, 2026-09-29), so only computer-window widths.
-for (const width of [800, 1100, 1400]) {
-  await page.setViewportSize({ width, height: 860 });
+// documentElement.clientWidth rather than a remembered number. The test app
+// has had a phone layout below 600px since 2026-10-27 (and the iPhone app
+// always uses it), so 390 wide, an iPhone, is checked too.
+for (const [width, height] of [[390, 844], [800, 860], [1100, 860], [1400, 860]]) {
+  await page.setViewportSize({ width, height });
   await page.waitForTimeout(350);
   const { scrollW, clientW, culprit } = await page.evaluate(() => {
     const clientW = document.documentElement.clientWidth;

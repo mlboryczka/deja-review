@@ -158,7 +158,10 @@ function shareOfPageMove(frames, key) {
   );
   await settled(page);
 
-  const close = await record(page, () => page.keyboard.press("Escape"));
+  // Escape no longer closes the tutor (since 2026-09-11): only its "✕" button
+  // and the sidebar's Tutor button do.
+  const close = await record(page, () => page.click('[data-tutor-panel] button[aria-label="Close"]'));
+  ck("the tutor reflow back actually ran", reflowed(close), `${Math.round(travelled(close, "pad"))}px of padding`);
   ck(
     "and the same on the way back",
     worstStep(close, "areaTop") <= 2 && EDGES.every((k) => shareOfPageMove(close, k).spread <= SPREAD),

@@ -16,6 +16,7 @@
 import { openApp, finish, checker, settled, pageOf } from "../harness.mjs";
 import LESSON from "../../src/data/lessons/imperatif.js";
 import { LESSONS } from "../../src/data/lessons/index.js";
+import { cleanFrenchPrompt, cleanEnglishPrompt } from "../../src/lib/cardText.js";
 import { lessonCardKey } from "../../src/lib/lessonSource.js";
 
 // A card's identity is the hash of the front it was FIRST written with: a
@@ -229,9 +230,15 @@ console.log("\n  and the student can study it and read the notes");
   ck("entering the lesson deals a card from it", study.hasCard, study.front.split("\n")[0] || "no card");
 
   // The front on screen has to be one of the lesson's, not a stray deck card.
-  const fronts = new Set(LESSON.cards.map(([f]) => f));
-  const shown = study.front.split("\n").find((line) => fronts.has(line.trim()));
-  ck("and the card is one of the lesson's own", !!shown || study.hasCard,
+  // A phrase card can be shown English side up (under "Mixed"), and the app
+  // cleans a prompt before showing it, so accept a lesson card's French or
+  // English side, as stored or as cleaned.
+  const sides = new Set();
+  for (const [f, b, , , shortFront] of LESSON.cards) {
+    for (const t of [f, b, shortFront, cleanFrenchPrompt(f, b), cleanEnglishPrompt(b)]) if (t) sides.add(String(t).trim());
+  }
+  const shown = study.front.split("\n").find((line) => sides.has(line.trim()));
+  ck("and the card is one of the lesson's own", !!shown,
      shown ? JSON.stringify(shown) : `showed ${JSON.stringify(study.front.slice(0, 40))}`);
   ck("the session is drawn from the lesson, not the whole deck",
      study.total !== null && study.total <= LESSON.cards.length,

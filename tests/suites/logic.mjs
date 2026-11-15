@@ -90,8 +90,9 @@ table("looksMultiSense — shortlists real suspects only", [
   ["I have never been so single in my life", false],
 ], (back) => looksMultiSense({ b: back }));
 
-// The deck's own grammar and pronunciation sections are the corpus every
-// pattern in isGrammarCard was derived from. If a change stops recognising
+// The deck's own grammar and pronunciation sections (all arrow drills today)
+// and the rule cards the owner sorted in September 2026 are the corpus the
+// patterns in isGrammarCard were derived from. If a change stops recognising
 // them, this catches it.
 console.log("\n  classifyCard — against the real cahier corpus");
 const { RAW } = await import("../../src/data/cards.js");
@@ -101,6 +102,17 @@ ck(
   `every card in the grammar and pronunciation sections reads as grammar (${section.length})`,
   missed.length === 0,
   missed.length ? missed.map(([f]) => f).join("; ").slice(0, 160) : ""
+);
+// The 56 rule cards the owner archived or converted (the "keep" ones are
+// vocabulary and are not expected to read as grammar). Most rest on one
+// non-arrow pattern, which keepAnswerable relies on.
+const { decisions: sorted } = JSON.parse(readFileSync(new URL("../../scripts/data/grammar-sort-decisions.json", import.meta.url), "utf8"));
+const ruleCards = sorted.filter((d) => d.decision !== "keep");
+const unseen = ruleCards.filter((d) => classifyCard({ f: d.front, b: d.back }) !== "grammar");
+ck(
+  `every rule card the owner sorted in September still reads as grammar (${ruleCards.length})`,
+  ruleCards.length === 56 && unseen.length === 0,
+  unseen.length ? unseen.map((d) => d.front).join("; ").slice(0, 160) : `${ruleCards.length} cards`
 );
 const vocabSection = RAW.filter(([, , c]) => c === "vocab" || c === "expr");
 const pulled = vocabSection.filter(([f, b, c]) => classifyCard({ f, b, cat: c }) === "grammar");

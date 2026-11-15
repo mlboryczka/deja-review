@@ -14,7 +14,7 @@
 //   all          localDays + siblings + newCap
 
 const REPO = "/Users/mboryczka/Desktop/Projects/deja-review";
-const { buildSession, placeRetry, applyAnswer: appApplyAnswer } = await import(`${REPO}/src/lib/sessionQueue.js`);
+const { buildSession, placeRetry, BLOCK_SIZE, applyAnswer: appApplyAnswer } = await import(`${REPO}/src/lib/sessionQueue.js`);
 const { toFsrsCard, fromFsrsCard, RE_QUEUE_OFFSET, State } = await import(`${REPO}/src/lib/spacedRepetition.js`);
 const { sideOf, sideColumns, isTwoWay, otherDirection, directionsOf } = await import(`${REPO}/src/lib/directions.js`);
 const { reviewedToday, localISODate } = await import(`${REPO}/src/lib/studyDay.js`);
@@ -294,7 +294,7 @@ function run(v, seed) {
             }
           }
           if (!res.got) {
-            block = placeRetry(block, idx, { ...item, ...card, shownDir: dir, _rid: Math.random().toString(36).slice(2) }, RE_QUEUE_OFFSET);
+            block = placeRetry(block, idx, { ...item, ...card, shownDir: dir, _rid: Math.random().toString(36).slice(2) }, RE_QUEUE_OFFSET, BLOCK_SIZE);
           }
           now += 9000;
         }

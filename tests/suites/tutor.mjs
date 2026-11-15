@@ -6,7 +6,7 @@
 // two chunks with a gap, because "the answer appears as it is generated" is
 // the requirement and a single-shot response cannot test it.
 import { createServer } from "node:http";
-import { openApp, finish, checker, servedDeck, setting, enableTypeMode } from "../harness.mjs";
+import { openApp, finish, checker, servedDeck, setting, enableTypeMode, sessionCounter } from "../harness.mjs";
 
 const ck = checker();
 const deck = await servedDeck();
@@ -327,13 +327,19 @@ await page.waitForTimeout(500);
 // The last click was outside the panel (the direction button), so the key is
 // the card's.
 {
-  const beforeKey = await chip();
-  await page.keyboard.press("ArrowRight");
-  await page.waitForTimeout(300);
+  // On a card not yet turned over the first press only turns it, so judge by
+  // the counter: press until it moves on (at most three times).
+  const before = await sessionCounter(page);
+  let after = before;
+  for (let i = 0; i < 3 && after?.index === before?.index; i++) {
+    await page.keyboard.press("ArrowRight");
+    await page.waitForTimeout(300);
+    after = await sessionCounter(page);
+  }
   ck(
     "with the tutor beside the card, the arrow key still grades and moves on",
-    (await chip()) !== beforeKey,
-    `${beforeKey} → ${await chip()}`
+    !!before && !!after && after.index === before.index + 1,
+    `${JSON.stringify(before)} → ${JSON.stringify(after)}`
   );
 }
 let enCard = null;

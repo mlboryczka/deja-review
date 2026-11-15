@@ -59,7 +59,7 @@ const server = http.createServer((req, res) => {
   }
   const m = url.pathname.match(/^\/rest\/v1\/(\w+)$/);
   const tables = {
-    card_reviews: state.answers, user_cards: state.cards, dealt_sets: rec.deals, fsrs_settings: [rec.settings],
+    card_reviews: state.answers, user_cards: state.cards, dealt_sets: [...rec.deals, ...(state.otherDeals || [])], fsrs_settings: [rec.settings, ...(state.otherSettings || [])],
     card_pairs: state.pairs, parse_corrections: state.corrections, status_reports: state.reports, eval_runs: state.runs,
     beta_feedback: state.feedback,
   };
@@ -314,10 +314,28 @@ console.log("\n  a fault in the record");
   // The morning check of the owner's test app (2026-10-14): the admin's record
   // only, with this version's checks, its problems kept apart.
   state.requests = [];
+  // The other account, listed first by the stand-in, gets a record of its own
+  // with one answer scheduled nine days off, so it WOULD be reported if the
+  // test app's run judged it. Taken out again straight after.
+  const OTHER_ID = "someone-else";
+  const asOther = (rows) => rows.map((r) => ({ ...r, user_id: OTHER_ID }));
+  const otherAnswers = asOther(rec.answers);
+  const off = otherAnswers.find((r) => r.counted && r.state_before === 2 && r.correct);
+  off.due_after = new Date(Date.parse(off.due_after) + 9 * 86400000).toISOString();
+  const savedState = { answers: state.answers, cards: state.cards };
+  state.answers = [...state.answers, ...otherAnswers];
+  state.cards = [...state.cards, ...asOther(rec.cards)];
+  state.otherDeals = asOther(rec.deals);
+  state.otherSettings = [{ ...rec.settings, user_id: OTHER_ID }];
   const t = await run(["--test-app"]);
+  Object.assign(state, savedState);
+  state.otherDeals = []; state.otherSettings = [];
+  const problems = (t.out.split("New since the last morning check")[1] || "").split("\n").map((l) => l.trim()).filter((l) => l.startsWith("- Test app:"));
   ck("--test-app judges the admin's record, as the test app's, and not other accounts'",
-     /^The test app \(dejareview-mlb\.vercel\.app\), judged by its own version of the checks:\n\n {2}student@example\.com:/.test(t.out) && !t.out.includes("other@example.com"),
+     /^The test app \(dejareview-mlb\.vercel\.app\), judged by its own version of the checks:\n\n {2}student@example\.com:/.test(t.out) && !t.out.includes("other@example.com") && !t.out.includes(OTHER_ID),
      t.out.split("\n")[0]);
+  ck("  every problem it raises names the admin, though another account's record has a fault too",
+     problems.length > 0 && problems.every((l) => l.startsWith("- Test app: student@example.com:")), problems.slice(0, 2).join(" | "));
   ck("  every check, and each failure named as the test app's, exiting 1",
      /\[FAIL\] Every answer was scheduled the way FSRS says/.test(t.out) &&
        (t.out.split("New since the last morning check")[1] || "").includes("- Test app: student@example.com: Every answer was scheduled the way FSRS says: ") && t.code === 1,

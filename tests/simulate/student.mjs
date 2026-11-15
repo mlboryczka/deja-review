@@ -346,7 +346,7 @@ export function simulate({
       m.answers++;
       const secs = item._retry ? SECONDS.retry : res.first ? SECONDS.new : res.got ? SECONDS.right : SECONDS.wrong;
       m.seconds += secs;
-      if (!res.got) block = placeRetry(block, idx, { ...item, ...card, _rid: String(m.answers) }, RE_QUEUE_OFFSET);
+      if (!res.got) block = placeRetry(block, idx, { ...item, ...card, _rid: String(m.answers) }, RE_QUEUE_OFFSET, BLOCK_SIZE);
       now += secs * 1000;
       return block;
     };
