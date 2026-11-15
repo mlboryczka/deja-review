@@ -507,14 +507,14 @@ function checkNotEarly(idx, ctx) {
 // 2026-10-04 a set on Cards also says what it left out (lib/lessonChoice.js):
 // "|cahier" for the student's own cards only, "|off=a,b" for lessons
 // switched off.
-function candidateItems(idx, deal, at) {
+function candidateItems(idx, deal, at, course = "fr") {
   const [typeFilter = "all", lessonFilter = "all", narrowed = ""] = String(deal.scope || "all|all").split("|");
   const ownOnly = narrowed === "cahier";
   const off = new Set(narrowed.startsWith("off=") ? narrowed.slice(4).split(",") : []);
   const items = [];
   for (const [id, c] of idx.deck) {
     if (c.created_at && ms(c.created_at) > at) continue;
-    if (typeFilter !== "all" && classifyCard(c) !== typeFilter) continue;
+    if (typeFilter !== "all" && classifyCard(c, course) !== typeFilter) continue;
     if (lessonFilter !== "all" && lessonIdOf(c) !== lessonFilter) continue;
     if (lessonFilter === "all" && lessonIdOf(c) && (ownOnly || off.has(lessonIdOf(c)))) continue;
     const dirs = directionsOf(c);
@@ -541,7 +541,7 @@ function checkDueFirst(idx, ctx) {
     const cardsInSet = new Set([...(d.items || []), ...(d.kept || [])].map((x) => x.c));
     const dealtNew = (d.items || []).filter((x) => x.b === "new");
     const dealtReviews = (d.items || []).filter((x) => x.b === "review");
-    const { items } = candidateItems(idx, d, at);
+    const { items } = candidateItems(idx, d, at, ctx.course);
     const leftDue = [];
     for (const it of items) {
       if (inSet.has(keyOf(it.id, it.dir))) continue;
@@ -623,7 +623,7 @@ function checkNewOrder(idx, ctx) {
     const at = ms(d.dealt_at);
     const tz = idx.tzOf(d);
     const today = dayNo(at, tz);
-    const { items, lessonMode } = candidateItems(idx, d, at);
+    const { items, lessonMode } = candidateItems(idx, d, at, ctx.course);
     const cutoff = dayIso(today - RECENT_DAYS);
     const opts = { lessonMode, cutoff, lessonRank: ctx.lessonRank };
     // The class dates the app knew of when it dealt the set. A date after

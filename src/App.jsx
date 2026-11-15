@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "./supabase";
 import Auth from "./Auth";
 import FlashcardApp, { clearPodcastsPlace, hasLanguageChoice } from "./FlashcardApp";
@@ -34,6 +34,9 @@ export default function App() {
   // flag in the top-right corner (owner, 2026-10-22). Null until chosen on
   // this page: the app then opens on the one used last in this browser.
   const [course, setCourse] = useState(null);
+  // The stored language, read once per sign-in: a tab keeps its own language
+  // until its own flag is used, whatever another tab chooses meanwhile.
+  const signInCourse = useRef({ userId: null, course: null });
   // Whether the wait has gone on long enough to be worth saying so.
   //
   // getSession() reads local storage first, so on the normal path it settles
@@ -183,14 +186,15 @@ export default function App() {
     );
   }
 
-  if (!session) return <Auth />;
+  if (!session) { signInCourse.current = { userId: null, course: null }; return <Auth />; }
 
   // Someone with the Spanish module has French and Spanish, switched with the
   // flag in the top-right corner. Each is the app mounted afresh (the key),
   // with its own deck, lessons and place.
   if (hasLanguageChoice(session.user)) {
     const userId = session.user.id;
-    const current = course || readCourse(userId);
+    if (signInCourse.current.userId !== userId) signInCourse.current = { userId, course: readCourse(userId) };
+    const current = course || signInCourse.current.course;
     const choose = (c) => { writeCourse(userId, c); setCourse(c); };
     return <FlashcardApp key={current} course={current} onCourse={choose} user={session.user} onSignOut={handleSignOut} />;
   }

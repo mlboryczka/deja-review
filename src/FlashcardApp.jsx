@@ -697,7 +697,7 @@ function typedGotIt(typeResult) {
 // App.jsx mounts the app afresh for each, so nothing of one course's set,
 // deck or place carries over to the other. `onCourse("fr" | "es")` switches;
 // it is only passed to someone who has both, and draws the flag that does it.
-export default function FlashcardApp({ user, onSignOut, course: courseId = "fr", onCourse }) {
+export default function FlashcardApp({ user, onSignOut: rawSignOut, course: courseId = "fr", onCourse: rawOnCourse }) {
   const course = courseOf(courseId);
   // The Spanish module: its own deck, lessons and voice. No cahier, uploads
   // or tour, all of which are about French cards. Its tutor is the Spanish
@@ -714,7 +714,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   // The browser voice reads this course's language.
   setSpeechLanguage(course.speech);
   const { progress, loaded: progressLoaded, updateCard, resetAll: resetAllProgress } = useProgress(user, { table: tbl("card_progress"), store: storeId });
-  const { cards: userCards, archived: archivedCards, loaded: deckLoaded, missing: deckMissing, reload: reloadDeck, patch: patchDeckCard, patchAll: patchAllDeckCards, add: addDeckCard, drop: dropDeckCard, freshSeq: deckFreshSeq, fetchedAt: deckFetchedAt } = useUserDeck(user, { table: tbl("user_cards"), store: storeId });
+  const { cards: userCards, archived: archivedCards, loaded: deckLoaded, missing: deckMissing, reload: reloadDeck, patch: patchDeckCard, patchAll: patchAllDeckCards, add: addDeckCard, drop: dropDeckCard, freshSeq: deckFreshSeq, fetchedAt: deckFetchedAt, loadFailed: deckLoadFailed } = useUserDeck(user, { table: tbl("user_cards"), store: storeId });
   // The linked cahier, read again when the app opens: a class taught after
   // the last visit is already cards by the time the student studies. In
   // Spanish, the caderno (2026-11-02), in tables of its own.
@@ -1340,7 +1340,14 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   const lessonChoicesRef = useRef(lessonChoices);
   lessonChoicesRef.current = lessonChoices;
   const sessionChoices = JSON.stringify(choicesOf(user));
-  useEffect(() => { setLessonChoices(JSON.parse(sessionChoices)); }, [sessionChoices]);
+  // Saves of a switch still under way. The account echoes each save back as
+  // the session changes; an echo of an earlier save, taken while a later tap
+  // is still being saved, would put that tap's older map back.
+  const choiceSavesRef = useRef(0);
+  useEffect(() => {
+    if (choiceSavesRef.current > 0) return;
+    setLessonChoices(JSON.parse(sessionChoices));
+  }, [sessionChoices]);
   // Whether the account says the first-visit tour has been shown, read at the
   // same time: null until the server has answered (see the tour, below).
   const [accountTourSeen, setAccountTourSeen] = useState(null);
@@ -1384,7 +1391,13 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
     lessonChoicesRef.current = next;
     setLessonChoices(next);
     setChoiceFailed(null);
-    const { error } = await supabase.auth.updateUser({ data: { [CHOICE_KEY]: next } });
+    choiceSavesRef.current += 1;
+    let error;
+    try {
+      ({ error } = await supabase.auth.updateUser({ data: { [CHOICE_KEY]: next } }));
+    } finally {
+      choiceSavesRef.current -= 1;
+    }
     if (!error) return;
     console.error("Saving the lesson switch failed:", error);
     setLessonChoices((cur) => ({ ...cur, [id]: was }));
@@ -1412,7 +1425,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   // switched off.
   const poolFrom = useCallback((cards) => {
     let candidates = cards;
-    if (typeFilter !== "all") candidates = candidates.filter(c => classifyCard(c) === typeFilter);
+    if (typeFilter !== "all") candidates = candidates.filter(c => classifyCard(c, course.id) === typeFilter);
     if (lessonFilter !== "all") candidates = candidates.filter(c => lessonIdOf(c) === lessonFilter);
     return candidates;
   }, [typeFilter, lessonFilter]);
@@ -1753,9 +1766,12 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   );
   const lastElsewhereCheckRef = useRef(0);
   const checkElsewhere = useCallback(async () => {
-    if (!user?.id || !deckFetchedAt) return;
+    if (!user?.id) return;
     if (Date.now() - lastElsewhereCheckRef.current < 15000) return;
     lastElsewhereCheckRef.current = Date.now();
+    // No fetch has landed yet (the first read failed): read the deck again
+    // rather than study on from the browser's old copy.
+    if (!deckFetchedAt) { reloadDeck(); return; }
     // Ten minutes' margin for a device whose clock runs behind.
     const since = new Date(deckFetchedAt - 10 * 60 * 1000).toISOString();
     const { data, error } = await supabase
@@ -2007,7 +2023,14 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
     const asked = (c) => !c.flippable || dir === "mix" || c.shownDir === dir;
     const head = deck.slice(0, firstOpen);
     const tail = deck.slice(firstOpen);
-    const kept = new Set(tail.filter((c) => asked(c) || blockAnswersRef.current.has(slotKeyOf(c))));
+    // A lesson gone through again keeps its cards (none of them is due, so
+    // nothing could replace them): the ones shown the other way are turned to
+    // the new direction, as redealRest keeps them.
+    const turned = new Map();
+    for (const c of tail) {
+      if (!asked(c) && c._bucket === "practice" && !blockAnswersRef.current.has(slotKeyOf(c))) turned.set(c, { ...c, shownDir: dir });
+    }
+    const kept = new Set(tail.filter((c) => asked(c) || blockAnswersRef.current.has(slotKeyOf(c)) || turned.has(c)));
     const room = tail.length - kept.size;
     const dealt = room > 0
       ? buildSession(candidatesFrom(userCards), {
@@ -2015,13 +2038,13 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
           target: room,
           lessonMode: lessonFilter !== "all",
           lessonRank,
-          inBlock: [...head, ...kept],
+          inBlock: [...head, ...[...kept].map((c) => turned.get(c) ?? c)],
         })
       : null;
     if (dealt) recordDeal({ kind: "direction", scope: dealScopeOf(setKeyOf(typeFilter, lessonFilter, scope), switchSig), direction: dir, slots: room, dealt, kept: [...head, ...kept] });
     const fill = dealt ? dealt.queue : [];
     let f = 0;
-    const next = [...head, ...tail.map((c) => (kept.has(c) ? c : fill[f++])).filter(Boolean)];
+    const next = [...head, ...tail.map((c) => (kept.has(c) ? (turned.get(c) ?? c) : fill[f++])).filter(Boolean)];
     setDeck(next);
     if (next.length <= idx) {
       // Nothing left to ask this way round: the block ends where it is.
@@ -2070,17 +2093,22 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   }, [mode, card, sessionDone, flipped, typeResult, typedAnswer, revealedSlot, cardSlot]);
   const flip = useCallback(() => setFlipped(f => !f), []);
 
-  // Auto-speak French when a French side becomes visible
+  // Auto-speak French when a French side becomes visible. Keyed on the card's
+  // slot, not the card object: a deck patch makes a new object for the same
+  // card, and the last card turns back to its front behind the checkpoint.
+  const cardForSpeechRef = useRef(card);
+  cardForSpeechRef.current = card;
   useEffect(() => {
-    if (!autoSpeak || !card || mode !== "study") return;
+    const c = cardForSpeechRef.current;
+    if (!autoSpeak || !c || mode !== "study" || sessionDone) return;
     const isFrenchVisible =
-      (card.shownDir === "fr" && !flipped) || (card.shownDir === "en" && flipped);
+      (c.shownDir === "fr" && !flipped) || (c.shownDir === "en" && flipped);
     if (isFrenchVisible) {
       // Slight delay so the speech starts after the flip animation
-      const t = setTimeout(() => speakFrench(oneAnswer(cleanFrenchPrompt(card.f, card.b))), 200);
+      const t = setTimeout(() => speakFrench(oneAnswer(cleanFrenchPrompt(c.f, c.b))), 200);
       return () => clearTimeout(t);
     }
-  }, [autoSpeak, card, flipped, mode]);
+  }, [autoSpeak, cardSlot, flipped, mode, sessionDone]);
 
   // Speak French manually (button handler)
   const speakCard = useCallback(() => {
@@ -2268,7 +2296,17 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
     window.addEventListener("beforeunload", onLeave);
     return () => window.removeEventListener("beforeunload", onLeave);
   }, [unsavedCount]);
-  useEffect(() => () => clearTimeout(retryTimerRef.current), []);
+  // Leaving the page (another language, signing out) takes this component
+  // away and with it the retry timer, so every answer still waiting gets one
+  // last try on its way out, and the student is asked first.
+  useEffect(() => () => {
+    clearTimeout(retryTimerRef.current);
+    for (const e of unsavedRef.current.values()) if (e.failed) { try { e.send(); } catch { /* nothing more to do */ } }
+  }, []);
+  const confirmLeaveUnsaved = () => unsavedRef.current.size === 0 ||
+    window.confirm("Some answers are not saved yet. The app will try once more as you leave, but they can be lost if you are offline. Leave anyway?");
+  const onSignOut = () => { if (confirmLeaveUnsaved()) rawSignOut?.(); };
+  const onCourse = rawOnCourse ? (id) => { if (confirmLeaveUnsaved()) rawOnCourse(id); } : undefined;
 
   // What "Mark for review" did to the card it was pressed on, shown beside the
   // counter for a few seconds. The card moves on at once, so without this
@@ -2484,7 +2522,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
       const tomorrowEnds = endOfLocalDay(new Date(endOfLocalDay(now) + 1));
       when = !Number.isFinite(due) || due <= endOfLocalDay(now) ? "in your next set"
         : due <= tomorrowEnds ? "tomorrow"
-        : `on ${new Date(due).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}`;
+        : `on ${new Date(`${localISODate(new Date(due))}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}`;
     }
     // No card name: the student has just pressed the button on it, and a long
     // front ran the message off the top bar on a narrow window.
@@ -2950,10 +2988,15 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
   // since would look never answered there, and be deleted with its history
   // instead of kept. So this waits for the first fetch to land.
   const lessonsSynced = useRef(false);
+  // The lesson sync has finished (or failed) for this deck: until then a deck
+  // that came back empty is a new student whose lessons are being added, not
+  // someone to show the Welcome page.
+  const [lessonSyncDone, setLessonSyncDone] = useState(false);
   useEffect(() => {
     if (!user || !deckLoaded || !deckFreshSeq || lessonsSynced.current) return;
     lessonsSynced.current = true;
     (async () => {
+      try {
       const { missing, rekey, retext, recat, stale, archive, adopt, unkeyed, taken, away } = reconcileLessons(LESSONS, userCards, archivedCards);
       if (away.length) {
         // Out of study: the student removed them, or they were put away as a
@@ -2995,7 +3038,9 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
             .update({ front: r.front, back: r.back })
             .eq("id", r.row_id)
             .eq("user_id", user.id);
-          if (error) throw error;
+          // One refused rename (the database has that front already) must not
+          // stop the rest of the update on every load.
+          if (error) console.error("[lessons] rename refused:", r.front, error);
         }
         // A grammar card the lesson now asks as a word or phrase. See
         // reconcileLessons.
@@ -3007,16 +3052,38 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
             .eq("user_id", user.id);
           if (error) throw error;
         }
+        // A card with an answer on record, even after "Reset all progress"
+        // zeroed its schedule, is taken out of study, not deleted: deleting a
+        // card deletes its answers with it. Asked of the answer record
+        // itself; if that cannot be read, nothing is deleted.
+        const answeredStale = new Set();
+        let readable = true;
+        for (let i = 0; i < stale.length && readable; i += 25) {
+          const ids = stale.slice(i, i + 25);
+          for (let from = 0; ; from += 1000) {
+            const { data, error } = await supabase
+              .from(tbl("card_reviews"))
+              .select("card_id")
+              .in("card_id", ids)
+              .eq("user_id", user.id)
+              .range(from, from + 999);
+            if (error) { readable = false; break; }
+            for (const r of data || []) answeredStale.add(r.card_id);
+            if (!data || data.length < 1000) break;
+          }
+        }
+        const toDelete = readable ? stale.filter((id) => !answeredStale.has(id)) : [];
+        const toArchive = readable ? [...archive, ...stale.filter((id) => answeredStale.has(id))] : [...archive, ...stale];
         // Deleted only if still never answered either way, checked by the
         // database itself: a card answered on another device since the deck
         // was read is left, and archived on the next visit. A few hundred at
         // a time, as the ids go in the address: the Spanish grammar cards
         // left a deck 900 at once (2026-10-25).
-        for (let i = 0; i < stale.length; i += 200) {
+        for (let i = 0; i < toDelete.length; i += 200) {
           const { error } = await supabase
             .from(tbl("user_cards"))
             .delete()
-            .in("id", stale.slice(i, i + 200))
+            .in("id", toDelete.slice(i, i + 200))
             .eq("user_id", user.id)
             .eq("fsrs_state", 0)
             .eq("en_fsrs_state", 0);
@@ -3024,7 +3091,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
         }
         // A card the student has answered is taken out of study, not deleted:
         // its answers stay on record. See reconcileLessons.
-        for (const rowId of archive) {
+        for (const rowId of toArchive) {
           const row = userCards.find((c) => c.row_id === rowId);
           const { error } = await supabase
             .from(tbl("user_cards"))
@@ -3045,7 +3112,7 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
         }
         console.info(
           `[lessons] synced: +${missing.length} card(s), ${rekey.length} re-keyed, ${retext.length} renamed, ${recat.length} now words or phrases, ` +
-            `-${stale.length} never answered and removed, ${archive.length} answered and kept out of study, ` +
+            `-${toDelete.length} never answered and removed, ${toArchive.length} answered and kept out of study, ` +
             `${adopt.length} kept as cards from your notes`
         );
         reloadDeck();
@@ -3053,6 +3120,9 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
         // A lesson that cannot sync is not worth blocking the app for; the
         // deck the student already has still works.
         console.error("Lesson sync failed:", e);
+      }
+      } finally {
+        setLessonSyncDone(true);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -3257,6 +3327,20 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
                 : "There are no Spanish lessons yet."}
           </p>
           <button style={S.onbTopSignOut} onClick={() => onCourse?.("fr")}>Back to French</button>
+        </div>
+      </div>
+    );
+  }
+
+  // A new French student: the deck came back empty and the lesson sync is
+  // adding the lessons' cards, which swaps this page for the app within
+  // seconds. The Welcome page is for when that has finished and the deck is
+  // still empty (or the deck could not be read at all).
+  if (userCards.length === 0 && deckFreshSeq > 0 && !lessonSyncDone && LESSONS.length) {
+    return (
+      <div style={S.onbPage}>
+        <div style={{ ...S.onboarding, marginTop: 120 }} data-lessons-adding>
+          <p style={{ margin: 0, fontSize: 17, color: T.color.onSurface }}>Adding the lessons to your cards…</p>
         </div>
       </div>
     );
@@ -4264,16 +4348,9 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
               // how many are due today, the way the student is studying: in
               // EN→FR a word due only French side up is not waiting for them.
               const on = lessonsOn.has(lesson.id);
-              const endToday = endOfLocalDay(new Date());
-              let due = 0;
-              for (const c of owned) {
-                for (const d of directionsOf(c)) {
-                  if (isTwoWay(c) && dir !== "mix" && d !== dir) continue;
-                  const side = sideOf(c, d);
-                  if ((side.fsrs_state ?? State.New) !== State.New && side.next_due_at &&
-                      new Date(side.next_due_at).getTime() <= endToday) due++;
-                }
-              }
+              // The dealer's own count (a card once, and a way held back when
+              // its other way was answered today), with nothing taken.
+              const due = buildSession(owned, { now: Date.now(), direction: dir, target: 0 }).dueRemaining;
               return (
                 <div key={lesson.id} style={S.lessonCard} data-tour-lesson={lesson.id}>
                   <div style={S.lessonHead}>
@@ -4750,6 +4827,11 @@ export default function FlashcardApp({ user, onSignOut, course: courseId = "fr",
                 <div style={S.subToolbarRight}>
                   {/* Where you are in the block. Gone at the checkpoint, where
                       the last card's position means nothing. */}
+                  {deckLoadFailed && (
+                    <span style={S.unsavedNotice} data-deck-unread role="status">
+                      Couldn't read your cards just now — trying again
+                    </span>
+                  )}
                   {unsavedCount > 0 && (
                     <span style={S.unsavedNotice} data-unsaved role="status">
                       {unsavedCount === 1 ? "1 answer not saved yet" : `${unsavedCount} answers not saved yet`} — retrying

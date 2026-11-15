@@ -157,8 +157,12 @@ export function isGrammarCard(card) {
 // Keyed weakly, so nothing is held alive for the cache's sake.
 const CACHE = new WeakMap();
 
-export function classifyCard(card) {
+export function classifyCard(card, course = "fr") {
   if (!card) return "phrase";
+  // A Spanish card is sorted by the type it was added with (V word, E phrase,
+  // G or P grammar), which the lessons and the caderno set on purpose: the
+  // French word lists below say nothing about Spanish.
+  if (course === "es") return card.cat === "gram" || card.cat === "pron" ? "grammar" : card.cat === "expr" ? "phrase" : "vocab";
 
   const hit = CACHE.get(card);
   if (hit !== undefined) return hit;
