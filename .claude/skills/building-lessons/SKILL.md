@@ -71,11 +71,16 @@ model for structure.
    pass the very mistakes a lesson tests (*chères* for *cher*, *évidamment*).
 6. **Accents are never checked in French**, so don't build French cards
    whose point is an accent. That's why the adverb lesson has only three
-   -ément cards. **Spanish answers are checked with their accents** (owner,
-   2026-10-22: "accents must be checked"): "hablo" for "habló", "ano" for
-   "año" and "tu" for "tú" are marked "Check the accents", a miss. Write
-   every accent on a Spanish answer, and a Spanish card may now turn on an
-   accent.
+   -ément cards. **In Spanish an accent counts only where it changes a
+   verb's tense** (owner, 2026-10-26: "the accents shouldn't be a criteria
+   for marking something incorrect, unless the word NEEDS the accent (for
+   instance to determine the proper tense)"). "hablo" for "habló" is a miss
+   (the app says "The accent changes the tense"), but "tu" for "tú", "ano"
+   for "año" and "esta" for "está" are right, and a missing ñ is forgiven.
+   So never build a Spanish card whose point is any other accent. Still write
+   every accent in the card's own answer. The verb forms whose accent counts
+   are listed in `src/lib/spanishAccents.js` (made by
+   `scripts/tense-accents.mjs`).
 7. **Exact marking ignores case, accents, brackets and the punctuation
    . , ! ? ; : and quotes, but not hyphens, apostrophes or spaces**: *dix sept*
    is wrong for *dix-sept*, and *je ai* for *j'ai*.
