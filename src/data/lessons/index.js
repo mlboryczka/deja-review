@@ -40,6 +40,10 @@ import subjonctif from "./subjonctif.js";
 import subjonctifpasse from "./subjonctifpasse.js";
 import condition from "./condition.js";
 import communication from "./communication.js";
+import demonstratifs from "./demonstratifs.js";
+import negation from "./negation.js";
+import pronomen from "./pronomen.js";
+import pronoms from "./pronoms.js";
 import { makeCatalogue } from "./catalogue.js";
 import { frenchStagesOf } from "./stages.js";
 import { stageIds } from "./es/stages.js";
@@ -62,6 +66,7 @@ const ALL = [
   lecon11, lecon12, lecon13, lecon14, lecon15, lecon16, lecon17, lecon18, lecon19, lecon20,
   gerondif, plusqueparfait, voiepassive, pronomsrelatifs,
   subjonctif, subjonctifpasse, condition, communication,
+  demonstratifs, negation, pronomen, pronoms,
 ];
 
 // The order a student meets the lessons' new cards in on Cards: part of every

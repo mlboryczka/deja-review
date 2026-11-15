@@ -1745,10 +1745,11 @@ From this project's history:
 
 A lesson is a fixed set of cards made from a teacher's materials, the same for
 every student. Lessons are in `src/data/lessons/`; `LESSONS` in `index.js` is
-the catalogue. There are thirty: L'impératif (108 cards), Le gérondif
+the catalogue. There are thirty-four: L'impératif (108 cards), Le gérondif
 (41), Le plus-que-parfait (49), La voie passive (29), Les pronoms relatifs
-(40), Le subjonctif présent (52), Le subjonctif passé (35), La condition (38)
-and Communication (48), topic lessons from Laura Caufour's LFL METHOD sheets,
+(40), Le subjonctif présent (52), Le subjonctif passé (35), La condition (38),
+Communication (48), Les démonstratifs (43), La négation (46), Le pronom EN
+(46) and Les pronoms (39), topic lessons from Laura Caufour's LFL METHOD sheets,
 Adjectif ou adverbe ? (81 cards, written for the app), and her beginner
 Leçons 1 to 20, titled in English in the app (owner, 2026-10-06):
 Lesson 1 · Être (57), Lesson 2 · Aller (63), Lesson 3 · Avoir (62), Lesson 4 ·
@@ -2010,6 +2011,21 @@ il est probable que takes the indicative (CNRTL, "probable"), and si becomes
 s' only before il and ils (French Wiktionary, "si"). Communication is mostly
 phrase cards, as her sheet recommends ("créer un paquet de cartes ANKI avec
 toutes ces expressions").
+
+Les démonstratifs, La négation, Le pronom EN and Les pronoms, the last four
+of her topic lessons, were built the same day in the other chat, the same
+way. They overlap her numbered course (Leçons 5, 9 and 17 teach parts of the
+negative, Leçon 16 le, la, les, lui and leur, Leçon 20 y), so their cards
+drill what those don't: jamais, pas encore, plus, rien, personne and aucun;
+en for de and for an amount; choosing among all the pronouns, two together,
+and moi, toi, eux after à, de or a preposition. No front is shared with
+another lesson. Typo tolerance on a phrase card lets "Je suis né cette
+année" pass for "… cette année-là", and "personne jamais" for "jamais
+personne", so those points have exact choice cards. In La négation only her
+ex. 1's cards accept an answer without ne, as her sheet allows; the rest
+need it. Long French in the first column of a notes table doesn't wrap and
+pushes the English out of the panel, so before-and-after examples are
+three-column tables whose short "after" column is the bold one.
 
 ---
 
