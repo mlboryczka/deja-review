@@ -16,7 +16,7 @@ Live at [dejareview.vercel.app](https://dejareview.vercel.app).
 
 ### Evaluation harness
 
-Every morning the server runs eleven checks on every student's record of
+Every morning the server runs fourteen checks on every student's record of
 answers and their deck. They confirm that each answer was scheduled the way
 FSRS says, that no card came up before it was due, that missed cards came back
 first and new cards arrived in the agreed order, that FSRS's predictions match
@@ -32,8 +32,6 @@ to scheduling, simulated students study for six months with the app's own
 code, including messy ones who reload mid-set or wander off into a lesson. And
 39 test suites run on GitHub on every push.
 [Evaluation harness](docs/evaluation-harness.md)
-
-![The Status window, where the owner sees the nine checks](docs/screenshots/status.png)
 
 ### Cards from class notes
 

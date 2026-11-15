@@ -15,8 +15,6 @@ Déjà Review checks its own work in four ways:
    including messy ones who reload and wander off mid-set.
 4. **39 test suites**, run on GitHub on every push.
 
-![The Status window: each of the nine checks with its result](screenshots/status.png)
-
 ## The status check
 
 The status check asks three questions about the cards each student was shown.
@@ -102,15 +100,11 @@ Run on a copy of the live tables taken before a clean-up of repeated cards,
 the last check named exactly the three cards that clean-up put right, and the
 first reached every group of repeats it put away.
 
-The checks are one file, used in three places:
+The checks are one file, used in these places:
 
-- **In the app**, for the owner. "Status" in the profile menu opens a window
-  that marks each check passed, failed or waiting, and names the cards behind
-  any failure. A red dot on the avatar means something needs a look. "Copy
-  details" copies the report, ready to paste into a Claude session.
 - **On the server, every morning**, for every student who has answered a card.
-  The reports are kept, and a failed check for any student lights the same red
-  dot. The Status window's "All students" tab shows them.
+  The reports are kept (the in-app Status window, which used to show them, was
+  removed on 2026-10-06).
 - **In the terminal**, as a script that runs the checks on any student's live
   record and only reads.
 - **On the owner's test app, every morning** (added 2026-10-14). Vercel runs
@@ -156,7 +150,8 @@ What Claude should have said is read from what the owner did next. If Claude
 refused and the owner pressed "Accept anyway", the refusal was wrong. If Claude
 refused and the owner moved on, it was right. If Claude accepted and the owner
 let it stand, that was right. Another student's disputes count only once the
-owner has marked them in the Status window.
+owner has marked them. Nothing in the app marks them any more, so only the
+owner's own disputes, and any marked before the Status window went, count.
 
 The test asks Claude again about every answer whose right verdict is known,
 three times each, with the same question and the same model the app uses. Each case comes out
@@ -207,13 +202,11 @@ all the code that turns Claude's reply into cards. Results are kept per
 version, so a new version can be compared with the last. There is no button to
 press.
 
-The red dot lights only when a case that passed before a change of version
+The morning check raises a case only when a case that passed before a change of version
 fails after it. Claude can answer the same question differently from one run
 to the next, and a review of the first design found that a few borderline
 cases would have lit the warning most weeks by chance. Cases Claude gets wrong
-are still listed in the Status window either way.
-
-![The Status window's "Claude's marking" tab](screenshots/status-claude.png)
+are still counted either way.
 
 ## Simulated students
 
@@ -271,14 +264,13 @@ failed.
 - `src/lib/statusChecks.js`: the fourteen checks, shared by the server, the
   script and the simulations; the deck checks import `src/lib/sameCard.js`,
   the rule the card-writers use
-- `src/StatusModal.jsx`: the Status window
 - `api/_lib/statusDaily.js`: the morning run for every student
 - `api/_lib/answerChecks.js`, `api/_lib/notesChecks.js` and
   `api/_lib/repeatsChecks.js`: the tests of Claude's marking, note reading and
   judging of look-alike cards (the pairs that must stay apart, and the cards
   that are one item of another card's list, are in `api/_lib/keepApart.js`);
   `api/_lib/evalRuns.js` decides when they are due,
-  and `api/_lib/evalStatus.js` when the red dot lights
+  and `api/_lib/evalStatus.js` which cases the morning check raises
 - `scripts/status-check.mjs`: the checks from the terminal
 - `tests/simulate/`: the simulated students
 - `.github/workflows/tests.yml`: the tests on every push

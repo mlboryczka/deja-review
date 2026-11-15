@@ -117,7 +117,10 @@ function finish({ problems, detail, raised, raisedFile, unreadable }) {
   }
   if (args.includes("--record")) {
     const today = new Date().toISOString().slice(0, 10);
+    // When part of the check couldn't be read, its problems aren't in this
+    // run's list: keep everything raised before, so none comes back as new.
     const keep = Object.fromEntries(problems.map((x) => [x, raised[x] || today]));
+    if (unreadable) for (const [x, d] of Object.entries(raised)) if (!(x in keep)) keep[x] = d;
     fs.mkdirSync(path.dirname(raisedFile), { recursive: true });
     fs.writeFileSync(raisedFile, JSON.stringify(keep, null, 2) + "\n");
   }
@@ -134,8 +137,8 @@ function finish({ problems, detail, raised, raisedFile, unreadable }) {
 // done also on the -mlb application"). Vercel runs scheduled jobs only on the
 // students' app, so the server's daily run never uses the test app's version
 // of the checks; the morning check runs this copy of the script from the
-// testing worktree instead. The owner is the only student on the test app,
-// so only their record is judged here; everything else the morning check
+// testing worktree instead. The owner and Laura (OWNERS_KEY_ON_TEST_APP)
+// study on the test app, so those records are judged here; everything else the morning check
 // looks at (Claude's tests, feedback, the free plans) is the same app-wide
 // and comes from the --everyone run. Problems raised are kept apart from that
 // run's, in raised-test-app.json, and each is named "Test app:".
@@ -157,36 +160,43 @@ if (args.includes("--test-app")) {
   const problems = [];
   const detail = new Map();
   let unreadable = false;
-  const [r] = await checkEveryone(db, { examples: Infinity, only: new Set([owner]), rulesFrom: RULES_FROM });
-  console.log(`The test app (dejareview-mlb.vercel.app), judged by its own version of the checks, on ${owner}'s record:`);
-  if (!r) {
+  const { OWNERS_KEY_ON_TEST_APP } = await import("../src/lib/testApp.js");
+  // Everyone known to study on the test app: the owner, and the accounts
+  // that share their Claude account there (Laura since 2026-10-19).
+  const who = new Set([owner, ...OWNERS_KEY_ON_TEST_APP]);
+  const frReports = await checkEveryone(db, { examples: Infinity, only: who, rulesFrom: RULES_FROM });
+  console.log(`The test app (dejareview-mlb.vercel.app), judged by its own version of the checks:`);
+  if (!frReports.some((x) => String(x.user_email).toLowerCase() === owner)) {
     console.log(`  ${owner} hasn't answered anything yet.`);
-  } else if (r.error) {
-    unreadable = true;
-    console.log(`  couldn't be checked: ${r.error}`);
-  } else {
-    console.log(statusText(r.report).split("\n").map((l) => `  ${l}`).join("\n"));
-    for (const c of r.report.results.filter((x) => x.status === "fail")) {
-      await raise(`Test app: ${r.user_email}`, c, problems, detail);
+  }
+  for (const r of frReports) {
+    console.log(`\n  ${r.user_email}:`);
+    if (r.error) {
+      unreadable = true;
+      console.log(`  couldn't be checked: ${r.error}`);
+    } else {
+      console.log(statusText(r.report).split("\n").map((l) => `  ${l}`).join("\n"));
+      for (const c of r.report.results.filter((x) => x.status === "fail")) {
+        await raise(`Test app: ${r.user_email}`, c, problems, detail);
+      }
     }
   }
-  // The Spanish deck, judged the same way (the Spanish module, test app only,
-  // 2026-10-22: "logged in the spanish module just as they are for the
-  // french module"). Before migration_020 there is nothing to read; that
-  // isn't a problem with the owner's record.
-  const [es] = await checkEveryone(db, { examples: Infinity, only: new Set([owner]), rulesFrom: RULES_FROM, course: "es" });
-  console.log(`\nThe same, on ${owner}'s Spanish deck:`);
-  if (!es) {
-    console.log(`  ${owner} hasn't answered a Spanish card yet.`);
-  } else if (es.error && /es_card_reviews|es_user_cards|schema cache|does not exist/i.test(es.error)) {
-    console.log("  waiting for the Spanish tables (migration_020).");
-  } else if (es.error) {
-    unreadable = true;
-    console.log(`  couldn't be checked: ${es.error}`);
-  } else {
-    console.log(statusText(es.report).split("\n").map((l) => `  ${l}`).join("\n"));
-    for (const c of es.report.results.filter((x) => x.status === "fail")) {
-      await raise(`Test app (Spanish): ${es.user_email}`, c, problems, detail);
+
+  const esReports = await checkEveryone(db, { examples: Infinity, only: who, rulesFrom: RULES_FROM, course: "es" });
+  console.log(`\nThe same, on the Spanish deck:`);
+  if (!esReports.length) console.log("  nobody has answered a Spanish card yet.");
+  for (const es of esReports) {
+    console.log(`\n  ${es.user_email}:`);
+    if (es.error && /es_card_reviews|es_user_cards|schema cache|does not exist/i.test(es.error)) {
+      console.log("  waiting for the Spanish tables (migration_020).");
+    } else if (es.error) {
+      unreadable = true;
+      console.log(`  couldn't be checked: ${es.error}`);
+    } else {
+      console.log(statusText(es.report).split("\n").map((l) => `  ${l}`).join("\n"));
+      for (const c of es.report.results.filter((x) => x.status === "fail")) {
+        await raise(`Test app (Spanish): ${es.user_email}`, c, problems, detail);
+      }
     }
   }
   finish({ problems, detail, raised, raisedFile: RAISED_FILE, unreadable });
@@ -227,7 +237,31 @@ if (args.includes("--everyone")) {
   // Claude couldn't answer leaves those cards unjudged, which the check
   // above shows only as waiting, so it is said here.
   const kept = await latestReports(db);
+  if (kept.error) {
+    unreadable = true;
+    console.log(`\nThe daily run's kept reports couldn't be read: ${kept.error}`);
+  }
   const judged = [];
+  const keptBy = new Map((kept.reports || []).map((k) => [String(k.user_email || "").toLowerCase(), k]));
+  const STALE_MS = 30 * 3600 * 1000;
+  const staleLine = (email) => `${email}: the daily run hasn't checked them since its last kept report`;
+  if (!kept.error && !kept.missing && (kept.reports || []).length) {
+    // A daily run that didn't happen leaves an old report that reads as
+    // this morning's: raise it, and say which day it is from.
+    for (const r of reports) {
+      if (r.error) continue;
+      const k = keptBy.get(String(r.user_email || "").toLowerCase());
+      if (!k) {
+        const line = staleLine(r.user_email);
+        problems.push(line);
+        detail.set(line, "No report from the daily run is kept for them at all.");
+      } else if (Date.now() - Date.parse(k.checked_at) > STALE_MS) {
+        const line = staleLine(r.user_email);
+        problems.push(line);
+        detail.set(line, `The last kept report is from ${String(k.checked_at).slice(0, 10)}.`);
+      }
+    }
+  }
   for (const k of kept.reports || []) {
     const j = k.report?.judging;
     if (!j || (!j.asked && !j.left && !j.error && !j.putAway && !j.keptBoth && !j.putAwayError)) continue;
@@ -244,7 +278,9 @@ if (args.includes("--everyone")) {
       problems.push(line);
       detail.set(line, j.error);
     }
-    judged.push(`  ${k.user_email}, ${String(k.checked_at).slice(0, 10)}: ${judgingText(j).replace(/^Look-alike cards: /, "")}`);
+    const old = Date.now() - Date.parse(k.checked_at) > STALE_MS;
+    const said = judgingText(j).replace(/^Look-alike cards: /, "");
+    judged.push(`  ${k.user_email}, ${String(k.checked_at).slice(0, 10)}: ${old ? said.replace(" this morning", ` on ${String(k.checked_at).slice(0, 10)}`) : said}`);
   }
   if (judged.length) console.log(`\nLook-alike cards put to Claude by the daily run:\n${judged.join("\n")}`);
 
@@ -346,6 +382,7 @@ if (!EMAIL) {
 
 const { runStatusChecks, statusText, CHECKS_START } = await import("../src/lib/statusChecks.js");
 const { lessonRank } = await import("../src/data/lessons/index.js");
+const { latestZoneOf } = await import("../api/_lib/statusDaily.js");
 
 const BASE = SUPABASE_URL.replace(/\/$/, "");
 const HEADERS = { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` };
@@ -401,7 +438,9 @@ const report = runStatusChecks({
   pairs,
   pairsTable: pairs !== null,
   corrections,
-  timeZone: TZ,
+  // As the report for everyone does: the zone of the student's latest answer
+  // unless --tz says otherwise.
+  timeZone: argVal("--tz") || latestZoneOf(answers || []) || TZ,
   lessonRank,
   from: argVal("--from") || CHECKS_START,
   examples: ALL ? Infinity : undefined,
@@ -410,7 +449,7 @@ const report = runStatusChecks({
 
 const withSettings = (answers || []).filter((r) => r.counted && Array.isArray(r.weights)).length;
 console.log(`${EMAIL}: ${answers?.length ?? 0} answers on record (${withSettings} saved with their settings), ${cards?.length ?? 0} cards, ` +
-  `${deals === null ? "no dealt_sets table yet (migration_013 not run)" : `${deals.length} sets recorded`}; time zone ${TZ}.`);
+  `${deals === null ? "no dealt_sets table yet (migration_013 not run)" : `${deals.length} sets recorded`}; time zone ${argVal("--tz") || latestZoneOf(answers || []) || TZ}.`);
 const removed = (cards || []).filter((c) => c.archived_reason === "removed").length;
 const count = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const fixes = corrections === null ? "no parse_corrections table" : count(corrections.length, "correction");

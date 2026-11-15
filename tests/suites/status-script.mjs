@@ -207,12 +207,12 @@ console.log("\n  the morning check: --everyone");
   const okCase = { id: "apart:ou", says: "different", a: { front: "ou", back: "or" }, b: { front: "où", back: "where" }, got: ["different", "different", "different"] };
   const slip = { ...okCase, got: ["same", "same", "different"] };
   state.runs = [run1("aaaaaaa", [okCase], "2026-10-07T15:00:00Z"), run1("bbbbbbb", [slip], "2026-10-14T15:00:00Z")];
-  state.reports = [{ id: "k1", user_id: USER_ID, user_email: STUDENT, checked_at: "2026-10-14T14:00:30Z", ok: true, failing: 0, answers: 10,
+  state.reports = [{ id: "k1", user_id: USER_ID, user_email: STUDENT, checked_at: new Date(Date.now() - 3600000).toISOString(), ok: true, failing: 0, answers: 10,
     report: { results: [], judging: { asked: 200, answered: 200, same: 1, left: 675, error: null } } }];
   const r = await run(["--everyone"]);
   ck("it checks every student who has answered, now", /Every student who has answered \(1\), checked now:/.test(r.out) && r.out.includes(STUDENT), r.out.split("\n")[0]);
   ck("it reads what the daily run last asked Claude about look-alikes, and what is left for tomorrow",
-     /Look-alike cards put to Claude by the daily run:\n {2}student@example\.com, 2026-10-14: 200 pairs put to Claude this morning\. Claude judged 1 pair the same card and 199 different\. 675 pairs left for tomorrow\./.test(r.out),
+     /Look-alike cards put to Claude by the daily run:\n {2}student@example\.com, \d{4}-\d{2}-\d{2}: 200 pairs put to Claude this morning\. Claude judged 1 pair the same card and 199 different\. 675 pairs left for tomorrow\./.test(r.out),
      r.out.match(/Look-alike cards put to Claude[^\n]*\n[^\n]*/)?.[0]);
   ck("it reports the test of Claude's same-or-different question like the other two",
      /Claude's marking of typed answers: not tested yet\./.test(r.out) && /Claude reading class notes into cards: not tested yet\./.test(r.out) &&
@@ -259,6 +259,20 @@ console.log("\n  the morning check: --everyone");
        !/New since the last morning check/.test(nextDay.out) && nextDay.code === 0,
      nextDay.out.split("\n").slice(-6).join(" / "));
 
+  // A daily run that didn't happen (code check 96): an old kept report was
+  // printed as "this morning's" and nothing was raised.
+  {
+    const keep = state.reports[0].checked_at;
+    state.reports[0].checked_at = "2026-10-14T14:00:30Z";
+    state.reports[0].report.judging = { asked: 200, answered: 200, same: 1, left: 675, error: null };
+    const missed = await run(["--everyone"]);
+    ck("a kept report from days ago is raised, with its date, and exits 1",
+       (missed.out.split("New since the last morning check")[1] || "").includes(`- ${STUDENT}: the daily run hasn't checked them since its last kept report\n      The last kept report is from 2026-10-14.`) && missed.code === 1,
+       missed.out.split("\n").slice(-6).join(" / "));
+    ck("  and is worded 'on <date>', not 'this morning'", /student@example\.com, 2026-10-14: 200 pairs put to Claude on 2026-10-14\./.test(missed.out), missed.out.match(/student@example\.com, 2026[^\n]*/)?.[0]);
+    state.reports[0].checked_at = keep;
+  }
+
   // Feedback nobody has dealt with (the owner, 2026-10-12: "you should be
   // resolving it daily"): new until raised, with Claude's review beneath.
   state.feedback = [
@@ -301,8 +315,8 @@ console.log("\n  a fault in the record");
   // only, with this version's checks, its problems kept apart.
   state.requests = [];
   const t = await run(["--test-app"]);
-  ck("--test-app judges the admin's record only, as the test app's",
-     /^The test app \(dejareview-mlb\.vercel\.app\), judged by its own version of the checks, on student@example\.com's record:/.test(t.out) && !t.out.includes("other@example.com"),
+  ck("--test-app judges the admin's record, as the test app's, and not other accounts'",
+     /^The test app \(dejareview-mlb\.vercel\.app\), judged by its own version of the checks:\n\n {2}student@example\.com:/.test(t.out) && !t.out.includes("other@example.com"),
      t.out.split("\n")[0]);
   ck("  every check, and each failure named as the test app's, exiting 1",
      /\[FAIL\] Every answer was scheduled the way FSRS says/.test(t.out) &&
