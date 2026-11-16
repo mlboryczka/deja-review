@@ -144,11 +144,11 @@ export const NOTES = [
       { t: "lead", v: "The plus-que-parfait says what had already happened before something else in the past: *j'avais lu le livre*, \"I had read the book\"." },
       { t: "note", v: "It is the English \"had done\": *j'avais lu le livre donc je connaissais déjà l'histoire quand j'ai vu le film*, \"I had read the book, so I already knew the story when I saw the film\"." },
       { t: "pairs", head: ["French", "English"], v: [
-        ["Il m'a proposé d'aller au restaurant mais j'ai dit non car j'avais déjà mangé", "He suggested going to a restaurant but I said no because I had already eaten"],
         ["J'ai vu ton message mais j'étais parti", "I saw your message but I had left"],
         ["Je suis arrivé le 12. Mon ami était arrivé la veille", "I arrived on the 12th. My friend had arrived the day before"],
-        ["Je suis allé le voir chez lui mais il était sorti 10 minutes avant", "I went to see him at his place but he had gone out 10 minutes before"],
       ]},
+      { t: "note", v: "*Il m'a proposé d'aller au restaurant mais j'ai dit non car j'avais déjà mangé*, \"he suggested going to a restaurant but I said no because I had already eaten\"." },
+      { t: "note", v: "*Je suis allé le voir chez lui mais il était sorti 10 minutes avant*, \"I went to see him at his place but he had gone out 10 minutes before\"." },
     ],
   },
   {
@@ -202,8 +202,8 @@ export const NOTES = [
         ["J'ai pensé qu'il avait eu un problème", "I thought he had had a problem"],
         ["Il m'a expliqué qu'il n'avait pas pu faire l'exercice", "He explained that he hadn't been able to do the exercise"],
         ["Je lui ai dit qu'on était partis la veille", "I told him we had left the day before"],
-        ["Mes amis ne savaient pas que j'avais déménagé l'année précédente", "My friends didn't know I had moved the year before"],
       ]},
+      { t: "note", v: "*Mes amis ne savaient pas que j'avais déménagé l'année précédente*, \"my friends didn't know I had moved the year before\"." },
     ],
   },
   {
@@ -222,10 +222,8 @@ export const NOTES = [
     h: "5 · Ça faisait longtemps que",
     blocks: [
       { t: "lead", v: "When you have just done something for the first time in a long while, say ça faisait longtemps que and the plus-que-parfait with ne … pas: *ça faisait longtemps que je ne l'avais pas vue*, \"I hadn't seen her in a long time\"." },
-      { t: "pairs", head: ["French", "English"], v: [
-        ["J'ai eu mes parents au téléphone. Ça faisait longtemps que je ne leur avais pas parlé", "I spoke to my parents on the phone. I hadn't talked to them in a long time"],
-        ["Morgane est allée à Brest. Ça faisait longtemps qu'elle n'y était pas allée", "Morgane went to Brest. She hadn't been there in a long time"],
-      ]},
+      { t: "note", v: "*J'ai eu mes parents au téléphone. Ça faisait longtemps que je ne leur avais pas parlé*, \"I spoke to my parents on the phone. I hadn't talked to them in a long time\"." },
+      { t: "note", v: "*Morgane est allée à Brest. Ça faisait longtemps qu'elle n'y était pas allée*, \"Morgane went to Brest. She hadn't been there in a long time\"." },
       { t: "note", v: "Any length of time can take the place of longtemps: *ça faisait 20 ans que je n'avais pas fait de vélo*, \"I hadn't ridden a bike in 20 years\"." },
     ],
   },
