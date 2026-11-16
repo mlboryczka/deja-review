@@ -25,6 +25,11 @@
 //     it is five open items, one per person.
 //   - Answers reuse the flashcard lesson's checked answers where an item
 //     matches (ex. 3, 4, 6, 7, 8, 9, 10).
+//   - Ex. 10 asks "200 people", not the sheet's "200 personas" (feedback
+//     #60, the owner, 2026-11-02: "personas is spanish, it should obviously
+//     be people"). Every other prompt there is a figure, so the Spanish word
+//     read as one left untranslated. The answer is still "doscientas
+//     personas": the number agrees with personas.
 //
 // Added for the app, not on the sheet (owner, 2026-11-02, asking why Lessons
 // 9 and 10 never asked the present of verbs like ver and venir): ex. 14, the
@@ -318,7 +323,7 @@ export default {
       n: 10,
       title: "Gramática",
       instruction: "Escribir los números en letras.",
-      english: "Write each number in words, in Spanish.",
+      english: "Write each number in words, in Spanish, and any word after it in Spanish too.",
       items: [
         { prompt: "100", answer: "cien" },
         { prompt: "101", answer: "ciento uno" },
@@ -330,7 +335,7 @@ export default {
         { prompt: "900", answer: "novecientos" },
         { prompt: "555", answer: "quinientos cincuenta y cinco" },
         { prompt: "999", answer: "novecientos noventa y nueve" },
-        { prompt: "200 personas", answer: "doscientas personas" },
+        { prompt: "200 people", answer: "doscientas personas" },
         { prompt: "300 pesos", answer: "trescientos pesos" },
       ],
     },

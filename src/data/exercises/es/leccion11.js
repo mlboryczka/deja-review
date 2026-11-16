@@ -19,6 +19,8 @@
 //   - Ex. 12 no. 1 and 18 also list "Te lo dije…" / "Me lo dijiste…": the
 //     everyday way to say "I told you that", with eso replaced by lo.
 //   - Ex. 13 also takes the years without their "en".
+//   - Ex. 13 asks "300,000 people", not the sheet's "300,000 personas", as
+//     Lesson 10's ex. 10 asks "200 people" (feedback #60, 2026-11-02).
 //   - Answers reuse the flashcard lesson's checked answers where an item
 //     matches (ex. 3, 4, 5, 6, 7, 9, 10, 11, 13).
 //
@@ -432,7 +434,7 @@ export default {
       n: 13,
       title: "Gramática",
       instruction: "Escribir los números en letras.",
-      english: "Write each number in words, in Spanish. Years are said like ordinary numbers.",
+      english: "Write each number in words, in Spanish, and any word after it in Spanish too. Years are said like ordinary numbers.",
       items: [
         { prompt: "1,000", answer: "mil" },
         { prompt: "1,200", answer: "mil doscientos" },
@@ -442,7 +444,7 @@ export default {
         { prompt: "25,000", answer: "veinticinco mil" },
         { prompt: "100,000", answer: "cien mil" },
         { prompt: "500,000 pesos", answer: "quinientos mil pesos" },
-        { prompt: "300,000 personas", answer: "trescientas mil personas" },
+        { prompt: "300,000 people", answer: "trescientas mil personas" },
         { prompt: "1,000,000", answer: "un millón" },
         { prompt: "2,000,000 pesos", answer: "dos millones de pesos" },
         { prompt: "1,000,000,000", answer: "mil millones" },

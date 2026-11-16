@@ -505,7 +505,17 @@ function hasMeaningList(shown) {
   return !!text && text.split(/\s+/).length <= 4 && !/[,;→]/.test(text);
 }
 
+// "LA" (or "L.A.") typed for an answer that says Los Ángeles is Los Ángeles
+// (feedback #59, the owner, 2026-10-30: "LA always means los angeles"). It
+// is spelled as the answer spells it, so the Spanish accent is never what
+// makes it wrong. Only in capitals: a lower-case "la" is the Spanish article.
+function spellOutLA(typed, answers) {
+  const name = answers.map((a) => String(a || "").match(/Los [ÁA]ngeles/i)?.[0]).find(Boolean);
+  return name ? String(typed).replace(/(^|[^\p{L}])L\.? ?A\.?(?!\p{L})/gu, `$1${name}`) : typed;
+}
+
 function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings = false, articles = "fr", accents = false, exactWords = null } = {}) {
+  typed = spellOutLA(typed, [correct, ...extraAlts]);
   const t = normalize(typed);
   if (!t) return { match: false };
 

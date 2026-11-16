@@ -631,6 +631,13 @@ console.log("\n  marking — Spanish articles and ¿ ¡, French unchanged");
   // Spanish answers have their accents checked (owner, 2026-10-22), but only
   // those that change a verb's tense (2026-10-26, src/lib/spanishAccents.js).
   const es = { articles: "none", accents: true };
+  // Feedback #59 (owner, 2026-10-30): "LA always means los angeles".
+  const mexicana = "Soy mexicana, pero vivo en Los Ángeles";
+  const mexicanaEn = "I am Mexican, but I live in Los Angeles / I'm Mexican, but I live in Los Angeles";
+  ck("LA or L.A. is Los Ángeles, typed either way round, but a lower-case la is still the article",
+     ok("Soy mexicana, pero vivo en LA", mexicana, es) && ok("Soy mexicana pero vivo en L.A.", mexicana, es) &&
+     ok("I'm Mexican, but I live in LA", mexicanaEn, { articles: "en" }) &&
+     !ok("Soy mexicana, pero vivo en la", mexicana, es) && ok("LA casa", "la casa", { articles: "es" }));
   ck("a Spanish drill right with its accent is right", ok("habló", "habló", { exact: true, accents: true }));
   ck("and without it is a wrong accent: hablo is another tense", matchAnswer("hablo", "habló", [], { exact: true, accents: true }).wrongAccent === true);
   ck("so is llego for llegó in a phrase", matchAnswer("Ayer llego tarde", "Ayer llegó tarde", [], es).wrongAccent === true);
