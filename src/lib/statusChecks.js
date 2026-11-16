@@ -822,7 +822,7 @@ function checkDealt(idx, ctx) {
   for (const d of idx.sets) {
     const day = dayNo(ms(d.dealt_at), idx.tzOf(d));
     if (!setsByDay.has(day)) setsByDay.set(day, []);
-    const entry = { t: ms(d.dealt_at), keys: new Set([...(d.items || []), ...(d.kept || [])].map((x) => keyOf(x.c, x.d))) };
+    const entry = { t: ms(d.dealt_at), day, keys: new Set([...(d.items || []), ...(d.kept || [])].map((x) => keyOf(x.c, x.d))) };
     setsByDay.get(day).push(entry);
     allSets.push(entry);
   }
@@ -840,13 +840,15 @@ function checkDealt(idx, ctx) {
     checked++;
     const today = dayNo(at, tz);
     const k = keyOf(r.card_id, r.direction);
-    // A set dealt before 4am is still on screen after it until the app deals
-    // the next one, so when no set came in between, the last set of an
-    // earlier day counts too.
+    // A set dealt before 4am is still on screen after it until that window
+    // deals the next one, so the last set of an earlier day counts too, even
+    // when a set was dealt since: another window or device may have dealt it
+    // (2026-10-30: the owner answered the set a window left open had dealt at
+    // 9:19pm the night before, after a set dealt at 7:13am elsewhere).
     const sameDay = setsByDay.get(today) || [];
     let inASet = sameDay.some((d) => d.t <= at + 1000 && d.keys.has(k));
-    if (!inASet && !sameDay.some((d) => d.t <= at + 1000)) {
-      const earlier = allSets.filter((d) => d.t <= at + 1000);
+    if (!inASet) {
+      const earlier = allSets.filter((d) => d.day < today && d.t <= at + 1000);
       const still = earlier[earlier.length - 1];
       inASet = !!still && still.keys.has(k);
     }

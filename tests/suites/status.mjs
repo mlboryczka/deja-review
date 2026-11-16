@@ -15,6 +15,7 @@ import { runStatusChecks, statusText, raisedProblems, CHECKS_START, lookalikes, 
 import { reviewRow, withoutExtras, REVIEW_EXTRAS, missingColumn } from "../../src/lib/reviewLog.js";
 import { dealRow, missingTable } from "../../src/lib/dealLog.js";
 import { buildSession } from "../../src/lib/sessionQueue.js";
+import { studyDayNumber } from "../../src/lib/fsrsHistory.js";
 import { settingsInUse, makeScheduler, State } from "../../src/lib/spacedRepetition.js";
 import { STARTING_WEIGHTS } from "../../src/lib/fsrsSettings.js";
 
@@ -442,6 +443,33 @@ console.log("\n  following the app's rules");
   const never = rec2.cards.find((c) => !dealt.has(c.id));
   rec2.answers.push({ ...last, id: "stray-1", card_id: never.id, direction: "fr", counted: false, rating: null, answered_at: new Date(Date.parse(last.answered_at) + 9000).toISOString() });
   failsOnly(check(rec2), "dealt", "a card asked that no set dealt fails");
+
+  // A window left open overnight (2026-10-30, the owner): its set from the
+  // night before is still on screen after another window or device has dealt
+  // that morning's set, so a card from the last set of the day before passes.
+  // One from an older set still fails.
+  const studyDay = (iso) => studyDayNumber(Date.parse(iso), TIME_ZONE);
+  const lastDay = studyDay(last.answered_at);
+  const todays = rec2.deals.filter((d) => studyDay(d.dealt_at) === lastDay);
+  const keysOf = (sets) => new Set(sets.flatMap((d) => [...d.items, ...(d.kept || [])].map((x) => `${x.c}:${x.d}`)));
+  const today = keysOf(todays);
+  const before = rec2.deals.filter((d) => studyDay(d.dealt_at) < lastDay);
+  const lastNight = before.at(-1);
+  const older = keysOf(before.slice(0, -1));
+  const notToday = (x) => !today.has(`${x.c}:${x.d}`) && `${x.c}:${x.d}` !== `${last.card_id}:${last.direction}`;
+  ck("(the last day has sets of its own, dealt before its first answer)", todays.length > 0);
+  const fromLastNight = lastNight.items.find(notToday);
+  const lastNightKeys = keysOf([lastNight]);
+  const fromOlder = before.slice(0, -1).flatMap((d) => d.items).find((x) => notToday(x) && !lastNightKeys.has(`${x.c}:${x.d}`));
+  ck("(a card from last night's set and one from an older set, in no set of the day)", !!fromLastNight && !!fromOlder && older.size > 0);
+  const strayAt = (x, id) => ({ ...last, id, card_id: x.c, direction: x.d, counted: false, rating: null, answered_at: new Date(Date.parse(last.answered_at) + 9000).toISOString() });
+  const open = clone(base);
+  open.answers.push(strayAt(fromLastNight, "open-window-1"));
+  const r3 = result(check(open), "dealt");
+  ck("a card from the last set of the day before, after the day's own sets, passes", r3.status === "pass", `${r3.status}: ${r3.summary} ${r3.details[0] || ""}`);
+  const old = clone(base);
+  old.answers.push(strayAt(fromOlder, "old-set-1"));
+  failsOnly(check(old), "dealt", "a card from an older set than that fails");
 }
 {
   const r = check(base, { dealsTable: false, deals: [] });
