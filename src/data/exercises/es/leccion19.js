@@ -4,9 +4,8 @@
 // Left out: ex. 9 (dictation), which needs audio.
 // Ex. 1: the three "(masc. & fem.)" words ask for both forms, so the answer
 // is "vegetariano / vegetariana" and either form alone is also accepted.
-// "Lunch" is la comida, as in Mexico (her lesson: el almuerzo is lunch in
-// other countries, a mid-morning meal in Mexico), so el almuerzo is left to
-// Claude. "a tomato" also takes un jitomate, central Mexico's word.
+// "Lunch" is el almuerzo, the word across Latin America; la comida, Mexico's
+// word, is accepted too (owner, 2026-11-16: words used across Latin America). "a tomato" also takes un jitomate, central Mexico's word.
 // "Put X on Y" is answered "poner X en Y", as the sheet's ex. 5 says it; the
 // Mexican "ponerle X a Y" is accepted too.
 // Answers agree with the checked flashcards in src/data/lessons/es/leccion19.js.
@@ -24,7 +23,7 @@ export default {
         { prompt: "a piece of toast", answer: "un pan tostado" },
         { prompt: "wine", answer: "el vino" },
         { prompt: "a lime", answer: "un limón" },
-        { prompt: "lunch", answer: "la comida" },
+        { prompt: "lunch", answer: "el almuerzo", also: ["la comida"] },
         { prompt: "dessert", answer: "el postre" },
         { prompt: "a fried egg", answer: "un huevo estrellado", also: ["un huevo frito"] },
         { prompt: "a tomato", answer: "un tomate", also: ["un jitomate"] },
@@ -118,7 +117,7 @@ export default {
           also: ["A mí no me gusta la carne. Prefiero el pescado."] },
         { prompt: "Did you eat rice with the fish? (tú)", answer: "¿Comiste arroz con el pescado?", also: ["¿Tú comiste arroz con el pescado?"] },
         { prompt: "I had fresh fish for lunch.", answer: "Comí pescado fresco.",
-          also: ["En la comida comí pescado fresco.", "Comí pescado fresco en la comida."] },
+          also: ["Almorcé pescado fresco.", "En el almuerzo comí pescado fresco.", "Comí pescado fresco en el almuerzo.", "En la comida comí pescado fresco.", "Comí pescado fresco en la comida."] },
         { prompt: "I only drink water when I eat.", answer: "Solo tomo agua cuando como.",
           also: ["Cuando como, solo tomo agua.", "Tomo solo agua cuando como.", "Solo bebo agua cuando como.", "Cuando como, solo bebo agua.", "Solamente tomo agua cuando como."] },
         { prompt: "Water is very important.", answer: "El agua es muy importante." },

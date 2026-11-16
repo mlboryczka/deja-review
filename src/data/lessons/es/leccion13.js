@@ -44,7 +44,7 @@
 //     necesitar + noun and tener que + verb.
 //   - Ex. 6 (ordinals, 12 items): every ordinal from first to tenth once,
 //     plus tercera beside tercer, for the -o that drops before a masculine
-//     noun. Her "Es la ___ vez" (2) is segunda; "La ___ recámara" (1) is left
+//     noun. Her "Es la ___ vez" (2) is segunda; "La ___ habitación" (1) is left
 //     out, since primer and tercera already show both points.
 //   - Ex. 7 and 8 (answer yes or no, 36 items): conocer a, pongo with tus →
 //     mis, me puse, me equivoqué (c → qu with yo), and no before saben.
@@ -71,7 +71,7 @@
 //   - "que o de → Este departamento es menos caro ___ el otro", "yo o mí →
 //     Mi hermano es más alto que ___" and "de o en → Es el mejor
 //     restaurante ___ la ciudad" are her lesson's examples; "que o de → La
-//     sala tiene más ___ 20 metros cuadrados" and "que o como → La recámara
+//     sala tiene más ___ 20 metros cuadrados" and "que o como → La habitación
 //     es tan grande ___ la sala" are her ex. 4.
 //   - "pequeño → Esta es la más grande y esa es la ___" is the dialogue's
 //     line. "joven → Emilia es ___ que Hugo" accepts más joven as well as
@@ -108,8 +108,8 @@
 
 export const CARDS = [
   // ── The apartment (ex. 3), before the cards that use its words
-  ["un departamento de dos recámaras", "a two-bedroom apartment", "V", "home"],
-  ["una recámara", "a bedroom", "V", "home"],
+  ["un departamento de dos habitaciones", "a two-bedroom apartment", "V", "home", "un departamento de dos recámaras"],
+  ["una habitación / un cuarto / un dormitorio", "a bedroom / a room", "V", "home", "una recámara"],
   ["la sala", "the living room", "V", "home"],
   ["una cocina", "a kitchen", "V", "home"],
   ["el baño", "the bathroom", "V", "home"],
@@ -149,7 +149,7 @@ export const CARDS = [
   ["Necesito un agente inmobiliario", "I need a real estate agent", "E", "phrases"],
   ["Tengo que salir ahora", "I need to leave now / I have to leave now (with tener que)", "E", "phrases"],
   ["Me pongo los lentes", "I put on my glasses / I'm putting on my glasses", "E", "phrases"],
-  ["Le marco más tarde", "I'll call you later (usted) / I'll call him later / I'll call her later", "E", "phrases"],
+  ["Lo llamo más tarde / La llamo más tarde / Le llamo más tarde", "I'll call you later (usted) / I'll call him later", "E", "phrases", "Le marco más tarde"],
   ["No sé cuánto mide", "I don't know how big it is", "E", "phrases"],
   ["¿Conoces Guadalajara?", "Have you been to Guadalajara? / Do you know Guadalajara? (tú)", "E", "phrases"],
 
@@ -157,7 +157,7 @@ export const CARDS = [
   //    (2026-10-25). The verb must be typed exactly: irregularForms.js.
   ["Conozco una buena inmobiliaria en el centro", "I know a good real estate agency downtown / I know a good real estate agency in the city center / I know a good real estate agency in the town center / I know of a good real estate agency downtown", "E", "verbforms"],
   ["Ayer puse la computadora en la sala", "Yesterday I put the computer in the living room / I put the computer in the living room yesterday", "E", "verbforms"],
-  ["¿Pusiste los muebles en la recámara?", "Did you put the furniture in the bedroom? / Have you put the furniture in the bedroom? (tú)", "E", "verbforms"],
+  ["¿Pusiste los muebles en la habitación?", "Did you put the furniture in the bedroom? / Have you put the furniture in the bedroom? (tú)", "E", "verbforms", "¿Pusiste los muebles en la recámara?"],
   ["Lucía puso sus zapatos en el clóset", "Lucía put her shoes in the closet", "E", "verbforms"],
   ["Ayer pusimos una mesa en la cocina", "Yesterday we put a table in the kitchen / We put a table in the kitchen yesterday", "E", "verbforms"],
   ["¿Ya pusieron el departamento en renta?", "Have you put the apartment up for rent yet? (ustedes) / Did you put the apartment up for rent yet? / Have you already put the apartment up for rent? / Did you already put the apartment up for rent? / Have you guys put the apartment up for rent yet? / Have they put the apartment up for rent yet? / Did they put the apartment up for rent yet?", "E", "verbforms"],
@@ -252,7 +252,7 @@ export const NOTES = [
       { t: "pairs", head: ["Spanish", "English"], v: [
         ["La sala es más grande que la del departamento de ayer", "The living room is bigger than the one in yesterday's apartment"],
         ["Este departamento es menos caro que el otro", "This apartment is less expensive than the other one"],
-        ["La recámara es tan grande como la sala", "The bedroom is as big as the living room"],
+        ["La habitación es tan grande como la sala", "The bedroom is as big as the living room"],
         ["Hay más luz que en el otro departamento", "There's more light than in the other apartment"],
       ]},
       { t: "note", v: "After que and como, say yo and tú: *mi hermano es más alto que yo*, \"my brother is taller than me\"." },
@@ -270,7 +270,7 @@ export const NOTES = [
       { t: "note", v: "Mejor and peor never take más: *es mucho mejor*, \"it's much better\", not más mejor." },
       { t: "note", v: "*Emilia es menor que Hugo*, \"Emilia is younger than Hugo\"; *más joven* says the same." },
       { t: "sub", v: "The biggest" },
-      { t: "note", v: "To say \"the biggest\", put el, la, los or las before más: *la recámara más grande* or *la más grande*, \"the biggest bedroom\" or \"the biggest one\"." },
+      { t: "note", v: "To say \"the biggest\", put el, la, los or las before más: *la habitación más grande* or *la más grande*, \"the biggest bedroom\" or \"the biggest one\"." },
       { t: "note", v: "Spanish says the same for \"the bigger one\" of two: *esta es la más grande y esa es la más pequeña*, \"this is the bigger one and that's the smaller one\"." },
       { t: "note", v: "In \"the best\", \"the biggest\"…, \"in\" is de: *el mejor restaurante de la ciudad*, \"the best restaurant in the city\"." },
     ],
@@ -294,7 +294,7 @@ export const NOTES = [
     tab: "Ordinals",
     h: "5 · First, second, third",
     blocks: [
-      { t: "lead", v: "Each place from first to tenth has its own word, and it matches the noun like any adjective: *la segunda recámara*, \"the second bedroom\"." },
+      { t: "lead", v: "Each place from first to tenth has its own word, and it matches the noun like any adjective: *la segunda habitación*, \"the second bedroom\"." },
       { t: "table", bold: 1,
         cols: ["Number", "In words"],
         rows: [

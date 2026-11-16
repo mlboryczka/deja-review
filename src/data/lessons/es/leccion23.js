@@ -137,7 +137,7 @@ export const CARDS = [
 //   Mine       section 4
 //   Perfect    section 5, the review; iba a from section 6; answering
 // No word list. Her section 6 ("En el diálogo") is left out except iba a,
-// which a phrase card and an answer card use; echarle un ojo and ¡Qué padre!
+// which a phrase card and an answer card use; echarle un ojo and ¡Qué genial!
 // are a phrase card and an earlier lesson's.
 // There is no "The trap:" here: none of her boxes is a single commonest
 // mistake, and por / para is the whole of section 3.

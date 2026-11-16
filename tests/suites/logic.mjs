@@ -788,8 +788,16 @@ console.log("\n  Spanish lessons — no front in two of them");
   const JOINED = new Set(["dime", "dímelo", "hazme", "diviértete"]);
   const { SPANISH_EXACT: EXACT_ES } = await import("../../src/data/lessons/es/exactWords.js");
   const missing = new Set();
+  // After el, un, una, del or al the word is a noun, never a verb form: "en el
+  // almuerzo" is lunch, not "I have lunch" (2026-11-16). La, los and las are
+  // left out, since they also come before a verb as pronouns ("la conozco").
+  const ARTICLE = new Set(["el", "un", "una", "unos", "unas", "del", "al"]);
   for (const lesson of SPANISH.LESSONS) for (const [f] of lesson.cards) {
-    for (const w of words(f)) if (!JOINED.has(w) && KNOWN_IRREGULAR.includes(w) && !EXACT_ES.has(w)) missing.add(`${w} (${lesson.id}: ${f})`);
+    const ws = words(f);
+    ws.forEach((w, i) => {
+      if (ARTICLE.has(ws[i - 1])) return;
+      if (!JOINED.has(w) && KNOWN_IRREGULAR.includes(w) && !EXACT_ES.has(w)) missing.add(`${w} (${lesson.id}: ${f})`);
+    });
   }
   ck("every irregular form on a Spanish front is typed exactly", missing.size === 0, [...missing].join(" | "));
   ck("a form with a pronoun joined on stays off the list", [...JOINED].every((w) => !IRREGULAR_FORMS.has(w)));

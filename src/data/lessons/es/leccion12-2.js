@@ -109,7 +109,7 @@ export const CARDS = [
   ["al día siguiente", "the next day / the following day", "V", "words"],
   ["amor a primera vista", "love at first sight", "V", "words"],
   ["casi nunca", "hardly ever / almost never", "V", "words"],
-  ["¡Qué padre!", "How cool! / That's so cool!", "V", "words"],
+  ["¡Qué genial!", "How cool! / That's so cool!", "V", "words", "¡Qué padre!"],
   ["de hecho", "actually / in fact (not en realidad)", "V", "words"],
 
   // ── Phrases from the dialogue and her ex. 9 and 10

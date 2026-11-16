@@ -111,7 +111,7 @@
 
 export const CARDS = [
   // ── Ex. 10: her word list, the directions in the dialogue
-  ["¿Bueno?", "Hello? (on the phone)", "E", "vocab"],
+  ["¿Aló?", "Hello? (on the phone)", "E", "vocab", "¿Bueno?"],
   ["¡Bienvenido a México!", "Welcome to Mexico!", "E", "vocab"],
   ["¿Cómo llego a tu departamento?", "How do I get to your apartment? (tú)", "E", "vocab"],
   ["¡Bájate!", "Get off! (tú, the metro or a bus)", "E", "vocab"],
@@ -126,7 +126,7 @@ export const CARDS = [
   ["¡No te preocupes!", "Don't worry! (tú)", "E", "vocab"],
   ["¡Pregúntale a alguien!", "Ask someone! (tú)", "E", "vocab"],
   ["¡Toca el timbre!", "Ring the bell! / Ring the doorbell! (tú)", "E", "vocab"],
-  ["el elevador", "the elevator / the lift (not ascensor)", "V", "vocab"],
+  ["el ascensor", "the elevator / the lift", "V", "vocab", "el elevador"],
   ["descompuesto", "out of order / broken (masc.)", "V", "vocab"],
   ["Nos vemos en una hora", "See you in an hour", "E", "vocab"],
 
@@ -160,7 +160,7 @@ export const CARDS = [
   ["Vuelva más tarde", "Come back later / Return later (usted, with volver)", "E", "verbforms"],
   ["Haz la maleta esta noche", "Pack your suitcase tonight / Pack tonight / Pack your bag tonight / Pack the suitcase tonight (to a friend, with hacer)", "E", "verbforms"],
   ["Ve derecho dos cuadras", "Go straight for two blocks / Go straight two blocks / Go straight ahead for two blocks (to a friend, with ir)", "E", "verbforms"],
-  ["Pon las maletas en el elevador", "Put the suitcases in the elevator / Put the suitcases in the lift (to a friend)", "E", "verbforms"],
+  ["Pon las maletas en el ascensor", "Put the suitcases in the elevator / Put the suitcases in the lift (to a friend)", "E", "verbforms", "Pon las maletas en el elevador"],
   ["Ten todo listo para mañana", "Have everything ready for tomorrow (to a friend)", "E", "verbforms"],
   ["Ven a mi edificio: está enfrente de un parque", "Come to my building: it's across from a park / Come to my building: it is across from a park / Come to my building: it's opposite a park / Come to my building: it's in front of a park (to a friend, with enfrente)", "E", "verbforms"],
   ["Diga algo en español", "Say something in Spanish (usted)", "E", "verbforms"],

@@ -2133,7 +2133,7 @@ export const DIALOGUE_TEXTS = {
     "sentences": [
      {
       "en": "How cool!",
-      "es": "¡Qué padre!"
+      "es": "¡Qué genial!"
      },
      {
       "en": "And how did your first date go?",
@@ -2266,7 +2266,7 @@ export const DIALOGUE_TEXTS = {
     "sentences": [
      {
       "en": "So you're looking for a two-bedroom apartment in downtown Guadalajara.",
-      "es": "Entonces usted busca un departamento de dos recámaras en el centro de Guadalajara."
+      "es": "Entonces usted busca un departamento de dos habitaciones en el centro de Guadalajara."
      },
      {
       "en": "And you want to buy, is that right?",
@@ -2308,7 +2308,7 @@ export const DIALOGUE_TEXTS = {
      },
      {
       "en": "Here I have a two-bedroom one of 79 square meters, on the third floor, but…",
-      "es": "Aquí tengo uno de dos recámaras de 79 metros cuadrados, en el tercer piso, pero…"
+      "es": "Aquí tengo uno de dos habitaciones de 79 metros cuadrados, en el tercer piso, pero…"
      },
      {
       "en": "No, I made a mistake: this one is for rent.",
@@ -2402,7 +2402,7 @@ export const DIALOGUE_TEXTS = {
     "sentences": [
      {
       "en": "There are two bedrooms.",
-      "es": "Hay dos recámaras."
+      "es": "Hay dos habitaciones."
      },
      {
       "en": "This is the bigger one and that's the smaller one.",
@@ -2459,7 +2459,7 @@ export const DIALOGUE_TEXTS = {
      },
      {
       "en": "I'm going to talk to my wife and I'll call you later.",
-      "es": "Voy a hablar con mi esposa y le marco más tarde."
+      "es": "Voy a hablar con mi esposa y lo llamo más tarde."
      }
     ]
    }
@@ -2749,7 +2749,7 @@ export const DIALOGUE_TEXTS = {
     "sentences": [
      {
       "en": "Natalia, a senior in high school, talks to her math teacher at school after her final exams.",
-      "es": "Natalia, una alumna de último año de prepa, habla con su profesor de matemáticas en la escuela, después de los exámenes finales."
+      "es": "Natalia, una alumna de último año de bachillerato, habla con su profesor de matemáticas en la escuela, después de los exámenes finales."
      }
     ]
    },
@@ -3045,7 +3045,7 @@ export const DIALOGUE_TEXTS = {
     "sentences": [
      {
       "en": "Hello?",
-      "es": "¿Bueno?"
+      "es": "¿Aló?"
      }
     ]
    },
@@ -3189,7 +3189,7 @@ export const DIALOGUE_TEXTS = {
      },
      {
       "en": "But don't take the elevator, it's out of order!",
-      "es": "¡Pero no tomes el elevador, está descompuesto!"
+      "es": "¡Pero no tomes el ascensor, está descompuesto!"
      }
     ]
    },
@@ -3288,11 +3288,11 @@ export const DIALOGUE_TEXTS = {
     "sentences": [
      {
       "en": "Yum! And for lunch?",
-      "es": "¡Qué rico! ¿Y en la comida?"
+      "es": "¡Qué rico! ¿Y en el almuerzo?"
      },
      {
       "en": "What did you have?",
-      "es": "¿Qué comiste?"
+      "es": "¿Qué almorzaste?"
      }
     ]
    },
@@ -4184,7 +4184,7 @@ export const DIALOGUE_TEXTS = {
     "sentences": [
      {
       "en": "How cool!",
-      "es": "¡Qué padre!"
+      "es": "¡Qué genial!"
      },
      {
       "en": "Have you bought your tickets yet?",

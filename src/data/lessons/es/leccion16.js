@@ -252,7 +252,7 @@ export const NOTES = [
       { t: "sub", v: "The imperfect" },
       { t: "note", v: "Use the imperfect for a habit, for the background of a story, for an action in progress when something else happened, and for what someone said or thought after a verb in the past." },
       { t: "pairs", head: ["Spanish", "English"], v: [
-        ["Cuando era niño, iba a la alberca todos los lunes", "When I was a kid, I went to the pool every Monday"],
+        ["Cuando era niño, iba a la piscina todos los lunes", "When I was a kid, I went to the pool every Monday"],
         ["Había mucha gente, entonces tuvimos que esperar", "There were a lot of people, so we had to wait"],
         ["Llovía cuando llegó", "It was raining when she arrived"],
         ["Me dijo que tenía que esperar aquí", "She told me I had to wait here"],

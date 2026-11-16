@@ -1,6 +1,6 @@
 // Lección 17 · Him, her, it, them — built from the Spanish course's Lección
 // 17 sheets (adapted from Laura Caufour's LFL METHOD): the lesson (Natalia,
-// in her last year of prepa, talks to her math teacher after her final
+// in her last year of bachillerato (high school), talks to her math teacher after her final
 // exams; six grammar sections) and the exercise sheet. There is no answer
 // key: every answer here is the one a Mexican Spanish teacher would give, and
 // every answer such a teacher would accept is listed.
@@ -104,7 +104,7 @@ export const CARDS = [
   ["el examen", "the exam / the test", "V", "vocab"],
   ["el resultado", "the result", "V", "vocab"],
   ["las matemáticas", "math / maths / mathematics", "V", "vocab"],
-  ["la prepa", "high school / senior high school (in Mexico)", "V", "vocab"],
+  ["el bachillerato", "high school / senior high school", "V", "vocab", "la prepa"],
   ["útil", "useful", "V", "vocab"],
   ["nervioso", "nervous (masc.)", "V", "vocab"],
   ["bastante", "pretty / quite / fairly / rather / enough", "V", "vocab"],

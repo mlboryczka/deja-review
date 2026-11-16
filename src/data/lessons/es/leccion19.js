@@ -44,8 +44,9 @@
 // Not made into cards: ex. 9 is a dictation. Her lesson has no numbers.
 //
 // Her word list (ex. 1), and where the cards depart from it:
-//   - "lunch" is "en la comida", "at lunch": la comida is Lesson 6's card for
-//     "food", and a front belongs to one lesson only.
+//   - "lunch" is "en el almuerzo", "at lunch". It was "en la comida", Mexico's
+//     word, until 2026-11-16 (owner: words used across Latin America, not one
+//     country's); the card keeps its old front as its identity.
 //   - "sweet" is "algo dulce", "something sweet", from the dialogue: dulce is
 //     Lesson 7's word (sweet, of a person).
 //   - "a starter", "the main course" and "dessert" are her lesson's de
@@ -86,8 +87,8 @@
 // "Hambre, sed, frío and calor are nouns, so "very" is mucho, matching the
 // noun" (her section 5 says it for hambre and sed, and frío for tener; the
 // card "Hoy hace ___ frío" needs it with hacer). "The trap" is her
-// ATTENTION box. Cut as helping no card: jitomate, almuerzo in other
-// countries, "mucho mejor", and her pointers to earlier lessons.
+// ATTENTION box. Cut as helping no card: jitomate, la comida as Mexico's
+// word for lunch, "mucho mejor", and her pointers to earlier lessons.
 //
 // Taken out on 2026-10-25, at the owner's word ("the flashcards module for the
 // spanish section should be all words and phrases, no grammar", "i have the
@@ -100,7 +101,7 @@ export const CARDS = [
   //    which need their el or la
   ["el desayuno", "breakfast / the breakfast", "V", "vocab"],
   ["la cena", "dinner / supper / the dinner", "V", "vocab"],
-  ["en la comida", "at lunch / for lunch", "V", "vocab"],
+  ["en el almuerzo", "at lunch / for lunch", "V", "vocab", "en la comida"],
   ["un pan tostado", "a piece of toast / a slice of toast / toast", "V", "vocab"],
   ["un huevo estrellado", "a fried egg", "V", "vocab"],
   ["un limón", "a lime / a lemon", "V", "vocab"],
@@ -258,13 +259,13 @@ export const NOTES = [
     tab: "Meals",
     h: "6 · Meals",
     blocks: [
-      { t: "lead", v: "In Mexico the meals are el desayuno, \"breakfast\", la comida, \"lunch\", the main meal, eaten between about two and four, and la cena, \"dinner\"." },
+      { t: "lead", v: "The meals are el desayuno, \"breakfast\", el almuerzo, \"lunch\", and la cena, \"dinner\"." },
       { t: "pairs", head: ["Spanish", "English"], v: [
         ["¿Qué desayunaste hoy?", "What did you have for breakfast today?"],
-        ["¿Qué comiste?", "What did you have for lunch?"],
+        ["¿Qué almorzaste?", "What did you have for lunch?"],
         ["Anoche cené en casa", "Last night I had dinner at home"],
       ]},
-      { t: "note", v: "La comida also means \"food\": *la comida mexicana*, \"Mexican food\"." },
+      { t: "note", v: "La comida means \"food\": *la comida mexicana*, \"Mexican food\"." },
       { t: "sub", v: "Courses" },
       { t: "note", v: "For the parts of a meal, say *de entrada*, \"for starters\", *de plato fuerte*, \"for the main course\", and *de postre*, \"for dessert\": *de postre, comí fruta*, \"for dessert, I had fruit\"." },
       { t: "sub", v: "It tastes good" },

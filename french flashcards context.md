@@ -2510,8 +2510,8 @@ Flashcards / Podcasts switch is French only; Spanish has no Podcasts (owner,
   module"): the same panel, opened from Tutor in the sidebar, "Ask the
   tutor" in the account menu or under a missed card, as in French. Its
   requests carry `course: "es"` (ChatPanel's `course`), and api/chat.js then
-  answers as a Spanish tutor (`SPANISH_PROMPT`): the Spanish of Mexico,
-  ustedes and never vosotros, Spanish always written with its accents. It
+  answers as a Spanish tutor (`SPANISH_PROMPT`): words used across Latin
+  America, not one country's (owner, 2026-11-16), ustedes and never vosotros, Spanish always written with its accents. It
   proposes only word and phrase cards (`vocab`, `expr`; a grammar drill is
   dropped), because the grammar is on Exercises. A card added from it goes
   into `es_user_cards`; a card it changes goes through

@@ -219,7 +219,7 @@ export default {
         { prompt: "El pretérito para una acción con una duración precisa (c).", open: true, long: true,
           answer: "Viví diez años en Estados Unidos. Llovió todo el día. Esperé el autobús media hora." },
         { prompt: "El imperfecto para un hábito en el pasado (a).", open: true, long: true,
-          answer: "Cuando era niño, iba a la alberca todos los lunes. Mi abuela cocinaba todos los domingos. Antes trabajaba mucho." },
+          answer: "Cuando era niño, iba a la piscina todos los lunes. Mi abuela cocinaba todos los domingos. Antes trabajaba mucho." },
         { prompt: "El imperfecto para describir el contexto de una historia (b).", open: true, long: true,
           answer: "Hacía buen tiempo y había mucha gente en la playa. Llovía y había mucho tráfico. Era tarde y estaba muy cansado." },
         { prompt: "El imperfecto en una frase con que, después de un verbo en pasado (c).", open: true, long: true,

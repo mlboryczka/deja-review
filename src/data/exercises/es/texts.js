@@ -189,7 +189,7 @@ export const LESSON_TEXTS = {
   },
   {
    "who": "La madrina",
-   "text": "¡Qué padre! ¿Y cómo fue su primera cita? ¿Te acuerdas?"
+   "text": "¡Qué genial! ¿Y cómo fue su primera cita? ¿Te acuerdas?"
   },
   {
    "who": "Camila",
@@ -226,7 +226,7 @@ export const LESSON_TEXTS = {
   },
   {
    "who": "El agente",
-   "text": "Entonces usted busca un departamento de dos recámaras en el centro de Guadalajara. Y quiere comprar, ¿verdad?"
+   "text": "Entonces usted busca un departamento de dos habitaciones en el centro de Guadalajara. Y quiere comprar, ¿verdad?"
   },
   {
    "who": "El cliente",
@@ -234,7 +234,7 @@ export const LESSON_TEXTS = {
   },
   {
    "who": "El agente",
-   "text": "Muy bien, voy a buscar… Entonces nos concentramos en el centro. Aquí tengo uno de dos recámaras de 79 metros cuadrados, en el tercer piso, pero… No, me equivoqué: este está en renta. A ver…"
+   "text": "Muy bien, voy a buscar… Entonces nos concentramos en el centro. Aquí tengo uno de dos habitaciones de 79 metros cuadrados, en el tercer piso, pero… No, me equivoqué: este está en renta. A ver…"
   },
   {
    "who": "El cliente",
@@ -258,7 +258,7 @@ export const LESSON_TEXTS = {
   },
   {
    "who": "El agente",
-   "text": "Hay dos recámaras. Esta es la más grande y esa es la más pequeña. Las dos tienen clóset. Aquí puede poner una cama matrimonial."
+   "text": "Hay dos habitaciones. Esta es la más grande y esa es la más pequeña. Las dos tienen clóset. Aquí puede poner una cama matrimonial."
   },
   {
    "who": "El cliente",
@@ -270,7 +270,7 @@ export const LESSON_TEXTS = {
   },
   {
    "who": "El cliente",
-   "text": "Sí, claro, entiendo. Voy a hablar con mi esposa y le marco más tarde."
+   "text": "Sí, claro, entiendo. Voy a hablar con mi esposa y lo llamo más tarde."
   }
  ],
  "leccion14": [
@@ -349,7 +349,7 @@ export const LESSON_TEXTS = {
  ],
  "leccion17": [
   {
-   "scene": "Natalia, una alumna de último año de prepa, habla con su profesor de matemáticas en la escuela, después de los exámenes finales."
+   "scene": "Natalia, una alumna de último año de bachillerato, habla con su profesor de matemáticas en la escuela, después de los exámenes finales."
   },
   {
    "who": "El profesor",
@@ -422,7 +422,7 @@ export const LESSON_TEXTS = {
   },
   {
    "who": "Emilia",
-   "text": "¿Bueno?"
+   "text": "¿Aló?"
   },
   {
    "who": "Matt",
@@ -454,7 +454,7 @@ export const LESSON_TEXTS = {
   },
   {
    "who": "Emilia",
-   "text": "Es el 25, un edificio azul. Toca el timbre del 4B y sube al cuarto piso. ¡Pero no tomes el elevador, está descompuesto!"
+   "text": "Es el 25, un edificio azul. Toca el timbre del 4B y sube al cuarto piso. ¡Pero no tomes el ascensor, está descompuesto!"
   },
   {
    "who": "Matt",
@@ -483,7 +483,7 @@ export const LESSON_TEXTS = {
   },
   {
    "who": "Mariana",
-   "text": "¡Qué rico! ¿Y en la comida? ¿Qué comiste?"
+   "text": "¡Qué rico! ¿Y en el almuerzo? ¿Qué almorzaste?"
   },
   {
    "who": "Jessica",
@@ -756,7 +756,7 @@ export const LESSON_TEXTS = {
   },
   {
    "who": "Hugo",
-   "text": "¡Qué padre! ¿Ya compraron sus boletos?"
+   "text": "¡Qué genial! ¿Ya compraron sus boletos?"
   },
   {
    "who": "Jessica",

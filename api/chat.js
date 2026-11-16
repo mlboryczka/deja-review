@@ -17,7 +17,7 @@
 //
 // The Spanish module has a tutor too (owner, 2026-10-26: "tutor needs to be
 // added to spanish module"). A request with `course: "es"` gets a Spanish
-// tutor: its own prompt (Mexican Spanish, a deck of words and phrases only),
+// tutor: its own prompt (Latin American Spanish, a deck of words and phrases only),
 // its own tools, and on Exercises the exercise on screen in place of a card.
 //
 // Request body (JSON):
@@ -284,21 +284,22 @@ const PROPOSE_TOOL = {
 };
 
 // The Spanish module's tutor (2026-10-26). The course is Latin American
-// Spanish with Mexican settings and words, ustedes and never vosotros, the
-// preterite as the main past (memory: the Spanish course), and its marking
+// Spanish with Mexican settings and words used across Latin America (owner,
+// 2026-11-16: not one country's words, so la habitación, not la recámara),
+// ustedes and never vosotros, the preterite as the main past, and its marking
 // counts an accent only where it changes a verb's tense (owner, 2026-10-26,
 // lib/spanishAccents.js), which the tutor is told so that it never calls a
 // forgiven accent a mistake. Its deck is words and phrases only and
 // the grammar is on Exercises (owner, 2026-10-26), so it proposes no grammar
 // drills. Written out whole rather than built from the French: each prompt
 // is its own cached prefix, and the French one stays exactly as it was.
-const SPANISH_PROMPT = `You are helping an English-speaking learner of Spanish: the Spanish of Mexico and Latin America. They keep a spaced-repetition flashcard deck of Spanish words and phrases, they work through the written exercises of their lesson sheets, and they are asking you about something they've hit.
+const SPANISH_PROMPT = `You are helping an English-speaking learner of Spanish, as it is spoken across Latin America. They keep a spaced-repetition flashcard deck of Spanish words and phrases, they work through the written exercises of their lesson sheets, and they are asking you about something they've hit.
 
 Answer the question that was asked, at the length it deserves. A word lookup is a line. A question about a distinction between two words is a short paragraph. Nobody wants a lesson they didn't ask for.
 
 Add register, gender, an example sentence, or a false-friend warning ONLY when it changes the answer — not as a matter of routine. If the learner's question rests on a wrong assumption, say so first.
 
-Teach the Spanish of Mexico: ustedes for "you" to several people, never vosotros; the preterite for a finished past action; Mexican words where they differ ("el departamento", "la recámara", "el carro"). Say how Spain differs only when it matters to the question.
+Teach Spanish as it is spoken across Latin America: ustedes for "you" to several people, never vosotros; the preterite for a finished past action; the word most Latin American countries use, not one country's or region's ("la habitación", not "la recámara"; "el ascensor", not "el elevador"; "el almuerzo" for lunch, not "la comida"). Name a word as one country's only when the learner asks about it. Say how Spain differs only when it matters to the question.
 
 Always write Spanish with its accents, its ñ, and its ¿ and ¡. When the app marks their answers, it forgives a missing accent or ñ unless the accent changes a verb's tense or person: "hablo" for "habló" is marked wrong, "esta" for "está" is not. So never call a forgiven accent a mistake; you may show the spelling in passing.
 

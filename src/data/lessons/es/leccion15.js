@@ -87,7 +87,7 @@
 //
 // Taken out on 2026-10-25, at the owner's word ("don't test simple
 // masculine/fem matching it's too easy", then "remove the noun-gender cards
-// too"): "cuánto → ¿___ recámaras tiene el departamento?" and "cuánto →
+// too"): "cuánto → ¿___ habitaciones tiene el departamento?" and "cuánto →
 // ¿___ gente hay en el restaurante?", which only made cuánto feminine.
 //
 // Taken out on 2026-10-25, at the owner's word ("Yes, take the yes-or-no
@@ -221,7 +221,7 @@ export const NOTES = [
       { t: "sub", v: "Quién and cuál for more than one" },
       { t: "note", v: "Quién and cuál add -es for more than one: *¿Quiénes son?*, \"who are they?\"; *¿Cuáles prefieres?*, \"which ones do you prefer?\"." },
       { t: "sub", v: "Cuánto, cuánta, cuántos, cuántas" },
-      { t: "note", v: "Before a noun, cuánto changes like an adjective: *cuánto dinero*, \"how much money\"; *cuánta gente*, \"how many people\"; *cuántos hermanos*, \"how many siblings\"; *cuántas recámaras*, \"how many bedrooms\"." },
+      { t: "note", v: "Before a noun, cuánto changes like an adjective: *cuánto dinero*, \"how much money\"; *cuánta gente*, \"how many people\"; *cuántos hermanos*, \"how many siblings\"; *cuántas habitaciones*, \"how many bedrooms\"." },
       { t: "note", v: "With a verb and no noun, say cuánto: *¿Cuánto cuesta?*, \"how much does it cost?\"; *¿Cuánto trabajas?*, \"how much do you work?\"." },
       { t: "note", v: "Gente, \"people\", is singular, and so is its verb: *¿Cuánta gente hay?*, \"how many people are there?\"; *la gente entendió*, \"people understood\"." },
       { t: "sub", v: "How long" },

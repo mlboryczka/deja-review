@@ -73,7 +73,7 @@ function withoutHomework(text) {
   return at === -1 ? text : text.slice(0, at);
 }
 
-export const CADERNO_PROMPT = `You are making flashcards from one class of an English speaker's Spanish lessons. The notes are the teacher's: Latin American Spanish, the Spanish of Mexico (ustedes, never vosotros).
+export const CADERNO_PROMPT = `You are making flashcards from one class of an English speaker's Spanish lessons. The notes are the teacher's: Latin American Spanish (ustedes, never vosotros).
 
 The class is set out in a table with headings such as "Vocabulario" / "Vocabulaire", "Expresiones" / "Expressions", "Gramática" / "Grammaire" and "Prononciation". The headings may be in French; the lesson is Spanish. Do not decide anything by which heading an item sits under.
 

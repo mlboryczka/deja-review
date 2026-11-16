@@ -224,7 +224,7 @@ export default {
         { prompt: "¿…? ¡Tendría mucho más tiempo!", open: true, answer: "¿Cómo sería tu vida sin tu trabajo?" },
         { prompt: "¿…? Veríamos más a nuestros amigos.", open: true, answer: "¿Qué harían ustedes con más tiempo libre?" },
         { prompt: "¿…? Nos acostaríamos mucho más temprano.", open: true, answer: "¿A qué hora se acostarían ustedes con menos trabajo?" },
-        { prompt: "¿…? ¡Nunca saldría de mi casa!", open: true, answer: "¿Qué harías con una casa con jardín, alberca y cine?" },
+        { prompt: "¿…? ¡Nunca saldría de mi casa!", open: true, answer: "¿Qué harías con una casa con jardín, piscina y cine?" },
         { prompt: "¿…? ¡Sería genial!", open: true, answer: "¿Cómo sería un viaje por todo el mundo?" },
         { prompt: "¿…? Habría muchos menos problemas en el mundo.", open: true, answer: "¿Cómo sería el mundo sin dinero?" },
       ],
