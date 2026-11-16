@@ -2751,12 +2751,28 @@ page you were on (kept in this browser, `es-exercises-place:<user id>`).
   sentence that confirms or corrects it).
 - **Marking**: the key first, on the page and again on the server, at no
   cost. Capitals, punctuation, ¿ and ¡ don't count, and nor do accents but
-  those that change a verb's tense, as on the cards: right but for such an
-  accent is "Almost" ("llegue" for llegué), and "Hoy don Rafael esta de mal
-  humor" is right ("sólo" and "éste" are right, as on the cards). An answer
-  the key marked Almost before 2026-10-26 for an accent that no longer
-  counts shows as Right (`markedNow`; the row kept is unchanged), and Claude
-  is told the same rule. A true-or-false pressed the wrong
+  those that change a verb's tense, as on the cards, and "Hoy don Rafael esta
+  de mal humor" is right ("sólo" and "éste" are right, as on the cards).
+  Almost is right but for slips, however many: a word that isn't a verb off
+  by one letter ("quando"), an article or adjective of the wrong gender or
+  number ("la despertador"), one word written as two ("por que"). A verb in
+  the wrong form is Wrong, even one letter off (owner, 2026-11-15, of
+  "pones" for "pone" with usted: "you have to be able to discern a
+  misspelling from an inaccurate verb form"; the rule agreed 2026-11-16,
+  reversing "se vistan" as Almost of 2026-11-07): another real form of the
+  verb ("pones", "trabajo" for trabajé, "se vistan" for se visten) and an
+  accent that changes the tense ("llegue" for llegué) are Wrong by the key,
+  which knows every form of the answers' verbs from
+  `src/data/lessons/es/verbForms.js` (made by `scripts/verb-forms.mjs` from
+  Fred Jehle's verb database, without vosotros); a verb off by one letter
+  that makes no real form goes to Claude, which tells a typo ("caminaro",
+  Almost) from a made-up form ("fuemos", "tuvio", Wrong). An answer kept
+  under an earlier rule shows the verdict the key gives it now (`markedNow`;
+  the row kept is unchanged): an Almost for another form of a verb is
+  Wrong, one Claude must judge keeps its verdict. Claude, its dispute review
+  and the tutor are told the same rule. On Stats, when Exercises and
+  Dialogues are on it, an Almost counts as right and the page says how many
+  there were (owner, 2026-11-16). A true-or-false pressed the wrong
   way is Wrong. Anything else, free writing included, is Claude's (Right,
   Almost or Wrong, a sentence saying why, and the answer corrected), so a
   right answer the key doesn't list is still right. The server marks the

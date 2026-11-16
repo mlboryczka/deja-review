@@ -166,8 +166,8 @@ ck("two gaps: both right is right, one wrong goes to Claude", markByKey(two, ["q
 const acc = { prompt: "Where are you? (tú)", answer: "¿Dónde estás?" };
 ck("right but for accents that change no tense is right, with no call: donde estas", markByKey(acc, "donde estas")?.verdict === "right");
 const spoke = { prompt: "She spoke with Ana.", answer: "Habló con Ana." };
-ck("right but for an accent that changes the tense is Almost, with no call: hablo for habló",
-   markByKey(spoke, "hablo con ana")?.verdict === "almost" && markByKey(spoke, "hablo con ana")?.accents === true);
+ck("right but for an accent that changes the tense is Wrong, with no call: hablo for habló (owner, 2026-11-16)",
+   markByKey(spoke, "hablo con ana")?.verdict === "wrong" && markByKey(spoke, "hablo con ana")?.form === true);
 const rafael = { prompt: "Today Don Rafael is in a bad mood.", answer: "Hoy don Rafael está de mal humor." };
 ck("esta for the verb está is right, and estan for están",
    markByKey(rafael, "Hoy don Rafael esta de mal humor")?.verdict === "right" && markByKey({ prompt: "x", answer: "Están en casa." }, "estan en casa")?.verdict === "right");
@@ -180,26 +180,39 @@ ck("an accent that Real Academia still allows is right", markByKey({ prompt: "on
   const almost = (answer, typed, also) => markByKey({ prompt: "x", answer, also }, typed)?.verdict === "almost";
   const toClaude = (answer, typed, also) => markByKey({ prompt: "x", answer, also }, typed) === null;
   ck("Almost: a wrong article, as the owner said of la despertador", almost("Lo que pasa es que el despertador no sonó.", "lo que pasa es que la despertador no sonó"));
-  ck("Almost: a word off by one letter, even another form of the verb", almost("Ellas se maquillan y se visten.", "ellas se maquillan y se vistan") && almost("Cuando te despiertas, ¿qué haces?", "cuando te despiertes, que haces"));
-  ck("Almost: however many slips", almost("Ella debe estar agotada.", "elle dabe estar agotada"));
+  const wrong = (answer, typed, also) => markByKey({ prompt: "x", answer, also }, typed)?.verdict === "wrong";
+  // Owner, 2026-11-16, of "pones" for "pone": "you have to be able to discern a
+  // misspelling from an inaccurate verb form".
+  ck("Wrong: another real form of the verb, even one letter off: pones, se vistan, despiertes, trabajo",
+     wrong("¿Dónde pone usted los muebles?", "donde pones usted los muebles") && wrong("Ellas se maquillan y se visten.", "ellas se maquillan y se vistan") &&
+     wrong("Cuando te despiertas, ¿qué haces?", "cuando te despiertes, que haces") && wrong("No trabajé en julio.", "no trabajo en julio"));
+  ck("Claude's: a verb a letter off that makes no real form, a typo (caminaro) or a made-up form (fuemos)",
+     toClaude("Nosotros fuimos a México.", "nosotros fuemos a mexico") && toClaude("Los niños caminaron.", "los niños caminaro") && toClaude("Ella debe estar agotada.", "elle dabe estar agotada"));
+  ck("Almost: a word that isn't a verb off by one letter", almost("Cuando llegó, comimos.", "quando llegó, comimos"));
+  ck("Almost: however many slips", almost("Tengo problemas con mis amigas.", "tengo problmas con mis aimgas"));
   ck("Almost: a missing, an extra and a swapped letter", almost("Tengo problemas.", "tengo problmas") && almost("Tengo problemas.", "tengo probblemas") && almost("Tengo problemas.", "tengo porblemas"));
   ck("Almost: one word written as two, or two as one", almost("Me levanto porque me aburro.", "me levanto por que me aburro") && almost("A veces duermo.", "aveces duermo"));
   ck("Almost: a demonstrative of the wrong gender or number", almost("Me aburro estos días.", "me aburro este dias"));
   ck("Almost: the closest of the key's answers is the correction",
      markByKey({ prompt: "x", answer: "A veces me levanto porque me aburro.", also: ["A veces me levanto porque estoy aburrido."] }, "a veces me levanto por que estoy aburrido")?.correct === "A veces me levanto porque estoy aburrido.");
-  ck("Claude's: a short word off by a letter is another word", toClaude("Se levanta.", "te levanta") && toClaude("Soy Ana.", "son ana"));
+  ck("Claude's: a short word off by a letter is another word", toClaude("Se levanta.", "te levanta"));
+  ck("Wrong: a short form of the same verb, son for soy", wrong("Soy Ana.", "son ana"));
   ck("Claude's: a word left out or added", toClaude("Voy a estar agotado.", "voy estar agotado") && toClaude("Se duerme sin problema.", "a se duerme sin problema"));
   ck("Claude's: a form further off", toClaude("Mi despertador sonó.", "mi despertador suena") && toClaude("¿Te despiertas?", "te despertes"));
   ck("Claude's: an ending that may be just as right", toClaude("Estoy cansado.", "estoy cansada") && toClaude("El doctor llegó.", "el doctora llegó"));
   ck("Claude's: an article on a noun either gender can be", toClaude("un turista", "una turista") && toClaude("el paciente", "la paciente"));
   ck("free writing isn't compared for slips", markByKey({ prompt: "x", open: true, answer: "Tengo problemas." }, "tengo problmas") === null);
-  const blank = { prompt: "Ellos ___ tarde.", gaps: [["llegan"]] };
-  ck("a blank can be Almost too", markByKey(blank, ["llagan"])?.verdict === "almost" && markByKey(blank, ["llagan"])?.slips === true);
-  ck("only accents off still says so", markByKey({ prompt: "x", answer: "Habló con Ana." }, "hablo con ana")?.accents === true);
+  const blank = { prompt: "Mis ___ llegan tarde.", gaps: [["amigos"]] };
+  ck("a blank can be Almost too", markByKey(blank, ["amgios"])?.verdict === "almost" && markByKey(blank, ["amgios"])?.slips === true);
+  const put = { prompt: "¿Dónde ___ usted los muebles nuevos? (poner)", gaps: [["pone"]] };
+  ck("a blank with another form of the verb is Wrong: pones for pone with usted", markByKey(put, ["pones"])?.verdict === "wrong");
   ck("Why? names the words, as they are written",
      keyReason({ prompt: "x", answer: "Lo que pasa es que el despertador no sonó." }, "lo que pasa es que la despertador no sonó") === 'Right but for one word: "el", not "la".' &&
-     keyReason({ prompt: "x", answer: "Ella debe estar agotada." }, "Elle dabe estar agotada") === 'Right but for 2 words: "Ella", not "Elle"; "debe", not "dabe".' &&
+     keyReason({ prompt: "x", answer: "Tengo problemas con mis amigas." }, "Tengo problmas con mis aimgas") === 'Right but for 2 words: "problemas", not "problmas"; "amigas", not "aimgas".' &&
      keyReason({ prompt: "x", answer: "Me levanto porque me aburro." }, "me levanto por que me aburro") === 'Right but for one word: "porque", not "por que".');
+  ck("Why? says another form of the verb, and any slip besides",
+     keyReason(put, typedText(put, ["pones"])) === 'Another form of the verb: "pone", not "pones".' &&
+     keyReason({ prompt: "x", answer: "Ellas se visten con sus amigas." }, "ellas se vistan con sus aimgas") === 'Another form of the verb: "visten", not "vistan". Also a slip: "amigas", not "aimgas".');
   const clock = { prompt: "x", answer: "Lo que pasa es que el despertador no sonó." };
   ck("a Wrong kept from before shows as Almost when the key says so, and nothing else is changed",
      markedNow(clock, { markedBy: "claude", verdict: "wrong", typed: "lo que pasa es que la despertador no sonó", note: "n" }).verdict === "almost" &&
@@ -252,19 +265,22 @@ ck("a true-or-false hint starts with Verdadero or Falso", hintText(tf, 1) === "F
 console.log("Why?");
 const past = { prompt: "Ayer ella ___ con Ana. (hablar)", gaps: [["habló"]] };
 ck("a blank right but for an accent that changes the tense says which word",
-   keyReason(past, typedText(past, ["hablo"])) === "Right but for the accent, which changes the tense: \"habló\", not \"hablo\".");
+   keyReason(past, typedText(past, ["hablo"])) === "The accent changes the tense: \"habló\", not \"hablo\".");
 const estar = { prompt: "Ella ___ muy bien. (estar)", gaps: [["está"]] };
 ck("a blank right but for an accent that changes no tense is right, with no reason",
    markByKey(estar, ["esta"])?.verdict === "right" && keyReason(estar, typedText(estar, ["esta"])) === "");
 const tfPast = { prompt: "Ana habló con Lucía.", truth: true, answer: "Verdadero. Ana habló con Lucía." };
 ck("a sentence names only the accents that change the tense, as the key writes them",
-   keyReason({ prompt: "x", answer: "Después llegué y Ana habló." }, "Despues llegue y Ana hablo.") === "Right but for the accents, which change the tense: \"llegué\", not \"llegue\"; \"habló\", not \"hablo\"." &&
-   keyReason(tfPast, typedText(tfPast, { truth: true, text: "Ana hablo con Lucia." })) === "Right but for the accent, which changes the tense: \"habló\", not \"hablo\".");
-ck("an answer the key marked Almost before, for an accent that no longer counts, shows as Right; one that still counts stays Almost; Claude's stays as Claude marked it",
+   keyReason({ prompt: "x", answer: "Después llegué y Ana habló." }, "Despues llegue y Ana hablo.") === "The accents change the tense: \"llegué\", not \"llegue\"; \"habló\", not \"hablo\"." &&
+   keyReason(tfPast, typedText(tfPast, { truth: true, text: "Ana hablo con Lucia." })) === "The accent changes the tense: \"habló\", not \"hablo\".");
+ck("an answer the key marked Almost before, for an accent that no longer counts, shows as Right; one that changes the tense is now Wrong; Claude's Almost the key finds right stays as Claude marked it",
    markedNow(rafael, { markedBy: "key", verdict: "almost", typed: "Hoy don Rafael esta de mal humor" }).verdict === "right" &&
    markedNow(estar, { markedBy: "key", verdict: "almost", typed: typedText(estar, ["esta"]) }).verdict === "right" &&
-   markedNow(past, { markedBy: "key", verdict: "almost", typed: typedText(past, ["hablo"]) }).verdict === "almost" &&
+   markedNow(past, { markedBy: "key", verdict: "almost", typed: typedText(past, ["hablo"]) }).verdict === "wrong" &&
    markedNow(rafael, { markedBy: "claude", verdict: "almost", typed: "Hoy don Rafael esta de mal humor" }).verdict === "almost");
+ck("an Almost kept from before for another form of a verb, whoever marked it, shows as Wrong; one only Claude can judge keeps its verdict",
+   markedNow({ prompt: "x", answer: "Ellas se maquillan y se visten." }, { markedBy: "claude", verdict: "almost", typed: "ellas se maquillan y se vistan" }).verdict === "wrong" &&
+   markedNow({ prompt: "Nosotros ___ a México. (ir)", gaps: [["fuimos"]] },{ markedBy: "claude", verdict: "almost", typed: "Nosotros [fuemos] a México. (ir)" }).verdict === "almost");
 ck("a true-or-false pressed the wrong way says which it is", keyReason(tf, typedText(tf, { truth: true, text: "Sí." })) === "The statement is false, so the answer is Falso.");
 ck("an answer the key doesn't have gets no reason from the key: Claude's note is the reason", keyReason(gap, typedText(gap, ["eres"])) === "" && keyReason(acc, "¿Dónde vives?") === "");
 {
@@ -544,9 +560,9 @@ console.log("\n  the key — ñ, dashes, pm, true-or-false corrections, blank wi
 {
   const bano = { prompt: "¿Dónde está el baño?", answer: "Voy al baño." };
   ck("el bano is right for baño, as a missing ñ anywhere", markByKey(bano, "Voy al bano")?.verdict === "right");
-  ck("bañó for baño is still a tense mistake", markByKey(bano, "Voy al bañó")?.verdict === "almost");
+  ck("bañó for baño is still a tense mistake, so Wrong", markByKey(bano, "Voy al bañó")?.verdict === "wrong");
   const ense = { prompt: "x", answer: "Le enseñó la foto." };
-  ck("ensenó is right for enseñó, enseño is Almost", markByKey(ense, "Le ensenó la foto")?.verdict === "right" && markByKey(ense, "Le enseño la foto")?.verdict === "almost");
+  ck("ensenó is right for enseñó, enseño is Wrong", markByKey(ense, "Le ensenó la foto")?.verdict === "right" && markByKey(ense, "Le enseño la foto")?.verdict === "wrong");
   ck("and its Why names the accent only for the vowel", /enseñó/.test(keyReason(ense, "Le enseño la foto")) && keyReason(ense, "Le ensenó la foto") === "");
   const nothing = { prompt: "Yo no veo ___.", gaps: [["nada", "—", "-"]] };
   ck("a dash alone in a blank is nada, and can be submitted", isAnswered(nothing, ["—"]) && markByKey(nothing, ["-"])?.verdict === "right" && markByKey(nothing, ["–"])?.verdict === "right");

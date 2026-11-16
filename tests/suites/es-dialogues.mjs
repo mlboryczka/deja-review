@@ -130,8 +130,8 @@ ck("other words go to Claude, which can call them right", markByKey(asleep, "Est
     const seen = DIALOGUES.flatMap((d) => d.items).filter((it) => it.answer === "Ya veo.");
     ck("veo is right for I see, with or without the text's own ya", seen.length > 0 && seen.every((it) => markByKey(it, "veo")?.verdict === "right" && markByKey(it, "ya veo")?.verdict === "right"));
   }
-  ck("an accent that changes the tense is Almost, and says why",
-     markByKey(said, "Hablo con Ana.")?.verdict === "almost" && /"Habló", not "Hablo"/.test(keyReason(said, "Hablo con Ana.")));
+  ck("an accent that changes the tense is Wrong, and says why (owner, 2026-11-16)",
+     markByKey(said, "Hablo con Ana.")?.verdict === "wrong" && /"Habló", not "Hablo"/.test(keyReason(said, "Hablo con Ana.")));
 }
 ck("an empty box isn't marked", !isAnswered(asleep, "   "));
 {
