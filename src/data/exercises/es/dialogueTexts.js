@@ -2299,7 +2299,7 @@ export const DIALOGUE_TEXTS = {
     "whoEs": "El agente",
     "sentences": [
      {
-      "en": "Okay, let me look…",
+      "en": "Okay, I'm going to look…",
       "es": "Muy bien, voy a buscar…"
      },
      {
@@ -2307,7 +2307,7 @@ export const DIALOGUE_TEXTS = {
       "es": "Entonces nos concentramos en el centro."
      },
      {
-      "en": "Here I have a two-bedroom one of 79 square meters, on the third floor, but…",
+      "en": "Here I have one with two bedrooms and 79 square meters, on the third floor, but…",
       "es": "Aquí tengo uno de dos habitaciones de 79 metros cuadrados, en el tercer piso, pero…"
      },
      {
