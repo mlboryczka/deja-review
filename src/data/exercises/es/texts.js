@@ -266,7 +266,7 @@ export const LESSON_TEXTS = {
   },
   {
    "who": "El agente",
-   "text": "Exacto. Y también hay un medio baño al lado de la sala. Pero hay que decidir rápido, porque hay mucha gente interesada."
+   "text": "Exacto. Y también hay un baño al lado de la sala. Pero hay que decidir rápido, porque hay mucha gente interesada."
   },
   {
    "who": "El cliente",

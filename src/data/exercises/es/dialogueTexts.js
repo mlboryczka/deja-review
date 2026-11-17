@@ -2439,8 +2439,8 @@ export const DIALOGUE_TEXTS = {
     "whoEs": "El agente",
     "sentences": [
      {
-      "en": "Exactly. And there's also a half bath next to the living room.",
-      "es": "Exacto. Y también hay un medio baño al lado de la sala."
+      "en": "Exactly. And there's also a bathroom next to the living room.",
+      "es": "Exacto. Y también hay un baño al lado de la sala."
      },
      {
       "en": "But you have to decide quickly, because a lot of people are interested.",
