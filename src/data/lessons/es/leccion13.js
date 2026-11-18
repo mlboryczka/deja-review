@@ -139,7 +139,7 @@ export const CARDS = [
   ["comprar", "to buy", "V", "words"],
   ["equivocarse", "to make a mistake / to be wrong", "V", "words"],
   ["dejar", "to leave (something)", "V", "words"],
-  ["llegar tarde", "to be late / to arrive late", "V", "words"],
+  ["estar atrasado / llegar tarde", "to be late / to arrive late", "V", "words", "llegar tarde"],
   ["más tarde", "later", "V", "words"],
   ["hasta ahora", "so far / until now", "V", "words"],
   ["¿verdad?", "is that right? / right?", "V", "words"],

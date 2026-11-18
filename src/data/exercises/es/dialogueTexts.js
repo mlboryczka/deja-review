@@ -2327,7 +2327,7 @@ export const DIALOGUE_TEXTS = {
     "sentences": [
      {
       "en": "My wife is going to be late, so we're going to start without her.",
-      "es": "Mi esposa va a llegar tarde, entonces vamos a empezar sin ella."
+      "es": "Mi esposa va a estar atrasada, entonces vamos a empezar sin ella."
      }
     ]
    },

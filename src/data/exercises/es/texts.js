@@ -238,7 +238,7 @@ export const LESSON_TEXTS = {
   },
   {
    "who": "El cliente",
-   "text": "Mi esposa va a llegar tarde, entonces vamos a empezar sin ella."
+   "text": "Mi esposa va a estar atrasada, entonces vamos a empezar sin ella."
   },
   {
    "who": "El agente",
