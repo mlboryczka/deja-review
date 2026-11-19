@@ -148,7 +148,10 @@ export const CARDS = [
   ["adiós", "bye / goodbye", "V", "words"],
   ["en realidad", "actually / in fact", "V", "words"],
   ["la playa", "the beach", "V", "words"],
-  ["mucho", "a lot / much", "V", "words"],
+  // Every form is right for "a lot / much": nothing on the card asks for the
+  // masculine singular (feedback #65, the owner, 2026-11-18). Its first front
+  // stays its identity, so the row keeps its answers.
+  ["mucho / mucha / muchos / muchas", "a lot / much", "V", "words", "mucho"],
   ["un poco", "a bit / a little", "V", "words"],
   ["yo también", "me too / me as well", "V", "words"],
   ["después de", "after", "V", "words"],

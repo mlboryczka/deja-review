@@ -569,7 +569,7 @@ console.log("\n  Mark for review: a right answer saved as a miss, and the studen
   ck("on the last card it is still saved as a miss", recordsFor(t, first.id).length === 2 && recordsFor(t, first.id).every((b) => b.correct === false),
      JSON.stringify(recordsFor(t, first.id)));
   ck("and the student is told it comes back tomorrow", (await notice()) === "Marked for review: counted as wrong, back tomorrow", `"${await notice()}"`);
-  await t.wait(5000);
+  await t.wait(6200);
   ck("the message goes after a few seconds", (await notice()) === "", `"${await notice()}"`);
   await t.browser.close();
 }

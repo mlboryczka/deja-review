@@ -683,6 +683,11 @@ console.log("\n  marking — Spanish articles and ¿ ¡, French unchanged");
      !ok("July 30th", "June 30th", en) && !ok("It's 8:45", "It's 8:15", en));
   ck("which the tolerance let through before", ok("setenta", "sesenta", es) && ok("July 30th", "June 30th", { articles: "en" }));
   ck("an English number may still be its figure", ok("I have 2 brothers", "I have two brothers", en));
+  // Feedback #63 to #65 (the owner, 2026-11-18).
+  ck("LA typed for Los Ángeles is right", ok("¿Por qué estás en LA?", "¿Por qué estás en Los Ángeles?", { articles: "none", accents: true }));
+  ck("he danced is wrong for I danced: another person", !ok("he danced", "I danced", en) && ok("I danced", "I danced", en) && ok("I dancd", "I danced", en));
+  ck("muchas is right, not close enough, for mucho / mucha / muchos / muchas",
+     JSON.stringify(matchAnswer("muchas", "mucho / mucha / muchos / muchas", [], { articles: "es", accents: true })) === '{"match":true}');
   const put = "Ayer puse la computadora en la sala";
   ck("a wrong verb form in a phrase is wrong", !ok("Ayer poní la computadora en la sala", put, verbs) &&
      !ok("La semana pasada tenemos que trabajar mucho", "La semana pasada tuvimos que trabajar mucho", verbs));

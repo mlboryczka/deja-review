@@ -572,6 +572,10 @@ function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings =
   // alternate, so every alternative is tried before saying so (code check
   // 2026-11-07, no. 1).
   let articleMiss = false;
+  // A near match on one answer is kept while the rest are tried, so one
+  // typed exactly wins: "muchas" is right, not close enough, for "mucho /
+  // mucha / muchos / muchas" (feedback #65, the owner, 2026-11-18).
+  let closeHit = null;
 
   for (const alt of alternatives) {
     const a = normalize(alt);
@@ -605,7 +609,7 @@ function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings =
         (tRest.includes(aRest) && aRest.length >= 4)) {
       if (exactAre === "missing") continue;
       if (exactAre === "accent" || (accents && !accentsRight(typedHere, alt))) { accentMiss = true; continue; }
-      return { match: true, close: true };
+      { closeHit ??= { match: true, close: true }; continue; }
     }
     // Token-set overlap: only accepts word-order changes, not wrong/missing words.
     // Previous 0.8 threshold let "betrayal" pass for "trahison" in long phrases.
@@ -617,7 +621,7 @@ function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings =
       if (shared === tTokens.size && shared === aTokens.size) {
         if (exactAre === "missing") continue;
         if (exactAre === "accent" || (accents && !accentsRight(typedHere, alt))) { accentMiss = true; continue; }
-        return { match: true, close: true };
+        { closeHit ??= { match: true, close: true }; continue; }
       }
     }
     // Fuzzy: edit distance within threshold
@@ -627,9 +631,12 @@ function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings =
     if (dist <= threshold) {
       if (exactAre === "missing") continue;
       if (exactAre === "accent" || (accents && !accentsRight(typedHere, alt))) { accentMiss = true; continue; }
-      return { match: true, close: dist > 0 };
+      if (dist === 0) return { match: true };
+      closeHit ??= { match: true, close: true };
+      continue;
     }
   }
+  if (closeHit) return closeHit;
   if (articleMiss) return { match: false, wrongArticle: true };
   return accentMiss ? { match: false, wrongAccent: true } : { match: false };
 }
@@ -2538,7 +2545,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     // front ran the message off the top bar on a narrow window.
     setReviewMark(`Marked for review: counted as wrong, back ${when}`);
     clearTimeout(reviewMarkTimerRef.current);
-    reviewMarkTimerRef.current = setTimeout(() => setReviewMark(null), 5000);
+    reviewMarkTimerRef.current = setTimeout(() => setReviewMark(null), 6000);
   };
 
   // Submit typed answer
@@ -4851,9 +4858,6 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
                       {unsavedCount === 1 ? "1 answer not saved yet" : `${unsavedCount} answers not saved yet`} — retrying
                     </span>
                   )}
-                  {reviewMark && (
-                    <span style={S.reviewMarkNotice} data-review-mark role="status">{reviewMark}</span>
-                  )}
                   {!sessionDone && <span style={S.counter}>
                     {`Card ${idx+1} of ${deck.length}`}
                     {card._retry && (
@@ -4891,6 +4895,10 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
             // Got It still live let you grade the same card over and over,
             // writing an FSRS review each time.
             <div style={S.cardArea}>
+              {/* The last card marked for review ends the set: said here too. */}
+              {reviewMark && (
+                <div style={S.reviewMarkNotice} data-review-mark role="status">{reviewMark}</div>
+              )}
               <div style={S.sessionDone} data-checkpoint>
                 <p style={S.checkpointHead}>{blockSummary}</p>
                 {checkpoint?.changes.length > 0 && (
@@ -4934,6 +4942,14 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
               <div style={S.blurBR} />
 
               <div style={S.cardTopSpacer} />
+              {/* "Mark for review" moves on to the next card, so what it did
+                  is said over the card, where the student is looking. In
+                  the top bar's small print it went unseen (feedback #62,
+                  the owner, 2026-11-18: "just moves to the next card without
+                  indicating anything was marked"). */}
+              {reviewMark && (
+                <div style={S.reviewMarkNotice} data-review-mark role="status">{reviewMark}</div>
+              )}
               <div style={S.cardWrap} onClick={onCardClick} data-tour="card">
                 <div style={{...S.card, transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)", transition: skipFlipAnim.current ? "none" : S.card.transition, cursor: "pointer"}}>
                   <div style={{...S.cardFront, pointerEvents: flipped ? "none" : "auto"}}>
@@ -6628,7 +6644,7 @@ const S = {
   // ── Rectangular action buttons: AGAIN / GOT IT ─────────────────────
   unsavedNotice: { fontSize:11, fontFamily:T.font.sans, fontWeight:600, color:T.color.secondary, whiteSpace:"nowrap", marginRight:12 },
   // In the error red: the answer was right but now counts as a miss.
-  reviewMarkNotice: { fontSize:11, fontFamily:T.font.sans, fontWeight:600, color:T.color.error, whiteSpace:"nowrap", marginRight:12 },
+  reviewMarkNotice: { position:"absolute", top:8, left:"50%", transform:"translateX(-50%)", zIndex:5, maxWidth:"calc(100% - 32px)", padding:"8px 16px", borderRadius:T.radius.lg, background:T.color.errorContainer, color:T.color.onErrorContainer, fontSize:14, fontFamily:T.font.sans, fontWeight:600, textAlign:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.12)" },
   flipHint: { fontSize:11.5, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, margin:"10px 0 0", textAlign:"center" },
   actionRow: { display:"flex", gap:12, justifyContent:"center", marginTop:0, marginBottom:0, width:"100%", maxWidth:420, alignSelf:"center", flexShrink:0 },
   actionAgainRect: { flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"13px 24px", border:"1px solid rgba(3,22,50,0.1)", borderRadius:T.radius.md, background:"transparent", color:T.color.onSurfaceVariant, fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:T.font.sans, letterSpacing:"-0.01em", transition:"all 0.15s" },

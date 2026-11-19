@@ -12,7 +12,8 @@
 // irregular verb form of the lessons (irregularForms.js), the numbers, first
 // to tenth, the months, and the verbs four sentences to translate turn on
 // (llovía, estaba, tenía, pude: "Llovió cuando llegó" is the wrong tense).
-// Typing English: the numbers, the ordinals and the months. And either way,
+// Typing English: the numbers, the ordinals, the months and the subject
+// pronouns (2026-11-19). And either way,
 // any word with a figure in it.
 //
 // un and una are left out: they are also "a", and a slip on them is the
@@ -69,4 +70,9 @@ for (const [t, w] of Object.entries(TENS)) {
 for (const w of ["hundred", "thousand", "million", "billion", "hundredth"]) english.push([w, [w]]);
 const MONTHS_EN = ["january", "february", "march", "april", "may", "june", "july", "august", "september",
   "october", "november", "december"];
-export const ENGLISH_EXACT = new Map([...english, ...same(MONTHS_EN)]);
+// The subject pronouns, which say who does the verb: "he danced" is not
+// close enough for "I danced", the English of "Bailé" (feedback #64, the
+// owner, 2026-11-18: "he danced and i danced are different persons").
+// Contractions (I'm, he's) lose their apostrophe and aren't held.
+const SUBJECTS_EN = ["i", "you", "he", "she", "we", "they"];
+export const ENGLISH_EXACT = new Map([...english, ...same(MONTHS_EN), ...same(SUBJECTS_EN)]);
