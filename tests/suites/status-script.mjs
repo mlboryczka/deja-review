@@ -83,6 +83,16 @@ const server = http.createServer((req, res) => {
   const limit = Number(url.searchParams.get("limit") || rows.length);
   return send(200, rows.slice(offset, offset + limit));
 });
+// The stand-in keeps an idle connection open (Node closes one after 5
+// seconds). The script works out every check in one stretch with no pause
+// for anything else; on a slow machine that stretch outlasts 5 seconds, and
+// its next request goes out on the connection the stand-in has just closed:
+// "fetch failed". On GitHub, 2026-11-19, the daily run's kept reports
+// couldn't be read after --everyone's checks (seen again on the Mac with
+// every core kept busy), and --test-app --record stopped before it kept its
+// list of problems: 12 checks failed on unchanged code that passed when
+// run again.
+server.keepAliveTimeout = 0;
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const BASE = `http://127.0.0.1:${server.address().port}`;
 
