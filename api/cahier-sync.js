@@ -48,6 +48,7 @@
 // hundred words and this runs unattended, including from the daily check,
 // where no student is present to pay for it.
 
+import { docIdFrom } from "../src/lib/docId.js";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 
@@ -79,7 +80,7 @@ const MAX_LIMIT = 25;
 // would parse the same class twice and pay for it twice.
 const MIN_SECONDS_BETWEEN_CHECKS = 30;
 
-export const docIdFrom = (url) => String(url || "").match(/\/document\/d\/([a-zA-Z0-9_-]+)/)?.[1] || null;
+export { docIdFrom };
 
 export const fingerprint = classFingerprint;
 

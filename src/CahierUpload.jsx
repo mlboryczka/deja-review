@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { docIdFrom } from "./lib/docId.js";
 import { supabase } from "./supabase";
 import { T } from "./theme";
 
@@ -187,7 +188,7 @@ export function CahierUpload({ open, onClose, onSuccess, hasExisting, initialTab
     // until none are left.
     if (tab === "link") {
       const href = url.trim();
-      if (!href.includes("docs.google.com/document/")) {
+      if (!href.includes("docs.google.com/document/") || !docIdFrom(href)) {
         setError("That should be a Google Doc link, like https://docs.google.com/document/d/…");
         return;
       }
@@ -206,6 +207,9 @@ export function CahierUpload({ open, onClose, onSuccess, hasExisting, initialTab
       setProgress("");
       if (!result?.ok) { setStatus("error"); setError(result?.error || `Couldn't read that ${notes}.`); return; }
       setUrl("");
+      // Linked, but a class couldn't be read this time: the link and the cards
+      // already added stand.
+      if (result.error) setError(`Your ${notes} is linked, but one class couldn't be read this time: ${result.error}`);
       onSuccess?.({
         linked: true,
         cardsInserted: result.cards,
@@ -426,7 +430,7 @@ fonder / créer une entreprise
                       ? ` Last added ${cahier.link.last_result.cards.toLocaleString()} cards from ${cahier.link.last_result.dates?.length || 0} classes.`
                       : ""}
                   </div>
-                  {cahier.link.last_error && <div style={M.error}>{cahier.link.last_error}</div>}
+                  {(cahier.error || cahier.link.last_error) && <div style={M.error}>{cahier.error || cahier.link.last_error}</div>}
                   <div style={M.linkedActions}>
                     <button style={M.smallBtn} disabled={cahier.checking} onClick={() => cahier.sync({ force: true })}>
                       {cahier.checking ? "Checking…" : "Check now"}
@@ -469,7 +473,7 @@ fonder / créer une entreprise
           <button
             style={M.submitBtn}
             onClick={handleSubmit}
-            disabled={status === "uploading"}
+            disabled={status === "uploading" || (tab === "link" && !!cahier?.checking)}
           >
             {caderno ? (status === "uploading" ? "Linking…" : "Link") : status === "uploading" ? "Uploading…" : "Upload"}
           </button>
