@@ -5104,7 +5104,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
                                       openChat(card)
                                     }
                                   >
-                                    Ask the tutor
+                                    Why?
                                   </button>
                                 )}
                               </div>

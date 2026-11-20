@@ -84,8 +84,11 @@
 //   - "en el segundo piso" is "on the second floor / on the third floor
 //     (US)": in Mexico the floor above the planta baja (ground floor) is the
 //     primer piso, so the segundo piso is an American's third floor.
-//   - "llevar" is "to take / to carry": the dialogue's "Voy a llevar" is
-//     buying ("I'll take"), and to carry is its everyday sense.
+//   - "llevar" is "to carry / to take (somewhere, along)": the dialogue's
+//     "Voy a llevar" is buying ("I'll take"), and to carry is its everyday
+//     sense. Plain "to take" read like tomar (Lesson 7: "to take (the metro,
+//     a bus) / to drink"), so a student typed tomar (feedback #67, the owner,
+//     2026-11-19). The card keeps its front, so it keeps its answers.
 //   - "mi papá" is "mi papá / mi padre": papá is the everyday Mexican word,
 //     and a teacher accepts the standard padre for "my father" too.
 //   - Taken out on 2026-10-25, at the owner's word (no masculine/feminine
@@ -151,7 +154,7 @@ export const CARDS = [
   ["sobre", "about / on", "V", "vocab"],
   ["también", "also / too / as well", "V", "vocab"],
   ["claro", "sure / of course", "V", "vocab"],
-  ["llevar", "to take / to carry", "V", "vocab"],
+  ["llevar", "to carry / to take (somewhere, along)", "V", "vocab"],
   ["en el segundo piso", "on the second floor / on the third floor (US)", "E", "vocab"],
   ["Buenos días", "Good morning", "E", "vocab"],
   ["Muchas gracias", "Thank you very much / Thanks very much / Thanks a lot / Many thanks", "E", "vocab"],
