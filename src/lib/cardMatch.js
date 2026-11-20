@@ -120,7 +120,7 @@ export async function matchNewCards({ incoming, deck, ask, language = "fr" }) {
       const items = itemsOf(card);
       const have = items.map((item) => [item, index.sure(item)]).filter(([, row]) => row);
       for (const item of items) {
-        const row = have.find(([other, r]) => other === item || formsOfOneWord(item.front, other.front) || formsOfOneWord(item.front, r.front))?.[1];
+        const row = have.find(([other, r]) => other === item || formsOfOneWord(item.front, other.front, language) || formsOfOneWord(item.front, r.front, language))?.[1];
         if (!row) { take(item); continue; }
         const d = { card: item, action: "join", target: row };
         decisions.push(d);
@@ -210,7 +210,7 @@ export async function matchNewCards({ incoming, deck, ask, language = "fr" }) {
   // is that card.
   const settleItem = (item, list, same) => {
     const k = looseKey(item.card.front);
-    const own = same.find((r) => looseKey(r.front) === k) || same.find((r) => formsOfOneWord(item.card.front, r.front));
+    const own = same.find((r) => looseKey(r.front) === k) || same.find((r) => formsOfOneWord(item.card.front, r.front, language));
     let out;
     if (own) out = followTo(own, item.card);
     else if (item.action === "join") out = followTo(item.target, item.card);

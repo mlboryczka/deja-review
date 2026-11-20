@@ -31,6 +31,7 @@
 // wrote identically. On 4 September that rewrote the English of 1,429 of the
 // owner's cards and added 44 they already had. It does neither now.
 
+import { docIdFrom } from "../src/lib/docId.js";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 
@@ -428,13 +429,13 @@ export async function handleCommit(req, res, adminClient, user) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 export async function fetchGoogleDoc(url) {
-  const match = url.match(/\/document\/d\/([a-zA-Z0-9_-]+)/);
-  if (!match) {
+  const docId0 = docIdFrom(url);
+  if (!docId0) {
     throw new Error(
       "Not a recognized Google Doc URL. Expected format: https://docs.google.com/document/d/..."
     );
   }
-  const docId = match[1];
+  const docId = docId0;
   const exportUrl = `https://docs.google.com/document/d/${docId}/export?format=txt`;
   const res = await fetch(exportUrl);
   if (!res.ok) {
@@ -534,7 +535,7 @@ If you see a full conjugation listed inline across multiple forms, like:
 ...extract it as a single card with the full table as the front, set category to "G", AND add these additional fields:
   "conjugation": true
   "infinitive": the verb infinitive (e.g. "vivre", "aller", "être")
-  "tense": one of "présent", "subjonctif", "imparfait", "conditionnel", "passé composé", "futur", or "unknown"
+  "tense": one of "présent", "subjonctif", "imparfait", "conditionnel", "passé composé", "plus-que-parfait", "futur", "impératif", or "unknown"
   "forms": array of six strings in order [je, tu, il/elle, nous, vous, ils/elles]. Use null for any slot that isn't present in the source.
 
 Example conjugation card:
@@ -769,8 +770,11 @@ function conjugationDrills(card) {
   if (!card.infinitive) return [];
   if (!Array.isArray(card.forms) || card.forms.length === 0) return [];
 
-  const tenseLabel =
-    card.tense && card.tense !== "unknown" ? ` (${card.tense})` : "";
+  // A table in a tense the app can't name makes no drills: they would be
+  // taken for the present and marked against it.
+  const TABLE_TENSES = ["présent", "subjonctif", "imparfait", "conditionnel", "passé composé", "plus-que-parfait", "futur", "impératif"];
+  if (!TABLE_TENSES.includes(card.tense)) return [];
+  const tenseLabel = ` (${card.tense})`;
 
   const drills = [];
   for (let i = 0; i < Math.min(6, card.forms.length); i++) {

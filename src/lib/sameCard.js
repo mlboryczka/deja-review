@@ -278,13 +278,16 @@ const ENDINGS = [
   ["t", "tte"], ["n", "nne"], ["s", "sse"], ["c", "che"], ["c", "que"], ["c", "cque"], ["x", "se"], ["x", "sse"],
   ["x", "ce"], ["g", "gue"], ["eau", "elle"], ["ou", "olle"], ["al", "aux"], ["ail", "aux"], ["is", "iche"],
 ];
-export function formsOfOneWord(a, b) {
-  const x = looseKey(a);
-  const y = looseKey(b);
+// Spanish gender and number pairs: "caro" and "cara", "invitados" and
+// "invitadas", "profesor" and "profesora".
+const ENDINGS_ES = [["o", "a"], ["os", "as"], ["or", "ora"], ["ores", "oras"], ["", "s"], ["", "es"]];
+export function formsOfOneWord(a, b, language = "fr") {
+  const x = looseKeyFor(language)(a);
+  const y = looseKeyFor(language)(b);
   if (!x || !y) return false;
   // The same, or a number in digits beside its word ("15 = quinze").
   if (x === y || /^\d+$/.test(x) || /^\d+$/.test(y)) return true;
-  const ends = (m, f) => ENDINGS.some(([from, to]) => {
+  const ends = (m, f) => (language === "es" ? ENDINGS_ES : ENDINGS).some(([from, to]) => {
     const stem = m.length - from.length;
     return m.endsWith(from) && stem >= (from ? 1 : 2) && `${m.slice(0, stem)}${to}` === f;
   });

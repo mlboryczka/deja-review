@@ -37,7 +37,7 @@ const MONTHS_ES = {
 // octubre", dated its first day as in French.
 const DATE_LINE = /^(?:(?:el|los)\s+)?(?:(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo),?\s+)?(\d{1,2})(?:\s*(?:,|y|&|-)\s*\d{1,2})*\s+de\s+([a-z]+)(?:\s+(?:de|del)?\s*(\d{4}))?\s*$/i;
 
-// The year of a date line that gives none: this year, unless that puts the
+// The year of the first (top) date line when it gives none: this year, unless that puts the
 // class more than a month after today, as "28 de diciembre" read on 3
 // January would. A class can't be from the future.
 function yearFor(month, day, now) {
@@ -57,7 +57,18 @@ export function sliceCaderno(rawText, { now = new Date() } = {}) {
     if (m && month) {
       if (current) blocks.push(current);
       const day = m[1].padStart(2, "0");
-      current = { date: `${m[3] || yearFor(month, day, now)}-${month}-${day}`, text: "" };
+      // The doc is newest first: a class with no year is the year of the class
+      // above it, unless that puts it more than 60 days after that class (a
+      // class dated a little ahead, or two on one date, stay in one year).
+      const above = blocks.length || current ? (current ? current.date : blocks[blocks.length - 1].date) : null;
+      let year = m[3];
+      if (!year && above) {
+        year = Number(above.slice(0, 4));
+        const gap = new Date(`${year}-${month}-${day}T12:00:00Z`) - new Date(`${above}T12:00:00Z`);
+        if (gap > 60 * 24 * 3600 * 1000) year -= 1;
+      }
+      if (!year) year = yearFor(month, day, now);
+      current = { date: `${year}-${month}-${day}`, text: "" };
     } else if (current) {
       current.text += line + "\n";
     }
@@ -69,7 +80,7 @@ export function sliceCaderno(rawText, { now = new Date() } = {}) {
 }
 
 function withoutHomework(text) {
-  const at = text.search(/Para la pr[oó]xima vez\s*:?/i);
+  const at = text.search(/^[ \t]*Para la pr[oó]xima vez[ \t]*(?::|$)/im);
   return at === -1 ? text : text.slice(0, at);
 }
 
@@ -144,7 +155,7 @@ export async function extractCadernoCards(anthropic, block) {
     .filter((c) => c.front && c.back);
 }
 
-const noFinalStop = (s) => String(s).replace(/\s*\.+$/, "").trim();
+const noFinalStop = (s) => String(s).replace(/(?<!\.)\s*\.$/, "").trim();
 
 // What Claude made, as the cards that are written: no full stop at the end,
 // nothing whose two sides are the same, and one card per Spanish side (the
@@ -157,9 +168,10 @@ export function cadernoCardsFromExtracted(raw) {
     const front = noFinalStop(c?.front || "");
     const back = noFinalStop(c?.back || "");
     if (!front || !back || front.toLowerCase() === back.toLowerCase()) continue;
-    const have = byFront.get(front);
+    const key = `${front}\u0000${back}`.toLowerCase();
+    const have = byFront.get(key);
     if (have) { have.dates = [...new Set([...have.dates, ...(c.dates || [])])].sort(); continue; }
-    byFront.set(front, { front, back, category: c.category === "V" ? "V" : "E", dates: [...new Set(c.dates || [])].sort(), source: "cahier-upload" });
+    byFront.set(key, { front, back, category: c.category === "V" ? "V" : "E", dates: [...new Set(c.dates || [])].sort(), source: "cahier-upload" });
   }
   return [...byFront.values()];
 }
