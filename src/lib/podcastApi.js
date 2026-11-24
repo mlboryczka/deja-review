@@ -5,7 +5,8 @@
 // opening an episode, marking an answer, adding a card) because Vercel's
 // Hobby plan deploys at most twelve routes and this is the eleventh
 // (owner-approved build spec, 2026-10-09). The server checks the session and,
-// while the module is the owner's alone, refuses anyone else with 403.
+// refuses anyone the module is not open to (the owner, and anyone signed in on
+// the test app) with 403.
 //
 // Shaped like the other small client helpers (src/StatusAnswers.jsx,
 // src/ChatPanel.jsx): the Supabase session's token as a Bearer header, the
@@ -83,7 +84,7 @@ export async function podcastCall(body, { supabase, user, fetchImpl, signal } = 
   // could answer) isn't JSON: say what happened in plain words.
   const fallback =
     res.status === 504 ? "The server took too long. Try again in a minute."
-    : res.status === 403 ? "Podcasts are only open to the owner for now."
+    : res.status === 403 ? "You don’t have access to Podcasts."
     : `The server answered ${res.status}. Try again.`;
   throw new PodcastError((data && typeof data.error === "string" && data.error) || fallback, {
     status: res.status,

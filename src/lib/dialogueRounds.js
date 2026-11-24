@@ -31,12 +31,14 @@ const lastOf = (list) => list[list.length - 1];
 
 // Whether a round's answers leave nothing to ask: every sentence right or
 // almost, or answered twice, with no answer still being marked.
-function roundOver(count, tries) {
+// `cut` says, for each answer, whether it left its sentence done when it was
+// given (see roundsOf).
+function roundOver(count, tries, cut) {
   for (let i = 0; i < count; i++) {
     const t = tries.get(i);
     if (!t) return false;
     const last = lastOf(t);
-    if (last.pending || (t.length < 2 && !isRight(last))) return false;
+    if (last.pending || (t.length < 2 && !cut.get(last))) return false;
   }
   return true;
 }
@@ -49,6 +51,21 @@ export function roundsOf(count, rows, today = localISODate()) {
   const finished = [];
   let tries = new Map();
   let day = null;
+  // Where a finished round ended is worked out from each answer as it was
+  // kept (row.keptVerdict), not as the key marks it now, or marking it later
+  // as Almost or Right, or accepting it, would move the end of a round already
+  // over and turn its retry into a round under way. Only the last answer
+  // to a sentence that day still counts as it stands now, so a sentence
+  // accepted before it came back is not asked again.
+  const cut = new Map();
+  const lastOfSentence = new Set();
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const row = rows[i];
+    const k = `${localISODate(new Date(row.answeredAt))}/${row.index}`;
+    const isLast = !lastOfSentence.has(k);
+    lastOfSentence.add(k);
+    cut.set(row, isLast ? isRight(row) : countsAsRight(row.keptVerdict ?? row.verdict));
+  }
   for (const row of rows) {
     if (!(row.index >= 0 && row.index < count)) continue;
     const rowDay = localISODate(new Date(row.answeredAt));
@@ -58,7 +75,7 @@ export function roundsOf(count, rows, today = localISODate()) {
     }
     if (!tries.has(row.index)) tries.set(row.index, []);
     tries.get(row.index).push(row);
-    if (roundOver(count, tries)) {
+    if (roundOver(count, tries, cut)) {
       let missed = 0;
       for (const t of tries.values()) if (!isRight(t[0])) missed++;
       finished.push({ at: row.answeredAt, total: count, missed, tries });

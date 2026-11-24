@@ -342,10 +342,10 @@ export function podcastContext(podcast) {
 // hands it up as
 //   { key, lesson, number, title, instruction, english, example,
 //     items: [{ number, prompt, answer, answered, typed, verdict, correct, why }],
-//     focus, asked, last, text }
+//     focus, last, text }
 // (why: the reason "Why?" shows under a miss; focus: the item with the cursor;
-// asked: the one whose "Ask the tutor" was pressed; last: the one answered
-// last; text: the lesson's text, when the exercise is about it) and
+// last: the one answered last; (`asked`, once the item "Ask the tutor" was
+// pressed under, is no longer sent by any page;) text: the lesson's text, when the exercise is about it) and
 // FlashcardApp passes it to
 // the tutor as `exercise`. As with a card, an item's answer is not given away
 // before it has been answered (api/chat.js, "An exercise"). The server clips

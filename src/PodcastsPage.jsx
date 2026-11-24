@@ -88,6 +88,8 @@ const PREPARE_MAX_MS = 2 * 60 * 1000;
 // being written: an episode whose questions already exist answers well within
 // it, so it never flashes the message.
 const SLOW_OPEN_MS = 1200;
+// How often the transcript is looked for while an episode's questions are written.
+const EARLY_LOOK_MS = 3000;
 // The tutor is told the transcript, clipped to this (api/chat.js clips again).
 const TUTOR_TRANSCRIPT_CHARS = 12000;
 // The play bar's speeds, in the order the button steps through them.
@@ -267,7 +269,10 @@ export default function PodcastsPage({
     try {
       const { data } = await podcastCall({ action: "add-card", episodeId, front, back }, { supabase, user });
       const added = Array.isArray(data?.added) ? data.added : [];
-      if (data?.waiting) setAdd(front, { state: "waiting" });
+      // Waiting with a key message (no key, or one Anthropic turned down) says
+      // so beside the button, as marking does; nothing was added on a guess.
+      if (data?.waiting && data.code) setAdd(front, { state: "error", message: data.error || "Couldn’t check this one. Try again.", code: data.code });
+      else if (data?.waiting) setAdd(front, { state: "waiting" });
       else if (added.length) {
         setAdd(front, { state: "added" });
         // Into the deck in memory, the way the tutor's adds go: no refetch,
@@ -577,13 +582,21 @@ function EpisodeView({
   useEffect(() => {
     if (detail.status === "ready" || early) return undefined;
     let cancelled = false;
+    let id = null;
+    // Looks again every few seconds until the server has read RFI's page and
+    // saved it (or the questions arrive), not once: a slow page would leave
+    // the Transcript tab saying the questions are being written.
     const read = async () => {
       const { data, error } = await supabase
         .from("podcast_episodes").select("transcript, stories").eq("id", episodeId).maybeSingle();
-      if (cancelled || error || !Array.isArray(data?.transcript) || !data.transcript.length) return;
+      if (cancelled) return;
+      if (error || !Array.isArray(data?.transcript) || !data.transcript.length) {
+        id = setTimeout(read, EARLY_LOOK_MS);
+        return;
+      }
       setEarly(data);
     };
-    const id = setTimeout(read, detail.status === "preparing" ? 0 : SLOW_OPEN_MS);
+    id = setTimeout(read, detail.status === "preparing" ? 0 : SLOW_OPEN_MS);
     return () => { cancelled = true; clearTimeout(id); };
   }, [episodeId, detail.status, early]);
 
@@ -593,7 +606,10 @@ function EpisodeView({
   );
   const podcast = podcastBySlug(ep?.podcast);
   const passages = useMemo(() => passagesOf(ep), [ep]);
-  const stories = Array.isArray(ep?.stories) ? ep.stories : [];
+  // The stories read while the questions are written give the play bar its marks.
+  const stories = Array.isArray(ep?.stories) && ep.stories.length
+    ? ep.stories
+    : Array.isArray(early?.stories) ? early.stories : [];
   const paragraphs = Array.isArray(detail.episode?.transcript)
     ? detail.episode.transcript
     : Array.isArray(early?.transcript) ? early.transcript : null;
@@ -735,8 +751,10 @@ function EpisodeView({
       quiet();
       // Questions whose passages have no time: their turn is the end.
       if (!stopOnRef.current) return;
-      const hit = due(-Infinity, Infinity);
-      if (hit && !Number.isFinite(hit.t)) stopHereRef.current?.(hit.key, a.currentTime);
+      // The first of them not yet come up, whatever timed question was skipped
+      // before it (a jump never counts as passing one).
+      const hit = stopsRef.current.find((s) => !Number.isFinite(s.t) && !stoppedOnce.current.has(s.key));
+      if (hit) stopHereRef.current?.(hit.key, a.currentTime, true);
     };
     const onPlay = () => {
       setPlaying(true);
@@ -868,10 +886,12 @@ function EpisodeView({
   goRef.current = go;
   const scrollPending = useRef(null);
   const [scrollSeq, setScrollSeq] = useState(0);
-  stopHereRef.current = (key, at) => {
+  stopHereRef.current = (key, at, ended = false) => {
     stoppedOnce.current.add(key);
     waitAt.current = at;
-    setWaitKey(key);
+    // At the end of the episode there is nothing to play on to: "Continue
+    // listening" would only start the recording again from 0:00.
+    setWaitKey(ended ? null : key);
     setFocusKey(key);
     scrollPending.current = key;
     setScrollSeq((n) => n + 1);

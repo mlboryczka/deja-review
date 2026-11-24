@@ -15,9 +15,10 @@
 //   add-card  { episodeId, front, back } -> { added, have, removed, waiting }
 // Errors: { error, code } with a plain sentence the page shows as it is.
 //
-// Owner only until the owner has tested it (2026-10-09): a verified session,
-// then 403 "Admin only" for anyone else. The client hides the module from
-// students too, but its admin check reads a public address and only hides.
+// Who may use it (podcastsOpenTo, src/lib/testApp.js; since 2026-10-19): the
+// owner anywhere, and anyone signed in on the test app; on the students' app
+// the owner only, and anyone else gets 403 "Admin only". The client shows the
+// module by the same rule, but only the server's check keeps anyone out.
 //
 // The key that pays is worked out only inside the actions that call Claude
 // (writing an episode's questions, marking, and the same-card question when

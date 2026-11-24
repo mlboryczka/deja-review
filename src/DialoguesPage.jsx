@@ -9,7 +9,8 @@
 // anything the key doesn't have (the same marking as Exercises,
 // api/_lib/exercises.js), and the next sentence is ready, so the text builds
 // up as you go. Any correct Spanish is Right, and the text's own wording always
-// shows. A sentence that wasn't Right comes back once at the end of the round.
+// shows. A sentence that was Wrong comes back once at the end of the round; an
+// Almost counts as right and doesn't.
 //
 // The app never asks for a text to be done again (owner, 2026-11-07: "the app
 // shouldn't ask me to do a dialogue again"): "Go again" is there for whenever
@@ -21,8 +22,9 @@
 // As with Exercises, the shell (FlashcardApp) owns which page is showing and
 // the Lesson notes panel, and a lesson's page tells the tutor what is on screen
 // (onTutorContext), a text being told as an exercise with no number. A missed
-// sentence has "Ask the tutor" beside "Why?", as a missed answer on Exercises
-// does (openChat).
+// sentence has "Why?" and "My answer should be accepted" under it, as on
+// Exercises (owner, 2026-11-07: they replaced "Ask the tutor"); a Wrong answer
+// shows the coloured mark, with the correct answer in italics under a miss only.
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, Fragment } from "react";
 import { supabase } from "./supabase";
@@ -62,13 +64,13 @@ function storeFor(userId) {
     s.accept = (key, line, how = "kept") => {
       if (how !== "kept") {
         const id = parseItemKey(key)?.lesson;
-        if (id) s.rows = { ...s.rows, [id]: (s.rows[id] || []).map((r) => (r.key === key ? { ...r, verdict: "right", accepted: how } : r)) };
+        if (id) s.rows = { ...s.rows, [id]: (s.rows[id] || []).map((r) => (r.key === key ? { ...r, keptVerdict: r.keptVerdict ?? r.verdict, verdict: "right", accepted: how } : r)) };
         s.emit();
         return;
       }
       s.accepted = { ...s.accepted, [key]: new Set([...(s.accepted[key] || []), line]) };
       const id = parseItemKey(key)?.lesson;
-      if (id) s.rows = { ...s.rows, [id]: (s.rows[id] || []).map((r) => (r.key === key ? acceptedNow(r, s.accepted) : r)) };
+      if (id) s.rows = { ...s.rows, [id]: (s.rows[id] || []).map((r) => (r.key === key ? { ...acceptedNow(r, s.accepted), keptVerdict: r.keptVerdict ?? r.verdict } : r)) };
       s.emit();
     };
     s.forget = (key, ticket) => {
@@ -101,7 +103,7 @@ function useRows(userId) {
       const rows = {};
       for (const a of answers) {
         const k = parseItemKey(a.key);
-        if (k) (rows[k.lesson] ||= []).push({ ...acceptedNow(markedNow(findItem(DIALOGUES_BY_ID, a.key)?.item, a), s.accepted), index: k.index });
+        if (k) (rows[k.lesson] ||= []).push({ ...acceptedNow(markedNow(findItem(DIALOGUES_BY_ID, a.key)?.item, a), s.accepted), index: k.index, keptVerdict: a.verdict });
       }
       for (const [id, list] of Object.entries(s.rows)) rows[id] = [...(rows[id] || []), ...list];
       s.rows = rows;
@@ -120,10 +122,14 @@ supabase.auth.onAuthStateChange((event) => {
   if (event !== "SIGNED_OUT") return;
   stores.clear();
   drafts.clear();
+  hintsKept.clear();
 });
 
 // What has been typed and not yet checked, so leaving the page loses nothing.
 const drafts = new Map();
+// How far the hint went for each typed answer, kept beside the draft until the
+// answer is marked, so a failed marking or leaving the lesson keeps it.
+const hintsKept = new Map();
 const NO_ROWS = [];
 
 // ── What the tutor is told ───────────────────────────────────────────────
@@ -133,7 +139,7 @@ const NO_ROWS = [];
 // then (api/chat.js, "An exercise").
 const missReason = (item, a) => (a.verdict === "right" ? "" : a.note || keyReason(item, a.typed));
 
-function tutorDialogue(dialogue, tries, focus, asked) {
+function tutorDialogue(dialogue, tries, focus) {
   let last = 0, lastAt = 0;
   const items = dialogue.items.map((item, i) => {
     const marked = (tries.get(i) || []).filter((r) => !r.pending);
@@ -157,7 +163,6 @@ function tutorDialogue(dialogue, tries, focus, asked) {
     english: dialogue.exercises[0].english,
     items,
     ...(focus ? { focus } : null),
-    ...(asked ? { asked } : null),
     ...(last ? { last } : null),
   };
 }
@@ -271,16 +276,9 @@ function OneDialogue({ user, dialogue, store, scrollRef, onBack, onNeedKey, onTu
   const next = showLast || store.loading ? null : nextSentence(count, tries);
   const [reading, setReading] = useState(false);
 
-  // The sentence whose "Ask the tutor" was pressed, until the next one is
-  // ready: it is what "this one" then means to the tutor. Otherwise that is
-  // the sentence being answered.
-  const [asked, setAsked] = useState(null);
-  useEffect(() => { setAsked(null); }, [next?.index, next?.again]);
-  const focus = asked !== null ? asked + 1 : next ? next.index + 1 : 0;
-  const tutorCtx = useMemo(
-    () => tutorDialogue(dialogue, shown, focus, asked !== null ? asked + 1 : 0),
-    [dialogue, shown, focus, asked]
-  );
+  // What "this one" means to the tutor: the sentence being answered.
+  const focus = next ? next.index + 1 : 0;
+  const tutorCtx = useMemo(() => tutorDialogue(dialogue, shown, focus), [dialogue, shown, focus]);
   const tellRef = useRef(onTutorContext);
   tellRef.current = onTutorContext;
   const sentRef = useRef("");
@@ -294,15 +292,6 @@ function OneDialogue({ user, dialogue, store, scrollRef, onBack, onNeedKey, onTu
   // Leaving the lesson leaves no text on screen. What was sent is forgotten
   // too, so the lesson opened again sends its text afresh.
   useEffect(() => () => { sentRef.current = ""; tellRef.current?.(null); }, []);
-  // The tutor is told about that sentence at once, and a thread about any other
-  // is put away (ChatPanel's `thread`), as on Exercises.
-  const askTutor = (index) => {
-    setAsked(index);
-    const ctx = tutorDialogue(dialogue, shown, index + 1, index + 1);
-    tellTutor(ctx);
-    openChat({ row_id: ctx.key });
-  };
-
   const doneRef = useRef(null);
   const finishedHere = useRef(finished.length);
   useEffect(() => {
@@ -330,7 +319,6 @@ function OneDialogue({ user, dialogue, store, scrollRef, onBack, onNeedKey, onTu
     item: dialogue.items[index],
     number: index + 1,
     itemKeyValue: itemKey(dialogue.id, 1, index),
-    onAsk: openChat ? () => askTutor(index) : null,
   });
 
   return (
@@ -451,7 +439,7 @@ function ReadIt({ dialogue }) {
 
 let ticketSeq = 0;
 
-function SentenceRow({ item, number, itemKeyValue: key, kind, who, answer, user, store, onNeedKey, onAsk }) {
+function SentenceRow({ item, number, itemKeyValue: key, kind, who, answer, user, store, onNeedKey }) {
   const state = !answer ? "open" : answer.pending ? "checking" : "done";
   const promptStyle = kind === "scene" ? { ...S.prompt, fontStyle: "italic" } : kind === "question" ? { ...S.prompt, fontWeight: 600 } : S.prompt;
   return (
@@ -474,7 +462,12 @@ function SentenceBox({ item, itemKeyValue: key, user, store, onNeedKey }) {
   const draftKey = `${user?.id}|${key}`;
   const [typed, setTypedState] = useState(() => drafts.get(draftKey) ?? "");
   const setTyped = (v) => { drafts.set(draftKey, v); setTypedState(v); };
-  const [hint, setHint] = useState(0);
+  const [hint, setHintState] = useState(() => hintsKept.get(draftKey) ?? 0);
+  const setHint = (h) => setHintState((cur) => {
+    const next = typeof h === "function" ? h(cur) : h;
+    if (next) hintsKept.set(draftKey, next); else hintsKept.delete(draftKey);
+    return next;
+  });
   const levels = hintLevels(item);
   const problem = store.problems[key] || null;
   const boxRef = useRef(null);
@@ -517,9 +510,11 @@ function SentenceBox({ item, itemKeyValue: key, user, store, onNeedKey }) {
     // The key's verdict is shown at once; Claude's is waited for, while the
     // next sentence is ready to type.
     store.record(keyRow || { key, index, typed: line, pending: true, answeredAt: now, ticket });
+    const hintSent = hint;
     drafts.delete(draftKey);
+    hintsKept.delete(draftKey);
     try {
-      const { answer: a, saved, missing } = await markAnswer({ key, typed: line, hints: hint }, { supabase, user });
+      const { answer: a, saved, missing } = await markAnswer({ key, typed: line, hints: hintSent }, { supabase, user });
       if (missing) store.missing = true;
       store.record({ ...a, index, answeredAt: a.answeredAt || now, ticket, unsaved: !saved && !missing });
     } catch (e) {
@@ -529,6 +524,7 @@ function SentenceBox({ item, itemKeyValue: key, user, store, onNeedKey }) {
         // Nothing was marked: the answer goes back in the box to try again,
         // and that sentence is the one to answer again.
         drafts.set(draftKey, line);
+        if (hintSent) hintsKept.set(draftKey, hintSent);
         store.setProblem(key, { message: e?.message || "Couldn’t mark that. Try again.", code: e?.code || "" });
         store.forget(key, ticket);
       }

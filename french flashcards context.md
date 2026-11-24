@@ -2786,12 +2786,10 @@ page you were on (kept in this browser, `es-exercises-place:<user id>`).
   again" until the owner had it taken off (2026-11-02: "get rid of try
   again, it's not useful"). "Start this exercise again" adds answers and
   hides the old ones from the page; it removes nothing. A marked answer
-  shows, under what was typed, for Almost or Wrong one line, "Correct:",
-  the answer corrected: Claude's correction where it made one, otherwise
-  the key's answer (owner, 2026-10-25: "get rid of the description after
-  the right/wrong tag", "only need corrected, not the answer. change to
-  correct:"); then only Right, Almost or Wrong (owner, 2026-11-02: "correct
-  answer should be first and then almost/correct/wrong and why"). Claude's
+  shows a coloured mark before it (`VerdictMark`: Right, Almost or Wrong),
+  and under a miss only, in italics, the answer corrected: Claude's
+  correction where it made one, otherwise the key's answer (the "Correct:"
+  line it had until 2026-11-07). Claude's
   sentence saying why is kept with the answer and shows, as a "Why:" line
   under the verdict, only when "Why?" beside it is pressed (owner,
   2026-10-26: "there should also be a "why was my answer wrong" option").
@@ -2805,8 +2803,11 @@ page you were on (kept in this browser, `es-exercises-place:<user id>`).
   every other letter ("p_______" for prefiero; two blanks are numbered,
   "1. m_   2. n___"; punctuation, ¿ and ¡ show). Then "Show more" adds one
   letter to every word, until the whole answer shows and the link goes. The
-  cursor stays in the box. A hint isn't kept and doesn't change the
-  marking; it goes once the item is answered (`hintText`, `hintLevels`).
+  cursor stays in the box. A hint doesn't change the
+  marking. How far it went is kept with the answer (`es_exercise_answers.hints`,
+  migration_026) and goes from the box once the item is answered (`hintText`,
+  `hintLevels`); a typed answer that Claude couldn't mark, or that you left the
+  lesson with, comes back with the same hint.
 - **The tutor** (2026-10-26): on a lesson's page the tutor is told the
   exercise being worked on, as Podcasts tells it the episode: the exercise
   whose item has the cursor, else the one answered last, else the first.
@@ -2821,16 +2822,16 @@ page you were on (kept in this browser, `es-exercises-place:<user id>`).
   1, 2: Mis papás ___ cerca de Nueva York. (vivir)"), and its first
   suggestions are "What did I get wrong in number 1?", "Give me a hint for
   number 2 without the answer" and "Explain the rule this exercise
-  practises". A missed answer has "Ask the tutor" beside "Why?", as a missed
-  card does (owner, 2026-11-07, offered after the Why? work was done). It
-  opens the panel on that item: the tutor is told that is the one being asked
-  about, what they typed, the correct answer and the reason "Why?" shows, the
-  first suggestion is about it, and a conversation about another item is put
-  away for a fresh one. Tutor in the sidebar also opens the panel on the
-  exercise.
+  practises". A missed answer has "Why?" and "My answer
+  should be accepted" (`useAnswerDispute.js`; owner, 2026-11-07, "the same
+  button as we have for the flashcards"), which replaced "Ask the tutor": that
+  button is gone, so don't put it back. An accepted answer shows as Right,
+  counts as right and is right from then on (`es_exercise_disputes`,
+  migration_027). Tutor in the sidebar opens the panel on the exercise.
 - **Kept**: every answer, in `es_exercise_answers` (migration_022): the item,
-  its prompt as shown, what was typed, the verdict, who marked it, Claude's
-  note and correction. Written by the server; a student reads only their
+  its prompt as shown, what was typed, how far the hint went (migration_026),
+  the verdict, who marked it, Claude's note and correction. Answers accepted
+  with "My answer should be accepted" are kept in `es_exercise_disputes`. Written by the server; a student reads only their
   own. Until migration_022 is run the page still marks answers and says they
   aren't being kept.
 - **Fresh each day** (owner, 2026-10-27: "reset all exercise answers at the
@@ -2868,10 +2869,10 @@ them under the other.
 - **The page**: the English a sentence at a time, with who says it. Enter marks
   it, and the next sentence is ready, while Claude's mark is still on its way
   if it needs one. Any correct Spanish is Right, and the text's own wording
-  always shows: "Correct:" under a miss, "In the text:" under an answer right in
-  other words. Hint, Why? and Ask the tutor work as on Exercises. "Read it" shows
+  always shows: the coloured mark before the answer, and under a miss only the
+  correct answer in italics. Hint, Why? and "My answer should be accepted" work as on Exercises. "Read it" shows
   the Spanish and English side by side, and Lesson notes opens as on Exercises.
-- **A round** is every sentence, then each one that wasn't Right once more, under
+- **A round** is every sentence, then each one that was Wrong once more (an Almost counts as right and doesn't come back), under
   "The sentences you missed, once more". It is worked out from the answers alone
   (`src/lib/dialogueRounds.js`), so devices agree and there is nothing else to
   keep: a round ends with the answer that leaves nothing to ask, and the next

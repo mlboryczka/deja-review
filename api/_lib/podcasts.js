@@ -19,10 +19,10 @@
 //   mark      { episodeId, key, typed, timeZone } -> { answer, saved }
 //   add-card  { episodeId, front, back } -> { added, have, removed, waiting }
 //
-// THE OWNER ONLY, until the owner has tested it (2026-10-09). Every action
-// answers 403 "Admin only" to anyone else, here and in the route. The
-// client's switch is hidden from students too, but the client's admin check
-// reads a public address and only hides things.
+// WHO MAY USE IT (since 2026-10-19): the route lets in the owner anywhere and
+// anyone signed in on the test app, and answers 403 "Admin only" to everyone
+// else. It passes `isAdmin: true` for every caller it lets in, so here
+// `isAdmin` means "let in by the route".
 //
 // WHO PAYS. Only three things call Claude: writing an episode's questions
 // (the first time anyone opens it), marking an answer, and the same-card
@@ -90,6 +90,7 @@ import {
 } from "./podcastQuestions.js";
 import { readDeck } from "./notesReading.js";
 import { askSameCard } from "./sameCardQuestion.js";
+import { indexOfWord } from "../../src/lib/podcastProgress.js";
 import { claudeProblem, OVERLOADED_TEXT, BILLING_TEXT } from "./claudeProblem.js";
 import { cleanFrenchFront } from "../parse-cahier.js";
 
@@ -245,11 +246,12 @@ const ideaOf = (kind, idea) => {
 function inPassage(fr, words) {
   const w = clean(words);
   if (!w) return null;
-  if (fr.includes(w)) return w;
+  // Only where the words stand as a whole word, never inside another word.
+  if (indexOfWord(fr, w) >= 0) return w;
   const nf = normalizePassage(fr);
   const nw = normalizePassage(w);
-  let at = nf.indexOf(nw);
-  if (at < 0) at = nf.toLowerCase().indexOf(nw.toLowerCase());
+  let at = indexOfWord(nf, nw);
+  if (at < 0) at = indexOfWord(nf.toLowerCase(), nw.toLowerCase());
   if (at < 0) return null;
   // normalizePassage only changes the length of whitespace runs, and RFI's
   // paragraphs have none, so the offsets carry over when the lengths agree.
@@ -679,7 +681,14 @@ async function addCard({ body, user, store, apiKey, ask }) {
     }
     // A deadline on the real clock: `now` is the time the answer is recorded
     // at, which tests set to a fixed moment.
-    return askSameCard({ apiKey: key.key, pairs, deadline: Date.now() + SAME_CARD_TIME_MS });
+    // A key Anthropic turns down is said to the page too, so it can offer
+    // "Update your key" (the card still waits, nothing is added on a guess).
+    return askSameCard({ apiKey: key.key, pairs, deadline: Date.now() + SAME_CARD_TIME_MS }).catch((e) => {
+      if (e instanceof Anthropic.AuthenticationError) {
+        keyProblem = { code: "bad_key", error: "Anthropic rejected that API key. Check it in your profile menu." };
+      }
+      throw e;
+    });
   });
   const incoming = [{ front, back, category: "V", dates: [], source: `podcast:${ep.row.id}` }];
   const { decisions, askError } = await matchNewCards({ incoming, deck: deck.rows || [], ask: question });

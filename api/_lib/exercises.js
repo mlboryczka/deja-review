@@ -4,7 +4,7 @@
 //
 // Reached through POST /api/review-answer with `{ exercise: { ... } }`,
 // because Vercel's Hobby plan deploys at most twelve routes and eleven are
-// taken: see that file. One action:
+// taken: see that file. Two actions:
 //
 //   answer   { key, typed, hints? } -> { answer, saved, missing? }
 //   dispute  { key, typed, verdict?, force? } -> { verdict, reasoning, forced?,

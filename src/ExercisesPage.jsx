@@ -135,10 +135,14 @@ supabase.auth.onAuthStateChange((event) => {
   if (event !== "SIGNED_OUT") return;
   stores.clear();
   drafts.clear();
+  hintsKept.clear();
 });
 
 // What has been typed and not yet checked, so leaving the page loses nothing.
 const drafts = new Map();
+// How far the hint went for each typed answer, kept beside the draft until the
+// answer is marked, so leaving the lesson keeps it.
+const hintsKept = new Map();
 
 // "Start again" on an exercise: answers given before it are kept, but no
 // longer shown. Kept in this browser, per user.
@@ -193,7 +197,7 @@ const exerciseOfKey = (lesson, key) =>
 // the key marked, the key's.
 const missReason = (item, a) => (a.verdict === "right" ? "" : a.note || keyReason(item, a.typed));
 
-function tutorExercise(lesson, latest, again, focusKey, askedKey) {
+function tutorExercise(lesson, latest, again, focusKey) {
   const shownOf = (ex, i) => shownAnswer(latest, again, lesson.id, ex.n, itemKey(lesson.id, ex.n, i));
   const doneAt = (a) => (a && !a.pending ? at(a.answeredAt) || 1 : 0);
   let ex = exerciseOfKey(lesson, focusKey);
@@ -233,7 +237,6 @@ function tutorExercise(lesson, latest, again, focusKey, askedKey) {
     ...(ex.example ? { example: plainLine(ex.example) } : null),
     items,
     ...(focus ? { focus } : null),
-    ...(focus && askedKey === focusKey ? { asked: focus } : null),
     ...(last ? { last } : null),
     ...(text ? { text } : null),
   };
@@ -336,20 +339,16 @@ function LessonExercises({ user, lesson, store, again, startAgain, onBack, onNee
   // The item with the cursor, which the tutor is told about with its
   // exercise. Kept when the cursor goes to the tutor's own box.
   const [focusKey, setFocusKey] = useState(null);
-  // The item whose "Ask the tutor" was pressed, until the cursor goes to
-  // another: it is what "this one" then means to the tutor.
-  const [askedKey, setAskedKey] = useState(null);
   const onFocusItem = (e) => {
     const key = e.target?.closest?.("[data-ex-item]")?.dataset?.exItem;
     if (!key) return;
     setFocusKey(key);
-    setAskedKey((asked) => (asked === key ? asked : null));
   };
   const tutorFor = useCallback(
-    (key, asked) => tutorExercise(lesson, store.latest, again, key, asked),
+    (key) => tutorExercise(lesson, store.latest, again, key),
     [lesson, store.latest, again]
   );
-  const tutorCtx = useMemo(() => tutorFor(focusKey, askedKey), [tutorFor, focusKey, askedKey]);
+  const tutorCtx = useMemo(() => tutorFor(focusKey), [tutorFor, focusKey]);
   const tellRef = useRef(onTutorContext);
   tellRef.current = onTutorContext;
   const sentRef = useRef("");
@@ -363,16 +362,6 @@ function LessonExercises({ user, lesson, store, again, startAgain, onBack, onNee
   // Leaving the lesson leaves no exercise on screen. What was sent is
   // forgotten too, so the lesson opened again sends its exercise afresh.
   useEffect(() => () => { sentRef.current = ""; tellRef.current?.(null); }, []);
-  // "Ask the tutor" under a missed answer: the tutor is told about that item
-  // at once, and a thread about any other is put away (ChatPanel's `thread`),
-  // as on a missed card.
-  const askTutor = (key) => {
-    setFocusKey(key);
-    setAskedKey(key);
-    const ctx = tutorFor(key, key);
-    tellTutor(ctx);
-    if (ctx) openChat({ row_id: ctx.key });
-  };
 
   // After an answer is sent, the next item still to answer gets the cursor.
   const focusNext = useCallback((fromKey) => {
@@ -421,7 +410,6 @@ function LessonExercises({ user, lesson, store, again, startAgain, onBack, onNee
             onStartAgain={() => startAgain(lesson.id, ex.n)}
             focusNext={focusNext}
             onNeedKey={onNeedKey}
-            askTutor={openChat ? askTutor : null}
           />
         ))}
       </div>
@@ -441,7 +429,7 @@ function Rich({ text }) {
   });
 }
 
-function ExerciseBlock({ user, lesson, exercise, store, again, onStartAgain, focusNext, onNeedKey, askTutor }) {
+function ExerciseBlock({ user, lesson, exercise, store, again, onStartAgain, focusNext, onNeedKey }) {
   let answered = 0, right = 0;
   const keys = exercise.items.map((_, i) => itemKey(lesson.id, exercise.n, i));
   const shown = keys.map((k) => shownAnswer(store.latest, again, lesson.id, exercise.n, k));
@@ -472,7 +460,6 @@ function ExerciseBlock({ user, lesson, exercise, store, again, onStartAgain, foc
               store={store}
               focusNext={focusNext}
               onNeedKey={onNeedKey}
-              askTutor={askTutor}
               gapW={gapW}
             />
           </Fragment>
@@ -502,7 +489,7 @@ const gapWidth = (items) => `${Math.max(9, Math.min(24, Math.max(0, ...items.fla
 
 let ticketSeq = 0;
 
-function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext, onNeedKey, askTutor, gapW }) {
+function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext, onNeedKey, gapW }) {
   const kind = kindOf(item);
   const draftKey = `${user?.id}|${key}`;
   const [typed, setTypedState] = useState(() => drafts.get(draftKey) ?? emptyTyped(item));
@@ -510,7 +497,12 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
   const [problem, setProblem] = useState(null);
   // How much of the hint shows: none, then one more letter of each word per
   // press. It goes once the item is answered.
-  const [hint, setHint] = useState(0);
+  const [hint, setHintState] = useState(() => hintsKept.get(draftKey) ?? 0);
+  const setHint = (h) => setHintState((cur) => {
+    const next = typeof h === "function" ? h(cur) : h;
+    if (next) hintsKept.set(draftKey, next); else hintsKept.delete(draftKey);
+    return next;
+  });
   const levels = hintLevels(item);
   const itemRef = useRef(null);
   const open = !answer;

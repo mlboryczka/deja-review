@@ -242,6 +242,24 @@ export function feedbackSentence(kind, verdict, feedback) {
 // [{ start, end, index }] (index: the phrase's place in the list).
 const foldApostrophes = (s) => s.replace(/[’‘`´]/g, "'");
 
+// The first place `needle` stands as a whole word in `hay`: with no letter or
+// digit against it on either side where it begins or ends with one, so "été"
+// is found in "cet été" and never inside "société". -1 when it isn't there.
+const WORD_CHAR = /[\p{L}\p{N}]/u;
+export function indexOfWord(hay, needle) {
+  if (!needle) return -1;
+  const first = WORD_CHAR.test(needle[0]);
+  const last = WORD_CHAR.test(needle[needle.length - 1]);
+  let at = hay.indexOf(needle);
+  while (at >= 0) {
+    const before = at > 0 ? hay[at - 1] : "";
+    const after = hay[at + needle.length] || "";
+    if (!(first && before && WORD_CHAR.test(before)) && !(last && after && WORD_CHAR.test(after))) return at;
+    at = hay.indexOf(needle, at + 1);
+  }
+  return -1;
+}
+
 export function phraseRanges(fr, phrases) {
   const text = String(fr || "");
   const lower = text.toLowerCase();
@@ -250,9 +268,9 @@ export function phraseRanges(fr, phrases) {
   (phrases || []).forEach((ph, index) => {
     const needle = String(ph?.inText || "").trim();
     if (!needle) return;
-    let at = text.indexOf(needle);
-    if (at < 0) at = lower.indexOf(needle.toLowerCase());
-    if (at < 0) at = folded.indexOf(foldApostrophes(needle.toLowerCase()));
+    let at = indexOfWord(text, needle);
+    if (at < 0) at = indexOfWord(lower, needle.toLowerCase());
+    if (at < 0) at = indexOfWord(folded, foldApostrophes(needle.toLowerCase()));
     if (at >= 0) found.push({ start: at, end: at + needle.length, index });
   });
   found.sort((a, b) => a.start - b.start || b.end - a.end);

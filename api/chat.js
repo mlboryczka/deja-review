@@ -57,9 +57,9 @@
 //         instruction, english, example?,
 //         items: [{ number, prompt, answer,       // numbered as on the page; the key's answer
 //                   answered, typed?, verdict?,   // "right" | "almost" | "wrong"
-//                   correct?, why? }],            // the "Correct:" line under a miss, the reason "Why?" shows
-//         focus?, asked?, last?,                  // the item with the cursor, the one "Ask the tutor" was
-//                                                 // pressed under, the one answered last
+//                   correct?, why? }],            // the correct answer under a miss, the reason "Why?" shows
+//         focus?, last?,                          // the item with the cursor, the one answered last
+//                                                 // (no page sends `asked` now: "Ask the tutor" under an answer is gone)
 //         text?,                                  // the lesson's text, when the exercise is about it
 //       },
 //       relatedCards?: [{ front, back }],         // deck matches for the question
