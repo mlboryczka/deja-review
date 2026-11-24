@@ -90,6 +90,7 @@ import {
 } from "./podcastQuestions.js";
 import { readDeck } from "./notesReading.js";
 import { askSameCard } from "./sameCardQuestion.js";
+import { claudeProblem, OVERLOADED_TEXT, BILLING_TEXT } from "./claudeProblem.js";
 import { cleanFrenchFront } from "../parse-cahier.js";
 
 // How long one request may hold an episode while Claude writes its questions:
@@ -137,8 +138,11 @@ export function claudeError(err, what) {
   if (err instanceof Anthropic.RateLimitError) {
     return reply(429, { error: "Claude is busy. Try again in a minute.", code: "busy" });
   }
-  if (err instanceof Anthropic.APIError && err.status === 529) {
-    return reply(503, { error: "Claude is overloaded right now. Give it a minute and try again.", code: "overloaded" });
+  if (claudeProblem(err) === "overloaded") {
+    return reply(503, { error: OVERLOADED_TEXT, code: "overloaded" });
+  }
+  if (claudeProblem(err) === "billing") {
+    return reply(402, { error: BILLING_TEXT, code: "billing" });
   }
   if (err instanceof Anthropic.APIConnectionTimeoutError || err instanceof Anthropic.APIUserAbortError ||
       err?.name === "TimeoutError" || err?.name === "AbortError") {

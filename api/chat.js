@@ -94,6 +94,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { requireUser } from "./_lib/auth.js";
 import { requireAnthropicKey } from "./_lib/anthropicKey.js";
 import { allowIphoneApp } from "./_lib/cors.js";
+import { claudeProblem, OVERLOADED_TEXT, BILLING_TEXT } from "./_lib/claudeProblem.js";
 
 // The answer streams, so the wall-clock limit is no longer a cliff — but the
 // function still needs room. Vercel's default is 10s.
@@ -321,7 +322,7 @@ They study by recalling the answer before it is shown, and the app records each 
 
 ## An exercise
 
-Instead of a card, the [Context] block may name the exercise on their screen, from their lesson's exercise sheet: its instruction, and its items, numbered as on their screen, each with its expected answer and whether they have answered it. An answer is marked right, almost right (right but for small slips: a typo in a word, an article or adjective of the wrong gender or number, or one word written as two) or wrong. A verb in the wrong form is wrong even when only one letter or an accent is off: another real form of it ("pones" for "pone"), an accent that changes its tense ("llego" for "llegó"), or a made-up form ("fuemos" for "fuimos"). In a fill-in-the-blank item, what they typed in each blank is in square brackets.
+Instead of a card, the [Context] block may name the exercise on their screen, from their lesson's exercise sheet: its instruction, and its items, numbered as on their screen, each with its expected answer and whether they have answered it. An answer is marked right, almost right (right but for small slips: a typo in a word, an article or adjective of the wrong gender or number, or one word written as two) or wrong. Almost right counts as right: the app scores it as a correct answer, so never call it a mistake the student must fix. A verb in the wrong form is wrong even when only one letter or an accent is off: another real form of it ("pones" for "pone"), an accent that changes its tense ("llego" for "llegó"), or a made-up form ("fuemos" for "fuimos"). In a fill-in-the-blank item, what they typed in each blank is in square brackets.
 - If an item has NOT been answered yet, never state its answer, or a form of it, or a word that gives it away — not even if they ask outright, because finding it is the exercise. Help them work it out instead: the rule the exercise practises, the person and tense needed, a verb like it, the first letter. If they want the answer itself, tell them that checking an answer shows the correct one.
 - Once an item has been answered, you may explain it in full: compare what they typed with the correct answer and say what the difference is.
 - "Number 3" means item 3 of this exercise. If you are told they pressed "Ask the tutor" under an item, "this one" with no number means that item. Otherwise it means the item the cursor is on, unless they are plainly asking about the answer just marked, which is the item answered last.
@@ -631,6 +632,7 @@ const RESULT_TEXT = {
   wrongAccent: "was marked wrong because an accent that changes the verb's tense is missing or misplaced",
   close: "was accepted as close enough",
   correct: "was marked correct",
+  accepted: "was marked wrong at first, then accepted on review, so it counts as right",
 };
 
 // The card on screen, and where the student is with it. Whether it has been
@@ -758,7 +760,7 @@ const EXERCISE_LESSON_TEXT_MAX = 4000;
 const EXERCISE_VERDICT_TEXT = {
   right: "was marked right",
   // As api/_lib/exercises.js marks it.
-  almost: "was marked almost right (right but for small slips: a typo in a word, the wrong gender or number on an article, demonstrative or adjective, or one word written as two; a verb in another form, even one letter or an accent off, is marked wrong)",
+  almost: "was marked almost right (right but for small slips: a typo in a word, the wrong gender or number on an article, demonstrative or adjective, or one word written as two; a verb in another form, even one letter or an accent off, is marked wrong), which counts as right",
   wrong: "was marked wrong",
 };
 
@@ -1040,8 +1042,12 @@ export default async function handler(req, res) {
       // code is what lets the client offer the same "fix your key" action.
       message = "Anthropic rejected that API key. Check it in your profile menu.";
       code = "bad_key"; // matches resolveAnthropicKey's code for a rejected key
-    } else if (err instanceof Anthropic.APIError && err.status === 529) {
-      message = "Claude is overloaded right now — give it a minute and try again.";
+    } else if (claudeProblem(err) === "overloaded") {
+      // Also mid-stream, where the error has no status.
+      message = OVERLOADED_TEXT;
+    } else if (claudeProblem(err) === "billing") {
+      message = BILLING_TEXT;
+      code = "billing"; // the panel offers the same key dialog as for a bad key
     } else if (err instanceof Anthropic.APIError) {
       // The raw API message is for the log above, not for a student.
       message = `The tutor couldn't answer (error ${err.status ?? "unknown"}). Try again.`;

@@ -78,6 +78,26 @@ export function bare(s) {
 // The kind of an item: "gaps" (typed into the sentence's blanks), "truth"
 // (Verdadero or Falso, then a sentence), "open" (free writing) or "answer"
 // (one box).
+// Whether an exercise is about the lesson's text, so that its text goes to
+// Claude's marking AND to the tutor by one test: the sheet's title or
+// instruction names the text, or an item is true-or-false or free writing.
+// (Marking and the tutor used to use two tests and agreed on only 7 of 14.)
+export function aboutTheText(exercise) {
+  if (/comprensi|diálogo|dialogo|texto|lección|leccion/i.test(`${exercise?.title} ${exercise?.instruction}`)) return true;
+  return (exercise?.items || []).some((it) => {
+    const k = kindOf(it);
+    return k === "truth" || k === "open";
+  });
+}
+
+// The lesson's text as lines, one way for both.
+export function lessonTextOf(lines) {
+  return (Array.isArray(lines) ? lines : [])
+    .map((l) => l.title ? `# ${l.title}` : l.scene ? `(${l.scene})` : l.question ? `– ${l.question}` : l.who ? `${l.who}: ${l.text}` : l.text)
+    .filter(Boolean)
+    .join("\n");
+}
+
 export function kindOf(item) {
   if (Array.isArray(item?.gaps)) return "gaps";
   if (typeof item?.truth === "boolean") return "truth";

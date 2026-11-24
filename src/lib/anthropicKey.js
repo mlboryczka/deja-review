@@ -79,3 +79,5 @@ export function maskKey(key) {
 // The server sends this code with a 402 when there is nothing to pay with.
 export const BYOK_REQUIRED = "byok_required";
 export const BAD_KEY = "bad_key";
+// The key works but the Anthropic account has no credit or a billing problem.
+export const BILLING = "billing";

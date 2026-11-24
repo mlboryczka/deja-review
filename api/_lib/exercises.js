@@ -40,7 +40,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { EXERCISES_BY_ID } from "../../src/data/exercises/es/index.js";
 import { DIALOGUES_BY_ID } from "../../src/data/exercises/es/dialogues.js";
 import { LESSON_TEXTS } from "../../src/data/exercises/es/texts.js";
-import { findItem, isAnswered, kindOf, markByKey, typedText, keyAnswer, hintLevels, plain, matchesAccepted, VERDICTS } from "../../src/lib/exerciseMarking.js";
+import { aboutTheText, lessonTextOf, findItem, isAnswered, kindOf, markByKey, typedText, keyAnswer, hintLevels, plain, matchesAccepted, VERDICTS } from "../../src/lib/exerciseMarking.js";
 import { UnreadableReply } from "./podcastQuestions.js";
 import { claudeError } from "./podcasts.js";
 
@@ -87,12 +87,11 @@ const KIND_LINE = {
   truth: "True or false, then a sentence that confirms or corrects it.",
 };
 
-// The lesson's text, as lines, when the exercise is about it.
+// The lesson's text, as lines, when the exercise is about it (one test and one
+// layout, shared with the tutor: src/lib/exerciseMarking.js).
 function lessonText(lesson) {
-  const lines = LESSON_TEXTS[lesson?.textOf || lesson?.id] || [];
-  return lines.map((l) => l.title ? `# ${l.title}` : l.scene ? `(${l.scene})` : l.question ? `– ${l.question}` : l.who ? `${l.who}: ${l.text}` : l.text).join("\n");
+  return lessonTextOf(LESSON_TEXTS[lesson?.textOf || lesson?.id]);
 }
-const aboutTheText = (exercise) => /comprensi|diálogo|dialogo|texto|lección|leccion/i.test(`${exercise?.title} ${exercise?.instruction}`);
 
 export function markPrompt({ lesson, exercise, item, typed }) {
   const kind = kindOf(item);

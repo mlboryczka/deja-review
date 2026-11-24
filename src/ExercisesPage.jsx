@@ -42,7 +42,7 @@ import { EXERCISES_BY_ID } from "./data/exercises/es/index.js";
 import { EXERCISE_GROUPS } from "./data/exercises/es/titles.js";
 import { stageIds } from "./data/lessons/es/stages.js";
 import { LESSON_TEXTS } from "./data/exercises/es/texts.js";
-import { itemKey, kindOf, isAnswered, markByKey, typedText, keyAnswer, keyReason, hintText, hintLevels, markedNow, findItem, countsAsRight, acceptedNow, isAccepted } from "./lib/exerciseMarking.js";
+import { aboutTheText, lessonTextOf, itemKey, kindOf, isAnswered, markByKey, typedText, keyAnswer, keyReason, hintText, hintLevels, markedNow, findItem, countsAsRight, acceptedNow, isAccepted } from "./lib/exerciseMarking.js";
 import { markAnswer, loadAnswers, loadAccepted } from "./lib/exerciseApi.js";
 import { useAnswerDispute, acceptedLine } from "./useAnswerDispute";
 import { VerdictMark, VERDICT_INK, MARKED_STYLE as M } from "./VerdictMark";
@@ -187,11 +187,6 @@ const countLine = ({ items, answered, right }) =>
 // doesn't give an answer away before then (api/chat.js, "An exercise"). Shape:
 // lib/deckContext.js, exerciseContext.
 const plainLine = (s) => String(s ?? "").replace(/\[\[([^\]]*)\]\]/g, "$1").replace(/\s*\n\s*/g, " / ").trim();
-const lessonTextLines = (lines) =>
-  (Array.isArray(lines) ? lines : [])
-    .map((l) => l.title || (l.scene ? `(${l.scene})` : "") || l.question || (l.who ? `${l.who}: ${l.text}` : l.text || ""))
-    .filter(Boolean)
-    .join("\n");
 const exerciseOfKey = (lesson, key) =>
   key ? lesson.exercises.find((ex) => String(key).startsWith(`${lesson.id}/${ex.n}/`)) || null : null;
 // Why a miss was a miss, as "Why?" shows it: Claude's sentence, or for a miss
@@ -227,8 +222,7 @@ function tutorExercise(lesson, latest, again, focusKey, askedKey) {
   const focus = exerciseOfKey(lesson, focusKey) === ex ? Number(String(focusKey).split("/").pop()) || 0 : 0;
   // The lesson's text goes when the exercise is about it (true or false
   // about the dialogue, translating the text).
-  const aboutText = ex.items.some((it) => kindOf(it) === "truth" || kindOf(it) === "open");
-  const text = aboutText ? lessonTextLines(LESSON_TEXTS[lesson.textOf]) : "";
+  const text = aboutTheText(ex) ? lessonTextOf(LESSON_TEXTS[lesson.textOf || lesson.id]) : "";
   return {
     key: `ex:${lesson.id}/${ex.n}${focus ? `/${focus}` : ""}`,
     lesson: lesson.title,
