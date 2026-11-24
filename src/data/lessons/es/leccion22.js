@@ -103,12 +103,13 @@ export const CARDS = [
 
   // ── Ex. 3: put it in the conditional, to be polite
   ["¿Podría abrir la puerta, por favor?", "Could you open the door, please? (usted)", "E", "cortesiafrases"],
-  ["Me gustaría ir allá contigo", "I would like to go there with you / I'd like to go there with you", "E", "cortesiafrases"],
+  ["Me gustaría ir allá contigo", "I would like to go there with you / I'd like to go there with you (tú)", "E", "cortesiafrases", undefined, "I would like to go there with you / I'd like to go there with you"],
   ["¿Te gustaría un poco de agua?", "Would you like some water? (tú)", "E", "cortesiafrases"],
 
   // ── 1. Abrir and vender; abierto and cerrado with estar
   ["vender", "to sell", "V", "abrirfrases"],
   ["cerrado", "closed (masc.)", "V", "abrirfrases"],
+  ["abierto", "open (masc.)", "V", "abrirfrases"],
   ["la ventana", "the window", "V", "abrirfrases"],
   ["Se vende", "For sale (on a sign)", "E", "abrirfrases"],
 

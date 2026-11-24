@@ -63,9 +63,11 @@
 // Buenos días, Muchas gracias and por favor.
 //
 // Where this departs from the sheets, or adds to them:
-//   - The age phrase is "Tengo 17 años", in figures, as the French Leçon 3
-//     did: the sheet's "diecisiete" is beyond this lesson's numbers (6 to
-//     10), and a word card can take only one spelling of the Spanish.
+//   - The age phrase is "Tengo 17 años / Tengo diecisiete años": the figures as
+//     the French Leçon 3 did, and the spelled-out form the notes give for
+//     "I'm seventeen", so either is right (code check 2026-11-07, no. 123).
+//     The card keeps "Tengo 17 años" as its first wording, so every deck's
+//     copy is rewritten in place with its history.
 //   - The "ser, estar o tener" cards are not an exercise on the sheet. They
 //     are its sentences: ex. 7 "My sister is nine years old", ex. 1 "Ellos
 //     tienen ocho y diez años", ex. 8 "Why are you guys tired?" and "This
@@ -132,7 +134,7 @@ export const CARDS = [
   // ── Age: the sheet's own pair, the answer and then the question. The
   //    question is asked exactly; the English of the answer lists both short
   //    forms, too short for the typo allowance to take one for the other.
-  ["Tengo 17 años", "I'm 17 / I am 17 / I'm seventeen / I am seventeen / I'm 17 years old / I am 17 years old", "E", "age"],
+  ["Tengo 17 años / Tengo diecisiete años", "I'm 17 / I am 17 / I'm seventeen / I am seventeen / I'm 17 years old / I am 17 years old", "E", "age", "Tengo 17 años"],
 
   // ── 2. Words, each noun with its article (ex. 6, and six from the dialogue)
   ["un regalo", "a present / a gift", "V", "vocab"],
@@ -154,7 +156,7 @@ export const CARDS = [
   ["sobre", "about / on", "V", "vocab"],
   ["también", "also / too / as well", "V", "vocab"],
   ["claro", "sure / of course", "V", "vocab"],
-  ["llevar", "to carry / to take (somewhere, along)", "V", "vocab"],
+  ["llevar", "to carry / to take (somewhere, along)", "V", "vocab", undefined, "to take / to carry"],
   ["en el segundo piso", "on the second floor / on the third floor (US)", "E", "vocab"],
   ["Buenos días", "Good morning", "E", "vocab"],
   ["Muchas gracias", "Thank you very much / Thanks very much / Thanks a lot / Many thanks", "E", "vocab"],

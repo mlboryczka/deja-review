@@ -107,7 +107,7 @@ export const CARDS = [
   ["el bachillerato", "high school / senior high school", "V", "vocab", "la prepa"],
   ["útil", "useful", "V", "vocab"],
   ["nervioso", "nervous (masc.)", "V", "vocab"],
-  ["bastante", "pretty / quite / fairly / rather / enough", "V", "vocab"],
+  ["bastante", "quite / fairly / pretty / rather / enough", "V", "vocab", undefined, "pretty / quite / fairly / rather / enough"],
 
   // ── 1. The verbs in use; no "can" with oír
   ["Oí un ruido en el pasillo", "I heard a noise in the hallway / I heard a noise in the corridor", "E", "verbos"],

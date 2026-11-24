@@ -165,7 +165,7 @@ export const CARDS = [
   ["Fui al trabajo", "I went to work", "E", "phrases"],
   ["Tuve una reunión con mi jefe", "I had a meeting with my boss", "E", "phrases"],
   ["¿Ya comiste?", "Have you eaten yet? / Have you eaten? / Have you already eaten? / Did you eat already? / Did you eat yet? (tú)", "E", "phrases"],
-  ["Regresamos en julio", "We came back in July / We went back in July / We returned in July", "E", "phrases"],
+  ["Regresamos en julio", "We came back in July (with regresar) / We went back in July / We returned in July", "E", "phrases", undefined, "We came back in July / We went back in July / We returned in July"],
   ["¿Qué hora es?", "What time is it? / What's the time?", "E", "phrases"],
 
   // ── Other grammar 1: telling the time

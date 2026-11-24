@@ -60,7 +60,8 @@
 // cómo, adónde, de dónde and por qué are Lessons 1 and 2's, and cuando is a
 // word card in Lesson 7), la fiesta
 // from her examples, and la leche, glossed on ex. 4. Quién, cuánto and
-// cuántos are met in earlier lessons and asked here on exact cards.
+// cuántos had no card in any earlier lesson, so they are word cards here
+// (code check 2026-11-07, no. 125).
 //
 // Where this departs from the sheets:
 //   - "Vienes mañana a la fiesta, ¿verdad?" is made from her "Vienes mañana,
@@ -107,6 +108,9 @@ export const CARDS = [
   ["¿cuánto tiempo?", "how long?", "V", "palabras"],
   ["¿desde cuándo?", "since when?", "V", "palabras"],
   ["la fiesta", "the party", "V", "palabras"],
+  ["¿quién?", "who?", "V", "palabras"],
+  ["¿cuánto?", "how much?", "V", "palabras"],
+  ["¿cuántos?", "how many?", "V", "palabras"],
   ["la leche", "the milk", "V", "palabras"],
 
   // ── Questions with a question word, both ways
@@ -129,7 +133,7 @@ export const CARDS = [
   ["¿No conoces a Emilia?", "Don't you know Emilia? (tú)", "E", "negativas"],
   ["¿Por qué no fuiste a la fiesta?", "Why didn't you go to the party? (tú)", "E", "negativas"],
   ["¿Por qué no vamos al cine?", "Why don't we go to the movies? / Why don't we go to the cinema?", "E", "negativas"],
-  ["Vienes mañana a la fiesta, ¿verdad?", "You're coming to the party tomorrow, right? / You're coming to the party tomorrow, aren't you? (with verdad)", "E", "negativas"],
+  ["Vienes mañana a la fiesta, ¿verdad?", "You're coming to the party tomorrow, right? / You're coming to the party tomorrow, aren't you? (tú, with verdad)", "E", "negativas", undefined, "You're coming to the party tomorrow, right? / You're coming to the party tomorrow, aren't you? (with verdad)"],
 
   // ── 5. Answering with an opinion
   ["Creo que sí", "I think so", "E", "respuestas"],

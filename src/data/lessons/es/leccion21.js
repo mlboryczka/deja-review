@@ -120,12 +120,13 @@ export const CARDS = [
   ["las medicinas", "medicine / medicines (plural)", "V", "salud"],
   ["curarse", "to get better / to recover", "V", "salud"],
   ["la cabeza", "the head", "V", "salud"],
+  ["responder", "to answer (with responder)", "V", "salud"],
   ["la garganta", "the throat", "V", "salud"],
   ["la espalda", "the back (of the body)", "V", "salud"],
 
   // ── 3–4. Preterite or perfect? Told by ya, alguna vez, todavía no, hoy, el año pasado
   ["¿Alguna vez has estado en Italia?", "Have you ever been to Italy? (tú, with estar)", "E", "yafrases"],
-  ["¿Ya fuiste a la farmacia?", "Have you been to the pharmacy yet? / Did you go to the pharmacy yet? (tú, with ya)", "E", "yafrases"],
+  ["¿Ya fuiste a la farmacia?", "Did you go to the pharmacy yet? / Have you been to the pharmacy yet? (tú, with ya)", "E", "yafrases", undefined, "Have you been to the pharmacy yet? / Did you go to the pharmacy yet? (tú, with ya)"],
   ["¿Todavía estás resfriado?", "Do you still have a cold? (tú)", "E", "yafrases"],
   ["alguna vez", "ever (in a question)", "V", "yafrases"],
 

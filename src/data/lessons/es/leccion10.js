@@ -127,7 +127,7 @@ export const CARDS = [
   ["este año", "this year", "V", "vocab"],
   ["en el sur", "in the south", "V", "vocab"],
   ["unas playas maravillosas", "wonderful beaches / some wonderful beaches", "V", "vocab"],
-  ["¿De verdad?", "Really?", "E", "vocab"],
+  ["¿De verdad?", "Really? (not en serio)", "E", "vocab", undefined, "Really?"],
   ["un lugar", "a place", "V", "vocab"],
   ["normalmente", "usually / normally", "V", "vocab"],
   ["en verano", "in summer / in the summer", "V", "vocab"],

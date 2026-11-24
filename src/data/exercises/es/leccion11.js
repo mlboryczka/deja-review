@@ -143,7 +143,7 @@ export default {
       n: 5,
       title: "Gramática",
       instruction: "Escribir la frase otra vez, con le o les en lugar de las palabras subrayadas.",
-      english: "Write the sentence again with le or les in place of the underlined words. The pronoun goes before the verb.",
+      english: "Write the sentence again with le or les in place of the underlined words. The pronoun goes before the verb, or on the end of an infinitive.",
       items: [
         { prompt: "La doctora dio los expedientes [[a Martín]].", answer: "La doctora le dio los expedientes." },
         { prompt: "Ella contestó [[al periodista]].", answer: "Ella le contestó." },

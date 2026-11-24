@@ -144,7 +144,7 @@ export const CARDS = [
   ["¡Vámonos!", "Let's go! (with nos)", "E", "phrases"],
   ["No se peleen", "Don't fight / Don't argue (ustedes)", "E", "phrases"],
   ["No me hables así", "Don't talk to me like that / Don't speak to me like that (tú)", "E", "phrases"],
-  ["Dímelo", "Tell me (it) / Tell it to me (tú)", "E", "phrases"],
+  ["Dímelo", "Tell it to me (tú) / Tell me (it)", "E", "phrases", undefined, "Tell me (it) / Tell it to me (tú)"],
   ["Pásamelo", "Pass it to me (tú)", "E", "phrases"],
   ["Llámame mañana", "Call me tomorrow (tú)", "E", "phrases"],
 

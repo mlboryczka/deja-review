@@ -140,7 +140,7 @@ export const CARDS = [
   // ── Ex. 3: the word list; nouns bare, as no article has been taught
   ["estadounidense", "American (from the United States)", "V", "words"],
   ["mexicano / mexicana", "Mexican", "V", "words"],
-  ["profesor / profesora", "teacher", "V", "words"],
+  ["profesor / profesora", "teacher (not maestro)", "V", "words", undefined, "teacher"],
   ["esposo", "husband", "V", "words"],
   ["esposa", "wife", "V", "words"],
   ["casado", "married (masc.)", "V", "words"],

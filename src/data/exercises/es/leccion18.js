@@ -112,7 +112,7 @@ export default {
       n: 5,
       title: "Conjugación",
       instruction: "Poner las frases siguientes en imperativo. ¡Atención a los verbos reflexivos!",
-      english: "Turn each sentence into a command to the same person. Watch the reflexive verbs: te or se goes on the end, and the verb takes a written accent.",
+      english: "Turn each sentence into a command to the same person. Watch the reflexive verbs: te or se goes on the end, and the verb takes a written accent. After no, te or se goes before the verb (No se preocupe).",
       example: "Tienes que despertarte. → Despiértate.",
       items: [
         { prompt: "Tienes que acordarte.", answer: "Acuérdate." },

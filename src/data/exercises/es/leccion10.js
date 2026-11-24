@@ -188,7 +188,7 @@ export default {
       n: 6,
       title: "Gramática",
       instruction: "Completar con a, al o nada (—).",
-      english: "Fill each gap with a or al before a person (al is a + el), or nothing before a thing or a place. Type nada for nothing.",
+      english: "Fill each gap with a or al before a person (al is a + el), or nothing before a thing or a place (tener never takes a). Type nada for nothing.",
       items: [
         { prompt: "Visitamos ___ unos amigos.", gaps: [["a"]] },
         { prompt: "Visitamos ___ la ciudad.", gaps: [["nada", "—", "-"]] },

@@ -146,7 +146,7 @@ export const CARDS = [
   ["cansado / cansada", "tired", "V", "words"],
   ["gracias", "thank you / thanks", "V", "words"],
   ["adiós", "bye / goodbye", "V", "words"],
-  ["en realidad", "actually / in fact", "V", "words"],
+  ["en realidad", "actually (not de hecho) / in fact", "V", "words", undefined, "actually / in fact"],
   ["la playa", "the beach", "V", "words"],
   // Every form is right for "a lot / much": nothing on the card asks for the
   // masculine singular (feedback #65, the owner, 2026-11-18). Its first front
