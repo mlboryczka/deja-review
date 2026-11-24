@@ -128,6 +128,7 @@ export const CARDS = [
   ["de plato fuerte", "for the main course / as a main course", "V", "vocab"],
   ["de postre", "for dessert / as dessert", "V", "vocab"],
   ["salir", "to go out / to leave", "V", "vocab"],
+  ["beber", "to drink (with beber)", "V", "vocab"],
 
   // ── 5. Hungry, thirsty, and ya no
   ["Tengo hambre", "I'm hungry", "E", "hunger"],

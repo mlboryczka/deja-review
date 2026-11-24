@@ -99,6 +99,9 @@ export const CARDS = [
 
   // ── Ex. 3: her word list
   ["una pareja", "a couple", "V", "vocab"],
+  ["la última vez", "the last time", "V", "vocab"],
+  ["el año pasado", "last year", "V", "vocab"],
+  ["¿Cómo se escribe?", "How do you spell it? / How is it spelled?", "V", "vocab"],
   ["las montañas Rocosas", "the Rocky Mountains / the Rockies", "V", "vocab"],
   ["una página", "a website / a web page / a page", "V", "vocab"],
   ["una caminata", "a hike / a walk", "V", "vocab"],

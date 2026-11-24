@@ -103,6 +103,8 @@
 export const CARDS = [
   // ── Ex. 1: her word list
   ["el mesero", "the waiter / the server", "V", "vocab"],
+  ["conmigo", "with me", "V", "vocab"],
+  ["para mí", "for me", "V", "vocab"],
   ["el menú", "the menu (not la carta)", "V", "vocab"],
   ["la cuenta", "the check / the bill", "V", "vocab"],
   ["la propina", "the tip", "V", "vocab"],
