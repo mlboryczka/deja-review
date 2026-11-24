@@ -23,9 +23,14 @@ const ENGLISH_STOP = [
   "or", "but", "with", "say", "says", "said", "mean", "means", "meaning",
   "use", "uses", "using", "used", "difference", "between", "my", "me",
   "there", "this", "that", "these", "those", "some", "any", "not", "no",
+  // "What kind of word am I looking for?" matched every card whose back says
+  // "I am".
+  "am",
 ];
 const STOP = new Set([
   ...ENGLISH_STOP,
+  // "What's the French for a hill?" matched every card with "français" in it.
+  "french", "francais",
   // French
   "le", "la", "les", "un", "une", "des", "du", "de", "et", "ou", "est",
   "sont", "que", "qui", "quoi", "pour", "avec", "dans", "sur", "je", "tu",
@@ -151,6 +156,18 @@ export function recentMisses(cards, limit = 6) {
 
 const MISS_WINDOW_DAYS = 30;
 
+// The content words (accents off) of the side of the card on screen that the
+// student has not seen yet.
+function hiddenWords(card, course) {
+  return new Set(words(cardAnswer(card), stopFor(course)).map(fold));
+}
+// True when a card's French or English holds one of those words.
+function touchesHidden(card, hidden, course) {
+  if (!hidden.size) return false;
+  const stop = stopFor(course);
+  return words(`${card.f ?? card.front ?? ""} ${card.b ?? card.back ?? ""}`, stop).some((w) => hidden.has(fold(w)));
+}
+
 /**
  * Misses worth telling the tutor about for THIS question: recent, and sharing
  * a word with the question or the card on screen.
@@ -160,12 +177,12 @@ const MISS_WINDOW_DAYS = 30;
  * missing la colline". A miss from last spring is not what they keep getting
  * wrong either.
  */
-export function relevantMisses({ question, currentCard, cards, now = Date.now(), limit = 6, course = "fr" }) {
+export function relevantMisses({ question, currentCard, cards, now = Date.now(), limit = 6, course = "fr", hidden = null }) {
   if (!Array.isArray(cards)) return [];
   const stop = stopFor(course);
-  const topic = new Set(
-    words(`${question || ""} ${currentCard?.f || ""} ${currentCard?.b || ""}`, stop).map(fold)
-  );
+  // Before the answer, only the side the student can see makes the topic.
+  const shown = hidden ? cardPrompt(currentCard) : `${currentCard?.f || ""} ${currentCard?.b || ""}`;
+  const topic = new Set(words(`${question || ""} ${shown}`, stop).map(fold));
   if (!topic.size) return [];
   const since = now - MISS_WINDOW_DAYS * 24 * 60 * 60 * 1000;
   return cards
@@ -173,6 +190,7 @@ export function relevantMisses({ question, currentCard, cards, now = Date.now(),
       c?.f &&
       c.row_id !== currentCard?.row_id &&
       (lastMissedAt(c) ?? 0) >= since &&
+      !(hidden && touchesHidden(c, hidden, course)) &&
       words(`${c.f} ${c.b}`, stop).some((w) => topic.has(fold(w)))
     )
     .sort((a, b) => lastMissedAt(b) - lastMissedAt(a))
@@ -481,12 +499,18 @@ export function buildTutorContext({ question, previousQuestion, cards, currentCa
   if (!related.length && previousQuestion) related = findRelatedCards(previousQuestion, cards, 8, course);
   // "What's the French for a hill?" matches the card being asked, and the
   // related list would hand over its answer beside the instruction not to.
+  // Nor may another card hand it over: "Estoy aquí con mi esposo" under the
+  // unanswered card asking for esposo. While the card is unanswered, any card
+  // sharing a content word of its hidden side stays away, and the recent
+  // misses are chosen from the question and the shown side only.
+  const hidden = currentCard?.f && !currentCard.answered ? hiddenWords(currentCard, course) : null;
   if (currentCard?.f && !currentCard.answered) {
     related = related.filter((c) => c.front !== currentCard.f);
   }
+  if (hidden) related = related.filter((c) => !touchesHidden(c, hidden, course));
   if (related.length) ctx.relatedCards = related;
 
-  const misses = relevantMisses({ question, currentCard, cards, course });
+  const misses = relevantMisses({ question, currentCard, cards, course, hidden });
   if (misses.length) ctx.recentMisses = misses;
 
   return Object.keys(ctx).length ? ctx : undefined;

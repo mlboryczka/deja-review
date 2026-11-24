@@ -2102,12 +2102,14 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     return {
       ...card,
       answered,
-      ...(typeResult ? { result: typeResult } : null),
+      // An answer marked wrong and then accepted on review counts as right:
+      // the tutor is told so, not that it is still wrong.
+      ...(typeResult ? { result: disputeAccepted && typeResult !== "revealed" ? "accepted" : typeResult } : null),
       ...(typeResult && typeResult !== "revealed" && typedAnswer.trim()
         ? { typed: typedAnswer.trim() }
         : null),
     };
-  }, [mode, card, sessionDone, flipped, typeResult, typedAnswer, revealedSlot, cardSlot]);
+  }, [mode, card, sessionDone, flipped, typeResult, typedAnswer, revealedSlot, cardSlot, disputeAccepted]);
   const flip = useCallback(() => setFlipped(f => !f), []);
 
   // Auto-speak French when a French side becomes visible. Keyed on the card's

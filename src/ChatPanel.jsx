@@ -4,8 +4,10 @@ import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
 import { T } from "./theme";
 import { CAT_UI_TO_DB } from "./lib/cardCategories";
-import { keyHeaders, BYOK_REQUIRED, BAD_KEY } from "./lib/anthropicKey";
+import { keyHeaders, BYOK_REQUIRED, BAD_KEY, BILLING } from "./lib/anthropicKey";
 import { cleanFrenchPrompt, firstAnswer } from "./lib/cardText";
+import { cardIndex } from "./lib/sameCard";
+import { isArchived } from "./lib/archive";
 import { buildTutorContext, cardPrompt, cardAnswer, podcastAbout, podcastLabel, questionNumber, exerciseAbout, exerciseFocus, exerciseLabel } from "./lib/deckContext";
 import { readThread, writeThread } from "./lib/tutorThreads";
 import { courseOf } from "./lib/course";
@@ -197,7 +199,7 @@ const frontKey = (front) => String(front || "").toLowerCase().trim();
 // One proposed card. Its own component so each chip owns its edit state —
 // hoisting that into ChatPanel would mean a keystroke in one chip re-rendering
 // the whole thread.
-function ProposedCard({ card, added, deckByFront, onAdd, onReplace, language = "French" }) {
+function ProposedCard({ card, added, findExisting, onAdd, onReplace, language = "French" }) {
   // Cleaned the same way the study view cleans it, so the chip shows what the
   // card will actually look like when you meet it.
   const [front, setFront] = useState(() => cleanFrenchPrompt(card.front, card.back));
@@ -213,7 +215,9 @@ function ProposedCard({ card, added, deckByFront, onAdd, onReplace, language = "
   const isAdded = !!done;
   // Checked against the deck in the browser, not left to the model: it only
   // sees the handful of cards that share a word with the question.
-  const existing = isAdded ? null : deckByFront.get(frontKey(front)) || null;
+  // A glossed card the student has, like "tout d'un coup (suddenly)", counts
+  // too: the same sure rule the Podcasts page uses decides, not the exact text.
+  const existing = isAdded ? null : findExisting(front, back, card.front) || null;
   const sameBack = existing && existing.b.trim() === back.trim();
 
   return (
@@ -454,6 +458,29 @@ export default function ChatPanel({
     for (const c of cards) if (c?.f) m.set(frontKey(c.f), c);
     return m;
   }, [cards]);
+  // The card the student already has for a proposal, or null: the same French
+  // as written (also with the English in brackets cleaned off the stored one),
+  // else the sure rule of lib/sameCard.js.
+  const findExisting = useMemo(() => {
+    const byClean = new Map();
+    const rows = [];
+    for (const c of cards) {
+      if (!c?.f) continue;
+      byClean.set(frontKey(cleanFrenchPrompt(c.f, c.b)), c);
+      rows.push({ front: c.f, back: c.b || "", source: c.source, card: c });
+    }
+    let index = null;
+    return (front, back, rawFront) => {
+      const exact = deckByFront.get(frontKey(front)) || deckByFront.get(frontKey(rawFront)) || byClean.get(frontKey(front));
+      if (exact) return exact;
+      try {
+        index = index || cardIndex(rows, { language: lang.id === "es" ? "es" : "fr" });
+        return index.sure({ front, back: String(back || "") })?.card || null;
+      } catch {
+        return null;
+      }
+    };
+  }, [cards, deckByFront, lang.id]);
   // The deck as it is when an edit lands, not as it was when the question
   // was sent: a card added from this chat a moment ago is one to edit.
   const cardsRef = useRef(cards);
@@ -517,9 +544,15 @@ export default function ChatPanel({
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, sending]);
 
+  // Opening the tutor: the panel is not in the page until `mounted` is set, so
+  // this waits for `mounted` too, then puts the cursor in the box and shows the
+  // newest message (the effects above ran while there was no panel to act on).
   useEffect(() => {
-    if (open) inputRef.current?.focus();
-  }, [open]);
+    if (!open || !mounted) return;
+    inputRef.current?.focus();
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [open, mounted]);
 
   // NOTHING ELSE CLOSES THIS PANEL. Only the ✕ and the TUTOR nav item.
   //
@@ -763,7 +796,7 @@ export default function ChatPanel({
   );
 
   const send = useCallback(
-    async (text) => {
+    async (text, fromChip = false) => {
       const trimmed = (text ?? input).trim();
       if ((!trimmed && !images.length) || sending) return;
       const pictures = images;
@@ -777,11 +810,17 @@ export default function ChatPanel({
       // while the answer streams, which drops focus to the page. The next
       // question belongs in the box.
       inputRef.current?.focus();
-      const previousQuestion = [...messages].reverse().find((m) => m.role === "user")?.content;
-      const nextMessages = [
-        ...messages,
-        {
+      // A suggestion button's own words never pick cards for the tutor
+      // ("Give me a hint without the answer" matched sans): they are left out
+      // here and below, and the card on screen carries those questions.
+      const previousQuestion = [...messages].reverse().find((m) => m.role === "user" && !m.chip)?.content;
+      // A tag on this question and its answer bubble, so a failure takes back
+      // only these two and leaves anything else that changed meanwhile.
+      const reqId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const userMsg = {
+          reqId,
           role: "user",
+          ...(fromChip ? { chip: true } : null),
           content: trimmed,
           // What the card showed when this was asked — its prompt, never its
           // answer. Sent back with every later turn so a follow-up still knows
@@ -797,8 +836,8 @@ export default function ChatPanel({
             : "",
           rowId: currentCard?.row_id ?? podcast?.key ?? exercise?.key ?? null,
           ...(pictures.length ? { images: pictures } : null),
-        },
-      ];
+      };
+      const nextMessages = [...messages, userMsg];
       // Only the latest few pictures go back with the history; an older one
       // goes as a count of what was there, so a long thread of screenshots
       // stays under the 4.5 MB a request to Vercel may carry.
@@ -812,10 +851,8 @@ export default function ChatPanel({
       }
       // The empty assistant bubble is what fills in as tokens arrive, so it
       // goes in before the request rather than after it.
-      setMessages([
-        ...nextMessages,
-        { role: "assistant", content: "", cards: [], streaming: true },
-      ]);
+      const bubble = { reqId, role: "assistant", content: "", cards: [], streaming: true };
+      setMessages([...nextMessages, bubble]);
       setSending(true);
 
       const controller = new AbortController();
@@ -860,7 +897,7 @@ export default function ChatPanel({
             })),
             // Rebuilt from scratch every turn against the question just asked,
             // so it never accumulates in the thread.
-            context: buildTutorContext({ question: trimmed, previousQuestion, cards, currentCard, podcast, exercise, course: lang.id }),
+            context: buildTutorContext({ question: fromChip ? "" : trimmed, previousQuestion, cards, currentCard, podcast, exercise, course: lang.id }),
           }),
         });
 
@@ -964,7 +1001,7 @@ export default function ChatPanel({
         if (e.name === "AbortError") {
           stopDrain();
           if (gotText) updateLast((m) => ({ ...m, streaming: false }));
-          else setMessages(messages);
+          else setMessages((prev) => prev.filter((m) => m.reqId !== reqId));
           return;
         }
         stopDrain();
@@ -977,9 +1014,11 @@ export default function ChatPanel({
         } else {
           // Nothing arrived: drop the empty bubble and put the question back
           // in the box so it isn't lost to a network blip.
-          setInput(trimmed);
-          if (pictures.length) setImages(pictures);
-          setMessages(messages);
+          // Only what this request added is taken back; the box and pictures
+          // come back only if the student has not typed or added anything since.
+          setInput((cur) => cur || trimmed);
+          if (pictures.length) setImages((cur) => (cur.length ? cur : pictures));
+          setMessages((prev) => prev.filter((m) => m.reqId !== reqId));
         }
       } finally {
         setSending(false);
@@ -1120,6 +1159,23 @@ export default function ChatPanel({
         // an archived card comes back (see lib/archive.js), so that conflict
         // alone falls through to the upsert, which clears the archived source.
         if (insErr?.code === "23505") {
+          // Only a card that is put away may be written over. A live card the
+          // deck in memory did not show (a failed reload, a card added by
+          // the class notes since) is the student's own, with its schedule
+          // and history: leave it, reload the deck, and let the chip offer
+          // Replace.
+          const { data: held, error: readErr } = await supabase
+            .from(table)
+            .select("id, source")
+            .eq("user_id", user.id)
+            .eq("front", card.front)
+            .limit(1);
+          if (readErr) throw readErr;
+          if (held?.[0] && !isArchived(held[0])) {
+            onCardAdded?.(null);
+            setError(`You already have "${card.front}". Your deck is reloading; use Replace to change its English.`);
+            return;
+          }
           ({ data, error: insErr } = await supabase
             .from(table)
             .upsert(row, { onConflict: "user_id,front" })
@@ -1275,7 +1331,7 @@ export default function ChatPanel({
           {messages.length === 0 && (
             <div style={S.empty}>
               {suggestionsFor(currentCard, podcast, exercise, spanish).map((s) => (
-                <button key={s} style={S.suggestion} onClick={() => send(s)}>
+                <button key={s} style={S.suggestion} onClick={() => send(s, true)}>
                   {s}
                 </button>
               ))}
@@ -1324,7 +1380,7 @@ export default function ChatPanel({
                       key={j}
                       card={c}
                       added={added}
-                      deckByFront={deckByFront}
+                      findExisting={findExisting}
                       onAdd={addCard}
                       onReplace={replaceBack}
                       language={lang.language}
@@ -1348,9 +1404,9 @@ export default function ChatPanel({
         {error && (
           <div style={S.error}>
             {error}
-            {(errorCode === BYOK_REQUIRED || errorCode === BAD_KEY) && onNeedKey && (
+            {(errorCode === BYOK_REQUIRED || errorCode === BAD_KEY || errorCode === BILLING) && onNeedKey && (
               <button style={S.errorAction} onClick={onNeedKey}>
-                {errorCode === BAD_KEY ? "Update your key" : "Connect Claude account"}
+                {errorCode === BAD_KEY ? "Update your key" : errorCode === BILLING ? "Check your key" : "Connect Claude account"}
               </button>
             )}
           </div>
