@@ -12,6 +12,14 @@ import { Capacitor } from "@capacitor/core";
 
 export const IN_IPHONE_APP = Capacitor.isNativePlatform();
 
+// Pages run to the very edges of the screen only inside the iPhone app, whose
+// phone layout keeps clear of the clock and the home bar itself. In Safari or
+// Chrome a sideways iPhone keeps the page clear of the camera cut-out.
+if (IN_IPHONE_APP && typeof document !== "undefined") {
+  const meta = document.querySelector('meta[name="viewport"]');
+  if (meta && !/viewport-fit/.test(meta.content)) meta.setAttribute("content", `${meta.content}, viewport-fit=cover`);
+}
+
 export const SERVER = IN_IPHONE_APP
   ? (import.meta.env.VITE_API_BASE || "https://dejareview-mlb.vercel.app").replace(/\/$/, "")
   : "";

@@ -3,6 +3,7 @@
 // keeps its own state (the chart's range, what's folded, the hover box), so
 // pointing at a day doesn't redraw the whole page. The figures come in
 // worked out (lib/progress.js, lib/progressHistory.js); these only draw them.
+import { niceStep } from "./lib/niceStep.js";
 import { useState } from "react";
 import { T } from "./theme";
 
@@ -43,12 +44,6 @@ export function Bands({ summary, height, color = NAVY }) {
   );
 }
 
-// Round numbers for the chart's gridlines: 1, 2 or 5 times a power of ten.
-function niceStep(range) {
-  const raw = Math.max(range, 1) / 4;
-  const p = 10 ** Math.floor(Math.log10(raw));
-  return [1, 2, 5, 10].map((m) => m * p).find((s) => s >= raw);
-}
 
 const remWord = (gain) =>
   gain > 0 ? `~${gain.toLocaleString()} more remembered` : gain < 0 ? `~${(-gain).toLocaleString()} fewer remembered` : "no change in remembered";

@@ -2454,16 +2454,18 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
         next.add(todayISO);
         return next;
       });
-      // Fire-and-forget. upsert with ignoreDuplicates is idempotent against
-      // the (user_id, review_date) primary key, so repeated reviews on the
-      // same day are no-ops server-side.
-      supabase
-        .from(tbl("user_review_dates"))
-        .upsert(
-          { user_id: user.id, review_date: todayISO },
-          { onConflict: "user_id,review_date", ignoreDuplicates: true }
-        )
-        .then(({ error }) => { if (error) console.error("Record review date failed:", error); });
+      // Saved like each answer: tried again until it goes through, and counted
+      // in the "not saved yet" notice, since the day is added above before it
+      // is saved. upsert with ignoreDuplicates is idempotent against the
+      // (user_id, review_date) primary key, so a repeat is a no-op server-side.
+      save(`day:${todayISO}`, `day:${todayISO}`, () =>
+        supabase
+          .from(tbl("user_review_dates"))
+          .upsert(
+            { user_id: user.id, review_date: todayISO },
+            { onConflict: "user_id,review_date", ignoreDuplicates: true }
+          )
+      );
     }
     // Accuracy counts typed answers only — those are verifiable, and a
     // flip-mode "got it" is self-reported. `answered` counts both, so the
@@ -6704,7 +6706,7 @@ const S = {
   toggle: { display:"flex", gap:6, alignItems:"center", fontSize:12, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, cursor:"pointer" },
   // Chip-style toggle button — used in the study filter row in place of
   // raw checkboxes. Same pill shape as catBtn but with an active state.
-  chipToggle: { padding:"6px 13px", border:`1px solid ${T.color.outlineGhost || "rgba(3,22,50,0.08)"}`, borderRadius:T.radius.full, background:"transparent", cursor:"pointer", fontSize:11, fontFamily:T.font.sans, color:T.color.onSurfaceVariant, fontWeight:500, letterSpacing:"0.02em", transition:"all 0.15s" },
+  chipToggle: { padding:"6px 13px", borderWidth:1, borderStyle:"solid", borderColor:T.color.outlineGhost || "rgba(3,22,50,0.08)", borderRadius:T.radius.full, background:"transparent", cursor:"pointer", fontSize:11, fontFamily:T.font.sans, color:T.color.onSurfaceVariant, fontWeight:500, letterSpacing:"0.02em", transition:"all 0.15s" },
   chipToggleA: { background:T.color.primary, color:T.color.onPrimary, borderColor:T.color.primary, fontWeight:600 },
   // Sits inside the scrolling chip row, so it must not wrap on its own either.
   typeGroup: { display:"flex", gap:2, padding:3, background:T.color.surfaceLow, borderRadius:T.radius.md, flexShrink:0 },
@@ -6721,7 +6723,7 @@ const S = {
   pageHeadFlag: { marginTop:12 },
   // Podcasts: the flag in the page's top-right corner.
   cornerFlag: { position:"absolute", top:14, right:24, zIndex:25 },
-  gearBtn: { width:34, height:34, display:"flex", alignItems:"center", justifyContent:"center", padding:0, border:"1px solid rgba(3,22,50,0.08)", borderRadius:T.radius.full, background:"transparent", color:T.color.onSurfaceVariant, cursor:"pointer", transition:"all 0.15s" },
+  gearBtn: { width:34, height:34, display:"flex", alignItems:"center", justifyContent:"center", padding:0, borderWidth:1, borderStyle:"solid", borderColor:"rgba(3,22,50,0.08)", borderRadius:T.radius.full, background:"transparent", color:T.color.onSurfaceVariant, cursor:"pointer", transition:"all 0.15s" },
   gearBtnA: { background:T.color.surfaceLowest, color:T.color.primary, borderColor:"rgba(3,22,50,0.22)", boxShadow:T.shadow.focus },
   settingsMenu: { position:"absolute", top:"calc(100% + 10px)", right:0, width:344, background:T.color.surfaceLowest, borderRadius:T.radius.xl, border:"1px solid rgba(3,22,50,0.08)", boxShadow:"0 20px 60px rgba(3,22,50,0.15)", padding:"6px 0", zIndex:40, fontFamily:T.font.sans },
   settingsSec: { padding:"14px 18px" },

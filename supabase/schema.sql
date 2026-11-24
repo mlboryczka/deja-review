@@ -222,7 +222,8 @@ create policy "Users can delete own cards"
 -- ═══════════════════════════════════════════════════════════════════════════
 -- Drives the day-streak counter in Stats. A day is either in here or it
 -- isn't, so the primary key doubles as the dedupe: the app upserts with
--- ignoreDuplicates on every answer and the repeats are no-ops server-side.
+-- ignoreDuplicates with the first answer of each day (and again until it is
+-- saved) and the repeats are no-ops server-side.
 
 create table if not exists public.user_review_dates (
   user_id uuid references auth.users(id) on delete cascade not null,

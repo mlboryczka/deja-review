@@ -79,14 +79,21 @@ export function useProgress(user, { table = "card_progress", store = user?.id } 
   // is a snapshot from BEFORE those answers. Overwriting with it made a score
   // visibly go up and then back down.
   const localWrites = useRef(new Map());
+  // Whether the saved tallies are known: from a cached copy or a load that
+  // worked. Until then no tally is written, or a card answered after a failed
+  // load would be saved starting again from zero, over its real score.
+  const talliesKnown = useRef(false);
+  const [attempt, setAttempt] = useState(0);
 
   // Initial load: fetch all progress rows for this user
   useEffect(() => {
     let cancelled = false;
+    let retryTimer = null;
     if (!userId) {
       setProgress({});
       setLoaded(true);
       loadedForUser.current = null;
+      talliesKnown.current = false;
       return;
     }
     // A cached copy counts as loaded, so the fetch below is a background
@@ -96,6 +103,7 @@ export function useProgress(user, { table = "card_progress", store = user?.id } 
       setProgress(cached);
       setLoaded(true);
       loadedForUser.current = userId;
+      talliesKnown.current = true;
     } else if (loadedForUser.current !== userId) {
       setLoaded(false);
     }
@@ -115,7 +123,11 @@ export function useProgress(user, { table = "card_progress", store = user?.id } 
         if (cancelled) return;
         if (error) {
           console.error("Failed to load progress:", error);
-          setProgress({});
+          // Keep the tallies already on screen (a cached copy, or answers
+          // given meanwhile) and try again in a few seconds; with none known,
+          // nothing is written until a load works.
+          if (!cached) setProgress({});
+          retryTimer = setTimeout(() => { if (!cancelled) setAttempt((n) => n + 1); }, 5000);
           setLoaded(true);
           // Marking WHO is loaded, which this path used to skip while
           // useUserDeck's equivalent set it. After one failed fetch the next
@@ -139,16 +151,21 @@ export function useProgress(user, { table = "card_progress", store = user?.id } 
       setProgress(merged);
       setLoaded(true);
       loadedForUser.current = userId;
+      talliesKnown.current = true;
       writeCache(storeId, merged);
     })();
     return () => {
       cancelled = true;
+      clearTimeout(retryTimer);
     };
-  }, [userId, storeId, table]);
+  }, [userId, storeId, table, attempt]);
 
   // Update a single card's progress (optimistic local update + async upsert)
   const updateCard = useCallback(
     async (cardId, update) => {
+      // Tallies not loaded: this one counts from zero, so it is neither kept
+      // nor saved (only the admin's Mastered count ever reads them).
+      if (userId && !talliesKnown.current) return;
       localWrites.current.set(cardId, update);
       setProgress((prev) => ({ ...prev, [cardId]: update }));
       if (!userId) return;

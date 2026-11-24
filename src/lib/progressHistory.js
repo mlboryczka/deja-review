@@ -80,8 +80,14 @@ export function statsOverTime({ cards, rows, now = Date.now() }) {
     let life = lives.get(rec.card_id);
     if (!life) lives.set(rec.card_id, (life = { card: rec.card, fr: [], en: [] }));
     const list = rec.direction === "en" ? life.en : life.fr;
-    // Answered as new again: the history before is over.
-    if (rec.state_before === NEW) list.length = 0;
+    // Answered as new again on a way that already had answers: the card was
+    // reset (Reset all progress), so the history before is over for both ways,
+    // or the other way's old answers would still count until it is met too.
+    const met = life.fr.length > 0 || life.en.length > 0;
+    if (rec.state_before === NEW && list.length) { life.fr.length = 0; life.en.length = 0; }
+    // A new card is one first met in this life of the card (the first, or
+    // the first since a reset), judged as the answers are replayed.
+    rec.fresh = rec.state_before === NEW && (!met || list.length === 0 && !life.fr.length && !life.en.length);
     list.push(rec);
   }
   for (const life of lives.values()) {
@@ -145,7 +151,7 @@ export function statsOverTime({ cards, rows, now = Date.now() }) {
       const repeat = rec.counted && countedOn.get(way) === iso;
       if (rec.counted) countedOn.set(way, iso);
       if (!rec.counted || repeat) { day.retries++; continue; }
-      if (lives.get(rec.card_id)?.firstId === rec.id) day.fresh++;
+      if (rec.fresh) day.fresh++;
       else day.reviews++;
       if (rec.correct) day.right++;
     }
