@@ -97,7 +97,7 @@ import { uploadResultText } from "./lib/uploadText";
 import PodcastsPage from "./PodcastsPage";
 import { usePodcastFollows } from "./usePodcasts";
 import { podcastBySlug } from "./lib/podcastCatalogue";
-import { podcastsOpenTo } from "./lib/testApp";
+import { podcastsOpenTo, usesOwnersKeyOnTestApp } from "./lib/testApp";
 // The Spanish Exercises module (owner, 2026-10-24): the written exercises of
 // each Spanish lesson's sheet, answered and marked one item at a time. Its
 // pages are ExercisesPage's; the shell owns which one is showing.
@@ -1139,6 +1139,9 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   const disputeRef = useRef(null);
   const autoAdvanceTimer = useRef(null);
   const isAdmin = isAdminUser(user);
+  // Whose Claude account pays: the owner anywhere, and Laura on the test app
+  // (api/_lib/anthropicKey.js decides the same on the server).
+  const serverPays = isAdmin || usesOwnersKeyOnTestApp({ userId: user?.id, host: typeof window !== "undefined" ? window.location.host : "" });
   // "Status" in the profile menu (admin only): whether the cards are being
   // shown the way FSRS and the app's rules say. See lib/statusChecks.js.
 
@@ -1967,8 +1970,8 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     };
   }, []);
   const tourStepList = useMemo(
-    () => (tourLesson ? tourSteps(tourActions, tourLesson) : []),
-    [tourActions, tourLesson]
+    () => (tourLesson ? tourSteps(tourActions, tourLesson, serverPays) : []),
+    [tourActions, tourLesson, serverPays]
   );
   // Whether a typed answer counts as recalled: the matcher's verdict, or a
   // "my answer should be accepted" dispute that was accepted. An accepted
@@ -3474,6 +3477,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
           open={showKeyModal}
           onClose={() => setShowKeyModal(false)}
           user={user}
+          serverPays={serverPays}
         />
 
         <CahierUpload
@@ -3972,7 +3976,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
                     style={S.profileMenuItem}
                     onClick={() => { setShowKeyModal(true); setShowProfileMenu(false); }}
                   >
-                    {hasKey(user?.id) ? "Claude account ✓" : "Connect Claude account"}
+                    {hasKey(user?.id) || serverPays ? "Claude account ✓" : "Connect Claude account"}
                   </button>
                   <button
                     data-fsrs-settings-toggle
@@ -4109,6 +4113,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
         open={showKeyModal}
         onClose={() => setShowKeyModal(false)}
         user={user}
+        serverPays={serverPays}
       />
       <FsrsSettingsModal
         open={showFsrsSettings}
@@ -5688,6 +5693,9 @@ function UsersModal({ onClose }) {
     })();
   }, []);
 
+  // French figure first; the Spanish one beside it when there is any.
+  const es = (n) => (n ? <span style={{color:T.color.onSurfaceVariant, fontSize:12}}> + {n} Spanish</span> : null);
+
   const timeAgo = (iso) => {
     if (!iso) return "never";
     const diff = Date.now() - new Date(iso).getTime();
@@ -5728,9 +5736,9 @@ function UsersModal({ onClose }) {
                 {users.map(u => (
                   <tr key={u.id}>
                     <td style={S.usersTd}>{u.email}</td>
-                    <td style={S.usersTdNum}>{u.deck_size}</td>
-                    <td style={S.usersTdNum}>{u.studied}</td>
-                    <td style={S.usersTdNum}>{u.mastered}</td>
+                    <td style={S.usersTdNum}>{u.deck_size}{es(u.deck_size_es)}</td>
+                    <td style={S.usersTdNum}>{u.studied}{es(u.studied_es)}</td>
+                    <td style={S.usersTdNum}>{u.mastered}{es(u.mastered_es)}</td>
                     <td style={S.usersTd}>
                       {u.last_review
                         ? timeAgo(u.last_review)
