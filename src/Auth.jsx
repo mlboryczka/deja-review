@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
-import { SERVER } from "./lib/nativeApp";
+import { SERVER, IN_IPHONE_APP } from "./lib/nativeApp";
 
 // A sign-in link works once. Opened again (a second click, an older email
 // after a newer one, or a work email system that opens links to scan them)
@@ -100,7 +100,9 @@ export default function Auth() {
               {error && <div style={styles.error}>{error}</div>}
             </form>
             <p style={styles.sentNote}>
-              The link in the email works too, but it opens the app in a new tab.
+              {IN_IPHONE_APP
+                ? "The link in the email signs you in on the website, not in this app."
+                : "The link in the email works too, but it opens the app in a new tab."}
             </p>
             <button
               style={styles.linkBtn}
@@ -125,7 +127,7 @@ export default function Auth() {
               autoFocus
             />
             <button type="submit" disabled={loading || !email} style={styles.btn}>
-              {loading ? "Sending…" : "Send login link"}
+              {loading ? "Sending…" : IN_IPHONE_APP ? "Email me a sign-in code" : "Send login link"}
             </button>
             {error && <div style={styles.error}>{error}</div>}
           </form>
