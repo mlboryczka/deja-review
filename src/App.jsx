@@ -8,6 +8,7 @@ import { clearProgressCache } from "./useProgress";
 import { clearTutorThread } from "./lib/tutorThreads";
 import { clearStudyPlace } from "./lib/studyPlace";
 import { clearPodcastDrafts } from "./usePodcasts";
+import { clearKey } from "./lib/anthropicKey";
 
 // How long to wait for getSession() before giving up on it.
 //
@@ -25,6 +26,30 @@ const SESSION_TIMEOUT_MS = 10000;
 // not look like a hung page.
 const SLOW_AFTER_MS = 450;
 
+// Everything this browser keeps for one person: the copies of their deck and
+// scores, their places, their tutor thread, their language choice and their
+// Anthropic key. Both caches key on the user id, so they survive a sign-out
+// otherwise, leaving one person's deck, scores and paid key in localStorage
+// for whoever uses the browser next. Run only once the sign-out has gone
+// through (or been seen from another tab), never before: a sign-out that
+// fails must leave the student's language and place as they were.
+function wipeLocalCopies(userId) {
+  clearDeckCache(userId);
+  clearProgressCache(userId);
+  clearTutorThread(userId);
+  clearStudyPlace(userId);
+  // Podcasts (owner only for now, 2026-10-09): the page the owner was on,
+  // kept in this browser, and the unsent answers and lists kept in memory.
+  clearPodcastsPlace(userId);
+  clearPodcastDrafts(userId);
+  // The Spanish deck's copies, kept under their own name (lib/course.js).
+  const es = COURSES.es.store(userId);
+  if (es) { clearDeckCache(es); clearProgressCache(es); clearStudyPlace(es); }
+  clearCourse(userId);
+  // The student's own Anthropic key spends real money on their account.
+  clearKey(userId);
+}
+
 export default function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -34,6 +59,10 @@ export default function App() {
   // flag in the top-right corner (owner, 2026-10-22). Null until chosen on
   // this page: the app then opens on the one used last in this browser.
   const [course, setCourse] = useState(null);
+  // Set when Sign out fails (offline, or Supabase's sign-in service down).
+  const [signOutError, setSignOutError] = useState("");
+  // Who is signed in, for the listener below, which outlives each render.
+  const userIdRef = useRef(null);
   // The stored language, read once per sign-in: a tab keeps its own language
   // until its own flag is used, whatever another tab chooses meanwhile.
   const signInCourse = useRef({ userId: null, course: null });
@@ -107,6 +136,10 @@ export default function App() {
       // get on returning to the tab. The app is already on screen; a token
       // refresh is not a reason to tear it down.
       if (event === "SIGNED_OUT") {
+        // Also when the sign-out came from another tab: this tab's copies
+        // go too, before the app unmounts.
+        if (userIdRef.current) wipeLocalCopies(userIdRef.current);
+        setSignOutError("");
         setSession(null);
         return;
       }
@@ -121,23 +154,22 @@ export default function App() {
   }, [retry]);
 
   const handleSignOut = async () => {
-    // Drop the local copies FIRST. Both caches key on the user id, so they
-    // survive a sign-out otherwise — leaving one person's whole deck and their
-    // score history in localStorage for whoever uses the browser next.
-    clearDeckCache(session?.user?.id);
-    clearProgressCache(session?.user?.id);
-    clearTutorThread(session?.user?.id);
-    clearStudyPlace(session?.user?.id);
-    // Podcasts (owner only for now, 2026-10-09): the page the owner was on,
-    // kept in this browser, and the unsent answers and lists kept in memory.
-    clearPodcastsPlace(session?.user?.id);
-    clearPodcastDrafts(session?.user?.id);
-    // The Spanish deck's copies, kept under their own name (lib/course.js).
-    const es = COURSES.es.store(session?.user?.id);
-    if (es) { clearDeckCache(es); clearProgressCache(es); clearStudyPlace(es); }
-    clearCourse(session?.user?.id);
+    const userId = session?.user?.id;
+    setSignOutError("");
+    let failure = null;
+    try {
+      const { error } = await supabase.auth.signOut();
+      failure = error || null;
+    } catch (e) {
+      failure = e || new Error("sign out failed");
+    }
+    if (failure) {
+      // Still signed in: leave the language, the place and the caches alone.
+      setSignOutError("Couldn't sign out. Check your connection and try again.");
+      return;
+    }
+    wipeLocalCopies(userId);
     setCourse(null);
-    await supabase.auth.signOut();
   };
 
   const tryAgain = useCallback(() => {
@@ -186,6 +218,12 @@ export default function App() {
     );
   }
 
+  userIdRef.current = session?.user?.id || null;
+  const signOutBanner = signOutError ? (
+    <div role="alert" onClick={() => setSignOutError("")} style={{ position: "fixed", top: 12, left: "50%", transform: "translateX(-50%)", zIndex: 5000, background: "#9c4234", color: "#fff", padding: "10px 18px", borderRadius: 8, fontSize: 14, fontFamily: "sans-serif", cursor: "pointer", boxShadow: "0 4px 16px rgba(0,0,0,0.25)" }}>
+      {signOutError}
+    </div>
+  ) : null;
   if (!session) { signInCourse.current = { userId: null, course: null }; return <Auth />; }
 
   // Someone with the Spanish module has French and Spanish, switched with the
@@ -196,10 +234,10 @@ export default function App() {
     if (signInCourse.current.userId !== userId) signInCourse.current = { userId, course: readCourse(userId) };
     const current = course || signInCourse.current.course;
     const choose = (c) => { writeCourse(userId, c); setCourse(c); };
-    return <FlashcardApp key={current} course={current} onCourse={choose} user={session.user} onSignOut={handleSignOut} />;
+    return <>{signOutBanner}<FlashcardApp key={current} course={current} onCourse={choose} user={session.user} onSignOut={handleSignOut} /></>;
   }
 
-  return <FlashcardApp user={session.user} onSignOut={handleSignOut} />;
+  return <>{signOutBanner}<FlashcardApp user={session.user} onSignOut={handleSignOut} /></>;
 }
 
 const centred = {

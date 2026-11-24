@@ -11,19 +11,28 @@ const linkFailed = () => {
   return !!(params.get("error") || params.get("error_code"));
 };
 
+// Read once when the app loads, and the address bar cleared at once, whether
+// or not anyone is signed in: a signed-in student who opens a used link would
+// otherwise keep the error in the address bar, and the sign-in page would show
+// it at their next sign-out. Only the first sign-in page shown after that load
+// says the link failed.
+const FAILED_AT_LOAD = linkFailed();
+let failedShown = false;
+if (FAILED_AT_LOAD) {
+  try { window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search); } catch { /* address bar stays */ }
+}
+
 export default function Auth() {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(() =>
-    linkFailed() ? "That sign-in link has expired or was already used. Send yourself a new one." : ""
+    FAILED_AT_LOAD && !failedShown ? "That sign-in link has expired or was already used. Send yourself a new one." : ""
   );
 
-  // Cleared once read, so a reload or a later sign-out doesn't show it again.
-  useEffect(() => {
-    if (linkFailed()) window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
-  }, []);
+  // The address was cleared at load; this page now owns the message once.
+  useEffect(() => { failedShown = true; }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();

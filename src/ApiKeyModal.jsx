@@ -18,7 +18,7 @@ import {
 // The key is written to this browser's localStorage and sent as a header on
 // the user's own requests. It is never stored on the server, so the app is
 // not a custodian of anyone's credentials.
-export default function ApiKeyModal({ open, onClose, user }) {
+export default function ApiKeyModal({ open, onClose, user, serverPays = false }) {
   const [value, setValue] = useState("");
   const [saved, setSaved] = useState("");
   const [error, setError] = useState("");
@@ -82,6 +82,8 @@ export default function ApiKeyModal({ open, onClose, user }) {
             <span>Connected &middot; <code style={S.code}>{maskKey(saved)}</code></span>
             <button style={S.linkBtn} onClick={disconnect}>Disconnect</button>
           </div>
+        ) : serverPays ? (
+          <div style={S.connected}>Your Claude account already pays for these, so you don&rsquo;t need a key. Add one only to bill an account of your own.</div>
         ) : (
           <div style={S.notConnected}>Not connected &mdash; those features are turned off.</div>
         )}
@@ -108,7 +110,7 @@ export default function ApiKeyModal({ open, onClose, user }) {
             console.anthropic.com
           </a>
           . It is stored in this browser only &mdash; never on the server &mdash; so you
-          will need to add it again on another device, and you can revoke it at
+          will need to add it again on another device and after you sign out, and you can revoke it at
           any time from the Anthropic console.
         </p>
 
