@@ -138,8 +138,9 @@ export async function updateCard(admin, req, res) {
     );
   }
   if (!existing) {
+    console.error("admin-update-card: card not found", { row_id, original_front });
     return res.status(404).json({
-      error: `Card not found. (row_id=${JSON.stringify(row_id)}, original_front=${JSON.stringify(original_front)})`,
+      error: "That card isn't in your deck any more. Reload to see your cards.",
     });
   }
   if (existing.user_id !== userId) {

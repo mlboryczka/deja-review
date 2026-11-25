@@ -116,7 +116,7 @@ const SPANISH_SUGGESTIONS = [
 // ones depends on where the student is with it. None of these is sent on its
 // own: every question costs the student's own credit.
 //
-// On Podcasts (owner only, 2026-10-09) they are about the passage being
+// On Podcasts (the owner, and anyone on the test app, since 2026-10-19) they are about the passage being
 // answered, and before it is answered none of them asks for its meaning: the
 // passage IS the question, and the tutor won't translate it until it has
 // been answered (api/chat.js, "A podcast episode").
@@ -382,7 +382,7 @@ export default function ChatPanel({
   // and `result`. Whether it has been answered decides what the header may
   // show and what the tutor may say.
   currentCard = null,
-  // On Podcasts (owner only, 2026-10-09), in place of a card: the episode on
+  // On Podcasts (the owner, and anyone on the test app, since 2026-10-19), in place of a card: the episode on
   // screen and the passage being answered, as the podcasts page describes
   // them ({ key, episode, passage, transcript }, see lib/deckContext.js).
   // Sent as the request's `context.podcast`. Null everywhere else.

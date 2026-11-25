@@ -38,7 +38,7 @@ function wipeLocalCopies(userId) {
   clearProgressCache(userId);
   clearTutorThread(userId);
   clearStudyPlace(userId);
-  // Podcasts (owner only for now, 2026-10-09): the page the owner was on,
+  // Podcasts (the owner, and anyone on the test app, since 2026-10-19): the page the owner was on,
   // kept in this browser, and the unsent answers and lists kept in memory.
   clearPodcastsPlace(userId);
   clearPodcastDrafts(userId);

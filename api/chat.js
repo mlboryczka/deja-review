@@ -665,7 +665,7 @@ function currentCardLines(cur) {
   return lines.join("\n");
 }
 
-// The podcast episode on screen, on Podcasts (owner only, 2026-10-09). Like
+// The podcast episode on screen, on Podcasts (the owner, and anyone on the test app, since 2026-10-19). Like
 // the card, whether the passage has been answered decides what the tutor may
 // say (see "A podcast episode" in the system prompt), so it is stated.
 //

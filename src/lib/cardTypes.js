@@ -46,7 +46,7 @@ const GLUE = new Set([
 // headword. "il" is deliberately absent from GLUE for this reason.
 const CLAUSE_WORDS = new Set([
   "je", "j", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles",
-  "ça", "ca", "c", "ce", "qui", "que", "qu", "quoi", "dont", "où",
+  "ça", "ca", "c", "qui", "que", "qu", "quoi", "dont", "où",
   "comment", "pourquoi", "quand", "si", "ne", "n", "y",
 ]);
 
@@ -180,7 +180,10 @@ function classify(card) {
 
   const all = tokens(frenchSide(card));
   // A subject or a clause marker means this is a sentence, not a headword.
-  if (all.some((t) => CLAUSE_WORDS.has(t.replace(/['’]$/, "")))) return "phrase";
+  // "ce" only marks a clause before a form of être ("ce sont", "ce n'est");
+  // "ce matin" and "cette semaine" are a headword with its small word.
+  const ceClause = all.some((t, i) => t === "ce" && /^(est|sont|était|étaient|sera|serait|fut)$/.test(all[i + 1] || ""));
+  if (ceClause || all.some((t) => CLAUSE_WORDS.has(t.replace(/['’]$/, "")))) return "phrase";
 
   const units = all.filter((t) => !GLUE.has(t.replace(/['’]$/, "")));
   return units.length <= MAX_CONCEPT_UNITS ? "vocab" : "phrase";

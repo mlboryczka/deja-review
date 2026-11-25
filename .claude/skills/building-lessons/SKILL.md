@@ -324,8 +324,10 @@ and confirm no `*` survives; `notescheck.mjs` (below) does this.
 
 - **New lessons go at the end of `LESSONS`** and start switched off on Cards
   for every student, so nobody's daily cards change until they switch it on
-  (owner, 2026-10-04). Inserting one earlier would change the order of every
-  later lesson's new cards.
+  (owner, 2026-10-04). The order new cards come in is `meetingOrder` (in
+  `src/data/lessons/index.js`), not the order of `LESSONS`: changing
+  `meetingOrder` reorders new cards and changes how past sets are judged, and
+  a lesson it doesn't name comes after, in `LESSONS` order.
 - **Where a lesson shows is `LESSON_GROUPS`, not `LESSONS`** (both in
   `src/data/lessons/index.js`). The Lessons page, the sidebar and Stats list
   Laura's numbered beginner lessons first, under "Basic Lessons", in number

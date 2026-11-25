@@ -128,8 +128,8 @@ export const hasLanguageChoice = (user) => podcastsUser(user);
 
 // ─── PODCASTS: WHERE THE OWNER WAS ───────────────────────────────────────
 // The sidebar's switch has two halves, Flashcards and Podcasts (owner,
-// 2026-10-09), and for now only the owner sees it: Podcasts stays owner-only
-// until they have tried it, so a student's app has no switch, no Podcasts
+// 2026-10-09). Since 2026-10-19 the owner sees it anywhere, and anyone signed
+// in on the test app; Podcasts stays owner-only on the students' app, so it has no switch, no Podcasts
 // pages and writes nothing new to this browser.
 //
 // The page a reload opens has always been Cards: `mode` is never saved, only
@@ -1133,7 +1133,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   // "Status" in the profile menu (admin only): whether the cards are being
   // shown the way FSRS and the app's rules say. See lib/statusChecks.js.
 
-  // ── PODCASTS (owner only, 2026-10-09) ──────────────────────────────────
+  // ── PODCASTS (owner anywhere, test-app users too, 2026-10-19) ──────────────────────────────────
   // Everything the shell keeps for the Podcasts module sits here, above the
   // early returns (Loading, the onboarding screen): a hook below them would
   // change the number of hooks once the deck loads, and React throws.
@@ -1333,7 +1333,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   // views (that used to reshuffle and snap back to card 0 mid-session).
   //
   // Selection is spaced-repetition driven: the working set comes from
-  // buildSession (lapses → due reviews → new once those run out → spot-checks).
+  // buildSession (lapses → due reviews → new once those run out).
   //
   // There is deliberately no category filter. Studying one category at a time
   // is blocked practice, which feels easier during the session and tests worse
@@ -3475,7 +3475,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     stats: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>,
     lessons: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>,
     tutor: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9.1 9a2.5 2.5 0 0 1 4.9.6c0 1.7-2.5 2.5-2.5 2.5"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>,
-    // Podcasts (owner only): Episodes, My podcasts, and the switch's half on
+    // Podcasts (the owner, and test-app users): Episodes, My podcasts, and the switch's half on
     // the rail. The same drawings as the approved mockup.
     episodes: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg>,
     mine: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16.85 18.58a9 9 0 1 0-9.7 0"/><path d="M8 14a5 5 0 1 1 8 0"/><circle cx="12" cy="11" r="1"/><path d="M13 17a1 1 0 1 0-2 0l.5 4.5a.5.5 0 1 0 1 0Z"/></svg>,
@@ -4803,7 +4803,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
               // a retry says so beside the count.
               const retriesComing = deck.slice(idx + 1).filter((c) => c._retry).length;
               const hasBreakdown =
-                sessionCounts.lapse + sessionCounts.review + sessionCounts.new + sessionCounts.spot > 0;
+                sessionCounts.lapse + sessionCounts.review + sessionCounts.new > 0;
               return (
                 <>
                 <button
@@ -4843,7 +4843,6 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
                           sessionCounts.lapse > 0 && `${sessionCounts.lapse} relearning`,
                           sessionCounts.review > 0 && `${sessionCounts.review} review`,
                           sessionCounts.new > 0 && `${sessionCounts.new} new`,
-                          sessionCounts.spot > 0 && `${sessionCounts.spot} spot check`,
                         ].filter(Boolean).join(" · ")}
                       </span>
                     )}
@@ -4946,7 +4945,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
                         )}
                       </div>
                     )}
-                    {!effectiveTypeMode && <div className="card-hint" style={S.cardHint}>Tap to reveal translation</div>}
+                    {!effectiveTypeMode && <div className="card-hint" style={S.cardHint}>Tap to reveal the answer</div>}
                     {effectiveTypeMode && !typeResult && <div className="card-hint" style={S.cardHint}>{typedAnswer.trim() ? "Tap to check your answer" : "Tap to show answer"}</div>}
                     {!effectiveTypeMode && <ShortcutsTooltip />}
                     {!showFeedback && <ReportCardButton onReport={reportCard} nextToInfo={!effectiveTypeMode} />}

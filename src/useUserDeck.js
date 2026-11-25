@@ -288,7 +288,9 @@ export function useUserDeck(user, { table = "user_cards", store = user?.id } = {
       setArchived(allRows.filter(isArchived).map((row) => ({
         f: row.front, b: row.back, source: row.source, row_id: row.id, reason: row.archived_reason ?? null,
       })));
-        // Sort by frequency desc to match legacy buildDeck ordering
+        // Most-said first. buildSession keeps missed cards in this order and
+        // cuts at the set size, so when missed cards outnumber the set, the
+        // ones said most often make it (see lib/sessionQueue.js).
         shaped.sort((a, b) => b.freq - a.freq);
       const hourAgo = Date.now() - 60 * 60 * 1000;
       const mine = new Map();

@@ -2,7 +2,8 @@
 //
 // Inputs are the candidate cards (the whole deck, or one lesson's or one
 // type's cards when the student has narrowed it) plus tuning knobs. Output is
-// one BLOCK: up to 50 cards, after which the student sees how it went and can
+// one BLOCK: up to `target` cards (BLOCK_SIZE, 50, unless the student chose
+// 20, 30 or 100), after which the student sees how it went and can
 // carry on with the next.
 //
 // A block is made of ITEMS: a card asked one way round. A word or phrase card
@@ -73,7 +74,8 @@ import { endOfLocalDay, localISODate, localISODateDaysAgo, reviewedToday, startO
 import { lessonIdOf } from "./lessonSource.js";
 import { sideOf, sideColumns, directionsOf, isTwoWay, otherDirection, itemKey } from "./directions.js";
 
-// A block — the set of cards between checkpoints — is this many answers.
+// A block — the set of cards between checkpoints — is this many answers by
+// default; `target` is the student's own choice (20, 30, 50 or 100).
 export const BLOCK_SIZE = 50;
 
 const DEFAULTS = Object.freeze({
@@ -315,9 +317,11 @@ export function buildSession(cards, opts = {}) {
   return {
     queue: tagged,
     counts: countBuckets(tagged),
-    // How much due work is left beyond this block. The checkpoint (stage 4)
-    // uses it to say "the next blocks are reviews only". A card's other way,
-    // waiting for tomorrow, isn't today's work.
+    // How much due work is left beyond this block, counted in items (a
+    // card's other way, waiting for tomorrow, isn't today's work), and how
+    // many new items could still be dealt. The lesson cards read the due count
+    // (a target of 0 deals nothing); the study screen does not, and both are
+    // copied into dealt_sets by lib/dealLog.js for the record.
     dueRemaining: dueToday - dueTaken.length,
     newAvailable: fresh.length,
   };
@@ -386,15 +390,14 @@ export function practiceSession(cards, opts = {}) {
 // What a block is made of, for the counter. Retries are the block's own cards
 // again, not more of them.
 export function countBuckets(entries) {
-  // `spot` stays, always 0: there are no spot-checks, but the counter reads it.
-  const counts = { lapse: 0, review: 0, new: 0, spot: 0 };
+  const counts = { lapse: 0, review: 0, new: 0 };
   for (const c of entries) if (!c._retry && c._bucket in counts) counts[c._bucket]++;
   return counts;
 }
 
 // Where a missed card goes for its retry, inside the block.
 //
-// A block is 50 ANSWERS, retries included. The missed card comes back `offset`
+// A block is `target` ANSWERS (50 by default), retries included. The missed card comes back `offset`
 // cards later, or at the end of the block if fewer are left, and it takes the
 // place of the last card in the block not yet shown — which is simply dealt
 // in the next block instead, since it is still unanswered. So the block never

@@ -76,8 +76,8 @@ const ALL = [
 // not named here comes after, in catalogue order.
 //
 // How the catalogue is shown: on the Lessons page, in the sidebar and on
-// Stats. Separate from the list above, whose order is part of every card's
-// rank (lessonRank), so that list only ever grows at the end. Laura's
+// Stats. Separate from meetingOrder above, which is every card's rank
+// (lessonRank). Laura's
 // numbered beginner lessons come first, in number order, though Leçon 1 was
 // added after Leçons 2 to 5 (owner, 2026-10-06): since 2026-11-13 in four
 // stages of five (./stages.js), as the Spanish lessons are, where they were

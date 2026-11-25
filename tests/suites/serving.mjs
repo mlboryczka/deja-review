@@ -113,7 +113,7 @@ console.log("\n  a card that isn't due is never dealt, however well known");
   const known = many(10, () => knownCard());
   const { queue, counts } = build([...many(10, () => reviewCard(-DAY)), ...known]);
   ck("well-known cards not yet due stay out of the block", !known.some((c) => ids(queue).has(c.id)), JSON.stringify(counts));
-  ck("and the block is only the due work", queue.length === 10 && counts.spot === 0, JSON.stringify(counts));
+  ck("and the block is only the due work", queue.length === 10 && counts.lapse + counts.review + counts.new === 10, JSON.stringify(counts));
   const caughtUp = build(known);
   ck("with nothing due and nothing new, there is no block", caughtUp.queue.length === 0, `${caughtUp.queue.length}`);
 }

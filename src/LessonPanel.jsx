@@ -25,7 +25,6 @@ export default function LessonPanel({ open, onClose, lesson, reflow = false, sid
   const [mounted, setMounted] = useState(open);
   const [entered, setEntered] = useState(false);
   const [tab, setTab] = useState(0);
-  const panelRef = useRef(null);
 
   // Freeze the layout mode while the panel is on screen: `reflow` flips false
   // the instant you close, which would drop a scrim over the app for the
@@ -102,7 +101,6 @@ export default function LessonPanel({ open, onClose, lesson, reflow = false, sid
         <div style={{ ...S.scrim, left: sidebarWidth, opacity: entered ? 1 : 0, pointerEvents: entered ? "auto" : "none" }} />
       )}
       <div
-        ref={panelRef}
         data-tour="notes"
         style={{ ...S.panel, transform: entered ? "translateX(0)" : "translateX(100%)" }}
       >

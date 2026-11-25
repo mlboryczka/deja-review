@@ -7,10 +7,12 @@
 import { drillInstruction } from "../../lib/cardInstruction.js";
 import { lessonIdOf, lessonCardKeyOf, lessonCardKey } from "../../lib/lessonSource.js";
 
-// lessons      in the order they were added: part of every card's rank, so
-//              this list only ever grows at the end
-// meetingOrder the lesson ids in the order a student meets their new cards;
-//              a lesson not named comes after, in catalogue order
+// lessons      the lessons, in the order they were added. Its order does not
+//              rank cards: it only places a lesson that meetingOrder doesn't name
+// meetingOrder the lesson ids in the order a student meets their new cards. This
+//              IS every card's rank, so changing it reorders new cards and
+//              changes how past sets are judged; a lesson not named comes
+//              after, in catalogue order
 // groups       [{ title, folds, ids }]: how the Lessons page, the sidebar and
 //              Stats show them. Every lesson not in a group follows, under
 //              `moreTitle`
