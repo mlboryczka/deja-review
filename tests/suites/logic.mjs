@@ -1186,7 +1186,7 @@ console.log("\n  archive — out of circulation, recoverable");
      Object.keys(choicesOf(null)).length === 0);
 }
 
-// The tutor on Podcasts (owner only, 2026-10-09). There is no card on screen
+// The tutor on Podcasts (built owner-only on 2026-10-09; the test app's users have it too since 2026-10-19). There is no card on screen
 // there: the tutor is told the RFI episode, its transcript and the passage
 // being answered, and until the passage is answered it must not translate or
 // summarise it, because that is the exercise.
@@ -1321,8 +1321,11 @@ console.log("\n  the tutor — a pasted picture");
   ck("an older one goes as a note that it was there", /no longer attached/.test(flat(thread[0])) && /picture 0/.test(flat(thread[0])), flat(thread[0]));
   const cached = thread.at(-2).content;
   ck("the history before the latest question is still marked for caching", Array.isArray(cached) && !!cached.at(-1).cache_control, JSON.stringify(cached).slice(0, 200));
-  const picTurn = buildRequestMessages({ messages: [{ role: "user", content: "this?", image: pic(1) }, { role: "assistant", content: "yes" }, { role: "user", content: "why?", image: pic(2) }] });
-  ck("a picture turn marked for caching keeps its picture", picTurn.at(-2).content.at(-1).cache_control && picTurn[0].content[0].type === "image", JSON.stringify(picTurn[0].content).slice(0, 120));
+  // The turn marked for caching is the one just before the latest question, so
+  // the picture turn has to sit there.
+  const picTurn = buildRequestMessages({ messages: [{ role: "user", content: "hi" }, { role: "assistant", content: "yes" }, { role: "user", content: "this?", image: pic(1) }, { role: "user", content: "why?" }] });
+  const marked = picTurn.at(-2).content;
+  ck("a picture turn marked for caching keeps its picture", Array.isArray(marked) && marked[0].type === "image" && marked.at(-1).type === "text" && !!marked.at(-1).cache_control, JSON.stringify(marked).slice(0, 120));
 }
 
 // Several pictures with one question, now that a screenshot saved as a file
@@ -1375,6 +1378,4 @@ console.log("\n  Spanish lesson notes — what the cards catch now");
   ck("Lesson 8 no longer says the app doesn't mark an accent", !/which the app doesn't mark/.test(read(8)));
 }
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

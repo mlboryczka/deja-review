@@ -21,9 +21,11 @@ process.env.ANTHROPIC_API_KEY = "sk-ant-server-key-must-never-be-spent-by-others
 // A stand-in for Anthropic that counts what reaches it. The SDK reads
 // ANTHROPIC_BASE_URL, so every billable call lands here and nowhere else.
 //
-// This replaced a counter wrapped around globalThis.fetch, which the SDK
-// never calls: it reported "0 Anthropic calls" while a request was going
-// out, and the suite passed with the auth hole put back on purpose.
+// This replaced a counter wrapped around globalThis.fetch. The SDK does go
+// through globalThis.fetch, but a counter there missed requests that reached
+// the server by another path ("0 Anthropic calls" while one was going out), and
+// the suite passed with the auth hole put back on purpose. A stand-in server
+// counts what actually arrives, which is what costs money.
 import { createServer } from "node:http";
 
 let anthropicCalls = 0;
@@ -72,8 +74,9 @@ const SPENDERS = [
   ["/api/parse-cahier (extract)", "../../api/parse-cahier.js", { action: "extract", text: "bonjour = hello" }],
   ["/api/parse-cahier (commit)", "../../api/parse-cahier.js", { action: "commit", classes: [] }],
   ["/api/cahier-sync", "../../api/cahier-sync.js", { action: "sync" }],
-  // Podcasts (2026-10-09): the three actions that can call Claude. Owner only,
-  // so the forged admin token below matters here too.
+  // Podcasts (2026-10-09): the three actions that can call Claude. Open to the
+  // owner and, on the test app, anyone signed in (since 2026-10-19), so the
+  // forged admin token below matters here too.
   ["/api/podcasts (episode: writing its questions)", "../../api/podcasts.js",
    { action: "episode", episodeId: "00000000-0000-4000-8000-000000000001" }],
   ["/api/podcasts (mark)", "../../api/podcasts.js",
@@ -192,6 +195,4 @@ console.log("\n  who pays on the test app: the owner's key for the accounts they
 
 anthropic.close();
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

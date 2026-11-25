@@ -171,7 +171,16 @@ await page.waitForFunction(
   null,
   { timeout: 8000 }
 );
-ck("the rest of the answer follows into the same bubble", true);
+// The smallest element holding both halves must be one answer, not the whole
+// thread: the student's own question is not inside it.
+const sameBubble = await page.evaluate((ask) => {
+  const panel = document.querySelector("[data-tutor-panel]");
+  const holds = (el) => /colline is feminine/i.test(el.innerText) && /already have it in your deck/i.test(el.innerText);
+  let el = [...panel.querySelectorAll("*")].filter(holds).pop();
+  if (!el) return false;
+  return !el.innerText.includes(ask.slice(0, 30));
+}, ASK);
+ck("the rest of the answer follows into the same bubble", sameBubble);
 
 // ── What the endpoint was told ─────────────────────────────────────────────
 const sent = requests[0] || {};

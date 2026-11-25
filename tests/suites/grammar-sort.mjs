@@ -460,6 +460,4 @@ console.log("\n  the Claude request");
 ck("no request left the machine", outside === 0, `${outside} outside request(s)`);
 fs.rmSync(tmp, { recursive: true, force: true });
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

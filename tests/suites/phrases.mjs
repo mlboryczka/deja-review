@@ -105,6 +105,4 @@ console.log(`\n  said fewer than ${MIN_TIMES} times, a card isn't ordered by it`
   ck("a drill: 0", saidPerMillion("vivre (présent) → je", lex, r) === 0);
 }
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

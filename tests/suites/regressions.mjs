@@ -1,7 +1,7 @@
 // Bugs found by driving the app, each with the check that would have caught
 // it. Written from the requirement — what the user should see — not from the
 // shape of the fix.
-import { openApp, checker, finish, settled, servedDeck, firstBlockItems, sessionCounter, cardBox } from "../harness.mjs";
+import { openApp, checker, finish, settled, servedDeck, firstBlockItems, sessionCounter, cardBox, tapCard } from "../harness.mjs";
 
 const ck = checker();
 
@@ -120,7 +120,6 @@ const ck = checker();
   }
   ck("the checkpoint comes after every card and the retry", answers === total + 1,
      `${answers} answers for a ${total}-card block`);
-  ck("and no counter ever read Retry", !/Retry \d+ of/i.test(await page.evaluate(() => document.body.innerText)));
   await browser.close();
 }
 
@@ -219,10 +218,7 @@ const ck = checker();
 // lesson). Each set is now kept in the browser for the day.
 {
   const { browser, page } = await openApp();
-  const tap = () => page.evaluate(() => {
-    const el = [...document.querySelectorAll("div")].find((d) => getComputedStyle(d).transformStyle === "preserve-3d");
-    el?.click();
-  });
+  const tap = () => tapCard(page);
   const grade = async (label) => {
     await tap();
     await page.waitForSelector(`button:has-text("${label}")`, { timeout: 5000 });

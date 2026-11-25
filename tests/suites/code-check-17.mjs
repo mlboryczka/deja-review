@@ -27,6 +27,4 @@ try {
   ck("220 a broken forwarding address gets a plain sentence, not Invalid URL", e.code === "bad_url" && !/Invalid URL/.test(e.message), e.message);
 }
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

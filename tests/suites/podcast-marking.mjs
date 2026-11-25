@@ -17,7 +17,9 @@
 //     back); an answer is saved for the student who wrote it, and nobody
 //     else's answer is ever in a reply;
 //   - a reply from Claude that can't be read saves nothing;
-//   - no key, no call; anyone but the owner gets 403 and no call;
+//   - no key, no call; the handler itself still refuses anyone it is not told is
+//     an admin (403, no call). Who may reach it is the route's rule (the owner,
+//     and anyone signed in on the test app since 2026-10-19), checked below;
 //   - "Add to my cards" inserts one new row (never an upsert over a card,
 //     never a schedule), says "In your deck" for a card the student has,
 //     leaves a card they removed removed, and adds nothing on a guess when
@@ -616,7 +618,7 @@ console.log("\n  when each word is said, from RFI");
   const noText = await run(store, OWNER, { action: "timing", episodeId: unread.id });
   ck("no transcript yet: no timing, and nothing read", noText.status === 200 && noText.json.timing === null && reads.length === 0);
   const stranger = await run(store, STUDENT, { action: "timing", episodeId: ep.id });
-  ck("anyone but the owner: refused like every other action", stranger.status === 403);
+  ck("anyone the handler is not told is an admin: refused like every other action", stranger.status === 403);
   const missing = await run(store, OWNER, { action: "timing", episodeId: randomUUID() });
   ck("an episode that isn't there: 404", missing.status === 404);
   pageFor = () => fixture("episode-journal.html");
@@ -745,7 +747,7 @@ console.log("\n  no key, no call");
   ck("an episode whose questions exist opens with no key at all", opened.status === 200 && !!opened.json.episode.questions && calls.length === 0);
 }
 
-console.log("\n  the owner only");
+console.log("\n  the handler's own admin gate (the route lets in the test app's users before it, see below)");
 {
   const store = memoryStore();
   const ep = episodeRow();
@@ -761,7 +763,7 @@ console.log("\n  the owner only");
   const out = [];
   reads.length = 0;
   for (const body of bodies) out.push(await run(store, STUDENT, body));
-  ck("every action answers 403 \"Admin only\" to anyone else", out.every((r) => r.status === 403 && r.json.error === "Admin only"),
+  ck("every action answers 403 \"Admin only\" to anyone the handler is not told is an admin", out.every((r) => r.status === 403 && r.json.error === "Admin only"),
      out.map((r) => r.status).join(","));
   ck("  with no call to Claude, nothing fetched from RFI or Spotify, and nothing read or written", calls.length === 0 && reads.length === 0 && store.log.length === 0,
      `${calls.length} call(s), ${reads.length} fetch(es), ${store.log.length} store operation(s)`);
@@ -1053,6 +1055,4 @@ ck("nothing left the machine: no request to RFI, Spotify, Supabase or Anthropic"
 
 anthropic.close();
 globalThis.fetch = realFetch;
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

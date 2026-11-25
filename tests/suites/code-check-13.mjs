@@ -101,6 +101,4 @@ ck("139 database change 007 says never to run it again and no longer says it is 
 ck("139 it stops when any answer is kept, and lets a fresh setup through", /to_regclass\('public\.card_reviews'\) is not null/.test(m7) && /raise exception 'migration_007 must never be run again/.test(m7));
 ck("139 the note in change 006 agrees", !/re-runnable/.test(read("migrations/migration_006_fsrs.sql")));
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

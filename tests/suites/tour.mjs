@@ -138,7 +138,8 @@ const stats = await centre(page, '[data-tour="nav-stats"]');
 await page.mouse.click(stats.x, stats.y);
 await page.waitForTimeout(400);
 ck("a click on the dimmed part does nothing", (await caption(page))?.title === "Start with a lesson"
-  && (await page.$("[data-tour-lesson]")) === null);
+  && (await page.$("[data-tour-lesson]")) === null
+  && (await page.$("[data-stats-areas]")) === null);
 
 await page.click('[data-tour="nav-lessons"]');
 ck("clicking Lessons moves the tour on to the lesson", (await waitForTitle(page, LESSON.title)) === LESSON.title);

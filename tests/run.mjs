@@ -5,19 +5,18 @@
 //   npm test                 all suites
 //   npm test -- layout       only suites whose name contains "layout"
 //
-// Suites that need no browser (logic, apply-splits, auth, dates, serving,
-// progress, cahier-sync) run first
-// and fast — see NEEDS_BROWSER below, which is the list that decides.
+// Suites that need no browser run first and fast. A suite needs one exactly
+// when it imports ../harness.mjs (see NEEDS_BROWSER below).
 
 import { spawn } from "node:child_process";
-import { readdirSync, writeFileSync, rmSync, existsSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..");
-const ENV_FILE = join(ROOT, ".env.local");
-const NEEDS_BROWSER = (name) => !["logic", "apply-splits", "auth", "dates", "serving", "progress", "cahier-sync", "grammar-sort", "instructions", "adaptive", "status", "status-script", "feedback-review", "answer-checks", "status-daily", "notes-checks", "repeats", "repeat-checks", "podcast-feed", "podcast-marking", "phrases", "es-exercises", "es-dialogues", "caderno", "code-check-5", "code-check-7", "code-check-9", "code-check-11", "code-check-12", "code-check-13", "code-check-14", "code-check-16", "code-check-17", "code-check-18"].includes(name);
+// A suite needs the browser exactly when it imports the browser harness.
+const NEEDS_BROWSER = (name) => /from\s+["']\.\.\/harness\.mjs["']/.test(readFileSync(join(HERE, "suites", `${name}.mjs`), "utf8"));
 
 const filter = process.argv.slice(2).filter((a) => !a.startsWith("-"));
 const suites = readdirSync(join(HERE, "suites"))
@@ -32,13 +31,11 @@ if (suites.length === 0) {
 }
 
 const children = [];
-let envWritten = false;
 
 function cleanup() {
   for (const c of children) {
     try { process.kill(-c.pid, "SIGKILL"); } catch {}
   }
-  if (envWritten) { try { rmSync(ENV_FILE); } catch {} }
 }
 process.on("exit", cleanup);
 for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => { cleanup(); process.exit(130); });
@@ -87,22 +84,16 @@ function runSuite(name) {
 }
 
 if (suites.some(NEEDS_BROWSER)) {
-  if (existsSync(ENV_FILE)) {
-    console.error(
-      `Refusing to overwrite ${ENV_FILE}. Move it aside — the browser suites need to point the app at the mock.`
-    );
-    process.exit(1);
-  }
-  writeFileSync(
-    ENV_FILE,
-    "VITE_SUPABASE_URL=http://127.0.0.1:5999\nVITE_SUPABASE_ANON_KEY=test.key\n"
-  );
-  envWritten = true;
-
   const mock = background(process.execPath, [join(HERE, "mock-supabase.mjs")]);
   await waitFor("http://127.0.0.1:5999/rest/v1/user_cards", "mock Supabase", mock);
 
-  const vite = background("npx", ["vite", "--port", "5173", "--strictPort"]);
+  // The app is pointed at the mock through the environment, not a settings
+  // file: a checkout's own .env.local is never touched, and nothing is left
+  // behind if the run is killed. The four VITE_ variables the app reads are all
+  // set here, so a real .env.local can't leak in.
+  const vite = background("npx", ["vite", "--port", "5173", "--strictPort"], {
+    env: { ...process.env, VITE_SUPABASE_URL: "http://127.0.0.1:5999", VITE_SUPABASE_ANON_KEY: "test.key", VITE_ADMIN_EMAIL: "", VITE_API_BASE: "" },
+  });
   await waitFor("http://localhost:5173/", "vite dev server", vite);
 }
 

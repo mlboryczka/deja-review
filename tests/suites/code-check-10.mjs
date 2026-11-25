@@ -72,6 +72,4 @@ ck("131 Lesson 10: tener never takes a", ex(10).includes("(tener never takes a)"
 ck("131 Lesson 11: on the end of an infinitive", ex(11).includes("or on the end of an infinitive"));
 ck("132 Lesson 18: after no the pronoun goes before the verb", ex(18).includes("After no, te or se goes before the verb"));
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

@@ -68,6 +68,4 @@ ck("74 every form of a Google Doc link gives its id",
 // 75
 ck("75 a failed link read keeps the link already known", /if \(!err \|\| noTable\) setLink\(data \|\| null\)/.test(hook));
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

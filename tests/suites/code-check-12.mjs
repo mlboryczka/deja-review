@@ -110,6 +110,4 @@ const withKey = tourSteps({}, lesson, false), without = tourSteps({}, lesson, tr
 ck("115 the tour keeps its connect lines for everyone else", /Connect Claude account/.test(body(withKey, "upload")) && tourSteps({}, lesson).filter((s) => typeof s.body === "string").every((s, i) => s.body === withKey.filter((x) => typeof x.body === "string")[i].body));
 ck("115 the tour leaves them out when your Claude account pays", !/Connect Claude account/.test(body(without, "upload")) && !/Connect Claude account/.test(body(without, tourSteps({}, lesson, true).find((s) => /Ask the \*\*Tutor/.test(s.body || "")).id)));
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

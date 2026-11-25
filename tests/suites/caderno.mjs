@@ -268,6 +268,4 @@ const V1 = caderno(
 }
 
 claude.close();
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

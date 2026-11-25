@@ -16,7 +16,7 @@
 // the check counts the actual PATCHes to user_cards rather than watching the
 // counter, which only shows where you are, not what was written.
 
-import { openApp, finish, checker, servedDeck, settled, sessionCounter, cardBox, firstBlockItems } from "../harness.mjs";
+import { openApp, finish, checker, servedDeck, settled, sessionCounter, cardBox, firstBlockItems, tapCard as tapCardOf } from "../harness.mjs";
 
 const ck = checker();
 const deck = await servedDeck();
@@ -61,13 +61,7 @@ async function pressInto(headingRe) {
 }
 const gotItButton = () => page.$('button:has-text("Got It")');
 const cardOnScreen = async () => !(await page.$("[data-checkpoint]")) && (await cardBox(page)) !== null;
-const tapCard = () =>
-  page.evaluate(() => {
-    const el = [...document.querySelectorAll("div")].find(
-      (d) => getComputedStyle(d).transformStyle === "preserve-3d"
-    );
-    if (el) el.click();
-  });
+const tapCard = () => tapCardOf(page);
 
 // Flip through the queue until there is nothing left to grade. Guarded well
 // above the deck size: if the session never ends, that IS the bug, and the
@@ -234,7 +228,6 @@ console.log("\n  FSRS gets one answer per card per day");
         await r.continue();
       }),
   });
-  const has = (re) => page.evaluate(([s, f]) => new RegExp(s, f).test(document.body.innerText), [re.source, re.flags]);
   // One answer: the first press turns the card, the second grades it.
   const press = async (key) => {
     for (let i = 0; i < 2; i++) { await page.keyboard.press(key); await page.waitForTimeout(150); }

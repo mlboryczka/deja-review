@@ -15,11 +15,13 @@ const studyDay = (t = Date.now()) => {
 async function open({ table = true, row = null } = {}) {
   const saves = [];
   const fits = [];
+  const attempts = [];
   let current = row;
   const { browser, page } = await openApp({
     route: async (p) => {
       await p.route("**/rest/v1/fsrs_settings*", async (r) => {
         const method = r.request().method();
+        if (method !== "GET") attempts.push({ method, body: r.request().postData() });
         if (!table) {
           return r.fulfill({ status: 404, contentType: "application/json", headers: CORS, body: JSON.stringify({ code: "PGRST205", message: "Could not find the table 'public.fsrs_settings' in the schema cache" }) });
         }
@@ -48,7 +50,7 @@ async function open({ table = true, row = null } = {}) {
     await page.waitForSelector("[data-fsrs-settings]", { timeout: 5000 });
   };
   const checked = () => page.evaluate(() => document.querySelector('[data-fsrs-settings] [aria-checked="true"]')?.dataset.choice || null);
-  return { browser, page, saves, fits, openDialog, checked };
+  return { browser, page, saves, fits, attempts, openDialog, checked };
 }
 
 console.log("\n  once a study day: the day is recorded and the server is asked");
@@ -87,7 +89,7 @@ console.log("\n  once a study day: the day is recorded and the server is asked")
 console.log("\n  before migration_012");
 {
   const t = await open({ table: false });
-  ck("nothing is written and the server isn't asked", t.saves.length === 0 && t.fits.length === 0, `${t.saves.length} saves, ${t.fits.length} fits`);
+  ck("nothing is written and the server isn't asked", t.attempts.length === 0 && t.saves.length === 0 && t.fits.length === 0, `${t.attempts.length} save attempts, ${t.fits.length} fits`);
   await t.openDialog();
   ck("the dialog says the standard settings are in use", /standard settings/.test(await t.page.locator("[data-fsrs-settings]").innerText()));
   await t.browser.close();

@@ -220,7 +220,7 @@ console.log("\n  and the student can study it and read the notes");
     const card = [...document.querySelectorAll("div")].find(
       (d) => getComputedStyle(d).transformStyle === "preserve-3d"
     );
-    const m = document.body.innerText.match(/(?:CARD|RETRY) (\d+) OF (\d+)/i);
+    const m = document.body.innerText.match(/CARD (\d+) OF (\d+)/i);
     return {
       hasCard: !!card,
       front: card ? (card.children[0]?.innerText || "").trim() : "",

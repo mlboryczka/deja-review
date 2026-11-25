@@ -113,6 +113,4 @@ await settled(page);
   ck("full width again", p.width === 256 && p.labels.includes("Cards"), `${p.width}px`);
 }
 
-// Leave the preference as it was found, for the suites that follow.
-await page.evaluate(() => { try { localStorage.removeItem("sidebar:minimized"); } catch {} });
 await finish(browser, ck);

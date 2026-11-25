@@ -104,17 +104,23 @@ export async function servedDeck() {
 // calling the app's own code:
 //   • words and phrases are asked both ways, grammar and pronunciation as
 //     written; the setting ("fr" | "en" | "mix") picks the ways for words
-//   • a way round is dealt if it is due by tonight or has never been answered
+//   • a way round is dealt if it is due before 4am (the study day ends then,
+//     as in the app) or has never been answered; a card put away (its source
+//     starts with "archived:") is never dealt
 //   • a word is asked one way a day (2026-10-14): of two ways open, a due one
 //     before a new one, the one missed last time, else the more overdue
 // Only for fixtures smaller than a block, with nothing answered today.
 // Returns [{ row, dir }].
 const TWO_WAY_DB = new Set(["V", "E"]);
 export function firstBlockItems(rows, direction = "mix") {
+  // The next 4am, less a millisecond: the end of the student's study day.
   const tonight = new Date();
-  tonight.setHours(23, 59, 59, 999);
+  if (tonight.getHours() >= 4) tonight.setDate(tonight.getDate() + 1);
+  tonight.setHours(4, 0, 0, 0);
+  tonight.setTime(tonight.getTime() - 1);
   const out = [];
   for (const row of rows) {
+    if (String(row.source || "").startsWith("archived:")) continue;
     const twoWay = TWO_WAY_DB.has(row.category ?? "V");
     const dirs = !twoWay ? ["fr"] : direction === "mix" ? ["fr", "en"] : [direction];
     const col = (d, f) => row[d === "en" ? `en_${f}` : f];
@@ -145,9 +151,7 @@ export async function finish(browser, ck) {
   // Suites that open a browser per case have already closed theirs and pass
   // null; the tally below is the part they still want.
   if (browser) await browser.close();
-  const n = ck.fails();
-  console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-  process.exit(n ? 1 : 0);
+  ck.done();
 }
 
 // Switch to the Stats view. Clicking the text node alone doesn't navigate —
@@ -222,19 +226,38 @@ export function cardBox(page) {
       front: (() => {
         const face = el.children[0];
         if (!face) return "";
-        const line = face.querySelector("[data-card-instruction]")?.innerText || "";
-        const text = face.innerText;
-        return (line ? text.replace(line, "") : text).trim().split("\n")[0] || "";
+        // Not the lesson's name above a lesson card (.card-badge), nor the instruction line.
+        let text = face.innerText;
+        for (const skip of [".card-badge", "[data-card-instruction]"]) {
+          const t = face.querySelector(skip)?.innerText;
+          if (t) text = text.replace(t, "");
+        }
+        return text.trim().split("\n")[0] || "";
       })(),
       back: el.children[1]?.innerText.split("\n")[0] || "",
     };
   });
 }
 
-// "CARD 4 OF 75" / "RETRY 2 OF 12" — the counter reads both ways.
+// Turn the card over by tapping it.
+export function tapCard(page) {
+  return page.evaluate(() => {
+    [...document.querySelectorAll("div")].find((d) => getComputedStyle(d).transformStyle === "preserve-3d")?.click();
+  });
+}
+
+// Flip mode: the answer buttons are offered once the card is turned. Turn it
+// if they aren't there yet, then press the one labelled `label`.
+export async function answerCard(page, label) {
+  if (!(await page.$(`button:has-text("${label}")`))) { await tapCard(page); await page.waitForTimeout(150); }
+  await page.click(`button:has-text("${label}")`);
+  await page.waitForTimeout(250);
+}
+
+// "CARD 4 OF 75". A retry shows as " · retry" after the same counter.
 export function sessionCounter(page) {
   return page.evaluate(() => {
-    const m = document.body.innerText.match(/(?:CARD|RETRY) (\d+) OF (\d+)/i);
+    const m = document.body.innerText.match(/CARD (\d+) OF (\d+)/i);
     return m ? { index: +m[1], total: +m[2] } : null;
   });
 }

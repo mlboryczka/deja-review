@@ -7,7 +7,7 @@
 // go through the lesson again; that set is every card of it, as practice,
 // which writes no card's schedule. A finished set of the lesson is never
 // waiting when the student comes back: from Stats, from Cards, or a reload.
-import { openApp, finish, checker, sessionCounter } from "../harness.mjs";
+import { openApp, finish, checker, sessionCounter, answerCard } from "../harness.mjs";
 import LESSON from "../../src/data/lessons/lecon1.js";
 import { lessonCardKey } from "../../src/lib/lessonSource.js";
 
@@ -57,15 +57,8 @@ const { browser, page } = await openApp({
 });
 
 const counterLine = () => page.evaluate(() => (document.body.innerText.match(/Card \d+ of \d+[^\n]*/i) || [""])[0].trim());
-const tapCard = () => page.evaluate(() => {
-  [...document.querySelectorAll("div")].find((d) => getComputedStyle(d).transformStyle === "preserve-3d")?.click();
-});
 // Flip mode: Got It and Again are offered once the card is turned.
-async function answer(label) {
-  if (!(await page.$(`button:has-text("${label}")`))) { await tapCard(); await page.waitForTimeout(150); }
-  await page.click(`button:has-text("${label}")`);
-  await page.waitForTimeout(250);
-}
+const answer = (label) => answerCard(page, label);
 const checkpoint = () => page.$("[data-checkpoint]");
 async function answerAll() {
   for (let i = 0; i < 30 && !(await checkpoint()); i++) await answer("Got It");

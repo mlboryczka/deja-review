@@ -619,6 +619,4 @@ console.log("\n  going through a lesson again");
   ck("no answers given: the fetch as it is", withLocalAnswers(untouched, new Map()) === untouched);
 }
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

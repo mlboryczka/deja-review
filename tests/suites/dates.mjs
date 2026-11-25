@@ -129,6 +129,4 @@ console.log("\n  FSRS counts the days between answers the way the student lives 
      localISODate(new Date(afterMidnight.next_due_at)) === "2026-10-02", afterMidnight.next_due_at);
 }
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

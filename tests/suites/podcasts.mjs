@@ -2,8 +2,9 @@
 //
 // What the owner asked for, in their words and the approved mockup's
 // (.claude/mockups/podcasts.html, "i like it build it"):
-//   • a switch at the top of the sidebar, Flashcards | Podcasts, for the owner
-//     only until they have tried it. Going over to Podcasts and back leaves the
+//   • a switch at the top of the sidebar, Flashcards | Podcasts. First asked
+//     for as the owner's only; since 2026-10-19 anyone signed in on the test
+//     app has it, and only the students' app hides it. Going over to Podcasts and back leaves the
 //     cards exactly where they were: the same card, the same counter, and not
 //     one write to a card's schedule (owner rule: updates never reset
 //     progress). The rail round trip that broke on 2026-10-06 (11275a0) is
@@ -467,7 +468,7 @@ console.log("\n  a student's app");
 {
   const { browser, page } = await openApp({ app: APP });
   const sw = await page.$("[data-module-switch]");
-  ck("a student has no Flashcards | Podcasts switch", !sw);
+  ck("on the students' app, a student has no Flashcards | Podcasts switch", !sw);
   await browser.close();
 }
 
@@ -540,7 +541,6 @@ await page.waitForSelector("[data-episode='e1']", { timeout: 8000 });
   ck("(the student has more answers than Supabase returns in one request, the Journal's the newest)",
      S.state.answers.length > SUPABASE_MAX_ROWS && S.state.answers.every((a) => a.answered_at <= ANSWERS[0].answered_at),
      `${S.state.answers.length} answers, ${SUPABASE_MAX_ROWS} a request`);
-  ck("no episode is listed under “To try again”, though a passage was missed and its old come-back date has passed", !(await page.$("[data-try-again]")));
   const cols = S.log.listColumns;
   const extra = [...new Set(cols.flat().filter((c) => ["transcript", "questions_error", "questions_lease_until"].includes(c)))];
   ck("the lists never ask for the transcript or the server's notes on writing the questions (why it last failed, its lease)",

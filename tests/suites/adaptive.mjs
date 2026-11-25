@@ -353,6 +353,4 @@ console.log("\n  the server: waiting, fitting, keeping, and never moving a due d
 }
 
 applySettings({});
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

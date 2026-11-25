@@ -651,6 +651,4 @@ console.log("\n  code check 84: only the clean-up's put-aways are right answers"
 }
 
 server.close();
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

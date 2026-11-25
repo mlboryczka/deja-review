@@ -115,6 +115,4 @@ ck("37 the stored language is read once per sign-in", /signInCourse\.current\.us
 // 38: quick switches are not undone by an earlier echo.
 ck("38 an echo is ignored while saves are in flight", /choiceSavesRef\.current > 0\) return;/.test(app) && /choiceSavesRef\.current -= 1/.test(app));
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

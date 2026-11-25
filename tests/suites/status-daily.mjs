@@ -53,7 +53,9 @@ const server = http.createServer((req, res) => {
     if (m?.[1] === "status_reports") {
       if (!state.migrated) return send(404, { code: "PGRST205", message: "Could not find the table 'public.status_reports' in the schema cache" });
       if (req.method === "POST") { state.kept.push(...[].concat(JSON.parse(body))); res.writeHead(201); return res.end(); }
-      return send(200, [...state.kept].sort((a, b) => (a.checked_at < b.checked_at ? 1 : -1)));
+      // Newest first only when the request asks for it, as the database would.
+      const ordered = url.searchParams.get("order") === "checked_at.desc";
+      return send(200, ordered ? [...state.kept].sort((a, b) => (a.checked_at < b.checked_at ? 1 : -1)) : [...state.kept]);
     }
     if (req.method !== "GET") return send(405, { message: "only status_reports is written" });
     const tables = {
@@ -113,7 +115,8 @@ const row = state.kept.find((r) => r.user_email === "faulty@example.com");
 ck("each with whether it passed, how many checks failed, how many answers were judged and the report",
    row && row.ok === false && row.failing >= 1 && row.answers > 0 && Array.isArray(row.report?.results) && row.user_id === OTHER,
    JSON.stringify({ ok: row?.ok, failing: row?.failing, answers: row?.answers }));
-state.kept.push({ ...row, ok: true, failing: 0, checked_at: new Date(Date.parse(row.checked_at) - DAY).toISOString() });
+// Added before the newer row, so a query that loses its newest-first order reads this one first.
+state.kept.unshift({ ...row, ok: true, failing: 0, checked_at: new Date(Date.parse(row.checked_at) - DAY).toISOString() });
 const latest = await latestReports(db);
 ck("the window reads the latest for each student, not an older one", latest.reports.length === 2 &&
    latest.reports.find((r) => r.user_email === "faulty@example.com").ok === false);
@@ -130,6 +133,4 @@ ck("and the window is told it's waiting", none.missing === true && none.reports.
 ck("the daily run's schedule is the one in vercel.json", (await import("node:fs")).readFileSync(new URL("../../vercel.json", import.meta.url), "utf8").includes(`"schedule": "${STATUS_SCHEDULE}"`));
 
 server.close();
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

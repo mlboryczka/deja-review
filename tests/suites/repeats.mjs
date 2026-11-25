@@ -1669,6 +1669,4 @@ console.log("\n  before migration_016: everything keeps working, by class date")
 }
 
 server.close();
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

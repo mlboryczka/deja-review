@@ -4,9 +4,9 @@
 // on screen, every answer and the retries lined up; only the cards not yet
 // reached are added or taken away.
 //
-// The stand-in deck has 27 cards, too few for a set of 30, so this one routes
+// The stand-in deck is too small for a set of 30, so this one routes
 // in a deck of its own: 30 due cards and 130 new ones.
-import { openApp, finish, checker, sessionCounter, cardBox, setting } from "../harness.mjs";
+import { openApp, finish, checker, sessionCounter, cardBox, setting, answerCard } from "../harness.mjs";
 
 const ck = checker();
 const CORS = { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-expose-headers": "*" };
@@ -38,15 +38,8 @@ const { browser, page } = await openApp({
 const counter = () => sessionCounter(page);
 const retries = () => page.evaluate(() => Number((document.body.innerText.match(/(\d+) (?:retry|retries) to come/i) || [])[1] || 0));
 const front = async () => (await cardBox(page))?.front;
-const tapCard = () => page.evaluate(() => {
-  [...document.querySelectorAll("div")].find((d) => getComputedStyle(d).transformStyle === "preserve-3d")?.click();
-});
 // Flip mode: Got It and Again are offered once the card is turned.
-async function answer(label) {
-  if (!(await page.$(`button:has-text("${label}")`))) { await tapCard(); await page.waitForTimeout(150); }
-  await page.click(`button:has-text("${label}")`);
-  await page.waitForTimeout(250);
-}
+const answer = (label) => answerCard(page, label);
 const choose = async (n) => { await setting(page, `[data-set-size="${n}"]`); await page.waitForTimeout(400); };
 const is = (c, index, total) => c?.index === index && c?.total === total;
 

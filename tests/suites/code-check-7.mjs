@@ -96,6 +96,4 @@ ck("112 an unkept acceptance is not added to what marks answers",
 ck("113 both prompts carry the same comma rule", REVIEW_SYSTEM.includes(PUNCTUATION_RULE) && MARK_SYSTEM.includes(PUNCTUATION_RULE) && /No, tengo tiempo/.test(REVIEW_SYSTEM));
 ck("113 no double quotes in the marking prompts", !/"/.test(REVIEW_SYSTEM) && !/"/.test(MARK_SYSTEM));
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

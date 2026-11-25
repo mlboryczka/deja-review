@@ -2,11 +2,12 @@
 //
 // Everything here is read back from the lesson data rather than typed in, so
 // adding a second lesson or renaming a section can't silently go stale. The
-// deck served to the app IS the lesson's own cards, which also means the
-// once-per-mount sync finds nothing missing and writes nothing — the mock
-// serves GET and PATCH only.
+// deck served to the app IS the lesson's own cards. The once-per-mount sync
+// still sends its writes; this suite's stand-in serves reads only and
+// does not look at them. lesson-sync.mjs is where the sync's writes
+// are checked.
 
-import { openApp, finish, checker, servedDeck, sessionCounter } from "../harness.mjs";
+import { openApp, finish, checker, sessionCounter } from "../harness.mjs";
 import LESSON from "../../src/data/lessons/imperatif.js";
 
 const ck = checker();
@@ -291,10 +292,5 @@ ck("at the checkpoint it moves by the grammar just learned, not the phrases met 
    Math.abs(n - grammarInBlock) <= 1, `${shown}; ${grammarInBlock} grammar cards in the block`);
 ck("and the checkpoint names the lesson as what moved", await page.evaluate((t) =>
   document.querySelector("[data-checkpoint]").innerText.includes(t), LESSON.title));
-
-// The fixture is the lesson, so the sync had nothing to do. Confirm it did not
-// quietly rewrite the deck behind us.
-const after = await servedDeck();
-ck("the mock deck is still intact", Array.isArray(after), `${after.length} rows`);
 
 await finish(browser, ck);

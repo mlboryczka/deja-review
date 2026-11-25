@@ -597,6 +597,4 @@ console.log("\n  the key — ñ, dashes, pm, true-or-false corrections, blank wi
   ck("every blank of an exercise has one width", /gapWidth\(exercise\.items\)/.test(page) && /width: gapW\b/.test(page));
 }
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

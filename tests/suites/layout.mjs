@@ -138,10 +138,11 @@ await page.waitForSelector('input[placeholder^="Type"]');
   await page.waitForTimeout(800);
   const after = await cardBox(page);
   ck("type mode: the card does not move when graded", after.top === before.top, `${before.top} → ${after.top}`);
-  const controlsMoved = await page.evaluate(() =>
-    !!document.querySelector("button")
+  // The answer was marked: the typed text is shown back and Continue is offered.
+  const graded = await page.evaluate(() =>
+    /You wrote: zzzqqq/.test(document.body.innerText) || [...document.querySelectorAll("button")].some((b) => /Continue/.test(b.innerText))
   );
-  ck("but the controls below it did change", controlsMoved);
+  ck("but the controls below it did change: the answer was marked", graded);
   const cont = await page.$('button:has-text("Continue")');
   if (cont) await cont.click();
   await page.waitForTimeout(700);

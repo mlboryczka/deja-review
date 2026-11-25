@@ -35,6 +35,4 @@ ck("111 the answer review and the class upload use those sentences", /claudeErro
 const ua = read("src/useAnswerDispute.js");
 ck("112 the page keeps with each accepted answer whether it was kept, and the line is read from it", /how === "missing"/.test(ua) && /how === "unkept"/.test(ua) && /answer\?\.accepted/.test(ua) && /accepted: how/.test(read("src/ExercisesPage.jsx")) && /accepted: how/.test(read("src/DialoguesPage.jsx")));
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

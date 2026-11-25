@@ -21,7 +21,8 @@
 //   faults.update = { table, times, error }     fail updates to a table
 //
 // The Spanish tables are the French ones' copies and are checked by the same
-// rules: es_user_cards (migration_020) always, and with `caderno` (the
+// rules (but its save refuses any card taken out of study, as migration_024's
+// does): es_user_cards (migration_020) always, and with `caderno` (the
 // default) migration_023's es_cahier_links, es_notes_read and its two
 // functions, written out here from that migration, which copies
 // migration_016's word for word on the Spanish tables and keeps no verdicts.
@@ -218,6 +219,10 @@ export function fakeSupabase({ tables = {}, migrated = true, caderno = true, fau
       return { data: { claimed: true, classes: clone(row.classes || {}) } };
     },
     save({ p_user_id, p_run_id, p_inserts = [], p_dates = [], p_archive = [], p_restore = [], p_pairs = [], p_classes = null, p_finish = true }) {
+      // migration_024: the Spanish caderno never takes cards out of study.
+      if (!pairs && ((p_archive || []).length > 0 || (p_restore || []).length > 0)) {
+        return { error: err("P0001", "The caderno never takes cards out of study.") };
+      }
       const rec = db[read].find((r) => r.user_id === p_user_id && r.run_id === p_run_id);
       if (!rec) return { error: err("NR409", "This reading of the notes lost its turn: another one started after it ran out of time.") };
       const out = { inserted: 0, joined: 0, dated: 0, archived: 0, restored: 0, ...(pairs ? { pairs: 0 } : null), refused: [] };

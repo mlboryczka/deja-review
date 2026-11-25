@@ -98,6 +98,4 @@ ck("63 one test decides: every such exercise sends the text to Claude's marking"
 ck("63 the page no longer has its own test or layout", !/lessonTextLines/.test(read("src/ExercisesPage.jsx")) && /aboutTheText\(ex\)/.test(read("src/ExercisesPage.jsx")));
 ck("63 layout is one: titles with #, questions with a dash", lessonTextOf([{ title: "T" }, { who: "A", text: "hola" }, { question: "q" }]) === "# T\nA: hola\n– q");
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

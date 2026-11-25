@@ -143,6 +143,4 @@ console.log("\n  what a block changed, per area");
   ck("the whole deck is summed too", after.all.total === 14 && after.all.seen === 9, JSON.stringify(after.all));
 }
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

@@ -109,7 +109,7 @@ ck("each text still has the sentences its answers are kept under",
   ck("an ellipsis before a small letter doesn't end one: \"¡y a mí tampoco!\"",
      DIALOGUE_OF.leccion20.items.some((it) => it.answer === "A mi amigo no le gusta mucho el chile… ¡y a mí tampoco!"));
   ck("an ellipsis before a capital does: \"Ay, qué mal…\", then \"Pero a ver\"",
-     d.items.some((it) => it.answer === "Ay, qué mal…" && it.prompt === "Oh, that's too bad…") ||
+     d.items.some((it) => it.answer === "Ay, qué mal…" && it.prompt === "Oh, that's too bad…") &&
      d.items.some((it) => it.answer.startsWith("Pero a ver")));
   ck("the scene is there to translate too, with nobody saying it",
      d.lines[0].kind === "scene" && d.items[0].prompt === "Paola has trouble sleeping." && d.items[0].answer === "Paola tiene problemas para dormir." && !d.items[0].who);
@@ -332,6 +332,4 @@ console.log("The tutor");
   ck("the longest text fits what the tutor is sent", longest <= 60 && longestLine <= 800, `${longest} sentences, ${longestLine} characters`);
 }
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

@@ -26,6 +26,4 @@ ck("240 plannedWrites returns inserts and updates only", w.inserts.length === 1 
 ck("245 parse-cahier uses cardText's rule", cleanFrenchFront === cleanFrenchPrompt);
 ck("245 the gloss is taken off", cleanFrenchFront("je suis allé (I went)", "I went") === "je suis allé");
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

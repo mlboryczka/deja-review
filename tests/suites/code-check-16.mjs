@@ -23,6 +23,4 @@ ck("185 the database's and the fit's way of writing one moment give the same key
 ck("185 a different moment, or a starting-settings key, is left alone",
   settingsKey("fit:2026-11-10T12:00:01.000Z") !== settingsKey("fit:2026-11-10T12:00:00.123Z") && settingsKey("start:v1") === "start:v1" && settingsKey(null) === null);
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

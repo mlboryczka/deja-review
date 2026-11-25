@@ -7,5 +7,11 @@ export function checker() {
     if (!ok) state.fails++;
   };
   ck.fails = () => state.fails;
+  // The closing tally every suite ends with: say how it went and exit.
+  ck.done = () => {
+    const n = state.fails;
+    console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
+    process.exit(n ? 1 : 0);
+  };
   return ck;
 }

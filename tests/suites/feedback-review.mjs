@@ -471,6 +471,4 @@ console.log("\n  Spanish feedback");
 }
 
 anthropic.close();
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

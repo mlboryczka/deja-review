@@ -659,6 +659,4 @@ console.log("\n  Nothing left the machine");
 ck("no request reached the network, and none went to a site the stand-ins don't answer for",
    leaks.length === 0 && strays.length === 0, [...leaks, ...strays].join(", ") || "none");
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

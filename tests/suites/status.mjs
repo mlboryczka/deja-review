@@ -937,6 +937,4 @@ console.log("\n  code check 81, 82, 87, 91");
      latestZoneOf([{ answered_at: "2026-11-02T10:00:00Z", time_zone: "Europe/Paris" }, { answered_at: "2026-11-01T10:00:00Z", time_zone: "America/Los_Angeles" }, { answered_at: "2026-11-03T10:00:00Z", time_zone: null }]) === "Europe/Paris");
 }
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

@@ -160,6 +160,4 @@ console.log("\n  reconcileLessons never writes over the student's own card");
   ck("with no such card in the deck, it is inserted", again.missing.length === 2 && again.taken.length === 0);
 }
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

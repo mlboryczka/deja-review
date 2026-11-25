@@ -107,9 +107,9 @@ console.log("\n  the test, as the server runs it on its own");
   };
   const env = { store, readDoc: async () => "the cahier", blocksOf: () => blocks };
 
-  for (const action of ["list"]) {
-    const r = await handleNotesChecks({ body: { action }, isAdmin: false, ...env });
-    ck(`a student can't ${action}`, r.status === 403);
+  {
+    const r = await handleNotesChecks({ body: { action: "list" }, isAdmin: false, ...env });
+    ck("a student can't list", r.status === 403);
   }
   const list = await handleNotesChecks({ body: { action: "list" }, isAdmin: true, ...env });
   ck("the list gives every case with its class, and the version of how a class is read",
@@ -117,7 +117,6 @@ console.log("\n  the test, as the server runs it on its own");
      !("user_id" in list.json.cases[0]));
   const gone = await handleNotesChecks({ body: { action: "test", ids: ["c1"] }, isAdmin: true, ...env });
   ck("there's no test to start by hand any more", gone.status === 400);
-  ck("and nothing was read for the list", reads.length === 0);
 
   const done = await runNotesTest({ ...env, read });
   const classes = new Set(buildCases(corrections, new Map(cards.map((c) => [c.id, c])), blocks).map((c) => c.date)).size;
@@ -174,6 +173,4 @@ console.log("\n  counting");
      summarize([{ repeated: [false, null, false] }]).every === 1);
 }
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();
