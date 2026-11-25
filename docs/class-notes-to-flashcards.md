@@ -185,10 +185,45 @@ spots a bad card can flag it from the card itself. Claude reviews the report and
 suggests a corrected card, which the owner can apply with one click
 ([details](claude-jobs-models-and-costs.md#reviewing-feedback)).
 
+## Spanish class notes
+
+The Spanish module has its own notebook, the *caderno*: Laura's Google Doc of
+the owner's Spanish classes. Linking it works as for French, and the same sync
+reads it into the Spanish deck's own tables (`migration_023`) whenever Spanish
+is opened, at most once an hour. The daily job reads it too, once that job's
+newest version reaches the students' app, since Vercel runs scheduled jobs
+only there. Uploading notes isn't offered in Spanish.
+
+What differs is how a class's date is written and what becomes a card:
+
+- Each class starts under a date line with no year, such as "27 de octubre".
+  The doc is newest first, so a class takes the year of the class above it,
+  unless that would put it more than 60 days after that class. A class held
+  over two days, "27 y 28 de octubre", is dated its first day, as in French.
+- The homework at the end of each class, under "Para la próxima vez", is left
+  out.
+- Only words and phrases become cards (owner, 2026-10-25), because the
+  grammar is practised in Exercises. A conjugation table, a rule, a
+  pronunciation note, a card whose only point is the masculine or feminine
+  form, and a yes-or-no question make no card. A full example sentence under
+  a grammar heading still does.
+- Laura's slips are corrected on the card: a French word slipped in ("30 =
+  trente" becomes "treinta"), a dropped accent ("me bañe" becomes "Me
+  bañé"), the wrong gender ("la viaje" becomes "el viaje"), and a struck-out
+  word that the doc's text still shows ("Fui a el al restaurante" becomes
+  "Fui al restaurante").
+- Each answer on the English side is one whole answer the student could
+  type: "I told him that / I told her that", never "I told him / her that".
+
+Sonnet 5.5 reads the caderno instead of Haiku 4.5, because nobody looks over
+the cards it adds
+([details](claude-jobs-models-and-costs.md#reading-spanish-class-notes)).
+
 ## In the code
 
 - `api/parse-cahier.js`: what becomes a card, shared by every path
 - `api/cahier-sync.js` and `api/cahier-daily.js`: the linked notebook
+- `api/_lib/caderno.js`: the Spanish caderno's dates and what becomes a card
 - `src/lib/notesLines.js` and `api/_lib/notesReading.js`: which lines have
   been read, one reading at a time, and saving in one step
 - `src/lib/sameCard.js` and `src/lib/cardMatch.js`: recognising a word

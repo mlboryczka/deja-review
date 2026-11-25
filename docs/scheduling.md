@@ -223,6 +223,21 @@ or "+12 remembered in 7 days", and figures shown side by side add up.
 
 ![The Stats page, from today's cards down to progress by lesson](screenshots/stats-full.png)
 
+## Spanish
+
+Spanish flashcards, on the test app, are scheduled exactly as above, from a
+deck and a record of answers of their own. The daily fit of each student's
+own settings runs from the French side only, and Spanish uses the settings it
+gives. Only French cards are counted in the subtitles (`user_cards`), so no
+Spanish card has a "said" number.
+
+Exercises and Dialogues, Spanish's two other ways of practising a lesson,
+have no schedule. An answered exercise item stays answered unless the student
+starts the exercise again, and the app never asks for a dialogue again (the
+owner, 2026-11-07: "the app shouldn't ask me to do a dialogue again"). On
+Stats, a Spanish lesson also shows how much of its exercises and its dialogue
+was answered right, and a day of only those answers counts as a study day.
+
 ## Before FSRS
 
 The app started with a fixed ladder of boxes (the Leitner system). It had three

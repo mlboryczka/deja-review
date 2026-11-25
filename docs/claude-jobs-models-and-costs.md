@@ -7,15 +7,15 @@ look-alike cards):
 
 | Job | Model | Paid for by |
 |---|---|---|
-| Reading class notes into cards | Haiku 4.5 | the owner for the linked notebook; the student for an upload |
+| Reading French class notes into cards | Haiku 4.5 | the owner for the linked notebook; the student for an upload |
 | Settling whether a new card is one the student has | Opus 5.5 | the same as the reading; the owner for a word added in Podcasts |
 | Judging a disputed mark | Opus 5 | the student |
 | Reviewing feedback | Opus 5.5 | the owner |
-| The tutor | Sonnet 5 | the student |
+| The tutor, in French and Spanish | Sonnet 5 | the student |
 | Writing an episode's listening questions, in Podcasts (the owner anywhere, and anyone signed in on the test app) | Opus 5.5 | the caller's own key; the server's key for the owner and the named test-app accounts |
 | Marking an answer to a podcast passage (the same people) | Opus 5.5 | the same |
 | Reading the Spanish caderno into cards | Sonnet 5.5 | the owner |
-| Marking an answer in the Spanish Exercises and Dialogues (the same people as Podcasts) | Opus 5.5 | the caller's own key; the server's key for the owner and the named test-app accounts |
+| Marking an answer in the Spanish Exercises and Dialogues, and judging a disputed one (the same people as Podcasts) | Opus 5.5 | the caller's own key; the server's key for the owner and the named test-app accounts |
 | Testing its own marking, note reading and look-alike judging | the same as the app | the owner |
 
 The look-alike question is also put every morning by the daily run, for the
@@ -100,6 +100,12 @@ On Podcasts the tutor is told the episode and the passage on screen instead
 of a card. Until the passage has been answered, it won't translate or
 summarise it, since that is the exercise.
 
+In Spanish the tutor has its own instructions: Latin American Spanish, with
+the words used across Latin America rather than one country's ("la
+habitación", not "la recámara"), ustedes and never vosotros, and a deck of
+words and phrases only, so it suggests no grammar drills. On Exercises it is
+told the exercise on screen in place of a card.
+
 ## Listening questions in Podcasts
 
 Podcasts is a part of the app for listening practice with RFI's podcasts for
@@ -131,6 +137,37 @@ another try. Opus 5.5, at low effort, because the student is waiting.
 Adding a word from a passage to the student's cards uses the same-card
 question above when the word looks like a card the student already has.
 
+## Marking Spanish exercises and dialogues
+
+Exercises and Dialogues are the Spanish module's typing practice: Exercises
+asks every item of each lesson's exercise sheets, and Dialogues has the
+student type each lesson's text back into Spanish from its English. The owner
+has them everywhere, and anyone signed in on the test app has them there.
+The answer key marks first, at no cost: right, almost (the key's own words
+with only small slips), or a true-or-false pressed the wrong way. Claude marks
+anything the key doesn't have, as right, almost or wrong, with a one-sentence
+reason and the answer corrected, so a right answer the key doesn't list is
+still right. Opus 5.5, at low effort, because the student is waiting.
+
+A student who disagrees can press "My answer should be accepted", and Claude
+looks at the answer again. "Accept anyway" accepts it without asking Claude.
+An accepted answer is right from then on.
+
+## Reading Spanish class notes
+
+The caderno is Laura's Google Doc of the owner's Spanish classes. The same
+sync as the French notebook reads it (`api/cahier-sync.js`), whenever Spanish
+is opened, at most once an hour. The daily job reads it too, once that job's
+newest version reaches the students' app, since Vercel runs scheduled jobs
+only there. Its instructions are its own
+(`api/_lib/caderno.js`): words and phrases only, with no conjugation tables,
+grammar rules, sound notes, cards whose only job is masculine or feminine,
+or yes-or-no questions. Sonnet 5.5 reads it, not Haiku 4.5 as for French,
+because nobody looks over the cards it adds. In its first real read, on
+2026-11-07, Haiku kept Laura's slips "la viaje" and "prefiro". More on what
+becomes a card is in
+[Class notes to flashcards](class-notes-to-flashcards.md#spanish-class-notes).
+
 ## Who pays
 
 Students pay for their own requests with their own Anthropic API key, entered
@@ -144,11 +181,11 @@ work no student asks for: reading every linked notebook (the daily job runs
 with no student there to pay), reviewing feedback (the reviews are for the
 owner), and the weekly tests of Claude's work.
 
-On Podcasts and the Spanish Exercises and Dialogues, the caller's own key
-pays, except for the owner and the named test-app accounts (the owner's Claude
-account is shared with Laura on the test app), whose requests use the
-server's key (`api/_lib/anthropicKey.js`). The reading of the Spanish caderno
-runs on the owner's key.
+On the test app, the accounts the owner named in `src/lib/testApp.js` (only
+Laura's, for now) use the server's key for every request, as the owner does
+(`api/_lib/anthropicKey.js`). Everyone else there brings their own key.
+Reading a linked Spanish caderno runs on the owner's key, as the French
+notebook does.
 
 Before students brought their own keys, three routes accepted callers they
 shouldn't have, one of them anyone at all, signed in or not, and all three
@@ -192,6 +229,11 @@ with the reply capped at 16,000 tokens), and marking an answer about a cent,
 and under 5 cents at most (one Opus 5.5 call, with the reply capped at 2,000
 tokens).
 
+No estimate has been worked out for the Spanish jobs. Marking a Spanish
+answer is one Opus 5.5 call at low effort, with the reply capped at 2,000
+tokens, made only for answers the answer key can't mark. Reading a Spanish
+class is one Sonnet 5.5 call, with the reply capped at 4,000 tokens.
+
 ## In the code
 
 - `api/parse-cahier.js`, `api/cahier-parse.js`, `api/cahier-sync.js` and
@@ -203,5 +245,9 @@ tokens).
 - `api/podcasts.js` and `api/_lib/podcastQuestions.js`: writing and marking
   the questions in Podcasts (`api/_lib/podcasts.js` does the work, and
   `api/_lib/podcastSource.js` reads RFI and Spotify)
+- `api/_lib/exercises.js`, reached through `api/review-answer.js`: marking
+  Spanish answers and judging disputed ones
+- `api/_lib/caderno.js`, reached through `api/cahier-sync.js` and
+  `api/cahier-daily.js`: reading the Spanish caderno
 - `api/_lib/auth.js` and `api/_lib/anthropicKey.js`: who may call, and whose
   key pays

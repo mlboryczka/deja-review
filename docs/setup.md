@@ -20,7 +20,7 @@ Anthropic for Claude.
    rows returned." This creates the tables, with row-level security so that
    each user can only see their own data.
 3. Run every file in `migrations/` the same way, in number order, from 002 to
-   the highest number in the folder (028 at the time of writing). Do not stop
+   the highest number in the folder. Do not stop
    at an older number: a copy built from `supabase/schema.sql` needs 025 to
    save notes, and 024 and 025 replace the notes-saving functions that 016 and
    023 install. Migrations 002 and 009 have the same email placeholder to

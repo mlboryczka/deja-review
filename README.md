@@ -30,7 +30,7 @@ and its judging of whether two look-alike cards are the same card against
 repeats the owner put away and pairs that must stay apart. Before any change
 to scheduling, simulated students study for six months with the app's own
 code, including messy ones who reload mid-set or wander off into a lesson. And
-Every test suite in `tests/suites` runs on GitHub on every push.
+every test suite in `tests/suites` runs on GitHub on every push.
 [Evaluation harness](docs/evaluation-harness.md)
 
 ### Cards from class notes
@@ -64,10 +64,26 @@ accepted for that student from then on.
 
 ### Lessons
 
-There are seven built-in lessons, six of them from Laura Caufour's LFL METHOD
-course, each with notes that sit beside the card while the student answers.
-The five beginner lessons come up in daily cards from the start, and each
-student chooses which of the others to add.
+The students' app has seven built-in French lessons: Leçons 1 to 5 of Laura
+Caufour's LFL METHOD beginner course, L'impératif and the adverbs. The test
+app has 34: the whole 20-lesson beginner course, in four stages of five, and
+14 lessons on single subjects, such as L'impératif and the subjunctive. Each
+lesson has notes that sit beside the card while the student answers. Leçons 1
+to 5 come up in daily cards from the start, and each student chooses which of
+the others to add.
+
+### Spanish, on the test app
+
+Spanish is a second language beside French, on the test app only for now. A
+flag in the top-right corner switches between the two, and each keeps its own
+deck and progress. It follows a 23-lesson Latin American Spanish course
+adapted from Laura Caufour's LFL METHOD, with three ways to practise each
+lesson: Flashcards of its words and phrases, Exercises that ask every item of
+its exercise sheets, and Dialogues, where the student types the lesson's text
+back into Spanish from its English. Laura's Google Doc of the classes is read
+into cards by itself, as the French notebook is. On Stats each Spanish lesson
+has three bars, Words, Grammar and Text, and is rated Not started, Learning or
+Learned by its weakest part.
 
 ### Feedback reviewed by Claude
 

@@ -2499,9 +2499,12 @@ Flashcards / Podcasts switch is French only; Spanish has no Podcasts (owner,
 - **Its own deck, in its own tables** (migration_020): `es_user_cards`,
   `es_card_reviews`, `es_dealt_sets`, `es_user_review_dates`,
   `es_card_progress`, `es_card_alternates`, made LIKE the French ones. The
-  students' app, the morning check, the cahier sync, the repeat clean-up and
+  students' app, the server's morning status run, the repeat clean-up and
   the daily FSRS fit read only the French tables, so no Spanish card reaches
-  any of them. `src/lib/course.js` names each course's tables and the key
+  any of them. Two things read the Spanish tables on purpose: the notes sync,
+  which reads the caderno into the Spanish deck (below), and the morning
+  check's test-app run, which checks the Spanish deck (below).
+  `src/lib/course.js` names each course's tables and the key
   its things are kept under in the browser ("es:<user id>").
 - **Inside the app the Spanish side is the "fr" side**: columns, directions
   (`shownDir === "fr"`) and code keep that name; only what the student reads
@@ -2550,9 +2553,11 @@ Flashcards / Podcasts switch is French only; Spanish has no Podcasts (owner,
   `save_notes_reading` had the same fault: the owner's French link saved
   nothing from 2026-10-07 (seven classes, 7 to 19 October, unread) until
   migration_025.
-  The daily check doesn't read caderno links yet (`api/cahier-daily.js`
-  reads `cahier_links`), and Vercel's crons run only on the students' app
-  anyway: the caderno is read when Spanish is opened.
+  Since 2026-11-25 the daily job (`api/cahier-daily.js`, commit 820feff)
+  reads every linked caderno first, before the French cahiers (the owner:
+  "make sure the caderno is updated into the app every day"). Vercel runs
+  scheduled jobs only on the students' app, so the daily read starts at
+  release; until then the caderno is read when Spanish is opened.
 - **The tutor** (owner, 2026-10-26: "tutor needs to be added to spanish
   module"): the same panel, opened from Tutor in the sidebar, "Ask the
   tutor" in the account menu or under a missed card, as in French. Its

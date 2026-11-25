@@ -112,7 +112,10 @@ The checks are one file, used in these places:
   uses the students' version of the checks. The morning check on the owner's
   Mac therefore also runs the test app's version, from the testing branch, on
   the owner's record, since the owner is the only one using the test app. Its
-  problems are named "Test app:" and remembered separately.
+  problems are named "Test app:" and remembered separately. It also runs the
+  same checks on the owner's Spanish deck, with problems named "Test app
+  (Spanish):". Claude isn't asked about Spanish look-alike cards, so for
+  Spanish, "No card is in your deck twice" uses the fixed rule alone.
 
 The checks were tuned on real data so that they don't raise false alarms. When
 they first ran on the owner's own record, three failed, and none of the
@@ -139,6 +142,11 @@ owner's decisions. Nothing records yet what the owner thinks of a verdict or
 a passage, so there are no right answers to test against. Their code is
 tested with a stand-in for Claude: a passage that isn't word for word in the
 transcript is dropped, and "Got it" needs every idea caught.
+
+Claude's marking of the Spanish Exercises and Dialogues, on the test app, isn't
+tested against the owner's decisions either. Its code is tested with a
+stand-in for Claude (`tests/suites/es-exercises.mjs` and
+`tests/suites/es-dialogues.mjs`).
 
 ### Marking disputed answers
 
