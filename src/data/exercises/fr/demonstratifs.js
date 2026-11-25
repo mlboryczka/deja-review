@@ -229,7 +229,7 @@ export default {
           also: ["Je préfère aller dans ce restaurant, il est plus près que celui où on est allés la dernière fois.", "Je préfère aller à ce restaurant, il est plus proche que celui où on est allés la dernière fois.", "Je préfère aller dans ce restaurant, il est plus proche que celui où on est allé la dernière fois.", "Je préfère aller dans ce restaurant, il est plus proche que celui où nous sommes allés la dernière fois.", "Je préfère aller dans ce restaurant, c'est plus près que celui où on est allés la dernière fois."] },
         { prompt: "It's going to be easy.", answer: "Ça va être facile.", also: ["Ce sera facile.", "Ça sera facile."] },
         { prompt: "The one who wears a red coat over there is my cousin.", answer: "Celle qui porte un manteau rouge là-bas, c'est ma cousine.",
-          also: ["Celle qui porte un manteau rouge là-bas est ma cousine."] },
+          also: ["Celle qui porte un manteau rouge là-bas est ma cousine.", "Celui qui porte un manteau rouge là-bas, c'est mon cousin.", "Celui qui porte un manteau rouge là-bas est mon cousin."] }, // check: added celui/mon cousin: the English "the one" and "cousin" don't say man or woman
         { prompt: "Those exercises are harder than the ones we did yesterday.", answer: "Ces exercices sont plus difficiles que ceux qu'on a faits hier.",
           also: ["Ces exercices-là sont plus difficiles que ceux qu'on a faits hier.", "Ces exercices sont plus difficiles que ceux que nous avons faits hier.", "Ces exercices sont plus durs que ceux qu'on a faits hier."] },
         { prompt: "It was interesting.", answer: "C'était intéressant.", also: ["Ça a été intéressant."] },
@@ -246,7 +246,8 @@ export default {
           also: ["Tu vas prendre quel chemin ? Je vais prendre celui qui passe par Carcassonne.", "Quel chemin tu vas prendre ? Moi, je vais prendre celui qui passe par Carcassonne."] },
         { prompt: "I was really exhausted that day.", answer: "J'étais vraiment épuisé ce jour-là.",
           also: ["J'étais vraiment épuisée ce jour-là.", "Ce jour-là, j'étais vraiment épuisé.", "Ce jour-là, j'étais vraiment épuisée.", "J'étais vraiment crevé ce jour-là.", "J'étais vraiment crevée ce jour-là."] },
-        { prompt: "This situation is starting to become really complicated for everyone.", answer: "Cette situation commence vraiment à devenir compliquée pour tout le monde." },
+        { prompt: "This situation is starting to become really complicated for everyone.", answer: "Cette situation commence vraiment à devenir compliquée pour tout le monde.",
+          also: ["Cette situation commence à devenir vraiment compliquée pour tout le monde."] }, // check: added the word order that follows the English ("become really complicated")
         { prompt: "This coffee is way too cold for me.", answer: "Ce café est beaucoup trop froid pour moi.",
           also: ["Ce café est bien trop froid pour moi.", "Ce café est vraiment trop froid pour moi."] },
         { prompt: "Don't touch that, it's fragile and it belongs to my brother.", answer: "Ne touche pas à ça, c'est fragile et ça appartient à mon frère.",

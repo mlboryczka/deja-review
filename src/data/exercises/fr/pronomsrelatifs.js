@@ -173,7 +173,8 @@ export default {
           also: ["Vous pouvez répéter ce que vous avez dit au début ?"] },
         { prompt: "I'm always tired, I don't know what to do.", answer: "Je suis tout le temps fatigué, je ne sais pas quoi faire.",
           also: ["Je suis tout le temps fatiguée, je ne sais pas quoi faire.", "Je suis toujours fatigué, je ne sais pas quoi faire.", "Je suis toujours fatiguée, je ne sais pas quoi faire."] },
-        { prompt: "What makes me angry is that he never listens to me.", answer: "Ce qui m'énerve, c'est qu'il ne m'écoute jamais." },
+        { prompt: "What makes me angry is that he never listens to me.", answer: "Ce qui m'énerve, c'est qu'il ne m'écoute jamais.",
+          also: ["Ce qui me met en colère, c'est qu'il ne m'écoute jamais."] }, // check: added "me met en colère", the plain word for "makes me angry"
         { prompt: "This is what scares me.", answer: "C'est ce qui me fait peur." },
         { prompt: "What I miss the most is cheese!", answer: "Ce qui me manque le plus, c'est le fromage !" },
       ],
@@ -191,7 +192,7 @@ export default {
         { prompt: "We spent a week in the village I was born.", answer: "On a passé une semaine dans le village où je suis né.",
           also: ["On a passé une semaine dans le village où je suis née.", "Nous avons passé une semaine dans le village où je suis né."] },
         { prompt: "The beach we went yesterday was very dirty.", answer: "La plage où on est allés hier était très sale.",
-          also: ["La plage où nous sommes allés hier était très sale."] },
+          also: ["La plage où nous sommes allés hier était très sale.", "La plage où on est allé hier était très sale."] }, // check: added "on est allé": the participle after "on" may stay unagreed
         { prompt: "This is the school I went to.", answer: "C'est l'école où je suis allé.",
           also: ["C'est l'école où je suis allée.", "C'est l'école où j'allais."] },
         { prompt: "It started to rain the moment I arrived.", answer: "Il a commencé à pleuvoir au moment où je suis arrivé.",
@@ -199,7 +200,7 @@ export default {
         { prompt: "I stopped smoking the year I had my daughter.", answer: "J'ai arrêté de fumer l'année où j'ai eu ma fille." },
         { prompt: "I decided to stop the day I met Hugo.", answer: "J'ai décidé d'arrêter le jour où j'ai rencontré Hugo." },
         { prompt: "My parents sold the house we were born in.", answer: "Mes parents ont vendu la maison où on est nés.",
-          also: ["Mes parents ont vendu la maison où nous sommes nés."] },
+          also: ["Mes parents ont vendu la maison où nous sommes nés.", "Mes parents ont vendu la maison où on est né."] }, // check: added "on est né": the participle after "on" may stay unagreed
         { prompt: "Jessica told me that the moment I arrived.", answer: "Jessica m'a dit ça au moment où je suis arrivé.",
           also: ["Jessica m'a dit ça au moment où je suis arrivée."] },
       ],
@@ -223,7 +224,7 @@ export default {
         { prompt: "The kids you took care of look terrible!", answer: "Les enfants dont tu t'es occupé ont une mine affreuse !",
           also: ["Les enfants dont tu t'es occupée ont une mine affreuse !", "Les enfants dont tu t'es occupé ont l'air dans un sale état !", "Les enfants dont vous vous êtes occupé ont une mine affreuse !"] },
         { prompt: "Can you see the car that the guy got out of?", answer: "Tu vois la voiture dont le mec est sorti ?",
-          also: ["Tu vois la voiture dont le type est sorti ?", "Vous voyez la voiture dont le mec est sorti ?"] },
+          also: ["Tu vois la voiture dont le type est sorti ?", "Vous voyez la voiture dont le mec est sorti ?", "Tu vois la voiture d'où le mec est sorti ?"] }, // check: added "d'où": for getting out of a place, modern French says "d'où"; "dont" kept first as the exercise asks for it
         { prompt: "She's the singer everybody talks about at the moment.", answer: "C'est la chanteuse dont tout le monde parle en ce moment." },
         { prompt: "The book you need is on the second floor.", answer: "Le livre dont tu as besoin est au deuxième étage.",
           also: ["Le livre dont tu as besoin est au premier étage.", "Le livre dont vous avez besoin est au deuxième étage."] },
@@ -254,7 +255,7 @@ export default {
         { prompt: "I don't know what he's drinking but it looks good.", answer: "Je ne sais pas ce qu'il boit mais ça a l'air bon." },
         { prompt: "The boat I dream of is very expensive.", answer: "Le bateau dont je rêve est très cher." },
         { prompt: "Can you see the car that the guy got out of?", answer: "Tu vois la voiture dont le mec est sorti ?",
-          also: ["Tu vois la voiture dont le type est sorti ?", "Vous voyez la voiture dont le mec est sorti ?"] },
+          also: ["Tu vois la voiture dont le type est sorti ?", "Vous voyez la voiture dont le mec est sorti ?", "Tu vois la voiture d'où le mec est sorti ?"] }, // check: added "d'où": for getting out of a place, modern French says "d'où"; "dont" kept first as the exercise asks for it
         { prompt: "The singer I told you about just died.", answer: "Le chanteur dont je t'ai parlé vient de mourir.",
           also: ["La chanteuse dont je t'ai parlé vient de mourir.", "Le chanteur dont je vous ai parlé vient de mourir."] },
         { prompt: "I love the shoes you've bought.", answer: "J'adore les chaussures que tu as achetées.",
@@ -277,7 +278,7 @@ export default {
           also: ["Oui, c'est précisément ce qui m'embête.", "Oui, c'est justement ce qui me dérange.", "Oui, c'est précisément ce qui me dérange."] },
         { prompt: "This is the car I need.", answer: "C'est la voiture dont j'ai besoin." },
         { prompt: "My parents sold the house we were born in.", answer: "Mes parents ont vendu la maison où on est nés.",
-          also: ["Mes parents ont vendu la maison où nous sommes nés."] },
+          also: ["Mes parents ont vendu la maison où nous sommes nés.", "Mes parents ont vendu la maison où on est né."] }, // check: added "on est né": the participle after "on" may stay unagreed
         { prompt: "The only person I remember is your brother.", answer: "La seule personne dont je me souviens, c'est ton frère.",
           also: ["La seule personne dont je me souviens est ton frère.", "La seule personne dont je me souviens, c'est votre frère."] },
         { prompt: "The file you need is on the desk.", answer: "Le dossier dont tu as besoin est sur le bureau.",
@@ -319,7 +320,8 @@ export default {
         { prompt: "The exercises I've done are in the notebook.", answer: "Les exercices que j'ai faits sont dans le cahier." },
         { prompt: "I don't understand what you mean.", answer: "Je ne comprends pas ce que tu veux dire.",
           also: ["Je ne comprends pas ce que vous voulez dire."] },
-        { prompt: "What makes me angry is that he never listens to me.", answer: "Ce qui m'énerve, c'est qu'il ne m'écoute jamais." }, // her sheet: "he never listen"
+        { prompt: "What makes me angry is that he never listens to me.", answer: "Ce qui m'énerve, c'est qu'il ne m'écoute jamais.",
+          also: ["Ce qui me met en colère, c'est qu'il ne m'écoute jamais."] }, // her sheet: "he never listen"; check: added "me met en colère", the plain word for "makes me angry"
         { prompt: "Yes this is what I meant.", answer: "Oui, c'est ce que je voulais dire." },
         { prompt: "What I really like is when it's 20 degrees.", answer: "Ce que j'aime vraiment, c'est quand il fait 20 degrés." },
         { prompt: "Yes, this is what I'm saying!", answer: "Oui, c'est bien ce que je dis !",
@@ -338,7 +340,7 @@ export default {
         { prompt: "This is the woman I met last night.", answer: "C'est la femme que j'ai rencontrée hier soir.",
           also: ["C'est la femme que j'ai rencontrée la nuit dernière."] },
         { prompt: "The beach we went yesterday was very dirty.", answer: "La plage où on est allés hier était très sale.",
-          also: ["La plage où nous sommes allés hier était très sale."] },
+          also: ["La plage où nous sommes allés hier était très sale.", "La plage où on est allé hier était très sale."] }, // check: added "on est allé": the participle after "on" may stay unagreed
         { prompt: "She's the singer everybody talks about at the moment.", answer: "C'est la chanteuse dont tout le monde parle en ce moment." },
         { prompt: "I'm going to buy the dress I've tried on.", answer: "Je vais acheter la robe que j'ai essayée." },
         { prompt: "The city I live is very nice.", answer: "La ville où j'habite est très agréable.",

@@ -95,7 +95,7 @@ export default {
         { prompt: "I don't want to hear this song anymore.", answer: "Je ne veux plus entendre cette chanson.",
           also: ["Je ne veux plus écouter cette chanson."] },
         { prompt: "She has never met someone like that.", answer: "Elle n'a jamais rencontré quelqu'un comme ça.",
-          also: ["Elle n'a jamais rencontré personne comme ça.", "Elle n'a jamais rencontré quelqu'un comme lui."] },
+          also: ["Elle n'a jamais rencontré personne comme ça."] }, // check: removed "quelqu'un comme lui": it says "someone like him", not "like that"
         { prompt: "They didn't do anything this weekend.", answer: "Ils n'ont rien fait ce week-end.",
           also: ["Ils n'ont rien fait ce weekend.", "Elles n'ont rien fait ce week-end."] },
       ],
@@ -120,7 +120,7 @@ export default {
         { prompt: "There are no more tickets for the concert.", answer: "Il n'y a plus de billets pour le concert.",
           also: ["Il n'y a plus de places pour le concert.", "Il n'y a plus de tickets pour le concert."] },
         { prompt: "There is still no news from them.", answer: "Il n'y a toujours pas de nouvelles d'eux.",
-          also: ["On n'a toujours pas de nouvelles d'eux.", "Nous n'avons toujours pas de nouvelles d'eux.", "Il n'y a toujours pas de nouvelles d'elles."] },
+          also: ["On n'a toujours pas de nouvelles d'eux.", "Nous n'avons toujours pas de nouvelles d'eux.", "Il n'y a toujours pas de nouvelles d'elles.", "Il n'y a pas encore de nouvelles d'eux.", "On n'a pas encore de nouvelles d'eux."] }, // check: added pas encore, which the instruction lists and a teacher would accept for "still no"
         { prompt: "She has never seen a horror movie.", answer: "Elle n'a jamais vu de film d'horreur.",
           also: ["Elle n'a jamais vu de film d'épouvante."] },
         { prompt: "There are no more problems to solve.", answer: "Il n'y a plus de problèmes à résoudre.",
@@ -128,7 +128,7 @@ export default {
         { prompt: "There is no more space in the parking lot.", answer: "Il n'y a plus de place dans le parking.",
           also: ["Il n'y a plus de places dans le parking.", "Il n'y a plus de place sur le parking."] },
         { prompt: "There is still no answer to my question.", answer: "Il n'y a toujours pas de réponse à ma question.",
-          also: ["Je n'ai toujours pas de réponse à ma question."] },
+          also: ["Je n'ai toujours pas de réponse à ma question.", "Il n'y a pas encore de réponse à ma question.", "Je n'ai pas encore de réponse à ma question."] }, // check: added pas encore, which the instruction lists
         { prompt: "I don't have a lot of coffee left.", answer: "Je n'ai plus beaucoup de café.",
           also: ["Il ne me reste plus beaucoup de café.", "Il ne me reste pas beaucoup de café."] },
         { prompt: "My parents have never seen a lion.", answer: "Mes parents n'ont jamais vu de lion." },
@@ -149,12 +149,12 @@ export default {
       items: [
         { prompt: "There's nobody at the supermarket.", answer: "Il n'y a personne au supermarché." },
         { prompt: "I haven't seen anybody there.", answer: "Je n'ai vu personne là-bas.", also: ["Je n'ai vu personne là."] },
-        { prompt: "Nobody told me.", answer: "Personne ne m'a dit.", also: ["Personne ne me l'a dit."] },
+        { prompt: "Nobody told me.", answer: "Personne ne me l'a dit.", also: ["Personne ne m'a dit.", "Personne ne m'a prévenu.", "Personne ne m'a prévenue."] }, // check: changed answer "Personne ne m'a dit." to "Personne ne me l'a dit.": in writing dire takes its object (le); the bare form stays in also
         { prompt: "I didn't know anybody when I arrived in France.", answer: "Je ne connaissais personne quand je suis arrivé en France.",
           also: ["Je ne connaissais personne quand je suis arrivée en France.", "Je ne connaissais personne lorsque je suis arrivé en France."] },
         { prompt: "Nobody answered.", answer: "Personne n'a répondu." },
         { prompt: "Nobody was talking.", answer: "Personne ne parlait." },
-        { prompt: "I haven't talked to anybody.", answer: "Je n'ai parlé à personne." },
+        { prompt: "I haven't talked to anybody.", answer: "Je n'ai parlé à personne.", also: ["Je n'ai parlé avec personne."] }, // check: added "parler avec personne", in her lesson
         { prompt: "He doesn't need anybody.", answer: "Il n'a besoin de personne." },
         { prompt: "There was nobody at the pharmacy.", answer: "Il n'y avait personne à la pharmacie." },
         { prompt: "Didn't you know anybody there?", answer: "Tu ne connaissais personne là-bas ?",
@@ -211,9 +211,9 @@ export default {
         { prompt: "I never watch TV shows.", answer: "Je ne regarde jamais de séries.",
           also: ["Je ne regarde jamais de séries télé.", "Je ne regarde jamais de séries à la télé.", "Je ne regarde jamais d'émissions de télé."] },
         { prompt: "Nobody was talking.", answer: "Personne ne parlait." },
-        { prompt: "I haven't talked to anybody.", answer: "Je n'ai parlé à personne." },
+        { prompt: "I haven't talked to anybody.", answer: "Je n'ai parlé à personne.", also: ["Je n'ai parlé avec personne."] }, // check: added "parler avec personne", in her lesson
         { prompt: "There is still no news from them.", answer: "Il n'y a toujours pas de nouvelles d'eux.",
-          also: ["On n'a toujours pas de nouvelles d'eux.", "Nous n'avons toujours pas de nouvelles d'eux.", "Il n'y a toujours pas de nouvelles d'elles."] },
+          also: ["On n'a toujours pas de nouvelles d'eux.", "Nous n'avons toujours pas de nouvelles d'eux.", "Il n'y a toujours pas de nouvelles d'elles.", "Il n'y a pas encore de nouvelles d'eux.", "On n'a pas encore de nouvelles d'eux."] }, // check: added pas encore, which the instruction lists and a teacher would accept for "still no"
         { prompt: "She cannot come tonight.", answer: "Elle ne peut pas venir ce soir." },
         { prompt: "I haven't done anything yesterday.", answer: "Je n'ai rien fait hier." },
         { prompt: "Nobody likes selfish people.", answer: "Personne n'aime les gens égoïstes.",
@@ -261,7 +261,7 @@ export default {
         { prompt: "I don't have anything.", answer: "Je n'ai rien." },
         { prompt: "I haven't seen any turtle.", answer: "Je n'ai vu aucune tortue." }, // her sheet has "I haven't see"
         { prompt: "She has never met someone like that.", answer: "Elle n'a jamais rencontré quelqu'un comme ça.",
-          also: ["Elle n'a jamais rencontré personne comme ça.", "Elle n'a jamais rencontré quelqu'un comme lui."] },
+          also: ["Elle n'a jamais rencontré personne comme ça."] }, // check: removed "quelqu'un comme lui": it says "someone like him", not "like that"
         { prompt: "Jessica has never visited Paris.", answer: "Jessica n'a jamais visité Paris.",
           also: ["Jessica n'est jamais allée à Paris."] },
         { prompt: "There is nothing on the table.", answer: "Il n'y a rien sur la table." },

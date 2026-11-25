@@ -23,8 +23,8 @@ export default {
           also: ["On s'est couché tard.", "On s'est couchées tard.", "Nous nous sommes couchés tard.", "On s'est couchés très tard."] },
         { prompt: "I have no reception on my phone.", answer: "Je n'ai pas de réseau sur mon téléphone.",
           also: ["Je n'ai pas de réseau.", "Mon téléphone ne capte pas.", "Je ne capte pas."] },
-        { prompt: "I run out of gas.", answer: "Je n'ai plus d'essence.",
-          also: ["Je suis tombé en panne d'essence.", "Je suis tombée en panne d'essence.", "Je tombe en panne d'essence."] },
+        { prompt: "I ran out of gas.", answer: "Je n'ai plus d'essence.",
+          also: ["Je suis tombé en panne d'essence.", "Je suis tombée en panne d'essence.", "Je n'avais plus d'essence."] }, // check: her sheet has "I run out"; fixed to "ran"; removed the present "Je tombe en panne d'essence", added "Je n'avais plus d'essence"
         { prompt: "You don't get me.", answer: "Tu ne me comprends pas.",
           also: ["Tu ne comprends pas ce que je veux dire.", "Vous ne me comprenez pas."] },
         { prompt: "He's going through a lot.", answer: "Il traverse une période difficile.",
