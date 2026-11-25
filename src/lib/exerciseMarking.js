@@ -29,22 +29,14 @@
 //            ("caminaro") is Almost, a made-up form ("fuemos") Wrong
 //
 // A true-or-false item pressed the wrong way is wrong without asking anyone.
-// A free-writing item ("Escribir una frase con…") has no key to match: it
-// always goes to Claude.
+// A free-writing item ("Escribir una frase con…") has no key to match but its
+// one example: it goes to Claude unless it is that example word for word (or
+// the same but for punctuation, capitals and accents that change no tense).
 //
 // Pure, plain JS: the page imports it, and so do the server and the tests.
 
-import { accentSlip } from "./spanishAccents.js";
+import { accentSlip, OLD_ACCENTS } from "./spanishAccents.js";
 import { VERB_FORMS } from "../data/lessons/es/verbForms.js";
-
-// Accents the Real Academia no longer asks for but still allows, on solo and
-// the demonstratives: "sólo" and "éste" are right where the key has "solo"
-// and "este" (the same list as the cards' marking, FlashcardApp.jsx).
-const OLD_ACCENTS = new Map([
-  ["sólo", "solo"], ["éste", "este"], ["ésta", "esta"], ["éstos", "estos"], ["éstas", "estas"],
-  ["ése", "ese"], ["ésa", "esa"], ["ésos", "esos"], ["ésas", "esas"],
-  ["aquél", "aquel"], ["aquélla", "aquella"], ["aquéllos", "aquellos"], ["aquéllas", "aquellas"],
-]);
 
 // What a key comparison ignores: capitals, punctuation (¿ and ¡ included),
 // quotation marks and extra spaces. Apostrophes are made one kind.

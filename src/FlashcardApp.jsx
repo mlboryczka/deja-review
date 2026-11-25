@@ -4,7 +4,7 @@ import { RAW } from "./data/cards"; // only used for the admin "seed demo deck" 
 import { lessonIdOf } from "./data/lessons";
 import { catalogueFor } from "./data/lessons/byCourse";
 import { SPANISH_EXACT, ENGLISH_EXACT } from "./data/lessons/es/exactWords.js";
-import { accentCounts } from "./lib/spanishAccents.js";
+import { accentCounts, OLD_ACCENTS } from "./lib/spanishAccents.js";
 import { courseOf } from "./lib/course";
 import { reconcileLessons, ADOPTED_SOURCE } from "./lib/lessonSync";
 import { archivedSource, ARCHIVE_PREFIX } from "./lib/archive";
@@ -292,15 +292,15 @@ function normalize(s) {
     // left off like le and la (code check 2026-11-07, no. 15). The apostrophe
     // is removed below, which made "l'eau" one word that never split.
     .replace(/^\s*l['’](?=\S)/, "l ")
-    .replace(/[.,!?;:""''«»’‘“”…¿¡]/g, "")
+    .replace(PUNCTUATION, "")
     .replace(/\s+/g, " ")
     .trim();
 }
+// The punctuation a typed answer ignores, kept in one place for normalize and
+// keepAccents, which must split words the same way.
+const PUNCTUATION = /[.,!?;:""''«»’‘“”…¿¡]/g;
 // English particles are interchangeable / optional, but French articles carry gender
 const EN_PARTICLES = new Set(["to", "the", "a", "an"]);
-// French, and the Spanish module's el, los, las, una, unos and unas, which
-// carry gender just the same: "la mano" is not "el mano".
-const FR_ARTICLES = new Set(["le", "la", "les", "un", "une", "des", "du", "de", "l", "el", "los", "las", "una", "unos", "unas"]);
 // Which leading words count as an article, by `articles` (see matchAnswer):
 // both languages' for French (d' is no article: "abord" is not "d'abord"); in the Spanish module only the
 // answer's own language, so a Spanish "le" (him, her) or "a" (to) is never
@@ -331,8 +331,8 @@ function articlesCompatible(tArt, aArt) {
   if (tArt === aArt) return true; // exact match
   // Both English → interchangeable (a/an/the/to)
   if (EN_PARTICLES.has(tArt) && EN_PARTICLES.has(aArt)) return true;
-  // Both French → strict (gender matters: un ≠ une, le ≠ la)
-  if (FR_ARTICLES.has(tArt) && FR_ARTICLES.has(aArt)) return false;
+  // Any other pair is strict: French, and the Spanish module's el, los, las,
+  // una, unos and unas, carry gender (un ≠ une, le ≠ la, "la mano" is not "el mano").
   return false;
 }
 // Damerau-Levenshtein edit distance (transpositions count as 1)
@@ -380,19 +380,11 @@ function stripParens(s) {
 function keepAccents(s) {
   return String(s || "").toLowerCase().normalize("NFC")
     .replace(/\([^)]*\)/g, "")
-    .replace(/[.,!?;:""''«»’‘“”…¿¡]/g, "")
+    .replace(PUNCTUATION, "")
     .replace(/\s+/g, " ")
     .trim();
 }
 const withoutAccents = (w) => w.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-// Accents the Real Academia no longer asks for but still allows, on solo and
-// the demonstratives: "sólo" and "éste" are right where the answer has "solo"
-// and "este".
-const OLD_ACCENTS = new Map([
-  ["sólo", "solo"], ["éste", "este"], ["ésta", "esta"], ["éstos", "estos"], ["éstas", "estas"],
-  ["ése", "ese"], ["ésa", "esa"], ["ésos", "esos"], ["ésas", "esas"],
-  ["aquél", "aquel"], ["aquélla", "aquella"], ["aquéllos", "aquellos"], ["aquéllas", "aquellas"],
-]);
 const noTilde = (w) => w.replace(/ñ/g, "n");
 function accentsRight(typed, answer) {
   const forms = new Map();
@@ -556,9 +548,8 @@ function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings =
     // Only "/" separates answers here. The comma/semicolon split above is for
     // glosses, and in an exact answer a comma is part of it: "Oui, j'y vais"
     // split into "Oui" and "j'y vais" would accept "oui" and refuse the whole.
-    const squash = (x) => normalize(x).replace(/\s+/g, " ").trim();
     const pool = sources.flatMap((src) => { const x = stripParens(src) || src; return [x, ...x.split("/")]; });
-    const hits = pool.filter((alt) => squash(alt) && squash(alt) === squash(t));
+    const hits = pool.filter((alt) => normalize(alt) && normalize(alt) === t);
     if (!hits.length) return { match: false };
     if (!accents || hits.some((alt) => accentsRight(typed, alt))) return { match: true };
     return { match: false, wrongAccent: true };
@@ -905,7 +896,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     try { localStorage.setItem(SET_SIZE_KEY, String(setSize)); } catch { /* storage blocked */ }
   }, [setSize]);
   const [typedAnswer, setTypedAnswer] = useState("");
-  const [typeResult, setTypeResult] = useState(null); // null | 'correct' | 'wrong'
+  const [typeResult, setTypeResult] = useState(null); // null | 'correct' | 'close' | 'wrong' | 'wrongArticle' | 'wrongAccent' | 'revealed'
   const studyInputRef = useRef(null);
 
   // Upload & onboarding state
@@ -1286,10 +1277,10 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     const next = ctx && typeof ctx === "object" ? ctx : null;
     setTutorExercise((prev) => (sameTutorContext(prev, next) ? prev : next));
   }, []);
-  // The page's callbacks, made once, so a page effect that depends on them
+  // The callbacks of the tutor and the pages, made once, so a page effect that depends on them
   // doesn't run again on every render of the app.
-  const onPodcastCardAdded = useCallback((row) => (row ? addDeckCard(row) : reloadDeck()), [addDeckCard, reloadDeck]);
-  const onPodcastNeedKey = useCallback(() => setShowKeyModal(true), []);
+  const tutorCardAdded = useCallback((row) => (row ? addDeckCard(row) : reloadDeck()), [addDeckCard, reloadDeck]);
+  const openKeyModal = useCallback(() => setShowKeyModal(true), []);
 
   // Load card alternates from Supabase on mount (and when user changes)
   useEffect(() => {
@@ -1312,7 +1303,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
       }
       setAlternates(map);
     })();
-  }, [user]);
+  }, [user?.id]);
 
   // ── AUDIO STATE ─────────────────────────────────────────────────────
   // Pronunciation states: 'idle' | 'recording' | 'processing' | 'result' | 'error'
@@ -2101,10 +2092,9 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     // still dealt behind it, and that hidden card must not reach the tutor
     // as "Card on screen" while the question is about an episode.
     if (mode !== "study" || !card || sessionDone) return null;
-    const answered = flipped || !!typeResult || revealedSlot === cardSlot;
     return {
       ...card,
-      answered,
+      answered: answerSeen,
       // An answer marked wrong and then accepted on review counts as right:
       // the tutor is told so, not that it is still wrong.
       ...(typeResult ? { result: disputeAccepted && typeResult !== "revealed" ? "accepted" : typeResult } : null),
@@ -2112,7 +2102,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
         ? { typed: typedAnswer.trim() }
         : null),
     };
-  }, [mode, card, sessionDone, flipped, typeResult, typedAnswer, revealedSlot, cardSlot, disputeAccepted]);
+  }, [mode, card, sessionDone, answerSeen, typeResult, typedAnswer, disputeAccepted]);
   const flip = useCallback(() => setFlipped(f => !f), []);
 
   // Auto-speak French when a French side becomes visible. Keyed on the card's
@@ -3470,9 +3460,9 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
           onClose={() => setShowChat(false)}
           user={user}
           cards={userCards}
-          onCardAdded={(row) => (row ? addDeckCard(row) : reloadDeck())}
+          onCardAdded={tutorCardAdded}
           onCardUpdated={patchDeckCard}
-          onNeedKey={() => setShowKeyModal(true)}
+          onNeedKey={openKeyModal}
         />
 
         <ApiKeyModal
@@ -4101,7 +4091,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
         thread={tutorThread}
         // The insert hands back the row, so the deck takes it in place; only a
         // write that returned nothing falls back to a refetch.
-        onCardAdded={(row) => (row ? addDeckCard(row) : reloadDeck())}
+        onCardAdded={tutorCardAdded}
         onCardUpdated={patchDeckCard}
         // A card the tutor removed leaves the deck in place, as the editor's
         // Remove leaves it: the set keeps its place, and if it was the card on
@@ -4258,10 +4248,10 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
             reloadFollows={podFollows?.reload}
             deckCards={userCards}
             archivedCards={archivedCards}
-            onCardAdded={onPodcastCardAdded}
+            onCardAdded={tutorCardAdded}
             onTutorContext={onTutorPodcast}
             openChat={openChat}
-            onNeedKey={onPodcastNeedKey}
+            onNeedKey={openKeyModal}
           />
         </main>
         {modals}
@@ -4286,7 +4276,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
               user={user}
               view={exView}
               setView={setExView}
-              onNeedKey={onPodcastNeedKey}
+              onNeedKey={openKeyModal}
               onTutorContext={onTutorExercise}
               openChat={openChat}
               notes={exNotesLesson?.notes?.length
@@ -4317,7 +4307,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
               user={user}
               view={dgView}
               setView={setDgView}
-              onNeedKey={onPodcastNeedKey}
+              onNeedKey={openKeyModal}
               onTutorContext={onTutorExercise}
               openChat={openChat}
               notes={dgNotesLesson?.notes?.length

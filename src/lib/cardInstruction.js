@@ -184,7 +184,7 @@ export function drillInstruction(front) {
 }
 
 const isSubjunctive = (tense) => /^subj/.test(tense || "");
-const STARTS_WITH_SUBJECT = /^(?:que\s+|qu'|qu’)?(?:je|j'|j’|tu|il|elle|on|nous|vous|ils|elles)(?:\s|$)|^(?:j'|j’|qu')/i;
+const STARTS_WITH_SUBJECT = /^(?:que\s+|qu['’])?(?:(?:je|tu|il|elle|on|nous|vous|ils|elles)(?:\s|$)|j['’])|^qu['’]/i;
 // "je" + "irai" is "j'irai"; "que je" + "aille" is "que j'aille".
 const withSubject = (subject, form) =>
   /(?:^|\s)(?:je|que)$/.test(subject) && /^[aeiouhéèêàâîôûœ]/i.test(form)
@@ -220,7 +220,7 @@ export function drillAlternates(front, back) {
       else out.push(/^[aeiouhéè]/i.test(a) ? `qu'${a}` : `que ${a}`);
     }
   }
-  return out;
+  return [...new Set(out)];
 }
 
 // "il/elle" drills are answered "il vit"; "elle vit" is just as right, and

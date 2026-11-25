@@ -8,9 +8,10 @@
 // A phrase card forgives a slip of a letter or two, and that let the wrong
 // form of a verb through: "Ayer poní la computadora en la sala" passed for
 // "Ayer puse…", and "vi la tele" for "veía la tele". So when Spanish is typed,
-// a word of the answer that is on this list must be typed exactly, accents
-// included, while a slip anywhere else in the sentence is still forgiven
-// (exactWords.js, with the numbers and months held exact the same way).
+// a word of the answer that is on this list must be typed exactly, with an
+// accent counted only where it changes the tense (src/lib/spanishAccents.js),
+// while a slip anywhere else in the sentence is still forgiven (exactWords.js,
+// with the numbers and months held exact the same way).
 //
 // "Irregular" is any form the infinitive's regular endings don't give, accents
 // counted: stem changes (duermo, pide), spellings (busqué, leyó), and estar's

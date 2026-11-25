@@ -1,5 +1,6 @@
-// The words a typed answer on a Spanish card must have exactly, accents
-// included, while a slip anywhere else is still forgiven (matchAnswer in
+// The words a typed answer on a Spanish card must have exactly, with an
+// accent counted only where it changes the tense (src/lib/spanishAccents.js),
+// while a slip anywhere else is still forgiven (matchAnswer in
 // src/FlashcardApp.jsx, `exactWords`). Each maps to the spellings that count
 // as typing it: a number word in English may also be typed as its figure,
 // "two" or "2".

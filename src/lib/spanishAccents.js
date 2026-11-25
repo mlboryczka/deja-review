@@ -27,3 +27,12 @@ export const accentSlip = (typed, right) => {
   return accentCounts(right) && noTilde(typed) !== noTilde(right);
 };
 export const accentCounts = (right) => TENSE_ACCENT_WORDS.has(String(right ?? "").normalize("NFC").toLowerCase());
+
+// Accents the Real Academia no longer asks for but still allows, on solo and
+// the demonstratives: "sólo" and "éste" are right where the answer has "solo"
+// and "este". One list for the cards, Exercises and Dialogues.
+export const OLD_ACCENTS = new Map([
+  ["sólo", "solo"], ["éste", "este"], ["ésta", "esta"], ["éstos", "estos"], ["éstas", "estas"],
+  ["ése", "ese"], ["ésa", "esa"], ["ésos", "esos"], ["ésas", "esas"],
+  ["aquél", "aquel"], ["aquélla", "aquella"], ["aquéllos", "aquellos"], ["aquéllas", "aquellas"],
+]);

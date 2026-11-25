@@ -3,7 +3,8 @@
 import { classifyCard } from "../../src/lib/cardTypes.js";
 import { looksMultiSense } from "../../src/lib/multiSense.js";
 import { cleanFrenchPrompt, cleanEnglishPrompt, dropFinalPeriod, firstAnswer } from "../../src/lib/cardText.js";
-import { findRelatedCards, recentMisses, relevantMisses, buildTutorContext, cardPrompt, exerciseAbout, exerciseLabel } from "../../src/lib/deckContext.js";
+import { drillAlternates } from "../../src/lib/cardInstruction.js";
+import { findRelatedCards, relevantMisses, buildTutorContext, cardPrompt, exerciseAbout, exerciseLabel } from "../../src/lib/deckContext.js";
 import { buildRequestMessages, normalizeCards, normalizeEdits, tutorFor } from "../../api/chat.js";
 import { reconcileLessons } from "../../src/lib/lessonSync.js";
 import { planReplace } from "../../src/lib/replaceDeck.js";
@@ -179,23 +180,34 @@ console.log("\n  findRelatedCards — the cards this question is about");
   ck("a shared function word in the gloss is not a match", unload.length === 1 && unload[0] === "décharger", unload.join(", ") || "nothing");
 }
 
-console.log("\n  recentMisses — what they are actually getting wrong");
+console.log("\n  relevantMisses — what they are actually getting wrong");
 {
-  const missed = recentMisses(DECK).map((c) => c.front);
+  const NOW = Date.parse("2026-09-12T12:00:00Z");
+  const D = [
+    { row_id: 1, f: "la colline", b: "the hill", last_answer_correct: false, last_review: "2026-09-10" },
+    { row_id: 2, f: "la colline verte", b: "the green hill", last_answer_correct: false, last_review: "2026-09-11" },
+    // Never reviewed: null means "not answered", not "missed".
+    { row_id: 3, f: "le chemin de fer", b: "the hill railway", last_answer_correct: null, last_review: null },
+    // Missed only asked in English, and more recently than anything else.
+    { row_id: 4, f: "la pente", b: "the hill slope", cat: "vocab", last_answer_correct: true, last_review: "2020-01-01",
+      en_last_answer_correct: false, en_last_review: "2026-09-12" },
+  ];
+  const missed = relevantMisses({ question: "hill?", cards: D, now: NOW }).map((c) => c.front);
   // The migration_006 shape of bug: null means "never reviewed", not "missed".
   // Treating it as falsy sweeps the entire unreviewed deck in.
-  ck(
-    "an unreviewed card is not a miss",
-    !missed.includes("le chemin de fer"),
-    missed.join(", ") || "nothing"
-  );
-  ck("only the missed cards come back", missed.length === 2, missed.join(", "));
-  ck("most recently missed first", missed[0] === "la colline", missed.join(", "));
-  // Missed only asked in English, and more recently than anything else.
-  const enMiss = { f: "la pente", b: "the slope", cat: "vocab", last_answer_correct: true, last_review: "2020-01-01",
-    en_last_answer_correct: false, en_last_review: "2099-01-01" };
-  const withEn = recentMisses([...DECK, enMiss]).map((c) => c.front);
-  ck("a card missed only the other way round is a miss, placed by when", withEn[0] === "la pente", withEn.join(", "));
+  ck("an unreviewed card is not a miss", !missed.includes("le chemin de fer"), missed.join(", ") || "nothing");
+  ck("only the missed cards come back", missed.length === 3, missed.join(", "));
+  ck("a card missed only the other way round is a miss, and most recent first", missed[0] === "la pente" && missed[1] === "la colline verte", missed.join(", "));
+}
+
+console.log("\n  tidy-ups: subjunctive drill alternates, and a Spanish card's one meaning for the tutor");
+{
+  const alts = drillAlternates("aller (subjonctif) → je", "que j'aille");
+  ck("a subjunctive drill gets \"j'aille\" and no \"je que j'aille\"", alts.includes("j'aille") && !alts.some((a) => /je que|que je que/.test(a)), alts.join(" | "));
+  ck("the alternates have no repeats", new Set(alts).size === alts.length, alts.join(" | "));
+  const hola = { row_id: 9, f: "hola", b: "hello / hi", shownDir: "en", answered: false };
+  const ctx = buildTutorContext({ question: "hi?", cards: [], currentCard: hola, course: "es" });
+  ck("a Spanish card's prompt for the tutor is its first meaning", ctx.currentCard.prompt === "hello", ctx.currentCard.prompt);
 }
 
 console.log("\n  findRelatedCards — the way learners actually type");
@@ -615,7 +627,7 @@ console.log("\n  marking — Spanish articles and ¿ ¡, French unchanged");
   const file = path.join(os.tmpdir(), `logic-matcher-${process.pid}.mjs`);
   // The one import the matcher needs: which Spanish accents count.
   const accents = new URL("../../src/lib/spanishAccents.js", import.meta.url).href;
-  fs.writeFileSync(file, `import { accentCounts } from ${JSON.stringify(accents)};\n` + app.slice(start, end) + "\nexport { matchAnswer, hasMeaningList };\n");
+  fs.writeFileSync(file, `import { accentCounts, OLD_ACCENTS } from ${JSON.stringify(accents)};\n` + app.slice(start, end) + "\nexport { matchAnswer, hasMeaningList };\n");
   const { matchAnswer, hasMeaningList } = await import(`file://${file}?t=${Date.now()}`);
   fs.unlinkSync(file);
   const ok = (typed, answer, opts) => matchAnswer(typed, answer, [], opts).match === true;

@@ -33,7 +33,7 @@ if (start < 0 || mStart < 0 || end < 3) throw new Error("could not find matchAns
 const lifted = path.join(os.tmpdir(), `lessoncheck-matcher-${process.pid}.mjs`);
 // The one import the matcher needs: which Spanish accents count.
 const accents = pathToFileURL(path.join(REPO, "src/lib/spanishAccents.js")).href;
-fs.writeFileSync(lifted, `import { accentCounts } from ${JSON.stringify(accents)};\n` + app.slice(start, end) + "\nexport { matchAnswer, normalize };\n");
+fs.writeFileSync(lifted, `import { accentCounts, OLD_ACCENTS } from ${JSON.stringify(accents)};\n` + app.slice(start, end) + "\nexport { matchAnswer, normalize };\n");
 const { matchAnswer } = await import(pathToFileURL(lifted).href + `?t=${Date.now()}`);
 
 const CAT = { V: "vocab", E: "expr", G: "gram", P: "pron" };
