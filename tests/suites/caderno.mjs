@@ -243,6 +243,30 @@ const V1 = caderno(
   }
 }
 
+// ── The daily job reads the caderno with nobody in the app ───────────────
+{
+  calls = { extract: 0, question: 0, spanishQuestion: 0, newLinesOnly: 0 };
+  const { readLinked } = await import("../../api/cahier-daily.js");
+  const daily = (admin) => readLinked(admin, { course: "es", table: "es_cahier_links", apiKey: "sk-ant-server-key-0123456789abcdef", started: Date.now() });
+  const admin = fakeSupabase({});
+  doc.text = caderno(klass("27 de octubre", ["la fecha"]));
+  await sync(admin, { url: URL });
+  doc.text = caderno(klass("30 de octubre", ["contar"], ["llueve mucho"]), klass("27 de octubre", ["la fecha"]));
+  const before = admin.tables.es_user_cards.length;
+  const day = await daily(admin);
+  ck("the daily job reads a linked caderno with no one in the app and brings in the new class",
+    day.results.length === 1 && day.results[0].ok && day.classes === 1 && day.cards >= 1 && admin.tables.es_user_cards.length > before, JSON.stringify(day));
+  const link = admin.tables.es_cahier_links[0];
+  ck("and the link says when it was read and what came in, for the morning check",
+    !!link.last_checked_at && !!link.last_synced_at && link.last_result?.dates?.includes("2026-10-30") && link.last_error == null, JSON.stringify(link));
+  const again = await daily(admin);
+  ck("the next day, with nothing new in the doc, it adds nothing", again.results.length === 1 && again.cards === 0 && again.classes === 0, JSON.stringify(again));
+  doc.status = 403;
+  const down = await daily(admin);
+  doc.status = 200;
+  ck("a doc that can't be read is reported with its reason, and kept on the link", down.results[0] && !down.results[0].ok && !!admin.tables.es_cahier_links[0].last_error, JSON.stringify(down));
+}
+
 claude.close();
 const n = ck.fails();
 console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");

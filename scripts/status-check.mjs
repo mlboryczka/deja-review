@@ -27,6 +27,8 @@
 //                                                     that day: for the tests' simulated students
 //   node scripts/status-check.mjs --everyone          every student, and the tests of Claude's work
 //   node scripts/status-check.mjs --everyone --record the same, saving what's been raised (the morning check)
+//   node scripts/status-check.mjs --caderno          the Spanish caderno, per linked account: when it last synced, what
+//                                                     came in, any error (read only; for the nightly Morning review)
 //   node .claude/worktrees/testing/scripts/status-check.mjs --test-app --record
 //                                                     the owner's test app, with its own version of the checks
 //
@@ -73,6 +75,43 @@ if (missing.length) {
   console.error(`Missing: ${missing.join(", ")}\nPut them in .env.local or the environment.`);
   process.exit(1);
 }
+// --caderno: is the Spanish caderno keeping itself up to date? Per linked
+// account, from the link row the sync writes (es_cahier_links): when the doc
+// was last read, when it last brought in cards, what that run found, and any
+// error. The daily job (api/cahier-daily.js) reads every linked caderno; this
+// only reads. Exit code 1 when a caderno has an error or wasn't read in the
+// last 36 hours (a day's run, with room for a late one).
+if (args.includes("--caderno")) {
+  const { createClient } = await import("@supabase/supabase-js");
+  const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { data: links, error } = await db.from("es_cahier_links").select("user_id, doc_url, last_checked_at, last_synced_at, last_result, last_error");
+  if (error) {
+    console.log(/does not exist|schema cache|42P01/.test(error.message) ? "Caderno: no es_cahier_links table (migration_023 not run), so nothing is linked." : `Caderno: couldn't read the links: ${error.message}`);
+    process.exit(/does not exist|schema cache|42P01/.test(error.message) ? 0 : 1);
+  }
+  if (!links.length) { console.log("Caderno: no account has linked one."); process.exit(0); }
+  const ago = (iso) => {
+    if (!iso) return "never";
+    const h = (Date.now() - new Date(iso).getTime()) / 3600000;
+    return `${iso.slice(0, 16).replace("T", " ")} UTC (${h < 1 ? `${Math.round(h * 60)} min` : h < 48 ? `${Math.round(h)} h` : `${Math.round(h / 24)} days`} ago)`;
+  };
+  let bad = 0;
+  console.log(`Caderno: ${links.length} linked account${links.length === 1 ? "" : "s"}.`);
+  for (const l of links) {
+    const { data: u } = await db.auth.admin.getUserById(l.user_id);
+    const stale = !l.last_checked_at || Date.now() - new Date(l.last_checked_at).getTime() > 36 * 3600000;
+    const r = l.last_result || null;
+    console.log(`\n  ${u?.user?.email || l.user_id}`);
+    console.log(`    Last read:       ${ago(l.last_checked_at)}${stale ? "  <- more than 36 hours ago" : ""}`);
+    console.log(`    Last new cards:  ${ago(l.last_synced_at)}`);
+    console.log(`    That run:        ${r ? `${r.cards ?? 0} new cards from ${(r.dates || []).length} class${(r.dates || []).length === 1 ? "" : "es"}${(r.dates || []).length ? ` (${r.dates.join(", ")})` : ""}, ${r.updated ?? 0} seen again` : "none recorded"}`);
+    console.log(`    Error:           ${l.last_error || "none"}`);
+    if (stale || l.last_error) bad++;
+  }
+  console.log(bad ? `\nCaderno needs looking at: ${bad} account${bad === 1 ? "" : "s"} with an error or not read in 36 hours.` : "\nCaderno is up to date.");
+  process.exit(bad ? 1 : 0);
+}
+
 // --everyone: the morning check. The same fourteen checks on every student who
 // has answered anything, run now (api/_lib/statusDaily.js); what the server's
 // daily run last asked Claude about look-alike cards, from its kept reports;

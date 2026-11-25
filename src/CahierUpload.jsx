@@ -413,7 +413,7 @@ fonder / créer une entreprise
               />
               <p style={M.linkText}>
                 {caderno
-                  ? "The app reads the doc when you open Spanish, at most once an hour. Any line it hasn't read before becomes cards: words and phrases, not grammar. A word you already have only gets the new class date, so nothing you've studied changes."
+                  ? "The app reads the doc once a day by itself, and again when you open Spanish (at most once an hour). Any line it hasn't read before becomes cards: words and phrases, not grammar. A word you already have only gets the new class date, so nothing you've studied changes."
                   : "The app reads the doc when you open it, and once a day. Any line it hasn't read before becomes cards. A word you already have only gets the new class date, so nothing you've studied changes."}
               </p>
               <p style={M.linkText}>

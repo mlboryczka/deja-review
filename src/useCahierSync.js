@@ -21,8 +21,8 @@ import { missingTable } from "./lib/dealLog";
 // the owner's Spanish classes, kept in es_cahier_links (migration_023) and
 // read by the same route with `course: "es"`. `course` is "fr" or "es".
 
-// Don't check more than once an hour per browser. The daily job reads the
-// French cahier only (the caderno is read only when Spanish is opened), and a
+// Don't check more than once an hour per browser. The daily job reads both
+// the French cahier and the Spanish caderno (api/cahier-daily.js), and a
 // student reloading the page ten times should not mean ten checks.
 const CHECK_EVERY_MS = 60 * 60 * 1000;
 const LAST_CHECK_KEY = "cahier-checked:";
