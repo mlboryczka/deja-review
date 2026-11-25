@@ -210,6 +210,11 @@ console.log("\n  and the student can study it and read the notes");
   await page.evaluate(() => [...document.querySelectorAll("aside button")]
     .find((b) => b.textContent.trim() === "Lessons")?.click());
   await settled(page);
+  // The lessons in no stage are under "More lessons", closed until pressed
+  // (2026-11-25).
+  await page.evaluate(() => [...document.querySelectorAll("aside button[aria-expanded=false]")]
+    .find((b) => b.textContent.trim() === "More lessons")?.click());
+  await settled(page);
   const listed = await page.locator(`aside button[title="Study ${LESSON.title}"]`).count();
   ck("the lesson is offered in the nav", listed > 0, `${listed} entry`);
 

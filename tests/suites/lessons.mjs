@@ -76,6 +76,13 @@ await page.evaluate(() => {
     .find((b) => b.textContent.trim() === "Lessons")?.click();
 });
 await page.waitForTimeout(400);
+// L'impératif is in no stage, so it is under "More lessons", closed until
+// pressed (2026-11-25).
+await page.evaluate(() => {
+  [...document.querySelectorAll("aside button[aria-expanded=false]")]
+    .find((b) => b.textContent.trim() === "More lessons")?.click();
+});
+await page.waitForTimeout(400);
 await page.evaluate((title) => {
   const n = [...document.querySelectorAll("aside *")].filter(
     (x) => x.textContent.trim() === title && !x.children.length
