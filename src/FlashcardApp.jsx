@@ -2,7 +2,7 @@ import { feedbackRequest } from "./lib/feedbackApi";
 import { useState, useEffect, useCallback, useMemo, useRef, Fragment, lazy, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { RAW } from "./data/cards"; // only used for the admin "seed demo deck" action
-import { lessonIdOf } from "./data/lessons";
+import { lessonIdOf } from "./lib/lessonSource.js";
 import { catalogueFor } from "./data/lessons/byCourse";
 import { SPANISH_EXACT, ENGLISH_EXACT } from "./data/lessons/es/exactWords.js";
 import { accentCounts, OLD_ACCENTS } from "./lib/spanishAccents.js";

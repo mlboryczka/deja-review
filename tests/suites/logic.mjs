@@ -91,7 +91,8 @@ table("looksMultiSense — shortlists real suspects only", [
   ["I have never been so single in my life", false],
 ], (back) => looksMultiSense({ b: back }));
 
-// The deck's own grammar and pronunciation sections (all arrow drills today)
+// The deck's own grammar section (all arrow drills today; no pronunciation
+// cards remain in it)
 // and the rule cards the owner sorted in September 2026 are the corpus the
 // patterns in isGrammarCard were derived from. If a change stops recognising
 // them, this catches it.

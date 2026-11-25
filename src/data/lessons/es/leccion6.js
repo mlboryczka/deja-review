@@ -154,11 +154,6 @@ export const CARDS = [
   ["el fin de semana", "the weekend", "V", "days"],
   ["los fines de semana", "on weekends (every weekend)", "V", "days"],
 
-  // No word for "on" (her ex. 8 no. 14), marked exactly so that "en el
-  // domingo" and a bare "domingo" are wrong
-
-  // Ex. 6: the next day
-
   // ── Phrases from the dialogue and her ex. 8
   ["¿Qué te gusta hacer los fines de semana?", "What do you like to do on weekends? / What do you like doing on weekends? (tú)", "E", "phrases"],
   ["Los sábados vamos al parque", "On Saturdays we go to the park", "E", "phrases"],

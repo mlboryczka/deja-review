@@ -175,7 +175,7 @@ export const NOTES = [
     h: "1 · What a reflexive verb is",
     blocks: [
       { t: "lead", v: "A reflexive verb has a pronoun in front of it because the person does the action to themselves: *me levanto*, \"I get up\"." },
-      { t: "note", v: "In the dictionary, a reflexive verb ends in -se: *levantarse*, \"to get up\"; *acostarse*, \"to go to bed\"; *vestirse*, \"to get dressed\"." },
+      { t: "note", v: "In the infinitive, a reflexive verb ends in -se: *levantarse*, \"to get up\"; *acostarse*, \"to go to bed\"; *vestirse*, \"to get dressed\"." },
       { t: "note", v: "English often has no \"myself\": *me aburro* is \"I get bored\", and *se aburren* is \"they get bored\" or \"they're bored\"." },
       { t: "sub", v: "The daily routine" },
       { t: "pairs", head: ["Spanish", "English"], v: [

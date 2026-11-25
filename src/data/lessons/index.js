@@ -48,17 +48,6 @@ import { makeCatalogue } from "./catalogue.js";
 import { frenchStagesOf } from "./stages.js";
 import { stageIds } from "./es/stages.js";
 
-// How a stored card names which lesson card it is. Defined in src/lib, not
-// here, so the sync reconciler can use it without importing every lesson's
-// cards; re-exported so callers still reach it through the catalogue.
-export {
-  LESSON_SOURCE_PREFIX,
-  lessonSource,
-  lessonIdOf,
-  lessonCardKeyOf,
-  lessonCardKey,
-} from "../../lib/lessonSource.js";
-
 // New lessons go at the end. Where a lesson's cards come in the order a
 // student meets them is the meeting order, below, not its place here.
 const ALL = [
@@ -101,5 +90,7 @@ export const FRENCH = {
 };
 
 export const {
-  LESSONS, LESSON_GROUPS, LESSONS_SHOWN, lessonById, lessonRank, lessonBackFor, cardInstructionFor,
+  LESSONS, lessonRank, cardInstructionFor,
 } = FRENCH;
+
+// How a stored card names which lesson card it is lives in src/lib/lessonSource.js.

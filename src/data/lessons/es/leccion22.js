@@ -181,7 +181,7 @@ export const NOTES = [
     tab: "Forms",
     h: "2 · Forming the conditional",
     blocks: [
-      { t: "lead", v: "Take the whole verb, as the dictionary gives it, and add -ía, -ías, -ía, -íamos or -ían; the endings are the same for -ar, -er and -ir verbs: *hablar → hablaría*, \"I would speak\"." },
+      { t: "lead", v: "Take the infinitive and add -ía, -ías, -ía, -íamos or -ían; the endings are the same for -ar, -er and -ir verbs: *hablar → hablaría*, \"I would speak\"." },
       { t: "table",
         cols: ["Person", "hablar", "comer", "vivir"],
         rows: [

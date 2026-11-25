@@ -6,8 +6,10 @@
 // open: Claude marks them, and the answer is one example. Ex. 6 (write the
 // question for each answer) has many right questions: the common ones are
 // listed, and Claude marks any other. Ex. 5 answers keep the double no
-// ("No, no tengo tiempo"): the marker ignores commas, so a single-no answer
-// would also match the mistake "No, tengo tiempo"; Claude marks those.
+// ("No, no tengo tiempo"): the marker keeps a comma straight after a
+// sentence-opening "No", so the mistake "No, tengo tiempo" does not match a
+// single-no answer; whether to list one depends only on the instruction's
+// "say no twice".
 // Ex. 10 (dictation) and ex. 11 and 12 (oral answers) need audio and are
 // left out.
 

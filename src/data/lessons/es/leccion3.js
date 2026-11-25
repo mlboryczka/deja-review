@@ -131,9 +131,8 @@
 // cards only in form (the numbers).
 
 export const CARDS = [
-  // ── Age: the sheet's own pair, the answer and then the question. The
-  //    question is asked exactly; the English of the answer lists both short
-  //    forms, too short for the typo allowance to take one for the other.
+  // ── Age: the sheet's answer card. The English lists both short forms, too
+  //    short for the typo allowance to take one for the other.
   ["Tengo 17 años / Tengo diecisiete años", "I'm 17 / I am 17 / I'm seventeen / I am seventeen / I'm 17 years old / I am 17 years old", "E", "age", "Tengo 17 años"],
 
   // ── 2. Words, each noun with its article (ex. 6, and six from the dialogue)

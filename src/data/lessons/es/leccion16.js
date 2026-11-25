@@ -14,7 +14,7 @@
 // Spanish.
 //
 // Card shapes:
-//   "Quise abrir la puerta, pero no pude"         Spanish shown, English typed: what the tense means
+//   "Quise abrir la puerta, pero no pude"         a two-way phrase card (E): what the tense means
 //   two-way phrase (E) and word (V) cards for the text and her translations
 //   "Afortunadamente me creyeron y abordé el vuelo" / "Luckily they believed me and I boarded the flight"
 //                                                  an irregular verb form, in a phrase
@@ -24,10 +24,11 @@
 // apart (vivía / viví, era / fue, sabía / supe in a long sentence). So the
 // choice is asked on gap cards built from her ex. 8.
 //
-// WHY SOME SENTENCES ARE ONE WAY. What the tense does to the meaning (quise
-// is "I tried to", supe "I found out", llovía "it was raining") is asked
-// Spanish side up, English typed, like the French adverbs' false friends.
-// Asked the other way, the matcher let the other tense through: "Se
+// WHY THE TENSE SENTENCES ARE ASKED BOTH WAYS ROUND (E cards, see
+// src/lib/directions.js). What the tense does to the meaning (quise is "I
+// tried to", supe "I found out", llovía "it was raining") is what the English
+// must show, with the verb that each turns on held exactly (TENSE_TURNS_ON in
+// exactWords.js). Without that, the matcher let the other tense through: "Se
 // conocían en 2010" passed for "Se conocieron", "¿Cómo fue el hotel?" for
 // "¿Cómo era el hotel?", "Creía que el vuelo salió…" for "…salía…". Those
 // three became exact gap cards or were dropped. "Solo conocía a una persona
@@ -56,7 +57,7 @@
 // persona" (conocía, or conocí: "I only met one person"), and "¿Cómo ___ el
 // viaje?" (fue, and in Mexico also estuvo). The sheet pins these with an
 // English hint; the cards would have to show English on the Spanish side.
-// What quise and no quise mean is asked on the one-way cards instead.
+// What quise and no quise mean is asked on the two-way tense cards instead.
 //
 // Not made into cards: ex. 1, 2 and 7 (write your own sentences), ex. 3
 // (translate the text, then compare), ex. 4 and 14 (questions on the story),
@@ -78,7 +79,7 @@
 //     Terminal 1" is her section 1 example, and "ser → El viaje ___ genial,
 //     ¡me encantó!" is made from her "¿Cómo fue el viaje? — ¡Fue genial!",
 //     with "me encantó" so that only fue fits.
-//   - "Llovía cuando llegó" is her section 3 example; the other one-way
+//   - "Llovía cuando llegó" is her section 3 example; the other tense
 //     cards are her section 5 examples, ex. 5 ("No quería ir allá" turned
 //     into "No quiso ir a la ciudad", her ex. 8 refusal) and ex. 9.
 //   - "llegar a tiempo" is the word card for her "a tiempo": a front starting
@@ -124,7 +125,6 @@ export const CARDS = [
   ["Espero el taxi", "I'm waiting for the taxi / I'm waiting for the cab / I wait for the taxi", "E", "esperarfrases"],
   ["Espero llegar a tiempo", "I hope to get there on time / I hope I get there on time / I hope to arrive on time", "E", "esperarfrases"],
   ["¡Espero que sí!", "I hope so!", "E", "esperarfrases"],
-  // a thing: no a; a person: a, and a + el = al
 
   // ── The text's words, before the cards that use them
   ["creer", "to believe / to think", "V", "vocab"],
@@ -142,12 +142,12 @@ export const CARDS = [
   ["afortunadamente", "luckily / fortunately", "V", "vocab"],
   ["cambiar de opinión", "to change your mind / to change one's mind", "V", "vocab"],
 
-  // ── 2–3. Preterite or imperfect (her ex. 8): one gap per rule
-  // Spanish shown, English typed: the tense is what the English must show
+  // ── 2–3. Preterite or imperfect (her ex. 8)
+  // Asked both ways round: the tense is what the English must show
   ["Llovía cuando llegó / Estaba lloviendo cuando llegó / Llovía cuando ella llegó / Estaba lloviendo cuando ella llegó", "It was raining when she arrived / It was raining when he arrived / It was raining when she got here / It was raining when he got here", "E", "pasadoingles", "Llovía cuando llegó"],
 
   // ── 4–5. Verbs that describe a situation, and change meaning in the preterite
-  // Spanish shown, English typed: what the verb means in this tense
+  // Asked both ways round: what the verb means in this tense
   ["Ayer supe que Lucía estaba en Guadalajara", "Yesterday I found out that Lucía was in Guadalajara / Yesterday I found out Lucía was in Guadalajara / I found out yesterday that Lucía was in Guadalajara / Yesterday I learned that Lucía was in Guadalajara / Yesterday I learned Lucía was in Guadalajara", "E", "sentidoingles"],
   ["Quise abrir la puerta, pero no pude", "I tried to open the door, but I couldn't / I tried to open the door but couldn't (with querer)", "E", "sentidoingles"],
   ["No quiso ir a la ciudad", "He refused to go to the city / She refused to go to the city / He refused to go into town / She refused to go into town / He wouldn't go to the city / She wouldn't go to the city", "E", "sentidoingles"],
@@ -232,7 +232,7 @@ export const NOTES = [
       { t: "sub", v: "Waiting for a person" },
       { t: "note", v: "Before a person, put a, and a + el becomes al: *Espero a mi esposa*, \"I'm waiting for my wife\"; *Esperamos al doctor una hora*, \"we waited for the doctor for an hour\"." },
       { t: "sub", v: "To hope" },
-      { t: "note", v: "To say what you hope to do, add the second verb as it is in the dictionary: *Espero llegar a tiempo*, \"I hope to get there on time\"." },
+      { t: "note", v: "To say what you hope to do, add the second verb in the infinitive: *Espero llegar a tiempo*, \"I hope to get there on time\"." },
       { t: "note", v: "Espero que and no creo que, followed by a verb, need a verb form you haven't met yet. For now, say *¡Espero que sí!*, \"I hope so!\", and *Creo que no*, \"I don't think so\"." },
     ],
   },

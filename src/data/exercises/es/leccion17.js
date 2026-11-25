@@ -75,9 +75,9 @@ export default {
         { prompt: "Natalia: «Sí, los vi ayer.»", answer: "los – ver – Gabriel y Santiago",
           also: ["los – ver – a Gabriel y a Santiago", "los – ver – a Gabriel y Santiago", "los – vi – Gabriel y Santiago"] },
         { prompt: "El profesor: «Cruzo los dedos por los resultados. ¿Cuándo los vas a recibir?»", answer: "los – recibir – los resultados",
-          also: ["los – recibir – los resultados (de los exámenes)", "los – recibir – los resultados de los exámenes", "los – recibir – resultados"] },
+          also: ["los – recibir – los resultados (de los exámenes)", "los – recibir – resultados"] },
         { prompt: "Natalia: «Los recibimos en julio.»", answer: "los – recibir – los resultados",
-          also: ["los – recibir – los resultados (de los exámenes)", "los – recibir – los resultados de los exámenes", "los – recibimos – los resultados", "los – recibir – resultados"] },
+          also: ["los – recibir – los resultados (de los exámenes)", "los – recibimos – los resultados", "los – recibir – resultados"] },
       ],
     },
     {

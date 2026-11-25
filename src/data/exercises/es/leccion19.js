@@ -195,7 +195,7 @@ export default {
         { prompt: "Anoche no tomé ___ vino.", gaps: [["mucho"]] },
         { prompt: "Jessica trabaja ___.", gaps: [["mucho"]] },
         { prompt: "Hablas español ___ bien.", gaps: [["muy"]] },
-        { prompt: "¡___ gracias!", gaps: [["muchas"]] },
+        { prompt: "¡___ gracias!", gaps: [["Muchas"]] },
         { prompt: "Hoy hace ___ frío.", gaps: [["mucho"]] },
         { prompt: "La comida mexicana es ___ picante.", gaps: [["muy"]] },
       ],

@@ -11,10 +11,11 @@
 //     "¿Tuvieron suerte?" could be about "them", so they carry "(ustedes)"
 //     and the answers use nosotros, as in the dialogue.
 //   - The answer-no items don't list an answer that starts with a single no
-//     ("No trabajé en julio"): the marker ignores commas, so it would also
-//     pass "No, trabajé en julio", the one-no mistake. They list "No, no …",
-//     or a sentence that starts with the subject or a time ("Yo no trabajé…",
-//     "En julio no trabajé"); a single-no answer goes to Claude.
+//     ("No trabajé en julio") only where the instruction does not say to say no
+//     twice: the marker keeps a comma straight after a sentence-opening "No",
+//     so "No, trabajé en julio" does not match "No trabajé en julio" and goes
+//     to Claude. Whether to list a single-no answer depends only on the
+//     instruction's "say no twice".
 //   - Ex. 5 (write the question): the sheet's dotted line is "¿…?" in the
 //     prompt. Many questions fit each answer; the usual ones are listed.
 //   - Ex. 6's empty answer ("nada (—)") is typed as nada (or a dash).

@@ -13,15 +13,16 @@
 // Spanish; see ../imperatif.js for why.
 //
 // Card shapes:
-//   "Él está aburrido" / "He is bored"          Spanish shown, English typed: the meaning changes
+//   "Él está aburrido" / "He is bored"          a two-way phrase card (E); the meaning changes
 //   two-way phrase (E) and word (V) cards for the profile and the ex. 3 list
 //   "veintiuno" / "twenty-one"                     a number, as a word
 //
-// WHY SER OR ESTAR IS ON EXACT CARDS. Phrase cards are marked with typo
+// WHY SER OR ESTAR IS PRACTISED AS EXERCISE GAPS, NOT CARDS (the gap cards were
+// removed; the gaps are on the Exercises page). Phrase cards are marked with typo
 // tolerance, and "es" is two letters from "está": "Es de mal humor" passes
 // for "Está de mal humor", and "Esta clase está aburrida" for "Esta clase es
 // aburrida". That is the mistake this part is about, so every sentence where
-// the choice matters is an exact "ser o estar" gap card, and no phrase card
+// the choice matters is an Exercises-page gap, and no phrase card
 // turns on it.
 //
 // WHY THE TWO MEANING CARDS ARE ENGLISH-ANSWERED AND SHORT. "He is bored" and
@@ -30,7 +31,7 @@
 // longer sentence it isn't: "The children are boring" passes for "The
 // children are bored", and "Doing sports is tired" for "Doing sports is
 // tiring". So her ex. 4 "The children are bored" and "This class is boring",
-// and the cansado pair, are tested only on the exact gap cards (Los niños
+// and the cansado pair, are tested only in the Exercises gaps (Los niños
 // están aburridos, El profesor es aburrido, Hacer deporte es cansado, Valeria
 // está cansada).
 //
@@ -161,8 +162,9 @@ export const NOTES = [
       ]},
       { t: "note", v: "One person can be both: *Don Rafael es muy divertido, pero hoy está de mal humor*, \"Don Rafael is very funny, but today he is in a bad mood\"." },
       { t: "sub", v: "Always estar" },
+      { t: "note", v: "*De buen humor* and *de mal humor*, \"in a good mood\" and \"in a bad mood\", always take estar: *Hoy está de mal humor*, \"Today he is in a bad mood\"." },
+      { t: "sub", v: "Usually estar" },
       { t: "note", v: "*Jubilado*, \"retired\", and *casado*, \"married\", usually take estar: *Está jubilado*, \"He is retired\". In Mexico *es jubilado* and *soy casado* are heard too. *Listo* takes estar when it means \"ready\": *Estamos listos*, \"We are ready\"." },
-      { t: "note", v: "*De buen humor* and *de mal humor*, \"in a good mood\" and \"in a bad mood\", always take estar too: *Hoy está de mal humor*, \"Today he is in a bad mood\"." },
       { t: "note", v: "**The trap:** *siempre*, \"always\", doesn't turn estar into ser: *Andrés siempre está de buen humor*, \"Andrés is always in a good mood\"." },
       { t: "sub", v: "Ser and estar in the present" },
       { t: "table", bold: 0,

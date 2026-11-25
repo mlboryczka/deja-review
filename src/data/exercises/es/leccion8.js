@@ -27,7 +27,7 @@ export default {
         { prompt: "Yo ___ mis audífonos todo el día. (buscar)", gaps: [["busqué"]] },
         { prompt: "La reunión ___ a las diez. (empezar)", gaps: [["empezó"]] },
         { prompt: "Mi esposa y yo ___ juntos. (cocinar)", gaps: [["cocinamos"]] },
-        { prompt: "¿___ un buen día, Valeria? (pasar)", gaps: [["pasaste", "pasó"]] },
+        { prompt: "¿___ un buen día, Valeria? (pasar)", gaps: [["Pasaste", "Pasó"]] },
         { prompt: "Los niños ___ en el parque. (caminar)", gaps: [["caminaron"]] },
         { prompt: "Yo ___ a la clase de español a las ocho. (llegar)", gaps: [["llegué"]] },
         { prompt: "Mis amigos ___ en español. (escribir)", gaps: [["escribieron"]] },

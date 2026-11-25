@@ -145,12 +145,8 @@ export const CARDS = [
   ["Lleva una camisa azul", "He's wearing a blue shirt / She's wearing a blue shirt", "E", "phrases"],
   ["Quiero conocer nuevos países", "I want to discover new countries / I want to get to know new countries", "E", "phrases"],
 
-  // ── 2. Where the adjective goes (ex. 2): after the noun, then the ones
-  //    that go before it, one card per rule
-
-  // Grande: great before the noun, big after it (ex. 2, her table, ex. 6
-  // no. 14). Each line says which meaning is wanted; exact, because a phrase
-  // card passed "una grande casa"
+  // ── 2. Grande before the noun (ex. 2, her table, ex. 6 no. 14): one plain
+  //    phrase card, "great" before the noun
   ["¡Es una gran idea!", "It's a great idea! / That's a great idea!", "E", "grande"],
 ];
 

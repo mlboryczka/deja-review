@@ -106,9 +106,8 @@
 //     says the place comes after a; section 2 shows estar en without saying
 //     it.
 //   - Ir, "The near future": "Only ir changes with the person" (the sheet's
-//     formula shows it), "the second verb in the form the dictionary gives,
-//     the infinitive" (its formula says "infinitive"; the drills' line does
-//     too), and the two notes on putting a sentence in the near future, for
+//     formula shows it), "the second verb in the infinitive" (its formula says
+//     "infinitive"; the drills' line does too), and the two notes on putting a sentence in the near future, for
 //     the "→ con ir a" cards.
 //   - Plural, "Men and women together" is the sheet's own; the -z line is
 //     too. "the pencil" and "the pencils" are added English.
@@ -292,7 +291,7 @@ export const NOTES = [
           ["Are you going to the beach?", "¿Vas a la playa?"],
         ]},
       { t: "sub", v: "The near future" },
-      { t: "note", v: "To say what someone is going to do, use ir in the present, then a, then the second verb in the form the dictionary gives, the infinitive: *voy a ir a la playa*, \"I'm going to go to the beach\"." },
+      { t: "note", v: "To say what someone is going to do, use ir in the present, then a, then the second verb in the infinitive: *voy a ir a la playa*, \"I'm going to go to the beach\"." },
       { t: "note", v: "Only ir changes with the person: *¿qué vas a hacer?*, \"what are you going to do?\"; *vamos a cenar*, \"we're going to have dinner\"." },
       { t: "note", v: "To put a sentence in the near future, swap its verb for ir a and the verb in the infinitive: *está cansado*, \"he is tired\", becomes *va a estar cansado*, \"he's going to be tired\"." },
       { t: "note", v: "When the verb is ir, you get ir twice: *vamos a Guadalajara*, \"we're going to Guadalajara\", becomes *vamos a ir a Guadalajara*, \"we're going to go to Guadalajara\"." },

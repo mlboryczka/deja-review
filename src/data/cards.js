@@ -1,7 +1,7 @@
 // Card data extracted from daily French lesson logs.
 // Each RAW entry: [front, back, category, [dates]]
 
-const V = "vocab", E = "expr", G = "gram", P = "pron";
+const V = "vocab", E = "expr", G = "gram";
 
 export const RAW = [
 // ── VOCABULAIRE: Apr 2026 ─────────────────────────────────────────────
@@ -1010,7 +1010,7 @@ export const RAW = [
 ["venir → imparfait (ils)","ils venaient",G,["2025-12-01"]],
 ["apprendre → imparfait (je)","j'apprenais",G,["2025-12-01"]],
 // ═══════════════════════════════════════════════════════════════════════════
-// PRONONCIATION
+// WORDS, PHRASES AND DRILLS — what the pronunciation notes that were here became
 // ═══════════════════════════════════════════════════════════════════════════
 ["en Inde","in India / to India",V,["2026-03-27"]],
 ["au Liban","in Lebanon / to Lebanon",V,["2026-03-27"]],

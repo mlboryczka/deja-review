@@ -198,7 +198,7 @@ export const NOTES = [
     h: "1 · What querer and poder are for",
     blocks: [
       { t: "lead", v: "**Querer** means \"to want\" and **poder** means \"can\" or \"to be able to\"." },
-      { t: "note", v: "After querer or poder, the second verb stays as you find it in the dictionary: *quiero ir*, \"I want to go\"; *¿puede repetir?*, \"can you repeat?\"." },
+      { t: "note", v: "After querer or poder, the second verb stays in the infinitive: *quiero ir*, \"I want to go\"; *¿puede repetir?*, \"can you repeat?\"." },
       { t: "pairs", head: ["Spanish", "English"], v: [
         ["Quiero ir a la catedral", "I want to go to the cathedral"],
         ["¿Adónde quieres ir?", "Where do you want to go?"],

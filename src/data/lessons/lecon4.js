@@ -88,12 +88,11 @@
 //     endings printed "rose clair" (light pink) are silent. There is no
 //     colour here, so the notes name them: -e, -es, -ent.
 //   - Her table calls every -ir, -dre, -oir and -ire verb irregular, and aller
-//     "the exception". The notes keep her two columns, regular and irregular
-//     (every verb she puts in them is in the right one), but don't say that
-//     every -ir or -re verb is irregular, since many follow patterns of their
-//     own: they say only that these verbs don't follow the -er pattern and
-//     are learned one at a time.
-//   - "diner" in her list of -er verbs is written "dîner", as in Leçon 2.
+//     "the exception". The notes don't say that every -ir or -re verb is
+//     irregular, since many follow patterns of their own: they say only that
+//     these verbs don't follow the -er pattern and are learned one at a
+//     time. Her regular/irregular columns and her -er list (with "dîner") are
+//     not in the notes: they went with her section 1, which the notes leave out.
 //   - Her answer key ex. 9 no. 1 says James's brother is called James. He is
 //     Jean. Ex. 9 is not carded.
 //   - The English sheet ex. 7 no. 8 says "hearphones" for earphones. Not
@@ -238,7 +237,7 @@ export const CARDS = [
 // translated from the French: the -er pattern (Forms), the possessives and
 // the numbers. Her section 1, regular and irregular verb groups, is left out
 // and there is no Use tab: no card needs it, and the one thing worth keeping,
-// that aller is the exception, is in the Forms opening line (owner,
+// that aller is the exception, is in the "Irregular verbs" note (owner,
 // 2026-10-05). There is no word list,
 // and the dialogue is left out: the panel is for checking one thing, and the
 // word and phrase cards are how the words are learned.

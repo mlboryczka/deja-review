@@ -194,7 +194,7 @@ export const NOTES = [
         ["Siéntense, por favor", "Please sit down (ustedes)"],
       ]},
       { t: "sub", v: "Let's" },
-      { t: "note", v: "To say \"let's\", use *vamos a* and the verb as the dictionary gives it: *vamos a comer*, \"let's eat\". The same words also mean \"we're going to eat\"; the situation tells you which." },
+      { t: "note", v: "To say \"let's\", use *vamos a* and the verb in the infinitive: *vamos a comer*, \"let's eat\". The same words also mean \"we're going to eat\"; the situation tells you which." },
       { t: "note", v: "For \"let's go!\", say *¡vamos!* or *¡vámonos!*." },
     ],
   },

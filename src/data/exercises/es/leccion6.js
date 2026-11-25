@@ -3,9 +3,10 @@
 // written for the app, as a Mexican Spanish teacher would mark it.
 // Ex. 5 ("según tu opinión") has two right reactions per sentence, agreeing
 // or disagreeing; both are listed, so either is recognised. Ex. 4 answers
-// keep the double no ("No, no me gusta…"): the marker ignores commas, so a
-// single-no answer would also match the mistake "No, me gusta…"; Claude
-// marks those. Ex. 11 (dictation) and ex. 12 (oral answers) need audio and
+// keep the double no ("No, no me gusta…"): the marker keeps a comma
+// straight after a sentence-opening "No", so the mistake "No, me gusta…"
+// does not match a single-no answer; whether to list one depends only on
+// the instruction's "say no twice". Ex. 11 (dictation) and ex. 12 (oral answers) need audio and
 // are left out.
 
 export default {
