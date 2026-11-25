@@ -12,7 +12,9 @@
 //   - Lesson 8's time-and-date sheet counts toward Lesson 8;
 //   - the rating is Not started with nothing answered, Learned only when every
 //     part is at 80% or more, Learning otherwise;
-//   - study days come from every answer, split into items and sentences.
+//   - study days come from every answer, split into items and sentences;
+//   - an answer said in a live class (marked_by 'class') keeps its verdict:
+//     Stats never re-marks it against the key, as it does other answers.
 //
 // No browser and no network.
 
@@ -20,6 +22,8 @@ import { checker } from "../check.mjs";
 import { countedAnswers, masteryByLesson, lessonRating, answerDays, lessonOfExercises, REDO_GAP_DAYS } from "../../src/lib/lessonMastery.js";
 import { EXERCISES_BY_ID } from "../../src/data/exercises/es/index.js";
 import { DIALOGUES_BY_ID } from "../../src/data/exercises/es/dialogues.js";
+import { answerForStats } from "../../src/lib/spanishMastery.js";
+import { keyAnswer, findItem } from "../../src/lib/exerciseMarking.js";
 
 const ck = checker();
 const at = (iso) => new Date(iso).toISOString();
@@ -97,6 +101,20 @@ console.log("\nStudy days");
   const days = answerDays([ans("leccion10/3/1", "right", "2026-11-01T15:00"), ans("dialogo-leccion13/1/1", "right", "2026-11-01T16:00"), ans("leccion10/3/2", "right", "2026-11-02T03:00")]);
   ck("items and sentences are counted apart", days["2026-11-01"]?.sentences === 1);
   ck("an answer before 4am belongs to the day before", days["2026-11-01"]?.items === 2 && !days["2026-11-02"], JSON.stringify(days));
+}
+
+console.log("\nAnswers said in class");
+{
+  // An item whose key answer, kept as a line, the key marks Right.
+  const key = "leccion13/9/1";
+  const line = keyAnswer(findItem(EXERCISES_BY_ID, key).item);
+  const row = (marked_by, verdict) => ({ item_key: key, typed: line, verdict, marked_by, answered_at: at("2026-11-18T17:00"), hints: 0 });
+  ck("the test line is one the key marks Right", answerForStats(row("claude", "wrong"), {}).verdict === "right", line);
+  ck("a class answer marked Wrong stays Wrong though its words match the key", answerForStats(row("class", "wrong"), {}).verdict === "wrong");
+  ck("a class answer stays Wrong though the student had it accepted", answerForStats(row("class", "wrong"), { [key]: new Set([line]) }).verdict === "wrong");
+  ck("a class answer marked Right stays Right", answerForStats({ ...row("class", "right"), typed: "algo distinto" }, {}).verdict === "right");
+  const m = masteryByLesson({ exercisesById: EXERCISES_BY_ID, dialoguesById: DIALOGUES_BY_ID, answers: [answerForStats(row("class", "wrong"), {}), answerForStats({ ...row("class", "right"), item_key: "dialogo-leccion13/1/3" }, {})] }).leccion13;
+  ck("class answers count in Grammar and Text", m.grammar.tried === 1 && m.grammar.right === 0 && m.text.tried === 1 && m.text.right === 1);
 }
 
 const n = ck.fails();

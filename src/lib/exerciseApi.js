@@ -104,6 +104,10 @@ export async function loadAnswers({ supabase, userId, dialogues = false }) {
       return { answers: rows, missing, error: missing ? null : error };
     }
     for (const r of data || []) {
+      // An answer said in a live class with Laura (marked_by 'class',
+      // migration_030) counts on Stats only: these pages show what the
+      // student typed in the app.
+      if (r.marked_by === "class") continue;
       rows.push({
         key: r.item_key, typed: r.typed, verdict: r.verdict, markedBy: r.marked_by,
         note: r.note || "", correct: r.correct || "", answeredAt: r.answered_at,

@@ -6,6 +6,11 @@
 // (markedNow: the key's verdict under today's rules; acceptedNow: an answer
 // accepted with "My answer should be accepted" is right), then
 // lib/lessonMastery.js decides which answer counts.
+//
+// An answer said in a live class with Laura (marked_by 'class',
+// migration_030) keeps its verdict as kept: it was settled from Laura's
+// reaction, the answer key and the owner, and its typed line is what the
+// recording heard, so re-marking it against the key would override that.
 
 import { EXERCISES_BY_ID } from "../data/exercises/es/index.js";
 import { DIALOGUES_BY_ID } from "../data/exercises/es/dialogues.js";
@@ -40,14 +45,18 @@ async function loadAll({ supabase, userId }) {
   return null;
 }
 
+// One kept row as Stats counts it.
+export function answerForStats(r, accepted) {
+  const a = { key: r.item_key, typed: r.typed, verdict: r.verdict, markedBy: r.marked_by, answeredAt: r.answered_at, hints: r.hints ?? null };
+  if (r.marked_by === "class") return a;
+  const found = findItem(r.item_key.startsWith(DIALOGUE_PREFIX) ? DIALOGUES_BY_ID : EXERCISES_BY_ID, r.item_key);
+  return acceptedNow(markedNow(found?.item, a), accepted);
+}
+
 export async function loadSpanishMastery({ supabase, userId }) {
   const [rows, accepted] = await Promise.all([loadAll({ supabase, userId }), loadAccepted({ supabase, userId }).catch(() => ({}))]);
   if (!rows) return null;
-  const answers = rows.map((r) => {
-    const a = { key: r.item_key, typed: r.typed, verdict: r.verdict, markedBy: r.marked_by, answeredAt: r.answered_at, hints: r.hints ?? null };
-    const found = findItem(r.item_key.startsWith(DIALOGUE_PREFIX) ? DIALOGUES_BY_ID : EXERCISES_BY_ID, r.item_key);
-    return acceptedNow(markedNow(found?.item, a), accepted);
-  });
+  const answers = rows.map((r) => answerForStats(r, accepted));
   return {
     byLesson: masteryByLesson({ exercisesById: EXERCISES_BY_ID, dialoguesById: DIALOGUES_BY_ID, answers }),
     days: answerDays(answers),

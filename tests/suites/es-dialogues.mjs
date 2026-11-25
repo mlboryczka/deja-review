@@ -312,6 +312,16 @@ const key = itemKey(d.id, 1, at);
        ["not", "es_exercise_answers", "item_key", "like", `${DIALOGUE_PREFIX}%`],
      ]), JSON.stringify(seen));
 }
+{
+  // An answer said in a live class with Laura counts on Stats only.
+  const data = [
+    { item_key: "leccion14/9/1", typed: "a", verdict: "right", marked_by: "key", answered_at: "2026-11-24T10:00:00Z" },
+    { item_key: "leccion14/9/2", typed: "b", verdict: "wrong", marked_by: "class", answered_at: "2026-11-25T17:00:00Z" },
+  ];
+  const chain = () => ({ select() { return this; }, eq() { return this; }, like() { return this; }, not() { return this; }, order() { return this; }, range() { return Promise.resolve({ data, error: null }); } });
+  const { answers } = await loadAnswers({ supabase: { from: chain }, userId: "u-1" });
+  ck("an answer said in class isn't shown on the Exercises or Dialogues page", answers.length === 1 && answers[0].key === "leccion14/9/1", JSON.stringify(answers));
+}
 
 // ── The tutor ───────────────────────────────────────────────────────────
 console.log("The tutor");
