@@ -770,26 +770,21 @@ console.log("\n  the handler's own admin gate (the route lets in the test app's 
   ck("an unknown action is refused", (await run(store, OWNER, { action: "delete-everything" })).status === 400);
 }
 
-// The route lets in the owner, and anyone signed in on the owner's test app
-// (owner, 2026-10-19: "if i give laura access to -mlb then she should see
-// everything in that version"). The app's switch reads the same rule.
-console.log("\n  who has Podcasts and the Spanish module: the owner, and anyone on the test app");
+// Since 2026-11-25 (owner: "do it!") every signed-in student has Podcasts, the
+// Spanish module, Exercises and Dialogues, on the students' app too. The
+// app's switch and the routes read the same rule.
+console.log("\n  who has Podcasts and the Spanish module: everyone signed in, on both apps");
 {
   const { testAppModulesOpenTo } = await import("../../src/lib/testApp.js");
   const open = (isOwner, signedIn, host) => testAppModulesOpenTo({ isOwner, signedIn, host });
   ck("the owner, on the students' app", open(true, true, "dejareview.vercel.app"));
+  ck("a student on the students' app, at its address and its old one",
+     open(false, true, "dejareview.vercel.app") && open(false, true, "french-flashcards-nine.vercel.app"));
   ck("a student on the test app, at either of its addresses",
      open(false, true, "dejareview-mlb.vercel.app") && open(false, true, "french-flashcards-git-testing-mlboryczkas-projects.vercel.app"));
-  ck("  however the address is written", open(false, true, "DejaReview-MLB.vercel.app:443"));
-  ck("not a student on the students' app, nor on its old address",
-     !open(false, true, "dejareview.vercel.app") && !open(false, true, "french-flashcards-nine.vercel.app"));
-  ck("not an address that only starts or ends like the test app's",
-     !open(false, true, "dejareview-mlb.vercel.app.example.com") && !open(false, true, "x.dejareview-mlb.vercel.app"));
-  ck("not someone who isn't signed in, even on the test app", !open(false, false, "dejareview-mlb.vercel.app"));
-  ck("not a request that names no address", !open(false, true, undefined) && !open(false, true, ""));
-  // The same rule opens Spanish, Exercises and Dialogues, so a student on the
-  // students' app gets neither them nor Podcasts.
-  ck("a student on the students' app has none of Podcasts, Spanish, Exercises or Dialogues", !open(false, true, "dejareview.vercel.app"));
+  ck("a student on a request that names no address", open(false, true, undefined) && open(false, true, ""));
+  ck("not someone who isn't signed in, on either app",
+     !open(false, false, "dejareview-mlb.vercel.app") && !open(false, false, "dejareview.vercel.app"));
 }
 
 // ── Following and the feeds ────────────────────────────────────────────
