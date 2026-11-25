@@ -373,6 +373,9 @@ export default function ChatPanel({
   open,
   onClose,
   user,
+  // Only the owner's edits go to the corrections ledger; the route refuses
+  // everyone else (api/parse-corrections.js).
+  logsCorrections = false,
   // The whole shaped deck, not a list of fronts. deckContext reads backs and
   // review history off these rows to tell the tutor what you already have and
   // what you keep missing.
@@ -733,7 +736,7 @@ export default function ChatPanel({
       try {
         await writeCard(card.row_id, card.f, front, back);
         onCardUpdated?.(card.row_id, { f: front, b: back, id: frontKey(front), flagged: false });
-        logCorrection({
+        if (logsCorrections) logCorrection({
           category: front !== card.f ? CORRECTION_CATEGORIES.FRONT_TEXT_EDIT : CORRECTION_CATEGORIES.BACK_TEXT_EDIT,
           action: CORRECTION_ACTIONS.EDIT,
           card_id: card.row_id,
@@ -774,7 +777,7 @@ export default function ChatPanel({
       try {
         await writeCard(edit.rowId, edit.front, edit.oldFront, edit.oldBack);
         onCardUpdated?.(edit.rowId, { f: edit.oldFront, b: edit.oldBack, id: frontKey(edit.oldFront) });
-        logCorrection({
+        if (logsCorrections) logCorrection({
           category: edit.oldFront !== edit.front ? CORRECTION_CATEGORIES.FRONT_TEXT_EDIT : CORRECTION_CATEGORIES.BACK_TEXT_EDIT,
           action: CORRECTION_ACTIONS.EDIT,
           card_id: edit.rowId,

@@ -1,8 +1,7 @@
 // Vercel serverless function: /api/parse-corrections
 //
 // POST   → log a correction (admin-only)
-// GET    → list recent corrections (?limit=N)
-// GET ?aggregate=true → return correction_patterns_90d view rows
+// Nothing reads the log through this route; the owner reads the tables.
 //
 // DB writes use the service role key (RLS is enforced upstream by the
 // admin-email gate).
@@ -27,12 +26,6 @@ export default async function handler(req, res) {
 
   if (req.method === "POST") {
     return handlePost(req, res, admin, admin_user);
-  }
-  if (req.method === "GET") {
-    if (req.query?.aggregate === "true") {
-      return handleAggregate(req, res, admin);
-    }
-    return handleList(req, res, admin);
   }
   return res.status(405).json({ error: "Method not allowed" });
 }
@@ -85,35 +78,4 @@ async function handlePost(req, res, admin, adminUser) {
     return res.status(500).json({ error: error.message });
   }
   return res.status(200).json({ ok: true, id: data?.id || null });
-}
-
-async function handleList(req, res, admin) {
-  const limitRaw = parseInt(req.query?.limit, 10);
-  const limit = Number.isFinite(limitRaw) && limitRaw > 0
-    ? Math.min(limitRaw, 500)
-    : 50;
-
-  const { data, error } = await admin
-    .from("parse_corrections")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(limit);
-
-  if (error) {
-    console.error("[parse-corrections] list failed:", error);
-    return res.status(500).json({ error: error.message });
-  }
-  return res.status(200).json({ ok: true, corrections: data || [] });
-}
-
-async function handleAggregate(_req, res, admin) {
-  const { data, error } = await admin
-    .from("correction_patterns_90d")
-    .select("*");
-
-  if (error) {
-    console.error("[parse-corrections] aggregate failed:", error);
-    return res.status(500).json({ error: error.message });
-  }
-  return res.status(200).json({ ok: true, patterns: data || [] });
 }

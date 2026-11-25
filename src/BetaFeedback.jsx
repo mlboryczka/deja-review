@@ -4,6 +4,7 @@ import { supabase } from "./supabase";
 import { T } from "./theme";
 import { cleanFrenchPrompt } from "./lib/cardText";
 import { PANEL_EASING } from "./lib/motion";
+import { feedbackRequest } from "./lib/feedbackApi";
 
 // "Send feedback" trigger + the panel it opens. Posts to beta_feedback table.
 //
@@ -40,8 +41,7 @@ import { PANEL_EASING } from "./lib/motion";
 //     with this switched on (`attachRequest`).
 //
 // Stored in beta_feedback.card_context (supabase/schema.sql). The column
-// and `screenshot` are nullable, and the client retries without them if a
-// database predates them.
+// and `screenshot` are nullable.
 
 const TOAST_MS = 5000;
 // Short: the panel moves nothing but itself, so it has no page movement to
@@ -273,11 +273,7 @@ export function BetaFeedback({
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) return;
-      fetch("/api/review-answer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ feedback: { action: "review" } }),
-      }).catch(() => {});
+      feedbackRequest({ action: "review" }).catch(() => {});
     } catch {}
   }
 
@@ -318,20 +314,9 @@ export function BetaFeedback({
     if (screenshot) full.screenshot = screenshot;
     if (cardContext) full.card_context = cardContext;
 
-    // Try full row; if schema is missing the optional columns, drop them
-    // and retry. This matches the original resilience pattern.
     let err = null;
     try {
       ({ error: err } = await supabase.from("beta_feedback").insert(full));
-      if (err && /card_context|screenshot|column/i.test(err.message)) {
-        // Retry without optional columns
-        const fallback = { ...base };
-        if (screenshot && !/card_context/i.test(err.message)) {
-          fallback.screenshot = screenshot;
-        }
-        const retry = await supabase.from("beta_feedback").insert(fallback);
-        err = retry.error;
-      }
     } catch (e) {
       err = e;
     }

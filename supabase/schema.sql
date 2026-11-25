@@ -254,8 +254,7 @@ create policy "Users can delete own review dates"
 -- answer should have been accepted". This one is free-form: a message, and
 -- optionally a screenshot and a snapshot of whichever card was on screen.
 --
--- screenshot and card_context are nullable and the client retries without
--- them if the insert complains, so an older database still accepts feedback.
+-- screenshot and card_context are nullable.
 
 create table if not exists public.beta_feedback (
   -- A number, as in the live database (feedback #57 and so on).

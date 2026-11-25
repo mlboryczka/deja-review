@@ -1,3 +1,4 @@
+import { feedbackRequest } from "./lib/feedbackApi";
 import { useState, useEffect, useCallback, useMemo, useRef, Fragment, lazy, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { RAW } from "./data/cards"; // only used for the admin "seed demo deck" action
@@ -96,7 +97,7 @@ import { uploadResultText, yourClasses } from "./lib/uploadText";
 import PodcastsPage from "./PodcastsPage";
 import { usePodcastFollows } from "./usePodcasts";
 import { podcastBySlug } from "./lib/podcastCatalogue";
-import { podcastsOpenTo, usesOwnersKeyOnTestApp } from "./lib/testApp";
+import { testAppModulesOpenTo, usesOwnersKeyOnTestApp } from "./lib/testApp";
 // The Spanish Exercises module (owner, 2026-10-24): the written exercises of
 // each Spanish lesson's sheet, answered and marked one item at a time. Its
 // pages are ExercisesPage's; the shell owns which one is showing.
@@ -117,7 +118,7 @@ const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase();
 const isAdminUser = (user) => !!(user?.email && user.email.toLowerCase() === ADMIN_EMAIL);
 // Podcasts: the owner, and anyone signed in on the owner's test app
 // (lib/testApp.js, owner 2026-10-19). The server checks the same rule.
-const podcastsUser = (user) => podcastsOpenTo({
+const podcastsUser = (user) => testAppModulesOpenTo({
   isOwner: isAdminUser(user),
   signedIn: !!user?.id,
   host: appHost(),
@@ -3225,12 +3226,12 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
       return { error: `Card update network error: ${e.message || e}` };
     }
 
-    // Fire-and-forget: log to the parse-corrections ledger every time a
-    // save succeeds. No diff guard — the small cost of logging a no-op
+    // Fire-and-forget: log to the parse-corrections ledger every time the
+    // owner's save succeeds (the route refuses anyone else). No diff guard — the small cost of logging a no-op
     // save is nothing compared to the cost of silently swallowing logs
     // because the guard mis-fires.
     const frontChanged = ctx.originalFront !== trimmedFront;
-    logCorrection({
+    if (isAdmin) logCorrection({
       category: frontChanged
         ? CORRECTION_CATEGORIES.FRONT_TEXT_EDIT
         : CORRECTION_CATEGORIES.BACK_TEXT_EDIT,
@@ -3282,21 +3283,6 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     setFeedbackVerdict(null);
     reloadDeck();
     return true;
-  };
-
-  const flagCard = async (rowId) => {
-    const { error } = await supabase
-      .from(tbl("user_cards"))
-      .update({
-        flagged_for_review: true,
-        flagged_at: new Date().toISOString(),
-      })
-      .eq("id", rowId);
-    if (error) {
-      console.error("Flag failed:", error);
-      return;
-    }
-    reloadDeck();
   };
 
   if (!loaded) return <div style={S.loading}>Loading…</div>;
@@ -3435,6 +3421,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
           open={showChat}
           onClose={() => setShowChat(false)}
           user={user}
+          logsCorrections={isAdmin}
           cards={userCards}
           onCardAdded={tutorCardAdded}
           onCardUpdated={patchDeckCard}
@@ -4050,6 +4037,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
         open={showChat}
         onClose={() => setShowChat(false)}
         user={user}
+        logsCorrections={isAdmin}
         // In the Spanish module, the Spanish tutor and the Spanish deck.
         course={course.id}
         cards={userCards}
@@ -5285,7 +5273,6 @@ function FeedbackEntry({ item, number, last, children }) {
   );
 }
 
-// ─── FEEDBACK REVIEW MODAL (admin only) ───────────────────────────────────
 // ─── OPEN FEEDBACK ─────────────────────────────────────────────────────────
 // Feedback that has been dealt with is marked resolved rather than deleted, and
 // leaves the list. Both admin views read through this, so they cannot disagree
@@ -5327,22 +5314,6 @@ const NEEDS_MIGRATION_009 =
 // Dismiss resolves any entry. Nothing changes until the owner presses a button
 // (owner, 2026-10-04).
 
-async function feedbackRequest(feedback) {
-  const { data: { session } } = await supabase.auth.getSession();
-  const res = await fetch("/api/review-answer", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token || ""}` },
-    body: JSON.stringify({ feedback }),
-  });
-  let body = null;
-  try { body = await res.json(); } catch {}
-  if (!res.ok) {
-    const err = new Error(body?.error || `The server answered ${res.status}.`);
-    err.code = body?.code;
-    throw err;
-  }
-  return body;
-}
 
 const REVIEW_LABEL = { card: "Card fix", remove: "Remove card", app: "App problem", none: "No change needed" };
 const REVIEW_COLOR = { card: T.color.secondary, remove: T.color.secondary, app: T.color.primary, none: T.color.onSurfaceVariant };
@@ -5490,6 +5461,7 @@ function FeedbackReview({ item, state, onApply, onDismiss, onReview, onRevert })
   );
 }
 
+// ─── FEEDBACK REVIEW MODAL (admin only) ───────────────────────────────────
 // Shows open beta_feedback entries in a portal overlay, the owner's own first
 // and other students' below. Triggered from the profile dropdown → "View
 // feedback". Entries keep the numbers the script uses (newest first across
@@ -6000,12 +5972,6 @@ function FeedbackAdminView({ user, setMode, resetSession }) {
   );
 }
 
-// ─── REPORT THIS CARD ────────────────────────────────────────────────────
-// A faint flag in the card's bottom-right corner, beside the ⓘ. Most feedback
-// is about a card, and the only way in used to be a 12px link at the foot of
-// the sidebar. Opens the feedback panel with this card attached. Stops the
-// click so it never flips, continues or grades the card underneath it.
-// One on/off row in the settings menu.
 // ─── THE SIDEBAR'S STAGES (Spanish) ──────────────────────────────────────
 // Spanish lessons are listed in the course's four stages, one open at a time,
 // on Flashcards and on Exercises alike (data/lessons/es/stages.js).
@@ -6172,6 +6138,7 @@ function LanguageFlag({ course, onCourse, style }) {
   );
 }
 
+// One on/off row in the settings menu.
 function SettingsSwitch({ label, on, onClick, ...rest }) {
   return (
     <button {...rest} role="switch" aria-checked={on} onClick={onClick} style={S.settingsRow}>
@@ -6183,6 +6150,11 @@ function SettingsSwitch({ label, on, onClick, ...rest }) {
   );
 }
 
+// ─── REPORT THIS CARD ────────────────────────────────────────────────────
+// A faint flag in the card's bottom-right corner, beside the ⓘ. Most feedback
+// is about a card, and the only way in used to be a 12px link at the foot of
+// the sidebar. Opens the feedback panel with this card attached. Stops the
+// click so it never flips, continues or grades the card underneath it.
 function ReportCardButton({ onReport, nextToInfo = false }) {
   const [hover, setHover] = useState(false);
   return (
@@ -6942,7 +6914,6 @@ const S = {
   // Per-card action buttons (edit / flag)
   cardActions: { display:"flex", gap:10, justifyContent:"center", marginTop:18 },
   cardActionBtn: { width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", background:T.color.surfaceLow, border:"none", borderRadius:"50%", padding:0, fontSize:13, cursor:"pointer", color:T.color.onSurfaceVariant, fontFamily:T.font.sans, fontWeight:600, letterSpacing:"0.02em" },
-  cardActionBtnFlagged: { background:T.color.tertiaryFixed, color:T.color.onSecondaryContainer, cursor:"default", fontWeight:700 },
   // Type mode (study input)
   typeInputRow: { display:"flex", gap:10, justifyContent:"center", marginBottom:10 },
   giveUpRow: { display:"flex", justifyContent:"center", marginBottom:4, flexShrink:0 },
