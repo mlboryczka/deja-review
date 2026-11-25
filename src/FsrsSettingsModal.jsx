@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { T } from "./theme";
-import { FIRST_FIT } from "./lib/fsrsSettings";
+import { FIRST_FIT, DEFAULT_TARGET } from "./lib/fsrsSettings";
 
 // "How much to remember": the one FSRS setting a student chooses. The memory
 // settings themselves are fitted to their answers by the server and are never
@@ -56,7 +56,7 @@ export default function FsrsSettingsModal({ open, onClose, settings }) {
                     <span style={S.choiceLabel}>{label}</span>
                     <span style={S.choiceText}>
                       {text}
-                      {key === "auto" && on && target < 0.9 ? ` Now aiming for ${pct(target)}.` : ""}
+                      {key === "auto" && on && target < DEFAULT_TARGET ? ` Now aiming for ${pct(target)}.` : ""}
                     </span>
                   </span>
                 </button>

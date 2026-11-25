@@ -4,7 +4,8 @@
 // whenever the settings change.
 //
 // A history is one card asked one way round, from card_reviews: only the
-// answers FSRS counted (the first of each day), in the order they were given.
+// answers FSRS counted (the first of each day, and since 2026-10-14 the repeat
+// after a miss), in the order they were given.
 
 import { createEmptyCard } from "ts-fsrs";
 import { toFsrsTime, scheduler as current, Rating, State, nextCard } from "./spacedRepetition.js";

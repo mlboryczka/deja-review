@@ -13,7 +13,7 @@
 
 import { fsrs, State, Rating } from "ts-fsrs";
 import { DAY_STARTS_AT_HOUR } from "./studyDay.js";
-import { STARTING_WEIGHTS, usableWeights } from "./fsrsSettings.js";
+import { STARTING_WEIGHTS, usableWeights, DEFAULT_TARGET } from "./fsrsSettings.js";
 
 export { State, Rating };
 
@@ -41,7 +41,7 @@ export { State, Rating };
 //   enableFuzz — spreads due dates by a few percent so cards learned on the
 //     same day don't clump into one giant review day months later.
 export const FSRS_CONFIG = Object.freeze({
-  requestRetention: 0.9,
+  requestRetention: DEFAULT_TARGET,
   maximumInterval: 3650,
   enableFuzz: true,
   enableShortTerm: false,

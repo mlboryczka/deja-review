@@ -5,7 +5,7 @@ import {
   TARGET_CHOICES, DEFAULT_TARGET, targetOf, recordStudyDay, nextAutoTarget, settingsKind,
 } from "./lib/fsrsSettings";
 import { leftDueCards } from "./lib/sessionQueue";
-import { localISODate } from "./lib/studyDay";
+import { localISODate, browserTimeZone } from "./lib/studyDay";
 
 // The student's own FSRS settings (migration_012), applied to the scheduler.
 //
@@ -170,7 +170,7 @@ export function useFsrsSettings(user, { cards, freshSeq, dir, dealtFromRef, onEs
         const res = await fetch("/api/fsrs-fit", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-          body: JSON.stringify({ timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+          body: JSON.stringify({ timeZone: browserTimeZone() || undefined }),
         });
         const result = await res.json().catch(() => null);
         if (!res.ok || !result?.ok) return;

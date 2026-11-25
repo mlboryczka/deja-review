@@ -439,7 +439,7 @@ export function placeRetry(deck, idx, card, offset = 20, room = deck.length) {
   const next = [...deck];
   const [pushedOut] = next.splice(displace, 1);
   const insertAt = Math.min(idx + 1 + offset, next.length);
-  next.splice(insertAt, 0, { ...card, _retry: true, _bucket: bucket, _displaced: pushedOut });
+  next.splice(insertAt, 0, { ...card, _retry: true, _bucket: bucket, _added: undefined, _displaced: pushedOut });
   return next;
 }
 

@@ -10,8 +10,8 @@
 // of being right both ways, read at the end of that day from the answers given
 // up to then: an answer's record keeps the memory strength it left
 // (stability_after), and the chance falls from there with time exactly as it
-// does for the card now. Only answers FSRS counted, the first of each day,
-// carry a strength.
+// does for the card now. Only answers FSRS counted carry a strength: the first
+// of each day, and since 2026-10-14 the repeat after a miss.
 //
 // A card's history starts again the last time it was answered as a new card,
 // as in lib/fsrsHistory.js: "Reset all progress" keeps the record. A card that

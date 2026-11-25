@@ -36,7 +36,7 @@
 // given in.
 
 import { State, Rating, makeScheduler, toFsrsTime } from "./spacedRepetition.js";
-import { buildHistories, replayHistory, fittingSequences } from "./fsrsHistory.js";
+import { buildHistories, replayHistory, fittingSequences, studyDayNumber } from "./fsrsHistory.js";
 import { STARTING_WEIGHTS, targetOf, usableWeights, settingsKind, fitDue, FIRST_FIT, REFIT_ANSWERS, REFIT_DAYS } from "./fsrsSettings.js";
 import { sideOf, isTwoWay, directionsOf, otherDirection } from "./directions.js";
 import { classDaysOf, addedByStudent } from "./sessionQueue.js";
@@ -59,7 +59,7 @@ const MAX_INTERVAL = 3650;
 // ── Days ───────────────────────────────────────────────────────────────
 // A study day as a whole number, and as a date. FSRS counts the days between
 // two answers as the difference of these.
-const dayNo = (ms, tz) => Math.floor(toFsrsTime(ms, tz || undefined) / DAY);
+const dayNo = (ms, tz) => studyDayNumber(ms, tz || undefined);
 const dayIso = (n) => new Date(n * DAY).toISOString().slice(0, 10);
 // How a day reads in a sentence: "Sep 27".
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

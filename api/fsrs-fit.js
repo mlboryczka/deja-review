@@ -26,6 +26,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { requireUser } from "./_lib/auth.js";
+import { settingsKey } from "./_lib/settingsKey.js";
 import { buildHistories, fittingSequences, replayHistory } from "../src/lib/fsrsHistory.js";
 import { makeScheduler } from "../src/lib/spacedRepetition.js";
 import { STARTING_WEIGHTS, STARTING_VERSION, FIRST_FIT, fitDue, usableWeights, withFirstGaps, settingsKind } from "../src/lib/fsrsSettings.js";
@@ -95,7 +96,7 @@ export async function fitUser({ admin, userId, timeZone, now = Date.now(), optim
   const answers = sequences.reduce((n, s) => n + s.length, 0);
 
   let weights = usableWeights(row?.weights) || STARTING_WEIGHTS;
-  let settings = usableWeights(row?.weights) ? `fit:${row.fitted_at}` : `start:${STARTING_VERSION}`;
+  let settings = usableWeights(row?.weights) ? settingsKey(`fit:${row.fitted_at}`) : `start:${STARTING_VERSION}`;
   const patch = {};
   let fit = null;
 
@@ -115,7 +116,7 @@ export async function fitUser({ admin, userId, timeZone, now = Date.now(), optim
   }
 
   let recomputed = 0;
-  if (row?.computed_with !== settings) {
+  if (settingsKey(row?.computed_with) !== settings) {
     recomputed = await recompute({ admin, userId, histories, weights, timeZone });
     patch.computed_with = settings;
   }
