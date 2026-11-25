@@ -343,7 +343,7 @@ and confirm no `*` survives; `notescheck.mjs` (below) does this.
   records every card in `LESSONS`, and the `logic` suite then holds those
   cards to their wording.
 - **Commit only your own changes.** Other sessions edit this working copy at
-  the same time. If `french flashcards context.md` has their uncommitted
+  the same time. If `dejareview context.md` has their uncommitted
   edits, stage your edit applied to HEAD's version (`git hash-object -w`,
   then `git update-index --cacheinfo`) and make the same edit in the working
   file.
@@ -397,7 +397,7 @@ private copy:
 - `logic` (released cards) and `instructions` (instruction lines) suites.
 - Run browser suites without moving `.env.local`: start the stand-in and Vite
   yourself with env vars on a free port, and pass `APP_URL` and `MOCK_URL`.
-- Update the lesson's section of `french flashcards context.md`.
+- Update the lesson's section of `dejareview context.md`.
 
 ## Where these decisions come from
 

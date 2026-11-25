@@ -68,7 +68,7 @@
 export const ALLOWED_HOSTS = ['francaisfacile.rfi.fr', 'open.spotify.com'];
 export const FETCH_TIMEOUT_MS = 10_000;
 export const MAX_BYTES = 2 * 1024 * 1024;
-export const USER_AGENT = 'Mozilla/5.0 (compatible; DejaReview/1.0; +https://french-flashcards-nine.vercel.app)';
+export const USER_AGENT = 'Mozilla/5.0 (compatible; DejaReview/1.0; +https://dejareview.vercel.app)';
 const MAX_REDIRECTS = 3;
 
 // Spotify cuts long titles; a cut title still matches when at least this many

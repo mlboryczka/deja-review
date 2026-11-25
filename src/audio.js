@@ -1,4 +1,4 @@
-// French Flashcards — audio module
+// dejareview: audio module
 //
 // Speech is the browser's own speechSynthesis. There is no backend and no
 // key: the Azure TTS and pronunciation-assessment endpoints (api/tts.js,

@@ -1,4 +1,4 @@
--- French Flashcards — database schema
+-- dejareview: database schema
 -- Run this in the Supabase SQL Editor once when setting up a new project.
 -- Dashboard → SQL Editor → New Query → paste → Run.
 

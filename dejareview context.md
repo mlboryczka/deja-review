@@ -1,4 +1,4 @@
-# French Flashcards — project context
+# dejareview: project context
 
 A flashcard app for learning French with spaced repetition. It is built around
 the student's class notebook, the *cahier*, which the teacher (Laura) and the

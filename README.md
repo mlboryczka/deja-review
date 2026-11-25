@@ -104,7 +104,7 @@ known both ways round.
 ## Built with Claude Code
 
 The app is built with Claude Code. Each working session starts from the
-[working notes](french%20flashcards%20context.md), which describe the app as it
+[working notes](dejareview%20context.md), which describe the app as it
 is, record each of the owner's decisions with its date and reason, and list
 what is still open. They are updated with every change. How a lesson is made is
 written down as a [skill](.claude/skills/building-lessons/SKILL.md) that Claude
@@ -118,5 +118,5 @@ follows.
 - [Where Claude is used, and who pays](docs/where-claude-is-used.md)
 - [Running your own copy](docs/setup.md)
 - [The tests guide](tests/README.md): every test suite, and what each checks
-- [The working notes](french%20flashcards%20context.md): the full design
+- [The working notes](dejareview%20context.md): the full design
   history
