@@ -29,18 +29,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { askClaude, isDrillCard } from "../api/_lib/answerChecks.js";
+import { loadEnv } from "./lib/loadEnv.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const APPLY = process.argv.includes("--apply");
 
-for (const file of [".env.local", ".env"]) {
-  const p = path.join(ROOT, file);
-  if (!fs.existsSync(p)) continue;
-  for (const line of fs.readFileSync(p, "utf8").split("\n")) {
-    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
-    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
-  }
-}
+loadEnv(ROOT);
 
 const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ANTHROPIC_API_KEY } = process.env;
 const missing = Object.entries({ SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ANTHROPIC_API_KEY })

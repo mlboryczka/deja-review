@@ -38,6 +38,7 @@ import { fileURLToPath } from "node:url";
 import { readLexique, phrasesOf, phraseKey, saidPerMillion, MIN_TIMES } from "./phrases.mjs";
 import { isArchived } from "../src/lib/archive.js";
 import { lessonIdOf } from "../src/lib/lessonSource.js";
+import { loadEnv } from "./lib/loadEnv.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -46,24 +47,17 @@ const APPLY = args.includes("--apply");
 const ALL = args.includes("--all");
 const LINES = Number(argVal("--lines")) || Infinity;
 const SAVE = argVal("--save");
+if (APPLY && LINES !== Infinity) {
+  // Counts made from part of the subtitles would be saved and the cards marked
+  // counted, so they would never be counted again from the whole.
+  console.error("--apply can't be used with --lines: counts from part of the subtitles must not be saved.");
+  process.exit(1);
+}
 const DATA = path.join(os.homedir(), ".claude", "scheduled-tasks", "morning-check", "data");
 const LEXIQUE = argVal("--lexique") || path.join(DATA, "lexique", "Lexique383.tsv");
 const SUBTITLES = argVal("--subtitles") || path.join(DATA, "opensubtitles", "fr.txt.gz");
 
-// Settings: this checkout's .env.local, else the main checkout's (a worktree
-// has none of its own).
-const MAIN = /[\\/]\.claude[\\/]worktrees[\\/][^\\/]+$/.test(ROOT) ? path.resolve(ROOT, "..", "..", "..") : null;
-for (const dir of [ROOT, MAIN].filter(Boolean)) {
-  if (dir === MAIN && process.env.SUPABASE_URL) break;
-  for (const file of [".env.local", ".env"]) {
-    const p = path.join(dir, file);
-    if (!fs.existsSync(p)) continue;
-    for (const line of fs.readFileSync(p, "utf8").split("\n")) {
-      const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
-      if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
-    }
-  }
-}
+loadEnv(ROOT);
 const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ADMIN_EMAIL } = process.env;
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY. Put them in .env.local or the environment.");
@@ -120,7 +114,10 @@ if (APPLY && !migrated) {
 // The cards the order puts by how often they're said: the student's own, in
 // study. Lesson cards keep their lesson's order and grammar cards their place
 // (the owner, 2026-10-14), so neither is counted.
-const inStudy = read.cards.filter((c) => !isArchived(c) && !c.archived_at && !c.merged_into);
+// A card is out of study by its source alone, as in the app (src/lib/archive.js):
+// a put-away repeat the tutor's "Add" brought back keeps its merged_into, and
+// is in study again.
+const inStudy = read.cards.filter((c) => !isArchived(c));
 const counted = inStudy.filter((c) => !lessonIdOf(c) && c.category !== "G");
 const todo = counted.filter((c) => ALL || !c.said_counted_at);
 console.log(`${EMAIL}: ${inStudy.length} cards in study, ${counted.length} of their own words and phrases, ${todo.length} to count.`);

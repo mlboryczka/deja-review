@@ -46,19 +46,13 @@ import { SYSTEM_PROMPT, REPORT_TOOL, MODEL, MAX_CARDS } from "../api/_lib/splitS
 import { CAT_DB_TO_UI } from "../src/lib/cardCategories.js";
 import { cardIndex } from "../src/lib/sameCard.js";
 import { applySplit, holderOf, dbCategory } from "./lib/multiSenseWrites.mjs";
+import { loadEnv } from "./lib/loadEnv.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const APPLY = process.argv.includes("--apply");
 
 // ── config ──────────────────────────────────────────────────────────────────
-for (const file of [".env.local", ".env"]) {
-  const p = path.join(ROOT, file);
-  if (!fs.existsSync(p)) continue;
-  for (const line of fs.readFileSync(p, "utf8").split("\n")) {
-    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
-    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
-  }
-}
+loadEnv(ROOT);
 
 const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ANTHROPIC_API_KEY, DECK_USER_ID } = process.env;
 const missing = Object.entries({ SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ANTHROPIC_API_KEY })

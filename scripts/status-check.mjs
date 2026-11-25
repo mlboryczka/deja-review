@@ -41,6 +41,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadEnv } from "./lib/loadEnv.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -54,18 +55,7 @@ process.env.TZ = TZ;
 
 // Run from a worktree (.claude/worktrees/<name>, where the test app's branch
 // lives) that has no settings of its own, the main checkout's are read.
-const MAIN = /[\\/]\.claude[\\/]worktrees[\\/][^\\/]+$/.test(ROOT) ? path.resolve(ROOT, "..", "..", "..") : null;
-for (const dir of [ROOT, MAIN].filter(Boolean)) {
-  if (dir === MAIN && process.env.SUPABASE_URL) break;
-  for (const file of [".env.local", ".env"]) {
-    const p = path.join(dir, file);
-    if (!fs.existsSync(p)) continue;
-    for (const line of fs.readFileSync(p, "utf8").split("\n")) {
-      const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
-      if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
-    }
-  }
-}
+loadEnv(ROOT);
 
 const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ADMIN_EMAIL } = process.env;
 const missing = Object.entries({ SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY })

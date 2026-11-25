@@ -29,6 +29,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadEnv } from "./lib/loadEnv.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const APPLY = process.argv.includes("--apply");
@@ -38,14 +39,7 @@ const APPLY = process.argv.includes("--apply");
 // it, which is the migration's own formula.
 export const SEED_INSTANT = "2026-09-05T04:19:08.31976+00:00";
 
-for (const file of [".env.local", ".env"]) {
-  const p = path.join(ROOT, file);
-  if (!fs.existsSync(p)) continue;
-  for (const line of fs.readFileSync(p, "utf8").split("\n")) {
-    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
-    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
-  }
-}
+loadEnv(ROOT);
 
 const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {

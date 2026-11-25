@@ -53,6 +53,7 @@ import { archivedSource, isArchived } from "../src/lib/archive.js";
 import { LESSON_SOURCE_PREFIX } from "../src/lib/lessonSource.js";
 import { cardIndex } from "../src/lib/sameCard.js";
 import { holderOf } from "./lib/multiSenseWrites.mjs";
+import { loadEnv } from "./lib/loadEnv.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -539,8 +540,16 @@ export function summarize(proposal) {
       if (it.decision === "keep" && it.from !== "claude") continue;
       const tag = it.from === "claude" ? " [claude]" : "";
       if (it.decision === "convert") {
-        const parts = it.newCards.map(
-          (c) => cardText(c) + (normFront(c.front) === normFront(it.front) ? " [re-filed in place, keeps its history]" : "") + note(c.front)
+        // The card --apply re-files in place is found the same way as there,
+        // and the tag is shown only when the planned writes really re-file it
+        // (not when the French is already held by another row).
+        const cards = it.newCards;
+        const self = cards.find((c) => normFront(c.front) === normFront(it.front)) ||
+          cards.find((c) => sameFrench(c.front, it.front)) ||
+          (cards.length === 1 && overlap(cards[0].front, it.front) >= 0.6 ? cards[0] : null);
+        const refiled = d.preview ? d.preview.retags.some((r) => r.front === it.front) : !!self;
+        const parts = cards.map(
+          (c) => cardText(c) + (refiled && c === self ? " [re-filed in place, keeps its history]" : "") + note(c.front)
         );
         lines.push(`  convert${tag}  ${q(it.front)}  →  ${parts.join("  +  ")}`);
       } else if (it.decision === "keep") {
@@ -737,17 +746,6 @@ export function claudeClassifier({ apiKey, file }) {
 
 // ── run ─────────────────────────────────────────────────────────────────────
 
-function loadEnv() {
-  for (const file of [".env.local", ".env"]) {
-    const p = path.join(ROOT, file);
-    if (!fs.existsSync(p)) continue;
-    for (const line of fs.readFileSync(p, "utf8").split("\n")) {
-      const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
-      if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
-    }
-  }
-}
-
 function restHelper({ url, key }) {
   return async (p, init = {}) => {
     const res = await fetch(`${url.replace(/\/$/, "")}/rest/v1/${p}`, {
@@ -767,7 +765,7 @@ function restHelper({ url, key }) {
 }
 
 async function main(argv) {
-  loadEnv();
+  loadEnv(ROOT);
   const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ANTHROPIC_API_KEY } = process.env;
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.\nPut them in .env.local or the environment.");

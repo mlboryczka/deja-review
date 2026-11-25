@@ -11,25 +11,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { findSheets, linesOf } from "./lib/lessonSheets.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..");
-const candidates = [
-  process.argv[2],
-  path.resolve(root, ".claude/spanish-lessons/source"),
-  path.resolve(root, "../../spanish-lessons/source"),
-].filter(Boolean);
-const SRC = candidates.find((p) => fs.existsSync(path.join(p, "leccion1.html")));
-if (!SRC) {
-  console.error("Couldn't find the lesson sheets (leccion1.html). Pass their folder.");
-  process.exit(1);
-}
-
-const decode = (s) => s
-  .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-  .replace(/&quot;/g, '"').replace(/&#39;/g, "'");
-const text = (html) => decode(html.replace(/<br\s*\/?>/g, "\n").replace(/<[^>]+>/g, ""))
-  .replace(/[ \t]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{2,}/g, "\n").trim();
+const SRC = findSheets(root, process.argv[2]);
 
 const out = {};
 for (const f of fs.readdirSync(SRC).filter((f) => /^leccion[\d-]+\.html$/.test(f)).sort()) {
@@ -39,21 +25,9 @@ for (const f of fs.readdirSync(SRC).filter((f) => /^leccion[\d-]+\.html$/.test(f
   const end = html.indexOf('<h2 class="big"');
   if (start < 0 || end < 0) continue;
   const part = html.slice(html.indexOf("</p>", start) + 4, end);
-  const lines = [];
-  const re = /<div class="dialogue-title">([\s\S]*?)<\/div>|<div class="who[^"]*">([\s\S]*?)<\/div>\s*<div class="say[^"]*">([\s\S]*?)<\/div>|<div class="profile">([\s\S]*?)<\/div>\s*(?=<|$)|<p(?: class="([a-z-]+)")?>([\s\S]*?)<\/p>/g;
-  let m;
-  while ((m = re.exec(part))) {
-    if (m[1] !== undefined) lines.push({ title: text(m[1]) });
-    else if (m[2] !== undefined) lines.push({ who: text(m[2]), text: text(m[3]) });
-    else if (m[4] !== undefined) {
-      const name = /<div class="name">([\s\S]*?)<\/div>/.exec(m[4]);
-      if (name) lines.push({ title: text(name[1]) });
-      lines.push({ text: text(m[4].replace(/<div class="name">[\s\S]*?<\/div>/, "")) });
-    } else if (m[5] === "scene") lines.push({ scene: text(m[6]) });
-    else if (m[5] === "q") lines.push({ question: text(m[6]) });
-    else if (!m[5] || m[5] === "a") lines.push({ text: text(m[6]) });
-  }
-  const kept = lines.filter((l) => Object.values(l).some((v) => v));
+  const kept = linesOf(part).map((l) =>
+    l.kind === "title" ? { title: l.text } : l.kind === "scene" ? { scene: l.text } : l.kind === "question" ? { question: l.text }
+      : l.kind === "say" ? { who: l.who, text: l.text } : { text: l.text });
   if (kept.length) out[id] = kept;
 }
 

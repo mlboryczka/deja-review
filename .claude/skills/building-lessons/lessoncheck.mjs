@@ -171,18 +171,28 @@ async function tryOne(file, front, typed, shown = "fr") {
 }
 
 async function all() {
-  const dir = path.join(REPO, "src/data/lessons");
-  const files = fs.readdirSync(dir).filter((f) => f.endsWith(".js") && f !== "index.js");
-  const byFront = new Map();
-  for (const f of files) {
-    const L = await loadLesson(path.join(dir, f));
-    for (const [front] of L.cards) {
-      if (!byFront.has(front)) byFront.set(front, []);
-      byFront.get(front).push(L.id);
+  // Each course is checked on its own: a French and a Spanish lesson may
+  // share a front, since they are different decks. Files that are not lessons
+  // (the catalogues, the index) have no cards and are skipped.
+  const root = path.join(REPO, "src/data/lessons");
+  const courses = [["French", root], ["Spanish", path.join(root, "es")]];
+  const lines = [];
+  for (const [course, dir] of courses) {
+    if (!fs.existsSync(dir)) continue;
+    const files = fs.readdirSync(dir).filter((f) => f.endsWith(".js") && f !== "index.js");
+    const byFront = new Map();
+    for (const f of files) {
+      let L;
+      try { L = await loadLesson(path.join(dir, f)); } catch { continue; }
+      for (const [front] of L.cards) {
+        if (!byFront.has(front)) byFront.set(front, []);
+        byFront.get(front).push(L.id);
+      }
     }
+    const dups = [...byFront].filter(([, ids]) => ids.length > 1);
+    lines.push(dups.length ? `${course}: fronts in more than one lesson (they would overwrite each other):\n${dups.map(([f, ids]) => `- ${JSON.stringify(f)}: ${ids.join(", ")}`).join("\n")}` : `${course}: no front is in two lessons.`);
   }
-  const dups = [...byFront].filter(([, ids]) => ids.length > 1);
-  console.log(dups.length ? `Fronts in more than one lesson (they would overwrite each other):\n${dups.map(([f, ids]) => `- ${JSON.stringify(f)}: ${ids.join(", ")}`).join("\n")}` : "No front is in two lessons.");
+  console.log(lines.join("\n"));
 }
 
 const [a, ...rest] = process.argv.slice(2);

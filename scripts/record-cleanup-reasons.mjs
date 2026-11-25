@@ -47,6 +47,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isSureMatch, cardIndex, sameWords } from "../src/lib/sameCard.js";
+import { loadEnv } from "./lib/loadEnv.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -56,14 +57,7 @@ const PLAN = path.resolve(ROOT, argVal("--plan") || "backups/cleanup-plan-2026-1
 const BACKUP = path.resolve(ROOT, argVal("--backup") || "backups/cleanup-duplicates-2026-10-06T22-43-16-564Z.json");
 const BACKUPS_DIR = path.resolve(ROOT, argVal("--backups-dir") || "backups");
 
-for (const file of [".env.local", ".env"]) {
-  const p = path.join(ROOT, file);
-  if (!fs.existsSync(p)) continue;
-  for (const line of fs.readFileSync(p, "utf8").split("\n")) {
-    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
-    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
-  }
-}
+loadEnv(ROOT);
 const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY. Put them in .env.local or the environment.");
