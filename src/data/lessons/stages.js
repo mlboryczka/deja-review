@@ -4,7 +4,9 @@
 // lessons are shown, on the Lessons page, in the sidebar and on Stats: the
 // order cards come in is the catalogue's `lessons` and `meetingOrder`.
 // Lessons outside the course, such as L'impératif, are in no stage: each is
-// its own subject (owner, 2026-11-13), so they follow the stages one by one.
+// its own subject (owner, 2026-11-13), so they follow the stages one by one,
+// under "More lessons". In the sidebar, "More lessons" opens and closes like a
+// stage (owner, 2026-11-25).
 
 const STAGES = [
   { title: "Lessons 1–5 · The present", lessons: [1, 2, 3, 4, 5] },
