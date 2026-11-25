@@ -1,5 +1,5 @@
 import { feedbackRequest } from "./lib/feedbackApi";
-import { useState, useEffect, useCallback, useMemo, useRef, Fragment, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, useId, Fragment, lazy, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { RAW } from "./data/cards"; // only used for the admin "seed demo deck" action
 import { lessonIdOf } from "./lib/lessonSource.js";
@@ -128,7 +128,7 @@ const podcastsUser = (user) => testAppModulesOpenTo({
 export const hasLanguageChoice = (user) => podcastsUser(user);
 
 // ─── PODCASTS: WHERE THE OWNER WAS ───────────────────────────────────────
-// The sidebar's switch has two halves, Flashcards and Podcasts (owner,
+// The sidebar's switch has two buttons, Flashcards and Podcasts (owner,
 // 2026-10-09). Since 2026-10-19 the owner sees it anywhere, and anyone signed
 // in on the test app; Podcasts stays owner-only on the students' app, so it has no switch, no Podcasts
 // pages and writes nothing new to this browser.
@@ -203,8 +203,8 @@ export function clearPodcastsPlace(userId) {
 }
 
 // ─── EXERCISES: WHERE YOU WERE (Spanish, 2026-10-24) ─────────────────────
-// The Spanish sidebar's switch has two halves, Flashcards and Exercises, as
-// French has Flashcards and Podcasts. Whether Exercises was showing, and which
+// The Spanish sidebar's switch has three buttons, Flashcards, Exercises and
+// Dialogues, as French has Flashcards and Podcasts. Whether Exercises was showing, and which
 // lesson, is kept per user in this browser like the place in Podcasts, so a
 // reload opens where you were. Only for someone with Spanish.
 const EXERCISES_PLACE_KEY = "es-exercises-place:";
@@ -975,17 +975,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   // set size. Closes on a click outside it or Escape.
   const [showSettings, setShowSettings] = useState(false);
   const settingsRef = useRef(null);
-  useEffect(() => {
-    if (!showSettings) return;
-    const onDown = (e) => { if (!settingsRef.current?.contains(e.target)) setShowSettings(false); };
-    const onKey = (e) => { if (e.key === "Escape") setShowSettings(false); };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [showSettings]);
+  useCloseOnOutside(showSettings, settingsRef, () => setShowSettings(false));
 
   // Leaving a lesson closes its notes.
   //
@@ -1032,24 +1022,8 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const profileRef = useRef(null);
 
-  // Close the profile menu on an outside click or Escape. Mousedown rather
-  // than click so the menu is gone before whatever was underneath reacts,
-  // and containment rather than a target check so clicks on the menu's own
-  // items still run their handlers.
-  useEffect(() => {
-    if (!showProfileMenu) return;
-    const onDown = (e) => {
-      if (profileRef.current && profileRef.current.contains(e.target)) return;
-      setShowProfileMenu(false);
-    };
-    const onKey = (e) => { if (e.key === "Escape") setShowProfileMenu(false); };
-    document.addEventListener("mousedown", onDown);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [showProfileMenu]);
+  // Close the profile menu on an outside click or Escape (see useCloseOnOutside).
+  useCloseOnOutside(showProfileMenu, profileRef, () => setShowProfileMenu(false));
 
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showUsersModal, setShowUsersModal] = useState(false);
@@ -1164,7 +1138,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   // either; owner rule: updates never reset progress).
   const lastCardsModeRef = useRef("study");
   useEffect(() => { if (mode !== "podcasts" && mode !== "exercises" && mode !== "dialogues") lastCardsModeRef.current = mode; }, [mode]);
-  // The switch's two halves. Stable, so the tour can call goFlashcards.
+  // The switch's buttons. Stable, so the tour can call goFlashcards.
   const goPodcasts = useCallback(() => {
     if (hasPodcasts) setMode("podcasts");
   }, [hasPodcasts]);
@@ -1172,7 +1146,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     setMode((m) => (m === "podcasts" || m === "exercises" || m === "dialogues" ? lastCardsModeRef.current || "study" : m));
   }, []);
   // ── EXERCISES (Spanish, 2026-10-24) ──
-  // The second half of the Spanish switch, for the same people as Spanish.
+  // The Exercises and Dialogues buttons of the Spanish switch, for the same people as Spanish.
   // Leaving for Flashcards and coming back touches nothing in the cards, as
   // with Podcasts above.
   const hasExercises = hasModules && spanish;
@@ -3458,17 +3432,17 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   // 256px-wide column, or a 64px rail when minimized.
   // Defined here (inside the component) so it captures all the closure
   // variables it needs without prop-drilling.
-  // Icon SVGs for sidebar nav (14×14, inline, match Material Symbols style)
+  // Icon SVGs for sidebar nav (18×18, inline, match Material Symbols style)
   const NAV_ICONS = {
     study: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>,
     stats: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>,
     lessons: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>,
     tutor: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9.1 9a2.5 2.5 0 0 1 4.9.6c0 1.7-2.5 2.5-2.5 2.5"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>,
-    // Podcasts (the owner, and test-app users): Episodes, My podcasts, and the switch's half on
+    // Podcasts (the owner, and test-app users): Episodes, My podcasts, and the switch's button on
     // the rail. The same drawings as the approved mockup.
     episodes: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg>,
     mine: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16.85 18.58a9 9 0 1 0-9.7 0"/><path d="M8 14a5 5 0 1 1 8 0"/><circle cx="12" cy="11" r="1"/><path d="M13 17a1 1 0 1 0-2 0l.5 4.5a.5.5 0 1 0 1 0Z"/></svg>,
-    // Exercises (Spanish): the switch's half on the rail, and All exercises.
+    // Exercises (Spanish): the switch's button on the rail, and All exercises.
     pencil: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>,
     // Dialogues (Spanish): the switch's third part on the rail.
     dialogues: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/></svg>,
@@ -3612,14 +3586,14 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
             <span style={S.sideIcon}>{SIDEBAR_TOGGLE_ICON(true)}</span>
           </button>
         )}
-        {/* Flashcards or Podcasts (owner, 2026-10-09): two halves at the top
+        {/* Flashcards or Podcasts (owner, 2026-10-09): the buttons at the top
             of the nav, below the rail's expand button, the selected one
-            white. On the rail they stack as two icons, named on hover. Owner
+            white. On the rail they stack as icons, named on hover. Owner
             only until the owner has tried it, except on the test app: a
             student's sidebar has no switch and is exactly what it was. */}
         {/* Spanish, a part of the app of its own (owner, 2026-10-22: "the
             spanish module and the french modules should be separate"), has
-            Exercises in the second half instead (2026-10-24). */}
+            Exercises and Dialogues there instead (2026-10-24). */}
         {(hasPodcasts || hasExercises) && (
           <div
             data-module-switch
@@ -3641,7 +3615,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
                   className="mod-btn"
                   aria-pressed={on}
                   // Composed from four parts with the same keys whichever
-                  // half and whichever width: React updates styles property by
+                  // button is selected and whichever width: React updates styles property by
                   // property, and an override setting a key the other variant
                   // lacks is left behind on the way back (the 24b55b7 bug).
                   style={{ ...S.modBtn, ...(sidebarMin ? S.modBtnRail : S.modBtnWide), ...(on ? S.modBtnOn : S.modBtnOff) }}
@@ -3713,7 +3687,9 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
                 aria-current={!side.view.lesson ? "page" : undefined}
                 style={{ ...(sidebarMin ? { ...S.sideItem, ...S.sideItemMin } : S.sideItem), ...(!side.view.lesson || sidebarMin ? S.sideItemActive : null) }}
                 onClick={() => {
-                  side.setView({ lesson: null });
+                  // Already on All: nothing changes but the fold, so the phone's
+                  // drawer, which closes whenever the view changes, stays open.
+                  side.setView((v) => (v.lesson ? { lesson: null } : v));
                   // The rail shows no lessons, so there is nothing to fold.
                   if (!sidebarMin) setExLessonsFolded((v) => !v);
                 }}
@@ -4180,6 +4156,26 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     </>
   );
 
+  // The frame every module page shares: the same three children as every other
+  // page (sidebar, main, modals), in the same places, with the French / Spanish
+  // flag in the corner it has on every page. Built here, not as a component of
+  // its own, so React sees exactly the tree it saw before.
+  const modulePage = (page) => (
+    <div style={shellStyle}>
+      {sidebar}
+      <main style={{ ...mainStyle, position: "relative" }}>
+        {onCourse && (
+          // Clear of the tutor or notes panel, which main makes room for.
+          <div style={{ ...S.cornerFlag, right: (mainStyle.paddingRight || 0) + 24, top: phone ? cornerFlagTopPhone : S.cornerFlag.top }}>
+            <LanguageFlag course={course.id} onCourse={onCourse} />
+          </div>
+        )}
+        {page}
+      </main>
+      {modals}
+    </div>
+  );
+
   // ── PODCASTS (owner only, 2026-10-09) ───────────────────────────────
   // Every page of the module is PodcastsPage's: Episodes, My podcasts, a
   // podcast, an episode with its questions, and the episode's audio.
@@ -4192,96 +4188,61 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   // padding) moves it aside like any page; a play bar fixed to the window
   // would sit under the tutor instead.
   if (podcastsOn) {
-    return (
-      <div style={shellStyle}>
-        {sidebar}
-        <main style={{ ...mainStyle, position: "relative" }}>
-          {/* The French / Spanish flag, in the corner it has on every page. */}
-          {onCourse && (
-            // Clear of the tutor or notes panel, which main makes room for.
-            <div style={{ ...S.cornerFlag, right: (mainStyle.paddingRight || 0) + 24, top: phone ? cornerFlagTopPhone : S.cornerFlag.top }}>
-              <LanguageFlag course={course.id} onCourse={onCourse} />
-            </div>
-          )}
-          <PodcastsPage
-            user={user}
-            view={podView}
-            setView={setPodView}
-            follows={podFollows?.follows || NO_FOLLOWS}
-            followsMissing={!!podFollows?.missing}
-            reloadFollows={podFollows?.reload}
-            deckCards={userCards}
-            archivedCards={archivedCards}
-            onCardAdded={tutorCardAdded}
-            onTutorContext={onTutorPodcast}
-            openChat={openChat}
-            onNeedKey={openKeyModal}
-          />
-        </main>
-        {modals}
-      </div>
+    return modulePage(
+      <PodcastsPage
+        user={user}
+        view={podView}
+        setView={setPodView}
+        follows={podFollows?.follows || NO_FOLLOWS}
+        followsMissing={!!podFollows?.missing}
+        reloadFollows={podFollows?.reload}
+        deckCards={userCards}
+        archivedCards={archivedCards}
+        onCardAdded={tutorCardAdded}
+        onTutorContext={onTutorPodcast}
+        openChat={openChat}
+        onNeedKey={openKeyModal}
+      />
     );
   }
 
   // ── EXERCISES (Spanish, 2026-10-24) ─────────────────────────────────
   // The same three children as every other page, as with Podcasts above.
   if (exercisesOn) {
-    return (
-      <div style={shellStyle}>
-        {sidebar}
-        <main style={{ ...mainStyle, position: "relative" }}>
-          {onCourse && (
-            <div style={{ ...S.cornerFlag, right: (mainStyle.paddingRight || 0) + 24, top: phone ? cornerFlagTopPhone : S.cornerFlag.top }}>
-              <LanguageFlag course={course.id} onCourse={onCourse} />
-            </div>
-          )}
-          <Suspense fallback={null}>
-            <ExercisesPage
-              user={user}
-              view={exView}
-              setView={setExView}
-              onNeedKey={openKeyModal}
-              onTutorContext={onTutorExercise}
-              openChat={openChat}
-              notes={exNotesLesson?.notes?.length
-                ? { open: showLessonPanel, onToggle: toggleLessonPanel, toggleRef: lessonToggleRef }
-                : null}
-            />
-          </Suspense>
-        </main>
-        {modals}
-      </div>
+    return modulePage(
+      <Suspense fallback={null}>
+        <ExercisesPage
+          user={user}
+          view={exView}
+          setView={setExView}
+          onNeedKey={openKeyModal}
+          onTutorContext={onTutorExercise}
+          openChat={openChat}
+          notes={exNotesLesson?.notes?.length
+            ? { open: showLessonPanel, onToggle: toggleLessonPanel, toggleRef: lessonToggleRef }
+            : null}
+        />
+      </Suspense>
     );
   }
 
   // ── DIALOGUES (Spanish, 2026-11-07) ─────────────────────────────────
   // The same three children again.
   if (dialoguesOn) {
-    return (
-      <div style={shellStyle}>
-        {sidebar}
-        <main style={{ ...mainStyle, position: "relative" }}>
-          {onCourse && (
-            <div style={{ ...S.cornerFlag, right: (mainStyle.paddingRight || 0) + 24, top: phone ? cornerFlagTopPhone : S.cornerFlag.top }}>
-              <LanguageFlag course={course.id} onCourse={onCourse} />
-            </div>
-          )}
-          <Suspense fallback={null}>
-            <DialoguesPage
-              user={user}
-              view={dgView}
-              setView={setDgView}
-              onNeedKey={openKeyModal}
-              onTutorContext={onTutorExercise}
-              openChat={openChat}
-              notes={dgNotesLesson?.notes?.length
-                ? { open: showLessonPanel, onToggle: toggleLessonPanel, toggleRef: lessonToggleRef }
-                : null}
-            />
-          </Suspense>
-        </main>
-        {modals}
-      </div>
+    return modulePage(
+      <Suspense fallback={null}>
+        <DialoguesPage
+          user={user}
+          view={dgView}
+          setView={setDgView}
+          onNeedKey={openKeyModal}
+          onTutorContext={onTutorExercise}
+          openChat={openChat}
+          notes={dgNotesLesson?.notes?.length
+            ? { open: showLessonPanel, onToggle: toggleLessonPanel, toggleRef: lessonToggleRef }
+            : null}
+        />
+      </Suspense>
     );
   }
 
@@ -5769,209 +5730,6 @@ const EM = {
   saveBtn: { padding: "12px 26px", background: T.gradient.ink, color: T.color.onPrimary, border: "none", borderRadius: T.radius.md, cursor: "pointer", fontSize: 14, fontWeight: 600, fontFamily: T.font.sans, boxShadow: T.shadow.button, letterSpacing: "0.01em" },
 };
 
-// ─── FEEDBACK ADMIN VIEW ─────────────────────────────────────────────────
-// Shows pending feedback submissions with the LLM's verdict. Admin can
-// approve (adds answer as a card alternate) or reject.
-//
-// This whole view was dead until 2026-09-12, and dead SILENTLY, which is the
-// part worth remembering. It queried `feedback_submissions` for a column named
-// `reviewed` and wrote `reviewed` and `action`; the table has `status` and
-// `reviewed_at` and never had the others. It also rendered `item.french`,
-// `item.english` and `item.expected_answer` against a table whose columns are
-// `card_front` and `card_back`.
-//
-// So: the list's own query errored, the error went to console.error, the catch
-// set items to [] — and an empty list is exactly what "no disputes waiting"
-// looks like. Approve and reject failed the same quiet way. The backlog the
-// doc describes as "nobody looking at it" was a backlog nobody COULD look at.
-//
-// Hence loadError below. A fetch that fails now says so on the page. Anything
-// that can silently render as "nothing to do" has to be able to say "I broke".
-function FeedbackAdminView({ user, setMode, resetSession }) {
-  const [items, setItems] = useState([]);
-  const [betaItems, setBetaItems] = useState([]);
-  const [betaResolvable, setBetaResolvable] = useState(true);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
-  const [acting, setActing] = useState(null); // id being acted on
-
-  const load = async () => {
-    setLoading(true);
-    // Load card answer disputes
-    setLoadError("");
-    const { data, error } = await supabase
-      .from("feedback_submissions")
-      .select("*")
-      .eq("status", "pending")
-      .order("created_at", { ascending: false });
-    if (error) {
-      console.error("Failed to load feedback:", error);
-      setItems([]);
-      setLoadError(error.message || "Could not load the disputes.");
-    } else {
-      setItems(data || []);
-    }
-    // Load general user feedback
-    const { data: betaData, error: betaErr, resolvable } = await loadOpenFeedback();
-    setBetaResolvable(resolvable);
-    if (betaErr) {
-      console.error("Failed to load beta feedback:", betaErr);
-      setBetaItems([]);
-    } else {
-      setBetaItems(betaData);
-    }
-    setLoading(false);
-  };
-
-  useEffect(() => { load(); }, []);
-
-  const approve = async (item) => {
-    setActing(item.id);
-    const { error: altErr } = await supabase.from("card_alternates").insert({
-      card_id: item.card_id,
-      direction: item.direction,
-      alternate_text: item.user_answer,
-      source_feedback_id: item.id,
-    });
-    if (altErr) { console.error("Alt insert failed:", altErr); setActing(null); return; }
-
-    // Resolve item.card_id (the lowercased-trimmed French front, per the
-    // card_progress join convention used in the admin stats page) back to
-    // the submitting user's user_cards row so the correction ledger can
-    // reference a real uuid + batch_id. Falls back to nulls on no match —
-    // never blocks the approval.
-    let resolvedCardId = null;
-    let resolvedBatchId = null;
-    try {
-      const key = String(item.card_id || "").toLowerCase().trim();
-      if (key && item.user_id) {
-        const { data: matches } = await supabase
-          .from("user_cards")
-          .select("id, front, batch_id")
-          .eq("user_id", item.user_id)
-          .ilike("front", key);
-        const hit = (matches || []).find(
-          (r) => String(r.front || "").toLowerCase().trim() === key
-        );
-        if (hit) {
-          resolvedCardId = hit.id;
-          resolvedBatchId = hit.batch_id || null;
-        }
-      }
-    } catch (e) {
-      console.warn("[approve] card_id resolve failed:", e?.message || e);
-    }
-
-    // Log the alternate approval so future cahier parses know this answer
-    // is acceptable. card_id / batch_id point at the originating card when
-    // we found it; otherwise null.
-    logCorrection({
-      category: CORRECTION_CATEGORIES.ALTERNATE_ANSWER,
-      action: CORRECTION_ACTIONS.APPROVE_ALTERNATE,
-      card_id: resolvedCardId,
-      batch_id: resolvedBatchId,
-      original_front: item.card_front || null,
-      original_back: item.card_back || null,
-      corrected_back: item.user_answer,
-      notes: `direction=${item.direction}`,
-    });
-
-    const { error: upErr } = await supabase
-      .from("feedback_submissions")
-      .update({ status: "approved", reviewed_at: new Date().toISOString() })
-      .eq("id", item.id);
-    if (upErr) console.error("Review mark failed:", upErr);
-    await load();
-    setActing(null);
-  };
-
-  const reject = async (item) => {
-    setActing(item.id);
-    const { error } = await supabase
-      .from("feedback_submissions")
-      .update({ status: "rejected", reviewed_at: new Date().toISOString() })
-      .eq("id", item.id);
-    if (error) console.error("Reject failed:", error);
-    await load();
-    setActing(null);
-  };
-
-  return (
-    <>
-      <h1 style={S.statsHeading}>Feedback Review</h1>
-
-      {/* Card answer disputes */}
-      <h3 style={S.statsSectionTitle}>Answer disputes</h3>
-      {loading ? (
-        <div style={S.empty}>Loading…</div>
-      ) : loadError ? (
-        // Never collapse a failure into the empty state: "no disputes" and
-        // "the query broke" looked identical here for months.
-        <p style={S.statsSectionSub}>
-          Couldn't load the disputes — {loadError}
-        </p>
-      ) : items.length === 0 ? (
-        <p style={S.statsSectionSub}>No pending answer disputes.</p>
-      ) : (
-        <div style={S.feedbackList}>
-          {items.map(item => (
-            <div key={item.id} style={S.feedbackItem}>
-              <div style={S.feedbackCard}>
-                <div style={S.feedbackCardHeader}>
-                  <span style={S.feedbackDir}>{item.direction === "fr" ? "FR → EN" : "EN → FR"}</span>
-                  <span style={S.feedbackDate}>{new Date(item.created_at).toLocaleDateString()}</span>
-                </div>
-                <div style={S.feedbackPrompt}>{item.direction === "fr" ? item.card_front : item.card_back}</div>
-              </div>
-              <div style={S.feedbackAnswers}>
-                <div style={S.feedbackAnsRow}>
-                  <span style={S.feedbackAnsLabel}>Expected:</span>
-                  <span style={S.feedbackExpected}>{item.direction === "fr" ? item.card_back : item.card_front}</span>
-                </div>
-                <div style={S.feedbackAnsRow}>
-                  <span style={S.feedbackAnsLabel}>User typed:</span>
-                  <span style={S.feedbackUser}>{item.user_answer}</span>
-                </div>
-              </div>
-              {item.llm_verdict && (
-                <div style={S.llmBlock}>
-                  <div style={S.llmHead}>
-                    <span style={item.llm_verdict === "accept" ? S.llmAccept : item.llm_verdict === "reject" ? S.llmReject : S.llmUnclear}>
-                      Claude: {item.llm_verdict}
-                    </span>
-                  </div>
-                  {item.llm_reasoning && <div style={S.llmReasoning}>{item.llm_reasoning}</div>}
-                </div>
-              )}
-              <div style={S.feedbackActions}>
-                <button style={S.feedbackApprove} onClick={() => approve(item)} disabled={acting === item.id}>
-                  {acting === item.id ? "…" : "Approve (add alternate)"}
-                </button>
-                <button style={S.feedbackReject} onClick={() => reject(item)} disabled={acting === item.id}>
-                  {acting === item.id ? "…" : "Reject"}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* General user feedback from beta_feedback */}
-      <h3 style={{...S.statsSectionTitle, marginTop:32}}>User feedback</h3>
-      {!betaResolvable && <p style={S.statsSectionSub}>{NEEDS_MIGRATION_009}</p>}
-      {betaItems.length === 0 ? (
-        <p style={S.statsSectionSub}>No open user feedback.</p>
-      ) : (
-        <div data-feedback-log style={S.fbLogPage}>
-          {betaItems.map((item, i) => (
-            <FeedbackEntry key={item.id} item={item} number={i + 1} last={i === betaItems.length - 1} />
-          ))}
-        </div>
-      )}
-    </>
-  );
-}
-
 // ─── THE SIDEBAR'S STAGES (Spanish) ──────────────────────────────────────
 // Spanish lessons are listed in the course's four stages, one open at a time,
 // on Flashcards and on Exercises alike (data/lessons/es/stages.js).
@@ -6080,10 +5838,13 @@ const FLAGS = {
 function FlagIcon({ id, size = 22 }) {
   const f = FLAGS[id];
   const n = f.colours.length;
+  // Each drawn flag gets its own crop name: the same flag is on screen twice
+  // when the menu is open, and two crops sharing a name is not allowed.
+  const clipId = `flag-${id}-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" style={{ display: "block", borderRadius: "50%", boxShadow: "0 0 0 1px rgba(3,22,50,0.12)" }}>
-      <defs><clipPath id={`flag-${id}`}><circle cx="12" cy="12" r="12" /></clipPath></defs>
-      <g clipPath={`url(#flag-${id})`}>
+      <defs><clipPath id={clipId}><circle cx="12" cy="12" r="12" /></clipPath></defs>
+      <g clipPath={`url(#${clipId})`}>
         {f.colours.map((c, i) => f.stripes === "v"
           ? <rect key={i} x={(24 / n) * i} y="0" width={24 / n + 0.2} height="24" fill={c} />
           : <rect key={i} x="0" y={(24 / n) * i} width="24" height={24 / n + 0.2} fill={c} />)}
@@ -6091,20 +5852,29 @@ function FlagIcon({ id, size = 22 }) {
     </svg>
   );
 }
-function LanguageFlag({ course, onCourse, style }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
+// Closes a menu on an outside click or Escape. Mousedown rather than click so
+// the menu is gone before whatever was underneath reacts, and containment
+// rather than a target check so clicks on the menu's own items still run
+// their handlers.
+function useCloseOnOutside(open, ref, close) {
+  const closeRef = useRef(close);
+  closeRef.current = close;
   useEffect(() => {
     if (!open) return;
-    const onDown = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
-    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    const onDown = (e) => { if (!ref.current?.contains(e.target)) closeRef.current(); };
+    const onKey = (e) => { if (e.key === "Escape") closeRef.current(); };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open]);
+  }, [open, ref]);
+}
+function LanguageFlag({ course, onCourse, style }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useCloseOnOutside(open, ref, () => setOpen(false));
   return (
     <div style={style ? { ...S.flagWrap, ...style } : S.flagWrap} ref={ref}>
       <button
@@ -6228,24 +5998,6 @@ function ShortcutsTooltip() {
   );
 }
 
-// ─── AUDIO TOOLBAR ───────────────────────────────────────────────────────
-function AudioToolbar({ onSpeak, onMic, recState, sttAvailable }) {
-  return (
-    <div style={S.audioToolbar}>
-      <button style={S.speakBtn} onClick={onSpeak} title="Play French pronunciation">🔊</button>
-      {sttAvailable && (
-        <button
-          style={recState === "recording" ? {...S.micBtn, ...S.micBtnActive} : S.micBtn}
-          onClick={onMic}
-          title={recState === "recording" ? "Stop recording" : "Record yourself speaking"}
-        >
-          {recState === "recording" ? "⏹" : "🎤"}
-        </button>
-      )}
-    </div>
-  );
-}
-
 // ─── PRONUNCIATION PANEL ─────────────────────────────────────────────────
 function PronunciationPanel({ recState, result, error, referenceText, onCancel, onRetry, onSpeakWord, onDismiss }) {
   if (recState === "recording") {
@@ -6341,7 +6093,6 @@ function ScoreCell({ label, value }) {
 }
 
 const S = {
-  container: { maxWidth:760, margin:"0 auto", padding:"24px 16px 64px", fontFamily:T.font.sans, color:T.color.onSurface },
   loading: { textAlign:"center", padding:60, color:T.color.onSurfaceVariant, fontFamily:T.font.sans },
 
   // ── App shell: sidebar + main ─────────────────────────────────────
@@ -6438,15 +6189,16 @@ const S = {
   sideChevron: { display:"flex", marginLeft:"auto", opacity:0.7, transition:"transform 0.2s" },
   sideChevronOpen: { transform:"rotate(180deg)" },
   // ── The Flashcards / Podcasts switch (owner only, 2026-10-09) ────────
-  // A pill of two halves at the top of the nav, as in the approved mockup:
-  // the selected half white and lifted, the other plain. Full width it reads
-  // "Flashcards" / "Podcasts"; on the rail it stacks into two icons.
+  // A pill of buttons at the top of the nav, as in the approved mockup:
+  // the selected button white and lifted, the others plain. Full width it reads
+  // "Flashcards" / "Podcasts"; on the rail it stacks into icons.
   //
   // Every variant declares the SAME keys, all as longhands: React updates a
   // style property by property, so a key only one variant sets is left behind
-  // when switching back (the 24b55b7 sidebar bug: the rail's paddingTop:8
-  // over a padding shorthand, and Cards slid up under the button on
-  // expanding). Toggled both ways — the width, and the half that's selected.
+  // when switching back (the 24b55b7 sidebar bug of 6 October: going from the
+  // rail's paddingTop:8 back to the wide sidebar, React removed paddingTop but
+  // did not re-apply the unchanged padding shorthand, so the top padding fell
+  // to 0 and Cards slid up under the button on expanding). Toggled both ways — the width, and the button that's selected.
   //
   // On the rail the right margin is 4px wider than the left. The nav items
   // carry a 4px marker border on their right, which moves their icons 2px
@@ -6475,25 +6227,10 @@ const S = {
   sideProfileRow: { position:"relative", flexShrink:0 },
   sideBottomEmail: { flex:1, fontSize:11, color:"rgba(3,22,50,0.45)", fontFamily:T.font.sans, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" },
   profileMenuBottom: { position:"absolute", bottom:"100%", left:0, minWidth:200, marginBottom:8, background:T.color.surfaceLowest, borderRadius:T.radius.lg, boxShadow:"0 -8px 32px rgba(3,22,50,0.12)", padding:"8px 0", zIndex:20, fontFamily:T.font.sans },
-  // Legacy styles kept for reference
-  sideProfile: { padding:"16px 20px 8px", position:"relative" },
-  sideFeedback: { padding:"12px 20px 20px", marginTop:"auto", borderTop:"1px solid rgba(3,22,50,0.06)", display:"flex", flexDirection:"column", gap:10 },
+  // The account button and its avatar.
   profileBtn: { position:"relative", display:"flex", alignItems:"center", justifyContent:"center", padding:0, background:"transparent", border:"none", borderRadius:"50%", cursor:"pointer" },
-  // The status check's alert: a dot on the avatar, and a mark on the menu's
-  // Status line, while a check has failed or couldn't run.
   profileAvatar: { width:32, height:32, borderRadius:"50%", background:T.color.primary, color:T.color.onPrimary, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:600, fontFamily:T.font.sans, flexShrink:0 },
-  profileChevron: { marginLeft:"auto", fontSize:12, color:T.color.onSurfaceVariant, opacity:0.5 },
-  profileMenu: { position:"absolute", top:"100%", left:16, right:16, background:T.color.surfaceLowest, borderRadius:T.radius.lg, boxShadow:"0 8px 32px rgba(3,22,50,0.12)", padding:"8px 0", zIndex:20, fontFamily:T.font.sans },
-  profileMenuEmail: { padding:"10px 16px 6px", fontSize:11, color:T.color.onSurfaceVariant, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", borderBottom:"1px solid rgba(3,22,50,0.06)", marginBottom:4 },
   profileMenuItem: { display:"block", width:"100%", padding:"10px 16px", background:"transparent", border:"none", borderRadius:0, cursor:"pointer", fontSize:12, fontFamily:T.font.sans, fontWeight:500, color:T.color.onSurface, textAlign:"left", transition:"background 0.1s" },
-  // ── Sidebar feedback (bottom) ─────────────────────────────────────
-  sideFeedback: { padding:"12px 20px 20px", marginTop:"auto", borderTop:"1px solid rgba(3,22,50,0.06)", display:"flex", flexDirection:"column", gap:10 },
-  endSessionBtn: { width:"100%", padding:"12px", border:"1px solid rgba(3,22,50,0.1)", borderRadius:T.radius.md, background:"transparent", color:T.color.secondary, fontSize:12, fontWeight:600, cursor:"pointer", fontFamily:T.font.sans, letterSpacing:"0.02em", transition:"background 0.15s" },
-  // Legacy sidebar footer styles — no longer rendered but kept so the
-  // BetaFeedback component (which may reference S.sideFoot) doesn't crash
-  sideFoot: { padding:"16px 24px 0", marginTop:"auto", borderTop:"1px solid rgba(3,22,50,0.06)", display:"flex", flexDirection:"column", gap:6, alignItems:"flex-start" },
-  sideUtilBtn: { padding:"8px 12px", background:"transparent", border:"none", borderRadius:T.radius.md, cursor:"pointer", fontSize:11, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, fontWeight:600, textAlign:"left", width:"100%", letterSpacing:"0.02em" },
-  sideEmail: { fontSize:10, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, padding:"4px 12px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:"100%", opacity:0.7 },
 
   // ── Sub-toolbar (category filter + counter, below sticky top bar) ─
   // flexWrap is gone; the row scrolls instead (className "chip-row"). Wrapping
@@ -6571,7 +6308,6 @@ const S = {
   blurBR: { position:"absolute", bottom:60, right:-60, width:360, height:360, background:"rgba(156,66,52,0.05)", borderRadius:"50%", filter:"blur(60px)", pointerEvents:"none", zIndex:0 },
 
   // ── Card content (eyebrow, hint, audio circles, hover actions) ────
-  cardEyebrow: { position:"absolute", top:22, left:"50%", transform:"translateX(-50%)", fontSize:10, fontFamily:T.font.sans, fontWeight:700, color:T.color.onSurfaceVariant, textTransform:"uppercase", letterSpacing:"0.18em", display:"flex", alignItems:"center", gap:8, whiteSpace:"nowrap" },
   cardHint: { position:"absolute", bottom:14, left:"50%", transform:"translateX(-50%)", fontSize:10, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, fontStyle:"italic", opacity:0.45 },
   cardAudio: { display:"flex", gap:14, marginTop:20, justifyContent:"center" },
   cardAudioBtn: { width:52, height:52, display:"flex", alignItems:"center", justifyContent:"center", border:"none", borderRadius:"50%", background:T.color.surfaceLow, cursor:"pointer", fontSize:20, color:T.color.primary, transition:"all 0.15s" },
@@ -6601,15 +6337,7 @@ const S = {
   infoBtn: { width:30, height:30, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:12, color:T.color.onSurfaceVariant, opacity:0.25, transition:"opacity 0.15s", userSelect:"none" },
   infoTip: { position:"absolute", bottom:36, right:0, background:T.color.surfaceLow, color:T.color.onSurfaceVariant, padding:"12px 16px", borderRadius:T.radius.lg, fontSize:11, fontFamily:T.font.sans, lineHeight:1.8, whiteSpace:"nowrap", boxShadow:"0 4px 16px rgba(3,22,50,0.08)", zIndex:10 },
 
-  // Legacy action styles (kept for reference, no longer rendered)
-  actionBtn: { display:"flex", flexDirection:"column", alignItems:"center", gap:12, background:"transparent", border:"none", cursor:"pointer", padding:0, fontFamily:T.font.sans },
-  actionBoxAgain: { width:80, height:80, borderRadius:T.radius.lg, background:T.color.surfaceHigh, color:T.color.primary, display:"flex", alignItems:"center", justifyContent:"center", transition:"all 0.2s" },
-  actionBoxGot: { width:80, height:80, borderRadius:T.radius.lg, background:T.color.secondary, color:T.color.onSecondary, display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 8px 24px rgba(156,66,52,0.25)", transition:"all 0.2s" },
-  actionLabel: { fontSize:11, fontWeight:800, letterSpacing:"0.18em", color:T.color.onSurfaceVariant, textTransform:"uppercase" },
 
-  // Top utility bar — single horizontal row at the top of the page with
-  // upload, beta feedback, email and sign-out. Replaces the old vertically
-  // stacked header userInfo block.
   // Sticky glass-blur top app bar — direction toggle, type/auto-speak chips
   topBar: { position:"sticky", top:0, zIndex:20, padding:"0 40px", background:"rgba(253,248,246,0.92)", backdropFilter:"blur(20px)", WebkitBackdropFilter:"blur(20px)", flexShrink:0 },
   // Same as subToolbar: one line, always, scrolling if the chips outgrow the
@@ -6617,29 +6345,9 @@ const S = {
   // a single frame partway through every horizontal reflow.
   topBarInner: { display:"flex", alignItems:"center", gap:12, padding:"14px 0", maxWidth:1100, width:"100%", margin:"0 auto", borderBottom:"1px solid rgba(3,22,50,0.07)" },
   topBarLeft: { display:"flex", alignItems:"center", gap:12, flex:1, minWidth:0 },
-  topBarBtn: { padding:"6px 12px", background:"transparent", border:"none", borderRadius:T.radius.md, cursor:"pointer", fontSize:11, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, fontWeight:600, letterSpacing:"0.02em" },
-  topBarEmail: { fontSize:11, color:T.color.onSurfaceVariant, fontFamily:T.font.sans },
-  // Session ribbon — small uppercase metadata line beneath the navbar,
-  // replacing the old "8 cards · 0 seen · 0 ✓ · 0 ✗" subtitle.
-  sessionRibbon: { display:"flex", alignItems:"center", gap:8, fontSize:10, fontFamily:T.font.sans, fontWeight:600, color:T.color.onSurfaceVariant, textTransform:"uppercase", letterSpacing:"0.12em", margin:"4px 2px 18px" },
-  ribbonDot: { opacity:0.4 },
-  // Legacy header styles kept for screens that still reference them
-  // (onboarding, feedback admin view). Study view no longer uses these.
-  header: { display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:18, gap:12, flexWrap:"wrap" },
-  title: { fontSize:30, fontWeight:600, margin:"0 0 4px", color:T.color.primary, fontFamily:T.font.serif, letterSpacing:"-0.02em", lineHeight:1.1 },
-  sub: { fontSize:13, color:T.color.onSurfaceVariant, margin:"4px 0 0", fontFamily:T.font.sans },
-  userInfo: { display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6, fontFamily:T.font.sans },
-  userEmail: { fontSize:11, color:T.color.onSurfaceVariant },
-  signOutBtn: { padding:"5px 12px", background:"transparent", border:"none", borderRadius:T.radius.md, cursor:"pointer", fontSize:11, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, fontWeight:500 },
-  nav: { display:"flex", gap:6, marginBottom:18, padding:4, background:T.color.surfaceLow, borderRadius:T.radius.lg, width:"fit-content" },
-  navBtn: { padding:"9px 18px", border:"none", borderRadius:T.radius.md, background:"transparent", cursor:"pointer", fontSize:13, fontFamily:T.font.sans, color:T.color.onSurfaceVariant, fontWeight:500, transition:"all 0.15s" },
-  navActive: { background:T.color.surfaceLowest, color:T.color.primary, fontWeight:600, boxShadow:T.shadow.focus },
-  filters: { marginBottom:18 },
-  toggleRow: { display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" },
-  toggle: { display:"flex", gap:6, alignItems:"center", fontSize:12, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, cursor:"pointer" },
   // Chip-style toggle button — used in the study filter row in place of
   // raw checkboxes. Same pill shape as catBtn but with an active state.
-  chipToggle: { padding:"6px 13px", borderWidth:1, borderStyle:"solid", borderColor:T.color.outlineGhost || "rgba(3,22,50,0.08)", borderRadius:T.radius.full, background:"transparent", cursor:"pointer", fontSize:11, fontFamily:T.font.sans, color:T.color.onSurfaceVariant, fontWeight:500, letterSpacing:"0.02em", transition:"all 0.15s" },
+  chipToggle: { padding:"6px 13px", borderWidth:1, borderStyle:"solid", borderColor:T.color.outlineGhost, borderRadius:T.radius.full, background:"transparent", cursor:"pointer", fontSize:11, fontFamily:T.font.sans, color:T.color.onSurfaceVariant, fontWeight:500, letterSpacing:"0.02em", transition:"all 0.15s" },
   chipToggleA: { background:T.color.primary, color:T.color.onPrimary, borderColor:T.color.primary, fontWeight:600 },
   // Sits inside the scrolling chip row, so it must not wrap on its own either.
   typeGroup: { display:"flex", gap:2, padding:3, background:T.color.surfaceLow, borderRadius:T.radius.md, flexShrink:0 },
@@ -6658,7 +6366,7 @@ const S = {
   cornerFlag: { position:"absolute", top:14, right:24, zIndex:25 },
   gearBtn: { width:34, height:34, display:"flex", alignItems:"center", justifyContent:"center", padding:0, borderWidth:1, borderStyle:"solid", borderColor:"rgba(3,22,50,0.08)", borderRadius:T.radius.full, background:"transparent", color:T.color.onSurfaceVariant, cursor:"pointer", transition:"all 0.15s" },
   gearBtnA: { background:T.color.surfaceLowest, color:T.color.primary, borderColor:"rgba(3,22,50,0.22)", boxShadow:T.shadow.focus },
-  settingsMenu: { position:"absolute", top:"calc(100% + 10px)", right:0, width:344, background:T.color.surfaceLowest, borderRadius:T.radius.xl, border:"1px solid rgba(3,22,50,0.08)", boxShadow:"0 20px 60px rgba(3,22,50,0.15)", padding:"6px 0", zIndex:40, fontFamily:T.font.sans },
+  settingsMenu: { position:"absolute", top:"calc(100% + 10px)", right:0, width:344, background:T.color.surfaceLowest, borderRadius:T.radius.xl, border:"1px solid rgba(3,22,50,0.08)", boxShadow:T.shadow.modal, padding:"6px 0", zIndex:40, fontFamily:T.font.sans },
   settingsSec: { padding:"14px 18px" },
   settingsSecRule: { borderTop:"1px solid rgba(3,22,50,0.07)" },
   settingsSeg: { display:"flex", gap:2, padding:3, background:T.color.surfaceLow, borderRadius:T.radius.md },
@@ -6666,21 +6374,14 @@ const S = {
   settingsCap: { fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(68,71,77,0.78)", marginBottom:8 },
   settingsRow: { display:"flex", alignItems:"center", justifyContent:"space-between", gap:16, width:"100%", padding:"7px 0", border:"none", background:"transparent", cursor:"pointer", fontFamily:T.font.sans, textAlign:"left" },
   settingsLabel: { fontSize:13, fontWeight:600, color:T.color.primary },
-  switchTrack: { position:"relative", display:"block", width:34, height:20, flexShrink:0, borderRadius:T.radius.full, background:T.color.surfaceHighest, transition:"background 0.15s" },
-  switchTrackOn: { background:T.color.primary },
-  switchKnob: { display:"block", position:"absolute", top:3, left:3, width:14, height:14, borderRadius:"50%", background:"#fff", boxShadow:"0 1px 3px rgba(3,22,50,0.25)", transition:"left 0.15s" },
-  switchKnobOn: { left:17 },
   dirBtn: { padding:"5px 12px", border:"none", borderRadius:T.radius.sm, background:"transparent", cursor:"pointer", fontSize:11, fontFamily:T.font.sans, color:T.color.onSurfaceVariant, fontWeight:500 },
   dirBtnA: { background:T.color.surfaceLowest, color:T.color.primary, fontWeight:600, boxShadow:T.shadow.focus },
-  counterRow: { display:"flex", alignItems:"center", gap:8, marginBottom:10 },
   counter: { textAlign:"center", fontSize:11, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, letterSpacing:"0.05em", textTransform:"uppercase", fontWeight:500 },
   counterBreakdown: { opacity:0.7 },
   // Unavailable keeps the shape and drops the fill, so the row never shifts
   // and the control still reads as a control rather than a ghost of one.
   backBtnOff: { background:"transparent", color:T.color.onSurfaceVariant, borderColor:"rgba(3,22,50,0.07)", boxShadow:"none", cursor:"default" },
   backBtn: { display:"flex", alignItems:"center", gap:6, padding:"6px 14px 6px 11px", background:T.color.surfaceLowest, borderWidth:1, borderStyle:"solid", borderColor:"rgba(3,22,50,0.22)", borderRadius:T.radius.full, cursor:"pointer", fontSize:11.5, color:T.color.onSurface, fontFamily:T.font.sans, fontWeight:700, letterSpacing:"0.01em", boxShadow:"0 1px 3px rgba(3,22,50,0.07)", transition:"all 0.15s" },
-  backBtnDisabled: { padding:"6px 14px", background:"transparent", border:"none", borderRadius:T.radius.md, cursor:"default", fontSize:11, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, fontWeight:500, opacity:0.3 },
-  backBtnSpacer: { width:60 },
   // flex:0 1 auto — the card shrinks on short windows but never grows to fill
   // the page. Letting it grow is what pushed the buttons down to the bottom
   // edge and left a gulf in the middle; cardArea now centres the card and its
@@ -6762,9 +6463,6 @@ const S = {
   card: { position:"relative", height:"100%", minHeight:170, maxHeight:"min(375px, 62.5cqw)", maxWidth:"100%", transformStyle:"preserve-3d", transition:"transform 0.55s cubic-bezier(0.4, 0, 0.2, 1)", aspectRatio:"1.6 / 1" },
   cardFront: { containerType:"size", backfaceVisibility:"hidden", position:"absolute", inset:0, background:T.color.surfaceLowest, border:"none", borderRadius:T.radius.xl, padding:"28px 30px", display:"flex", flexDirection:"column", justifyContent:"safe center", alignItems:"center", boxShadow:"0 8px 32px rgba(3,22,50,0.08)", overflow:"hidden" },
   cardBack: { containerType:"size", backfaceVisibility:"hidden", position:"absolute", inset:0, transform:"rotateY(180deg)", background:T.color.surfaceLowest, border:"none", borderRadius:T.radius.xl, padding:"28px 30px", display:"flex", flexDirection:"column", justifyContent:"center", alignItems:"center", boxShadow:"0 8px 32px rgba(3,22,50,0.08)", overflow:"hidden", borderTop:`3px solid ${T.color.secondary}` },
-  cardCat: { position:"absolute", top:14, left:18, display:"flex", alignItems:"center", gap:7, fontSize:10, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, textTransform:"uppercase", letterSpacing:"0.1em", fontWeight:600 },
-  langBadge: { position:"absolute", top:14, right:18, fontSize:9, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, background:T.color.surfaceHigh, padding:"3px 9px", borderRadius:T.radius.full, letterSpacing:"0.08em", fontWeight:600, textTransform:"uppercase" },
-  dot: { width:7, height:7, borderRadius:"50%" },
   // Names the lesson a card belongs to, so the prompt itself does not have to.
   // Absolute rather than in flow: cardFront centres its children, and a badge
   // in the column would shove the prompt off the middle of the card.
@@ -6781,16 +6479,10 @@ const S = {
   // and forcing caps on it both loses that and mangles the accented capital.
   // Sentence case needs a little more size and a lot less tracking than the
   // 9px micro-caps it replaces.
-  cardBadge: { position:"absolute", top:23, right:70, padding:"4px 10px", borderRadius:999, border:`1px solid ${T.color.outline || "rgba(3,22,50,0.18)"}`, fontSize:10.5, fontWeight:600, letterSpacing:"0.01em", color:T.color.onSurfaceVariant, fontFamily:T.font.sans, background:"transparent", pointerEvents:"none", maxWidth:"48%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" },
+  cardBadge: { position:"absolute", top:23, right:70, padding:"4px 10px", borderRadius:999, border:`1px solid ${T.color.outline}`, fontSize:10.5, fontWeight:600, letterSpacing:"0.01em", color:T.color.onSurfaceVariant, fontFamily:T.font.sans, background:"transparent", pointerEvents:"none", maxWidth:"48%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" },
   cardInstruction: { fontSize:"clamp(12px, 4.6cqh, 15px)", textAlign:"center", fontWeight:500, fontStyle:"italic", color:T.color.onSurfaceVariant, fontFamily:T.font.sans, lineHeight:1.35, maxWidth:"34em", margin:"0 auto 14px", padding:"0 12px" },
   cardText: { fontSize:"clamp(19px, 10.7cqh, 40px)", textAlign:"center", fontWeight:700, color:T.color.primary, lineHeight:1.15, padding:"0 12px", fontFamily:T.font.serif, letterSpacing:"-0.025em" },
   cardTextB: { fontSize:"clamp(16px, 8.3cqh, 31px)", textAlign:"center", fontWeight:600, color:T.color.primary, lineHeight:1.25, padding:"0 12px", fontFamily:T.font.serif, letterSpacing:"-0.015em" },
-  dateH: { position:"absolute", bottom:12, right:18, fontSize:10, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, opacity:0.7 },
-  hint: { position:"absolute", bottom:12, left:18, fontSize:10, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, fontStyle:"italic", opacity:0.7 },
-  btnRow: { display:"flex", gap:12, marginBottom:12 },
-  btnWrong: { flex:1, padding:"15px", border:"none", borderRadius:T.radius.md, background:T.color.secondary, color:T.color.onSecondary, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:T.font.sans, display:"flex", alignItems:"center", justifyContent:"center", gap:8, boxShadow:T.shadow.button, letterSpacing:"0.01em" },
-  btnRight: { flex:1, padding:"15px", border:"none", borderRadius:T.radius.md, background:T.gradient.ink, color:T.color.onPrimary, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:T.font.sans, display:"flex", alignItems:"center", justifyContent:"center", gap:8, boxShadow:T.shadow.button, letterSpacing:"0.01em" },
-  shortcuts: { textAlign:"center", fontSize:10, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, opacity:0.7, letterSpacing:"0.03em" },
   // The lesson you are in, set as a title rather than a pill: it names where
   // you are, and the only pill-shaped things in this row are controls.
   lessonName: { fontFamily:T.font.serif, fontSize:15, fontWeight:600, color:T.color.primary, whiteSpace:"nowrap", letterSpacing:"-0.01em", flexShrink:0 },
@@ -6802,7 +6494,6 @@ const S = {
   lessonTitle: { fontSize:18, fontFamily:T.font.serif, color:T.color.onSurface, marginBottom:4 },
   lessonSub: { fontSize:12, color:T.color.onSurfaceVariant, fontFamily:T.font.sans },
   lessonMeta: { fontSize:11, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, marginTop:14, textTransform:"uppercase", letterSpacing:"0.06em" },
-  lessonAddBtn: { padding:"9px 18px", border:"none", borderRadius:T.radius.md, background:T.color.primary, color:"#fff", fontSize:12, fontWeight:600, fontFamily:T.font.sans, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0 },
   lessonSwitchRow: { display:"flex", alignItems:"center", gap:12, marginTop:14, flexWrap:"wrap" },
   lessonSwitch: { display:"inline-flex", alignItems:"center", gap:8, padding:0, border:"none", background:"transparent", cursor:"pointer", fontSize:12, fontWeight:600, fontFamily:T.font.sans, color:T.color.onSurface, whiteSpace:"nowrap" },
   switchTrack: { position:"relative", width:30, height:18, borderRadius:T.radius.full, background:T.color.surfaceHighest, transition:"background 0.15s", flexShrink:0 },
@@ -6814,7 +6505,6 @@ const S = {
   lessonStudyBtn: { padding:"9px 18px", border:"none", borderRadius:T.radius.md, background:T.color.surfaceLow, color:T.color.primary, fontSize:12, fontWeight:600, fontFamily:T.font.sans, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0, boxShadow:T.shadow.focus },
   empty: { textAlign:"center", padding:60, color:T.color.onSurfaceVariant, fontFamily:T.font.sans },
   sessionDone: { textAlign:"center", padding:24, background:T.color.surfaceLow, borderRadius:T.radius.xl, marginTop:12 },
-  doneText: { fontSize:14, color:T.color.primary, fontFamily:T.font.sans, marginBottom:14, fontWeight:500 },
   lessonProgress: { fontSize:12, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, fontWeight:600, whiteSpace:"nowrap", fontVariantNumeric:"tabular-nums", flexShrink:0 },
   checkpointHead: { fontSize:22, color:T.color.primary, fontFamily:T.font.serif, fontWeight:600, margin:"0 0 16px" },
   checkpointAreas: { display:"flex", flexDirection:"column", gap:10, margin:"0 auto 16px", maxWidth:420, textAlign:"left" },
@@ -6827,24 +6517,18 @@ const S = {
   // Stats — bento dashboard
   statsHeading: { fontSize:36, fontWeight:600, color:T.color.primary, fontFamily:T.font.serif, letterSpacing:"-0.02em", margin:"8px 0 28px" },
   // ── Stats layout: metric cards, then the all-cards bar ─────────────
-  typeBarWrap: { height:4, borderRadius:2, background:"rgba(3,22,50,0.07)", marginTop:10, overflow:"hidden" },
-  typeBar: { height:"100%", borderRadius:2, transition:"width 300ms ease" },
   statsRow3: { display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12, marginBottom:12 },
-  statsRow2: { display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 },
   metricCard: { background:T.color.surfaceLow, borderRadius:T.radius.xl, padding:"22px 24px" },
   metricLabel: { fontSize:11, fontFamily:T.font.sans, fontWeight:600, color:T.color.onSurfaceVariant, textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:6 },
   metricVal: { fontSize:32, fontFamily:T.font.serif, fontWeight:600, color:T.color.primary, lineHeight:1.1 },
   metricUnit: { fontSize:18, fontFamily:T.font.serif, fontWeight:600, color:T.color.primary },
   metricSub: { fontSize:12, fontFamily:T.font.sans, color:T.color.onSurfaceVariant, marginTop:4 },
-  statsNote: { fontSize:11, fontFamily:T.font.sans, color:T.color.onSurfaceVariant, opacity:0.5, marginBottom:16, paddingLeft:2 },
-  streakCard: { background:"#1a2b48", borderRadius:T.radius.xl, padding:"22px 24px", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center" },
-  streakNum: { fontSize:32, fontFamily:T.font.serif, fontWeight:600, color:"#fdf8f6", lineHeight:1.1, margin:"4px 0 4px" },
+  streakCard: { background:T.color.primaryContainer, borderRadius:T.radius.xl, padding:"22px 24px", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center" },
+  streakNum: { fontSize:32, fontFamily:T.font.serif, fontWeight:600, color:T.color.background, lineHeight:1.1, margin:"4px 0 4px" },
   streakSub: { fontSize:10, fontFamily:T.font.sans, fontWeight:600, color:"rgba(253,248,246,0.5)", textTransform:"uppercase", letterSpacing:"0.1em" },
   // Pipeline
-  pipelineCard: { background:T.color.surfaceLowest, border:`0.5px solid ${T.color.outlineGhost || "rgba(3,22,50,0.08)"}`, borderRadius:T.radius.xl, padding:"22px 24px", marginBottom:12 },
+  pipelineCard: { background:T.color.surfaceLowest, border:`0.5px solid ${T.color.outlineGhost}`, borderRadius:T.radius.xl, padding:"22px 24px", marginBottom:12 },
   pipeTitle: { fontSize:14, fontFamily:T.font.sans, fontWeight:600, color:T.color.primary, marginBottom:14 },
-  pipeBarWrap: { display:"flex", height:28, borderRadius:6, overflow:"hidden", background:T.color.surfaceHigh, marginBottom:10 },
-  pipeSeg: { display:"flex", alignItems:"center", justifyContent:"center", fontFamily:T.font.sans },
   pipeLegend: { display:"flex", flexWrap:"wrap", gap:"6px 20px" },
   pipeLegItem: { display:"flex", alignItems:"center", gap:6, fontSize:12, fontFamily:T.font.sans, color:T.color.onSurfaceVariant, whiteSpace:"nowrap" },
   pipeDot: { width:8, height:8, borderRadius:"50%", flexShrink:0 },
@@ -6854,16 +6538,8 @@ const S = {
   cahierDismiss: { marginLeft:"auto", border:"none", background:"transparent", cursor:"pointer", color:T.color.onSurfaceVariant, fontSize:13, padding:4 },
   finishLine: { marginTop:14, paddingTop:14, borderTop:"1px solid rgba(3,22,50,0.06)", fontSize:14, fontFamily:T.font.sans, color:T.color.primary },
   statsFootnote: { fontSize:12, fontFamily:T.font.sans, color:T.color.onSurfaceVariant, margin:"12px 0 0", lineHeight:1.5 },
-  statsSectionTitle: { fontSize:18, fontFamily:T.font.serif, fontWeight:600, color:T.color.primary, margin:"0 0 4px" },
-  statsSectionSub: { fontSize:13, fontFamily:T.font.sans, color:T.color.onSurfaceVariant, margin:"0 0 14px" },
   resetBtn: { display:"block", width:"100%", padding:"13px", border:"none", borderRadius:T.radius.md, background:"transparent", color:T.color.secondary, fontSize:13, cursor:"pointer", fontFamily:T.font.sans, fontWeight:600, marginTop:24 },
   // Legacy stats styles (kept to avoid crashes if any references remain)
-  bento: { display:"grid", gridTemplateColumns:"repeat(12, minmax(0, 1fr))", gap:24, marginBottom:32 },
-  bentoCard: { background:T.color.surfaceLowest, borderRadius:T.radius.xl, padding:"28px 30px", boxShadow:T.shadow.card, border:"none" },
-  bentoTitle: { fontSize:20, fontWeight:600, color:T.color.primary, fontFamily:T.font.serif, letterSpacing:"-0.01em", margin:"0 0 4px" },
-  bentoSub: { fontSize:13, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, margin:"0 0 18px" },
-  bentoHead: { display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 },
-  bentoStreak: { background:"#1a2b48" },
   // ── Onboarding (empty deck state) ─────────────────────────────────
   // Full-bleed page (no sidebar) with hero on top and import method
   // bento below. Sign-out lives in a small top-right cluster.
@@ -6888,8 +6564,8 @@ const S = {
   onbSampleEn: { fontSize:12, fontFamily:T.font.sans, color:T.color.onSurfaceVariant, marginTop:8, fontStyle:"italic" },
 
   // ── Import methods bento (3 cards) ────────────────────────────────
-  onbBento: { display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:20, marginBottom:32 },
-  onbCard: { display:"flex", flexDirection:"column", gap:16, padding:"32px 28px", background:T.color.surfaceLowest, border:"none", borderRadius:T.radius.xl, boxShadow:"0 8px 32px rgba(3,22,50,0.06)", textAlign:"left", cursor:"pointer", fontFamily:T.font.sans, transition:"all 0.2s", color:T.color.onSurface, position:"relative" },
+  onbBento: { display:"grid", gridTemplateColumns:"repeat(2, 1fr)", gap:20, marginBottom:32 },
+  onbCard: { display:"flex", flexDirection:"column", gap:16, padding:"32px 28px", background:T.color.surfaceLowest, border:"none", borderRadius:T.radius.xl, boxShadow:T.shadow.card, textAlign:"left", cursor:"pointer", fontFamily:T.font.sans, transition:"all 0.2s", color:T.color.onSurface, position:"relative" },
   onbCardFeatured: { background:T.color.surfaceHigh },
   onbCardIcon: { width:48, height:48, borderRadius:T.radius.lg, background:T.color.surfaceHigh, display:"flex", alignItems:"center", justifyContent:"center", color:T.color.secondary },
   onbCardIconFeatured: { background:T.color.primary, color:T.color.onPrimary },
@@ -6903,16 +6579,9 @@ const S = {
 
   // Legacy onboarding styles kept as fallbacks
   onboarding: { maxWidth:520, margin:"60px auto", padding:"48px 36px", background:T.color.surfaceLowest, border:"none", borderRadius:T.radius.xl, textAlign:"center", boxShadow:T.shadow.card },
-  onbTitle: { margin:"0 0 14px", fontSize:32, color:T.color.primary, fontFamily:T.font.serif, fontWeight:600, letterSpacing:"-0.02em" },
-  onbPrimary: { padding:"15px 32px", background:T.gradient.ink, color:T.color.onPrimary, border:"none", borderRadius:T.radius.md, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:T.font.sans, boxShadow:T.shadow.button, letterSpacing:"0.02em" },
-  onbSecondary: { padding:"12px 24px", background:"transparent", color:T.color.onSurfaceVariant, border:"none", borderRadius:T.radius.md, fontSize:13, cursor:"pointer", fontFamily:T.font.sans, fontWeight:500 },
-  onbDivider: { fontSize:10, color:T.color.onSurfaceVariant, margin:"20px 0", textTransform:"uppercase", letterSpacing:"0.2em", fontWeight:600 },
   onbError: { marginTop:14, padding:12, background:T.color.errorContainer, color:T.color.onErrorContainer, borderRadius:T.radius.lg, fontSize:13 },
   // Header buttons (Upload + Feedback above email)
-  headerBtnRow: { display:"flex", gap:6, marginBottom:6, justifyContent:"flex-end" },
-  headerBtn: { padding:"6px 12px", background:T.color.surfaceHigh, border:"none", borderRadius:T.radius.md, cursor:"pointer", fontSize:12, color:T.color.primary, fontFamily:T.font.sans, fontWeight:500 },
   // Per-card action buttons (edit / flag)
-  cardActions: { display:"flex", gap:10, justifyContent:"center", marginTop:18 },
   cardActionBtn: { width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", background:T.color.surfaceLow, border:"none", borderRadius:"50%", padding:0, fontSize:13, cursor:"pointer", color:T.color.onSurfaceVariant, fontFamily:T.font.sans, fontWeight:600, letterSpacing:"0.02em" },
   // Type mode (study input)
   typeInputRow: { display:"flex", gap:10, justifyContent:"center", marginBottom:10 },
@@ -6921,10 +6590,6 @@ const S = {
   typeInput: { flex:1, maxWidth:280, padding:"11px 15px", border:"none", background:T.color.surfaceLowest, borderRadius:T.radius.lg, fontSize:16, fontFamily:T.font.serif, outline:"none", color:T.color.primary, boxShadow:T.shadow.focus },
   typeSubmit: { padding:"11px 22px", border:"none", borderRadius:T.radius.md, background:T.gradient.ink, color:T.color.onPrimary, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:T.font.sans, boxShadow:T.shadow.button, letterSpacing:"0.01em" },
   // Audio: speak/mic toolbar inside the card
-  audioToolbar: { marginTop:14, display:"flex", gap:10, justifyContent:"center" },
-  speakBtn: { background:T.color.surfaceHigh, border:"none", borderRadius:T.radius.full, padding:"8px 16px", fontSize:16, cursor:"pointer", lineHeight:1, color:T.color.primary },
-  micBtn: { background:T.color.surfaceHigh, border:"none", borderRadius:T.radius.full, padding:"8px 16px", fontSize:16, cursor:"pointer", lineHeight:1, color:T.color.primary, transition:"all 0.15s" },
-  micBtnActive: { background:T.color.secondary, color:T.color.onSecondary, animation:"pulse 1.2s infinite" },
   // Pronunciation result panel below the card
   pronPanel: { marginTop:16, marginBottom:16, padding:"20px 22px", background:T.color.surfaceLowest, border:"none", borderRadius:T.radius.xl, fontFamily:T.font.sans, boxShadow:T.shadow.card },
   pronRecordingRow: { display:"flex", alignItems:"center", gap:14, fontSize:14, color:T.color.secondary, fontWeight:500 },
@@ -6962,12 +6627,8 @@ const S = {
   typeLinksRow: { gridColumn:"1 / -1", display:"flex", alignItems:"center", justifyContent:"center", flexWrap:"wrap", columnGap:32, rowGap:4, minHeight:24, fontFamily:T.font.sans },
   typeLink: { padding:"4px 0", background:"transparent", border:"none", color:T.color.secondary, fontSize:12, cursor:"pointer", fontFamily:T.font.sans, fontWeight:600, textDecoration:"underline", textUnderlineOffset:3 },
   typeLinkMuted: { color:T.color.onSurfaceVariant, fontWeight:500, opacity:0.8 },
-  typeBtnRow: { display:"flex", gap:12, marginTop:8 },
   feedbackRow: { gridColumn:"1 / -1", textAlign:"center", fontFamily:T.font.sans, fontSize:12 },
   feedbackPending: { color:T.color.onSurfaceVariant },
-  feedbackOk: { color:T.color.primary, fontWeight:500 },
-  feedbackAccept: { color:"#1d9e75", fontWeight:600, fontSize:12, fontFamily:T.font.sans },
-  feedbackReject: { color:T.color.secondary, fontWeight:500, fontSize:12, fontFamily:T.font.sans },
   feedbackMsg: { textAlign:"center", fontSize:12, fontFamily:T.font.sans, color:T.color.onSurfaceVariant, lineHeight:1.5, maxWidth:480, margin:"0 auto" },
   feedbackReasoning: { padding:"10px 16px", background:T.color.surfaceLow, borderRadius:T.radius.lg, marginBottom:8, fontSize:12, lineHeight:1.5 },
   feedbackOverrideBtn: { padding:"6px 14px", background:"transparent", border:"1px solid rgba(3,22,50,0.15)", borderRadius:T.radius.md, cursor:"pointer", fontSize:11, fontWeight:600, fontFamily:T.font.sans, color:T.color.primary, letterSpacing:"0.02em" },
@@ -6977,28 +6638,6 @@ const S = {
   // "mark for review" override link when the matcher accepted the answer.
   continueBtn: { alignSelf:"center", display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"11px 26px", border:"none", borderRadius:T.radius.md, background:T.gradient.ink, color:T.color.onPrimary, fontSize:15, fontWeight:700, cursor:"pointer", fontFamily:T.font.sans, letterSpacing:"-0.01em", boxShadow:"0 6px 20px rgba(3,22,50,0.14)", transition:"all 0.15s" },
   // Feedback admin view
-  feedbackList: { display:"flex", flexDirection:"column", gap:18 },
-  feedbackItem: { padding:22, background:T.color.surfaceLowest, border:"none", borderRadius:T.radius.xl, fontFamily:T.font.sans, boxShadow:T.shadow.card },
-  feedbackCard: { marginBottom:14 },
-  feedbackCardHeader: { display:"flex", justifyContent:"space-between", fontSize:11, color:T.color.onSurfaceVariant, marginBottom:8 },
-  feedbackDir: { background:T.color.surfaceHigh, padding:"3px 10px", borderRadius:T.radius.full, fontWeight:600, letterSpacing:"0.05em" },
-  feedbackDate: {},
-  feedbackPrompt: { fontSize:22, fontFamily:T.font.serif, color:T.color.primary, fontStyle:"italic", letterSpacing:"-0.01em" },
-  feedbackAnswers: { display:"flex", flexDirection:"column", gap:8, marginBottom:14, padding:"14px 16px", background:T.color.surfaceLow, borderRadius:T.radius.lg },
-  feedbackAnsRow: { display:"flex", gap:12, fontSize:13 },
-  feedbackAnsLabel: { color:T.color.onSurfaceVariant, minWidth:80, fontWeight:600, textTransform:"uppercase", fontSize:10, letterSpacing:"0.05em", marginTop:3 },
-  feedbackExpected: { color:T.color.primary, fontWeight:600 },
-  feedbackUser: { color:T.color.onSurface },
-  llmBlock: { padding:"14px 16px", background:T.color.surfaceLow, borderRadius:T.radius.lg, marginBottom:14, fontSize:12 },
-  llmHead: { display:"flex", gap:12, alignItems:"center", marginBottom:8 },
-  llmAccept: { color:T.color.primary, fontWeight:700, textTransform:"uppercase", fontSize:10, letterSpacing:"0.1em" },
-  llmReject: { color:T.color.secondary, fontWeight:700, textTransform:"uppercase", fontSize:10, letterSpacing:"0.1em" },
-  llmUnclear: { color:T.color.onSurfaceVariant, fontWeight:700, textTransform:"uppercase", fontSize:10, letterSpacing:"0.1em" },
-  llmConf: { color:T.color.onSurfaceVariant, fontSize:11 },
-  llmReasoning: { color:T.color.onSurface, lineHeight:1.5 },
-  feedbackActions: { display:"flex", gap:10 },
-  feedbackApprove: { flex:1, padding:12, background:T.gradient.ink, color:T.color.onPrimary, border:"none", borderRadius:T.radius.md, cursor:"pointer", fontSize:13, fontWeight:600, fontFamily:T.font.sans, boxShadow:T.shadow.button },
-  feedbackReject: { flex:1, padding:12, background:T.color.surfaceHigh, border:"none", color:T.color.onSurfaceVariant, borderRadius:T.radius.md, cursor:"pointer", fontSize:13, fontFamily:T.font.sans, fontWeight:500 },
   // Beta feedback (general user feedback)
   // Feedback log (shared by the modal and the Feedback Review page)
   fbLogHeader: { display:"flex", alignItems:"center", gap:10, paddingBottom:14, borderBottom:"1px solid rgba(3,22,50,0.08)" },
@@ -7013,7 +6652,6 @@ const S = {
   // read as a stray white bar through the thumbnail. 4px of padding, cancelled
   // by the margin, gives the ring room without moving anything.
   fbLogList: { overflowY:"auto", minHeight:0, padding:"0 4px", margin:"0 -4px" },
-  fbLogPage: { background:T.color.surfaceLowest, borderRadius:T.radius.xl, padding:"4px 24px", boxShadow:T.shadow.card },
   fbLogSection: { margin:0, padding:"18px 0 2px", fontSize:13, fontWeight:600, fontFamily:T.font.sans, color:T.color.onSurfaceVariant, letterSpacing:"0.02em" },
   fbLogSectionEmpty: { fontSize:14, color:T.color.onSurfaceVariant, padding:"10px 0 14px", borderBottom:"1px solid rgba(3,22,50,0.08)" },
   fbReview: { marginTop:12, padding:"12px 14px", borderRadius:T.radius.md, border:"1px solid rgba(3,22,50,0.08)", fontFamily:T.font.sans },
@@ -7052,8 +6690,8 @@ const S = {
   feedbackModalBox: { background:T.color.surfaceLowest, borderRadius:T.radius.xl, maxWidth:600, width:"100%", padding:"24px 28px 8px", boxShadow:"0 32px 96px rgba(3,22,50,0.18)", fontFamily:T.font.sans, maxHeight:"80vh", overflow:"hidden", display:"flex", flexDirection:"column" },
   // Users table
   usersTable: { width:"100%", borderCollapse:"collapse", fontFamily:T.font.sans, fontSize:13 },
-  usersTh: { textAlign:"left", padding:"10px 12px", fontSize:10, fontWeight:700, color:T.color.onSurfaceVariant, textTransform:"uppercase", letterSpacing:"0.08em", borderBottom:`1px solid ${T.color.outlineGhost || "rgba(3,22,50,0.08)"}` },
-  usersTd: { padding:"10px 12px", borderBottom:`1px solid ${T.color.outlineGhost || "rgba(3,22,50,0.04)"}`, color:T.color.onSurface },
-  usersTdNum: { padding:"10px 12px", borderBottom:`1px solid ${T.color.outlineGhost || "rgba(3,22,50,0.04)"}`, color:T.color.primary, fontWeight:600, textAlign:"center" },
+  usersTh: { textAlign:"left", padding:"10px 12px", fontSize:10, fontWeight:700, color:T.color.onSurfaceVariant, textTransform:"uppercase", letterSpacing:"0.08em", borderBottom:`1px solid ${T.color.outlineGhost}` },
+  usersTd: { padding:"10px 12px", borderBottom:`1px solid ${T.color.outlineGhost}`, color:T.color.onSurface },
+  usersTdNum: { padding:"10px 12px", borderBottom:`1px solid ${T.color.outlineGhost}`, color:T.color.primary, fontWeight:600, textAlign:"center" },
 };
 
