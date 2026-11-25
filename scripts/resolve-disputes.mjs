@@ -6,7 +6,12 @@
 //
 // This only clears an OLD backlog left in feedback_submissions. A dispute is
 // now raised from the study view and settled by /api/review-answer there and
-// then; nothing writes feedback_submissions any more (since 2026-04-15).
+// then; nothing writes feedback_submissions any more (since 2026-04-15), so it
+// only ever clears disputes raised on or before 15 April 2026.
+//
+// With --apply it also keeps Claude's verdict in answer_reviews, as the app
+// does, marked source 'script' so the test of Claude's marking never reads it
+// as the owner's call (needs migration_031; without it, nothing is kept).
 //
 // For each pending row this asks Claude the app's own question (the code the
 // endpoint uses), and then:
@@ -28,7 +33,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { askClaude, isDrillCard } from "../api/_lib/answerChecks.js";
+import { askClaude, isDrillCard, verdictRow } from "../api/_lib/answerChecks.js";
 import { loadEnv } from "./lib/loadEnv.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -114,7 +119,30 @@ async function pending() {
   return res.json();
 }
 
+// Keep Claude's verdict as the app does, in answer_reviews, marked source
+// 'script' so the test of Claude's marking never reads it as the owner's call
+// (ownerCall). Needs migration_031; until it is run the insert is refused and
+// nothing is kept, as before.
+let verdictsRefused = false;
+async function keepVerdict(row, verdict) {
+  if (verdictsRefused) return;
+  const expected = row.direction === "fr" ? row.card_back : row.card_front;
+  const body = {
+    ...verdictRow({
+      user: { id: row.user_id, email: null }, card_id: row.card_id, direction: row.direction,
+      french: row.card_front, english: row.card_back, expected, typed: row.user_answer,
+      verdict: verdict.verdict, reasoning: verdict.reasoning,
+    }),
+    source: "script",
+  };
+  const res = await db("answer_reviews", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(body) });
+  if (res.ok) return;
+  verdictsRefused = true;
+  console.log(`      (verdicts are not kept until migration_031 is run: ${res.status})`);
+}
+
 async function record(row, verdict) {
+  await keepVerdict(row, verdict);
   if (verdict.verdict === "accept") {
     // Teach the card this answer, so the same claim cannot be raised twice.
     const ins = await db("card_alternates?on_conflict=user_id,card_id,direction,alternate_text", {

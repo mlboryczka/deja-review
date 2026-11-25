@@ -148,10 +148,25 @@ export function supabaseRepeatsStore(db) {
       const ask = (cols) => db.from("user_cards").select(cols)
         .eq("archived_reason", "duplicate").order("id", { ascending: true }).limit(2000);
       // Before migration_029 there is no archived_by: ask without it.
-      let res = await ask("id, front, back, merged_into, archived_reason, archived_at, archived_by");
-      if (missingColumn(res.error)) res = await ask("id, front, back, merged_into, archived_reason, archived_at");
+      let res = await ask("id, user_id, source, front, back, merged_into, archived_reason, archived_at, archived_by");
+      if (missingColumn(res.error)) res = await ask("id, user_id, source, front, back, merged_into, archived_reason, archived_at");
       const r = out(res);
-      return r.rows ? { rows: r.rows.filter((x) => x.merged_into != null) } : r;
+      if (!r.rows) return r;
+      const named = r.rows.filter((x) => x.merged_into != null);
+      // Only a card really put away, and put away as a repeat of a card in the
+      // same account: a student can write archived_reason and merged_into on
+      // their own cards (migration_032 stops that), and the kept card must
+      // not be someone else's.
+      const away = named.filter((x) => typeof x.source === "string" && x.source.startsWith("archived:"));
+      if (!away.length) return { rows: [] };
+      const owners = new Map();
+      const ids = [...new Set(away.map((x) => x.merged_into))];
+      for (let i = 0; i < ids.length; i += 200) {
+        const o = out(await db.from("user_cards").select("id, user_id").in("id", ids.slice(i, i + 200)));
+        if (!o.rows) return o;
+        for (const k of o.rows) owners.set(k.id, k.user_id);
+      }
+      return { rows: away.filter((x) => owners.get(x.merged_into) === x.user_id) };
     },
     async cards(ids) {
       return out(await db.from("user_cards").select("id, front, back").in("id", ids));

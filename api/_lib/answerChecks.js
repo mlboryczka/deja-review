@@ -143,6 +143,8 @@ export const agrees = (says, verdict) => (says === "accept") === (verdict === "a
 //   is their call when it refused.
 export function ownerCall(row, adminEmail) {
   if (row.owner_says === "accept" || row.owner_says === "reject") return { says: row.owner_says, from: "marked" };
+  // A verdict the old-disputes script saved (migration_031) is nobody's call.
+  if (row.source === "script") return null;
   const own = !!adminEmail && String(row.user_email || "").toLowerCase() === adminEmail;
   if (!own) return null;
   if (row.overridden) return { says: "accept", from: "accept-anyway" };
