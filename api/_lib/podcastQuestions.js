@@ -23,8 +23,9 @@
 // and the server, not Claude, gives each passage its key and its start and
 // end times (api/_lib/podcasts.js).
 //
-// MARKING happens per answer, on the student's own key (the owner's server
-// key while Podcasts is the owner's alone). Claude says which of the
+// MARKING happens per answer, paid by the key resolveAnthropicKey picks
+// (api/_lib/anthropicKey.js): the student's own, or the owner's for the owner
+// and, on the test app, for the accounts named in src/lib/testApp.js. Claude says which of the
 // passage's ideas the answer holds. Meaning counts, wording doesn't: the
 // owner wants a gist answered in the student's own words to count, and a
 // wrong meaning to count as missed. The verdict ("Got it" / "Partly" /
@@ -47,6 +48,7 @@
 import { createHash } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { MAX_PASSAGES } from "../../src/lib/podcastCatalogue.js";
+import { clock } from "../../src/lib/podcastProgress.js";
 
 export const QUESTIONS_MODEL = "claude-opus-5-5";
 export const MARK_MODEL = "claude-opus-5-5";
@@ -131,11 +133,6 @@ FOR EACH PASSAGE
 
 STORY STARTS
 - "storyStarts": for each listed story, in the order listed, the number of the paragraph where that story begins. An empty list when the episode lists no stories.`;
-
-const clock = (seconds) => {
-  const s = Math.max(0, Math.round(Number(seconds) || 0));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-};
 
 // What Claude reads about one episode: the podcast, the episode's title,
 // date and length, its stories with their start times, and the transcript

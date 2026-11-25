@@ -184,7 +184,9 @@ export async function fetchText(url, { fetchImpl, timeoutMs = FETCH_TIMEOUT_MS, 
     if (location) {
       await cancelBody(res);
       if (hop >= MAX_REDIRECTS) throw plainError('redirects', `${site} kept sending the request elsewhere, so it wasn’t followed.`);
-      u = checkUrl(new URL(location, u).href, site);
+      let next;
+      try { next = new URL(location, u).href; } catch { throw plainError('bad_url', `${site} sent the request to an address that doesn’t work, so it wasn’t followed.`); }
+      u = checkUrl(next, site);
       continue;
     }
     if (!res.ok) {

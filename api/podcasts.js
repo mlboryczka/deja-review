@@ -66,7 +66,7 @@ export default async function handler(req, res) {
     const { status, json } = await handlePodcastRequest({
       body: req.body || {},
       user,
-      isAdmin: true,
+      allowed: true,
       store: supabasePodcastStore(db),
       // Resolved only when an action is about to call Claude.
       apiKey: () => resolveAnthropicKey(req, user),

@@ -42,8 +42,9 @@ import {
   ALLOWED_HOSTS, MAX_BYTES, USER_AGENT, TITLE_PREFIX_MIN,
 } from "../../api/_lib/podcastSource.js";
 import {
-  estimatePassageTimes, listenWindow, normalizePassage, SPEAKING_RATE, LISTEN_LEAD, LISTEN_TAIL,
+  estimatePassageTimes, normalizePassage, SPEAKING_RATE, LISTEN_LEAD, LISTEN_TAIL,
 } from "../../src/lib/podcastTiming.js";
+import { listenWindow } from "../../src/lib/podcastProgress.js";
 import { PODCASTS, podcastBySlug } from "../../src/lib/podcastCatalogue.js";
 
 const ck = checker();

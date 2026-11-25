@@ -41,3 +41,9 @@ export const PODCASTS = [
 export const podcastBySlug = (slug) => PODCASTS.find((p) => p.slug === slug) || null;
 
 export const MAX_PASSAGES = 10;
+
+// The longest typed answer the server marks, and the sentence both the page
+// and the server give when the Podcasts tables aren't set up. One copy each,
+// so the two sides can't drift.
+export const MAX_TYPED = 2000;
+export const NOT_SET_UP = "Podcasts need a database update first: run migrations/migration_017_podcasts.sql in Supabase.";

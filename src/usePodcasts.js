@@ -79,7 +79,7 @@ export const followsState = (userId) => followsRead.get(userId) || "unknown";
 
 // ── Followed podcasts ─────────────────────────────────────────────────────
 // The sidebar lists these under "My podcasts", so FlashcardApp loads them
-// (enabled only for the owner while the module is theirs alone). Only
+// (enabled for the owner anywhere and for anyone signed in on the test app). Only
 // podcasts the app's catalogue knows are kept (src/lib/podcastCatalogue.js):
 // a follow of one taken out of the catalogue would have no name and no feed.
 // Oldest first, so a podcast added from a Spotify link joins the end of the
@@ -146,12 +146,15 @@ export function usePodcastFollows(user, { enabled = true } = {}) {
 // all of them with a single limit let the Journal (five a week) push the
 // weekly podcasts off the end: Un mot, une histoire's latest episodes are
 // months old.
-export const EPISODES_PER_PODCAST = 60;
+const EPISODES_PER_PODCAST = 60;
 const LIST_COLUMNS = "id, podcast, guid, title, published_at, page_url, audio_url, duration_seconds, stories, questions";
 
-// The server reads the feeds at most this often for one student. Following a
-// podcast reads its feed straight away, so this only paces the visits.
-export const REFRESH_EVERY_MS = 10 * 60 * 1000;
+// This browser tab asks the server to read the followed feeds at most this
+// often (the record is kept in the tab and starts empty on every page load and
+// sign-out; nothing on the server limits it). Following a podcast reads its
+// feed straight away, and the follow is then followed by a refresh of every
+// followed feed.
+const REFRESH_EVERY_MS = 10 * 60 * 1000;
 
 const byNewest = (a, b) => (Date.parse(b.published_at || "") || 0) - (Date.parse(a.published_at || "") || 0);
 

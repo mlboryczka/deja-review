@@ -175,12 +175,3 @@ export function estimatePassageTimes({ paragraphs = [], stories = [], storyStart
   return { start: round1(start), end: round1(end) };
 }
 
-// What Listen plays: from LISTEN_LEAD seconds before the passage to
-// LISTEN_TAIL after it, inside the recording.
-export function listenWindow({ start, end }, duration) {
-  const max = Number.isFinite(Number(duration)) && Number(duration) > 0 ? Number(duration) : Infinity;
-  return {
-    from: clamp(Number(start) - LISTEN_LEAD, 0, max),
-    to: clamp(Number(end) + LISTEN_TAIL, 0, max),
-  };
-}

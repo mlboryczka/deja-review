@@ -40,7 +40,7 @@
 import { normalizePassage, findPassage } from "./podcastTiming.js";
 
 // RFI's unit: 25ths of a second.
-export const RFI_TICKS_PER_SECOND = 25;
+const RFI_TICKS_PER_SECOND = 25;
 
 // Where RFI's times for an episode are, from the feed's guid; null when the
 // guid isn't the uuid RFI uses.

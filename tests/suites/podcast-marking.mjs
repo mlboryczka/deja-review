@@ -273,7 +273,7 @@ function memoryStore({ missing = false, answersMissing = false } = {}) {
 }
 
 const run = (store, user, body, extra = {}) =>
-  handlePodcastRequest({ body, user, isAdmin: user !== STUDENT, store, apiKey: KEY, now: NOW, fetchText, ...extra });
+  handlePodcastRequest({ body, user, allowed: user !== STUDENT, store, apiKey: KEY, now: NOW, fetchText, ...extra });
 const withQuestions = async (store, extra = {}) => {
   const ep = episodeRow(extra);
   store.db.episodes.push(ep);

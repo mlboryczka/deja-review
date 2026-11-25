@@ -21,8 +21,8 @@
 //
 // WHO MAY USE IT (since 2026-10-19): the route lets in the owner anywhere and
 // anyone signed in on the test app, and answers 403 "Admin only" to everyone
-// else. It passes `isAdmin: true` for every caller it lets in, so here
-// `isAdmin` means "let in by the route".
+// else. It passes `allowed: true` for every caller it lets in, so here
+// `allowed` means "let in by the route".
 //
 // WHO PAYS. Only three things call Claude: writing an episode's questions
 // (the first time anyone opens it), marking an answer, and the same-card
@@ -78,7 +78,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { missingTable } from "../../src/lib/dealLog.js";
 import { isArchived } from "../../src/lib/archive.js";
 import { matchNewCards, plannedWrites } from "../../src/lib/cardMatch.js";
-import { PODCASTS, podcastBySlug, MAX_PASSAGES } from "../../src/lib/podcastCatalogue.js";
+import { PODCASTS, podcastBySlug, MAX_PASSAGES, MAX_TYPED, NOT_SET_UP } from "../../src/lib/podcastCatalogue.js";
 import { estimatePassageTimes, findPassage, normalizePassage } from "../../src/lib/podcastTiming.js";
 import { rfiTimingUrl, readRfiTiming, alignTiming } from "../../src/lib/podcastSync.js";
 import {
@@ -103,14 +103,14 @@ export const LEASE_MS = 3 * 60 * 1000;
 // often publishes the transcript a little after the episode.
 export const PAGE_RETRY_MS = 15 * 60 * 1000;
 // How long the same-card question may take when adding a card.
-export const SAME_CARD_TIME_MS = 60 * 1000;
-export const MAX_TYPED = 2000;
+const SAME_CARD_TIME_MS = 60 * 1000;
+export { MAX_TYPED };
 const MAX_FRONT = 200;
 const MAX_BACK = 300;
 
 // The student-facing sentences, in one place (plain, short, British).
 export const MESSAGES = Object.freeze({
-  notSetUp: "Podcasts need a database update first: run migrations/migration_017_podcasts.sql in Supabase.",
+  notSetUp: NOT_SET_UP,
   adminOnly: "Admin only",
   badLink: "That doesn’t look like a Spotify link.",
   notRfi: "Only RFI’s learner podcasts can be added for now, such as Journal en français facile.",
@@ -120,7 +120,7 @@ export const MESSAGES = Object.freeze({
   noTranscript: "RFI hasn’t published a transcript for this episode.",
   noPassage: "That passage isn’t in this episode’s questions any more. Open the episode again.",
   emptyAnswer: "Type your answer first.",
-  longAnswer: "That answer is too long. Keep it under 2,000 characters.",
+  longAnswer: `That answer is too long. Keep it to at most ${MAX_TYPED.toLocaleString("en-GB")} characters.`,
   badCard: "A card needs its French and its English.",
   longCard: "That card is too long to add.",
   badQuestions: "Claude’s questions for this episode didn’t check out. Try again.",
@@ -210,9 +210,11 @@ function validStarts(starts, storyCount, paragraphCount) {
   return starts;
 }
 
-// The story a passage is in: Claude's number when the passage's paragraph is
-// inside that story, else the story whose paragraphs hold it, else Claude's
-// number if it names a story, else none.
+// The story a passage is in. With story starts: Claude's number when the
+// passage's paragraph is inside that story, else the story whose paragraphs
+// hold it, else none (a greeting before the first story stays with no story,
+// whatever Claude filed it under). Without story starts: Claude's number if
+// it names a story, else none.
 function storyOf(paragraph, claimed, starts, storyCount) {
   const okClaim = Number.isInteger(claimed) && claimed >= 0 && claimed < storyCount ? claimed : null;
   if (!starts) return okClaim;
@@ -377,9 +379,9 @@ async function saveFeed(slug, feed, { store, now }) {
 // ── The handler ──────────────────────────────────────────────────────────
 
 export async function handlePodcastRequest({
-  body, user, isAdmin, store, apiKey = null, now = Date.now(), fetchText = fetchFromWeb, ask = null,
+  body, user, allowed, store, apiKey = null, now = Date.now(), fetchText = fetchFromWeb, ask = null,
 }) {
-  if (!isAdmin) return reply(403, { error: MESSAGES.adminOnly });
+  if (!allowed) return reply(403, { error: MESSAGES.adminOnly });
   const action = body?.action;
   const deps = { body: body || {}, user, store, apiKey, now, fetchText, ask };
   if (action === "follow") return follow(deps);
@@ -513,6 +515,9 @@ async function openEpisode({ body, store, apiKey, now, fetchText }) {
 
   // 2. The questions, written once for everyone.
   if (row.questions == null) {
+    // Someone else is already writing them: wait, whoever you are. Only a
+    // request that will write the questions itself needs a key.
+    if (row.questions_lease_until && Date.parse(row.questions_lease_until) > now) return reply(202, { status: "preparing" });
     const key = keyFrom(apiKey);
     if (!key.key) return reply(key.status, { error: key.error, code: key.code });
     const lease = await store.takeLease(row.id, iso(now), iso(now + LEASE_MS));

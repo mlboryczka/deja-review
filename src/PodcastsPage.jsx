@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "./supabase";
 import { T } from "./theme";
-import { podcastBySlug } from "./lib/podcastCatalogue";
+import { podcastBySlug, MAX_TYPED as MAX_ANSWER_CHARS, NOT_SET_UP as MISSING_TEXT } from "./lib/podcastCatalogue";
 import { podcastCall, PodcastError } from "./lib/podcastApi";
 import { checkTiming, sentencesOf, sentenceAt, passageTimes } from "./lib/podcastSync";
 import { BYOK_REQUIRED, BAD_KEY } from "./lib/anthropicKey";
@@ -16,8 +16,6 @@ import {
 import {
   usePodcastEpisodes, usePodcastAnswers, readDraft, writeDraft, readCardAdd, writeCardAdd, followsState,
 } from "./usePodcasts";
-
-export { clearPodcastDrafts } from "./usePodcasts";
 
 // The Podcasts module's pages (owner-approved mockup, 2026-10-09: "i like it
 // build it"). The shell (FlashcardApp) owns which module and which of these
@@ -43,8 +41,10 @@ export { clearPodcastDrafts } from "./usePodcasts";
 //     same-card rule. It never touches a card the student has, its schedule
 //     or the set they are in (owner rule: updates never reset progress), and a
 //     card they removed stays removed.
-//   • Owner only until the owner has tried it. Every server action refuses
-//     anyone else; the switch to reach this page is the owner's alone.
+//   • Since 2026-10-19 open to the owner anywhere and to anyone signed in on
+//     the test app; on the students' app the owner only. Every server action
+//     refuses anyone else, and the switch to reach this page follows the same
+//     rule (src/lib/testApp.js, podcastsOpenTo).
 //
 // Added 2026-10-21 (owner: "answer the questions as he goes through the
 // podcast", and sync the transcript "only if you can accurately sync"):
@@ -94,10 +94,7 @@ const EARLY_LOOK_MS = 3000;
 // The tutor is told the transcript, clipped to this (api/chat.js clips again).
 // The play bar's speeds, in the order the button steps through them.
 const SPEEDS = [1, 0.75, 1.25];
-// The longest answer the server takes (api/_lib/podcasts.js, 'mark').
-const MAX_ANSWER_CHARS = 2000;
 
-const MISSING_TEXT = "Podcasts need a database update first: run migrations/migration_017_podcasts.sql in Supabase.";
 const PREPARING_TEXT = "Writing the questions for this episode…";
 const INSTRUCTION = {
   gist: "What’s being said here? Give the idea in English.",
@@ -1328,7 +1325,7 @@ function PassageBlock({
     const typed = draft.trim();
     if (!typed || checking) return;
     if (typed.length > MAX_ANSWER_CHARS) {
-      setProblem({ message: `That’s too long to mark. Keep it under ${MAX_ANSWER_CHARS.toLocaleString("en-GB")} characters.` });
+      setProblem({ message: `That’s too long to mark. Keep it to at most ${MAX_ANSWER_CHARS.toLocaleString("en-GB")} characters.` });
       return;
     }
     onFocus?.(passage.key);

@@ -177,7 +177,7 @@ export function shortDate(value, timeZone) {
 }
 
 // "a", "a and b", "a, b and c": British, no comma before "and".
-export function andList(items) {
+function andList(items) {
   const xs = (items || []).filter(Boolean);
   if (xs.length < 2) return xs.join("");
   return `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
@@ -299,6 +299,12 @@ export function phraseRanges(fr, phrases) {
 // Returns [{ story, t, title, paragraphs: [{ index, text }] }].
 const startAt = (raw) =>
   typeof raw === "number" ? raw : typeof raw === "string" && raw.trim() ? Number(raw) : NaN;
+// A story's start time in seconds, or null when it has none: a missing time
+// is not 0:00, which Number(null) would make it.
+const timeOf = (raw) => {
+  const t = startAt(raw);
+  return Number.isFinite(t) ? t : null;
+};
 
 export function transcriptSections(paragraphs, stories, storyStarts) {
   const paras = (Array.isArray(paragraphs) ? paragraphs : []).map((text, index) => ({ index, text: String(text || "") }));
@@ -318,7 +324,7 @@ export function transcriptSections(paragraphs, stories, storyStarts) {
   if (!rising.length) return paras.length ? [{ story: null, t: null, title: "", paragraphs: paras }] : [];
   return rising.map((c, i) => ({
     story: c.story,
-    t: Number.isFinite(Number(c.t)) ? Number(c.t) : null,
+    t: timeOf(c.t),
     title: c.title,
     paragraphs: paras.slice(i === 0 ? 0 : c.at, i + 1 < rising.length ? rising[i + 1].at : paras.length),
   }));
@@ -335,8 +341,8 @@ export function clock(seconds) {
 export function storyAt(stories, time) {
   let k = -1;
   (stories || []).forEach((s, i) => {
-    const t = Number(s?.t);
-    if (Number.isFinite(t) && time >= t) k = i;
+    const t = timeOf(s?.t);
+    if (t !== null && time >= t) k = i;
   });
   return k;
 }
