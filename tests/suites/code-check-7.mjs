@@ -84,7 +84,7 @@ ck("111 the card dispute no longer returns err.message", !/json\(\{ error: err\.
   const r = claudeError(e, "look at your answer");
   ck("111 an overloaded Claude gives a sentence with no JSON", r.status === 503 && !/[{}]/.test(r.json.error), r.json.error);
 }
-ck("111 class reading says it plainly too", /claudeError\(e, "read this class"\)/.test(read("api/cahier-parse.js")) && /claudeError\(e, "read this class"\)/.test(read("api/cahier-sync.js")));
+ck("111 class reading says it plainly too", /claudeError\(e, "read this class"\)/.test(read("api/cahier-parse.js")) && /CLASS_NOT_READ/.test(read("api/cahier-sync.js")));
 
 // 112: an acceptance that was not kept still says so after the lesson reopens.
 ck("112 the line reads the saved answer when the hook's state is gone",

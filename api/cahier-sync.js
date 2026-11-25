@@ -66,7 +66,10 @@ import {
   cardsFromExtracted,
 } from "./parse-cahier.js";
 import { allowIphoneApp } from "./_lib/cors.js";
-import { claudeError } from "./_lib/podcasts.js";
+import { claudeProblem } from "./_lib/claudeProblem.js";
+const isClaudeFailure = (e) => !!claudeProblem(e) || e instanceof Anthropic.APIError;
+// The one line a linked notebook shows when a class couldn't be read.
+export const CLASS_NOT_READ = "A class couldn't be read just now. It will be tried again.";
 
 export const config = { maxDuration: 300 };
 
@@ -140,7 +143,7 @@ export default async function handler(req, res) {
     return res.status(result.ok ? 200 : 400).json(result);
   } catch (err) {
     console.error("[cahier-sync] failed:", err);
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: isClaudeFailure(err) ? CLASS_NOT_READ : err.message });
   }
 }
 
@@ -272,7 +275,10 @@ export async function syncUser({ admin, apiKey, userId, url, limit, force = fals
     const results = await Promise.all(
       batch.map((p) =>
         reader.extract(anthropic, { date: p.date, text: p.text, newLines: p.partial ? p.newLines : null })
-          .catch((e) => { console.error("class read failed:", e); return { error: claudeError(e, "read this class").json.error }; })
+          // The linked doc is read on the server's own Claude account, so what the
+          // student sees says only that the class will be tried again: nothing
+          // about that account's limits or credit. The real error is in the log.
+          .catch((e) => { console.error("class read failed:", e); return { error: CLASS_NOT_READ }; })
       )
     );
     const parsed = [];
@@ -332,7 +338,7 @@ export async function syncUser({ admin, apiKey, userId, url, limit, force = fals
     // Said on the link as well, where the student can see it. A save that
     // failed used to leave no trace: on the live database the French link's
     // every save failed from 2026-10-07, and nothing said so for a month.
-    await updateLink(admin, userId, { last_checked_at: now.toISOString(), last_error: e.message }, tables).catch(() => {});
+    await updateLink(admin, userId, { last_checked_at: now.toISOString(), last_error: isClaudeFailure(e) ? CLASS_NOT_READ : e.message }, tables).catch(() => {});
     throw e;
   } finally {
     await releaseReading(admin, userId, reading.runId, course);

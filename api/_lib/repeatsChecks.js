@@ -53,16 +53,19 @@ const WAITING = "Waiting for the database update (migration_016).";
 // card the student has, and the same thing made again.
 // The daily run began putting repeats away on its own verdicts on 2026-10-12
 // (statusDaily.js putAwayRepeats, the same rows). Those are Claude's calls, not
-// the owner's, so they are no right answers to test Claude against: only the
-// clean-up's put-aways, from before then, count. (A column marking the daily
-// run's own would need a database change; the date needs none.)
+// the owner's, so they are no right answers to test Claude against.
+// migration_029 adds user_cards.archived_by, 'daily-run' on those rows: once it
+// is run (rows then carry an `archived_by` key) they are told apart exactly.
+// Until then the date does it: only put-aways from before 12 October count.
 export const PUT_AWAY_BY_CHECK_FROM = "2026-10-12";
+export const DAILY_RUN = "daily-run";
 
 export function repeatsCases({ duplicates = [], kept = [] } = {}) {
   const byId = new Map(kept.map((c) => [String(c.id), c]));
   const same = [];
   for (const d of duplicates) {
-    if (d.archived_at && String(d.archived_at).slice(0, 10) >= PUT_AWAY_BY_CHECK_FROM) continue;
+    if ("archived_by" in d ? d.archived_by === DAILY_RUN
+      : d.archived_at && String(d.archived_at).slice(0, 10) >= PUT_AWAY_BY_CHECK_FROM) continue;
     const k = d.merged_into == null ? null : byId.get(String(d.merged_into));
     if (!k || !d.front || !k.front) continue;
     same.push({ id: `dup:${d.id}`, says: "same", a: { front: k.front, back: k.back }, b: { front: d.front, back: d.back } });
@@ -143,8 +146,12 @@ export function supabaseRepeatsStore(db) {
   const out = ({ data, error }) => (gone(error) ? { missing: true } : error ? { error: error.message } : { rows: data });
   return {
     async duplicates() {
-      const r = out(await db.from("user_cards").select("id, front, back, merged_into, archived_reason, archived_at")
-        .eq("archived_reason", "duplicate").order("id", { ascending: true }).limit(2000));
+      const ask = (cols) => db.from("user_cards").select(cols)
+        .eq("archived_reason", "duplicate").order("id", { ascending: true }).limit(2000);
+      // Before migration_029 there is no archived_by: ask without it.
+      let res = await ask("id, front, back, merged_into, archived_reason, archived_at, archived_by");
+      if (missingColumn(res.error)) res = await ask("id, front, back, merged_into, archived_reason, archived_at");
+      const r = out(res);
       return r.rows ? { rows: r.rows.filter((x) => x.merged_into != null) } : r;
     },
     async cards(ids) {

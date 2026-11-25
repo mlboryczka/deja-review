@@ -162,6 +162,8 @@ create policy "Users manage their own alternates"
 --   migration_016 → notes_read, card_pairs, and archived_reason, archived_at,
 --                   merged_into on this table (no card made twice from the
 --                   same notes)
+--   migration_029 → archived_by on user_cards (marks the repeats the daily
+--                   run put away on Claude's verdict)
 --   migration_017 → podcast_episodes (shared, written by the server),
 --                   podcast_follows, podcast_answers (the Podcasts module)
 -- Run this file first, then the migrations in order.

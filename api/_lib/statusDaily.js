@@ -318,7 +318,10 @@ export async function putAwayRepeats(db, recs, { at = new Date().toISOString() }
       if (isList(drop) && !isList(keep)) { keptBoth++; continue; }
       if (isArchived(drop)) continue;
       const patch = { source: archivedSource(drop.source), archived_reason: "duplicate", archived_at: at, merged_into: keep.id };
-      const { error } = await db.from("user_cards").update(patch).eq("id", drop.id).eq("user_id", rec.student.id);
+      const update = (p) => db.from("user_cards").update(p).eq("id", drop.id).eq("user_id", rec.student.id);
+      // archived_by (migration_029) marks this as the daily run's own call; before it is run, write without.
+      let { error } = await update({ ...patch, archived_by: "daily-run" });
+      if (error && (error.code === "PGRST204" || error.code === "42703")) ({ error } = await update(patch));
       if (error) { failed = error.message; break; }
       Object.assign(drop, patch);
       touched.add(String(a.id)).add(String(b.id));
