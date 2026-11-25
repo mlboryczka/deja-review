@@ -984,7 +984,7 @@ holds other students' cards).
 
 | Script | What it does |
 |---|---|
-| `status-check.mjs` | Runs the eleven status checks on a student's live record, and only reads. It checks the admin unless `--email` names someone else; `--from YYYY-MM-DD` judges from an earlier day, `--tz` sets the time zone for answers saved without one, `--all` shows every detail. `--everyone` is the morning check: every student who has answered, what the server's daily run last asked Claude about look-alike cards, and the three tests of Claude's work with any slip named. Each problem is told apart as new or raised before, from a list kept on the Mac outside the repo (`~/.claude/scheduled-tasks/morning-check/raised.json`), which `--everyone --record` saves; a daily run that couldn't ask Claude is a problem too, kept under one line whatever its error says, with the error printed beneath it (the error's count of pairs and an API error's request id change every morning, and a problem whose line changes is raised as new each day). The last line is "All clear.", "Nothing new: …" or "Something new needs looking at.", and only the last exits 1. It never asks Claude anything. Claude runs it on the owner's Mac under the rule in `.claude/settings.local.json`; without that rule auto mode blocks it from reading production. The owner's `.env.local` leaves both admin addresses blank, so pass `--email` |
+| `status-check.mjs` | Runs the fourteen status checks on a student's live record, and only reads. It checks the admin unless `--email` names someone else; `--from YYYY-MM-DD` judges from an earlier day, `--tz` sets the time zone for answers saved without one, `--all` shows every detail. `--everyone` is the morning check: every student who has answered, what the server's daily run last asked Claude about look-alike cards, and the three tests of Claude's work with any slip named. Each problem is told apart as new or raised before, from a list kept on the Mac outside the repo (`~/.claude/scheduled-tasks/morning-check/raised.json`), which `--everyone --record` saves; a daily run that couldn't ask Claude is a problem too, kept under one line whatever its error says, with the error printed beneath it (the error's count of pairs and an API error's request id change every morning, and a problem whose line changes is raised as new each day). The last line is "All clear.", "Nothing new: …" or "Something new needs looking at.", and only the last exits 1. It never asks Claude anything. Claude runs it on the owner's Mac under the rule in `.claude/settings.local.json`; without that rule auto mode blocks it from reading production. The owner's `.env.local` leaves both admin addresses blank, so pass `--email` |
 | `record-cleanup-reasons.mjs` | One-off. Writes onto the 85 cards the 2026-10-06 clean-up put away why it did: `archived_reason` 'duplicate' with `merged_into` the card each repeats (for a list card whose words each kept a card, the one the card-writers' rule finds closest), or 'removed' for "Naza" and the registers card, and `archived_at` the time it ran. From the clean-up's plan (`--plan`, its `cleanup-plan.json`) and backup (`--backup`). Needs migration_016; touches only those three columns, only on rows still out of study with no reason, backs them up first, and a second run writes nothing. Not run yet |
 | `resolve-feedback.mjs` | Lists open feedback; `<ids> --note "…" --apply` marks entries resolved. Never deletes |
 | `resolve-disputes.mjs` | Settles old disputed marks in `feedback_submissions`, leaving `uncertain` ones alone: a machine that can't decide shouldn't close a complaint about its own marking |
@@ -2051,7 +2051,9 @@ and the Stats page, so they always agree.
   made every card answered in the last 24 hours read 100%.
 - The wording is "about N remembered" (on the Stats page "~N remembered",
   owner, 2026-10-06), never a bare number, and never "mastered", "known" or
-  "learning" (owner, 2026-09-12).
+  "learning" (owner, 2026-09-12). The one exception is a Spanish lesson's
+  rating, Not started / Learning / Learned (owner, 2026-11-25; see *Spanish
+  lessons on Stats*).
 - Students never see the two ways round apart, on any screen or message
   (owner, 2026-09-14).
 - The figure is worked out when a set is dealt and at its checkpoint, not after
@@ -2108,6 +2110,51 @@ owner's 808 answers (2026-10-06) it takes 6 ms, and the reconstructed today
 matched the live ~69.
 
 The `stats`, `progress`, `answering` and `types` suites guard all this.
+
+### Spanish lessons on Stats (2026-11-25)
+
+The owner agreed on 2026-11-25 ("i agree with this") that Spanish Stats
+should show how well each lesson is known from all three ways of practising
+it, not from the flashcards alone. `src/lib/lessonMastery.js` works out the
+figures. `src/lib/spanishMastery.js` reads the answers when Spanish Stats
+opens, so French never downloads the exercises.
+
+- Each Spanish lesson in Progress by Lesson has up to three bars. Words is its
+  cards, "~N remembered", as for French. Grammar is its Exercises items
+  answered right, out of all its items. Text is its Dialogues sentences
+  answered right, out of all its sentences.
+- Items not tried yet count as not right. In Lesson 13, 7 right of 8 tried
+  shows as "7 of 116 items right · 8 tried", not 88%.
+- An item's first answer counts. A later answer replaces it only if it comes
+  at least 7 days after the answer that counts (`REDO_GAP_DAYS`). A redo soon
+  after seeing the corrections overstates what stayed: Lesson 10's exercises
+  were 51% right on Nov 1, 73% when redone the next day, and 61% when redone
+  ten days later. In a dialogue round, the second try after a miss never
+  counts.
+- Right and Almost both count as right, and the page says how many were
+  Almost (owner, 2026-11-16).
+- An answer typed after Hint showed any part of it counts as not right, as
+  with cards. Answers kept before hints were recorded (2026-11-07) count as
+  typed without one.
+- Before it is counted, each answer is marked again the way the Exercises and
+  Dialogues pages mark it today.
+- An answer said in a live class with Laura can be saved as an answer marked
+  "class" (migration_030, commit 4e20c38). It keeps the verdict it was saved
+  with, settled from Laura's reaction, the answer key and the owner, and is
+  never marked again. The Exercises and Dialogues pages leave these answers
+  out. They can be saved only once migration_030 has been run.
+- Each lesson is rated by its weakest part. Not started means nothing has been
+  answered in any part. Learning means some part is under 80%. Learned means
+  every part is at 80% or more. One weak part holds the lesson back, because
+  knowing a lesson means its words, its grammar and using both in its text.
+  The 80% line (`LEARNED_AT`) is the owner's to set.
+- A group row, such as Basic Lessons, adds its lessons' Grammar and Text
+  together.
+- A day with only Exercises or Dialogues answers counts as a study day. The
+  streak counts it, the calendar shades it by every answer, and Today shows
+  "N exercise items · N dialogue sentences" under the cards. Days run from
+  4am, as for cards.
+- The `es-mastery` test suite guards this.
 
 ### What the owner took off the page (2026-10-06)
 
@@ -2770,9 +2817,9 @@ page you were on (kept in this browser, `es-exercises-place:<user id>`).
   under an earlier rule shows the verdict the key gives it now (`markedNow`;
   the row kept is unchanged): an Almost for another form of a verb is
   Wrong, one Claude must judge keeps its verdict. Claude, its dispute review
-  and the tutor are told the same rule. On Stats, when Exercises and
-  Dialogues are on it, an Almost counts as right and the page says how many
-  there were (owner, 2026-11-16). A true-or-false pressed the wrong
+  and the tutor are told the same rule. On Stats (see *Spanish lessons on
+  Stats*), an Almost counts as right and the page says how many there were
+  (owner, 2026-11-16). A true-or-false pressed the wrong
   way is Wrong. Anything else, free writing included, is Claude's (Right,
   Almost or Wrong, a sentence saying why, and the answer corrected), so a
   right answer the key doesn't list is still right. The server marks the
@@ -2936,7 +2983,7 @@ for every student: each card, its way round, why it was dealt and what the
 app believed about it (`recordDeal`, `src/lib/dealLog.js`). Neither record
 can hold up or lose an answer.
 
-### The eleven checks
+### The fourteen checks
 
 Following FSRS:
 
@@ -2944,7 +2991,9 @@ Following FSRS:
    ts-fsrs, the estimates to four figures, the gap within its random spread.
    Answers saved before `migration_013` count only if the settings haven't
    changed since.
-2. FSRS counted one answer per card, each way, each day: the day's first.
+2. FSRS counted each way's first answer of the day, and the repeat after a
+   miss. From 2026-10-15 a later answer counts only after a counted miss that
+   day. Before then, only the day's first answer counted.
 3. Every card's schedule is its last answer's result. Its memory estimates
    may instead be what `api/fsrs-fit.js` recalculated after a settings change.
    Most of the deck back to new at once is Reset all progress, not a failure.
@@ -2956,19 +3005,32 @@ Following the app's rules:
 6. New cards came in the agreed order (see *How a session is built*). The
    rules are written out again here, not borrowed from `orderNewCards`.
 7. A new word was met one way at a time.
-8. Every card asked came from a set, and none came straight back.
+8. A word was asked one way a day (added 2026-10-14). From 2026-10-15 no word
+   is answered both ways round on one study day, and no set deals it both
+   ways.
+9. Every card asked came from a set, and none came straight back.
 
 How well it's working:
 
-9. FSRS's predictions match your results, over 30 days. A band of
-   predictions fails at 10 points off once it has 100 answers, the whole at 5
-   points off once it has 300; under 300 it waits.
+10. FSRS's predictions match your results, over 30 days. A band of
+    predictions fails at 10 points off once it has 100 answers, the whole at
+    5 points off once it has 300; under 300 it waits.
+11. A new word's first gap suits how you remember (added 2026-10-14). A
+    word's second answer is judged on its own, split by whether its first
+    answer was right or wrong, with the settings in use now. Each half fails
+    at 10 points off once it holds 100 words. On the owner's record the two
+    halves were wrong in opposite directions and cancelled out in check 10,
+    which passed.
+12. Your own settings were tried when due (added 2026-10-14). The app tries
+    each student's own settings from 350 answers, then again once there are
+    50 more and 7 days have passed (`api/fsrs-fit.js`). If a try was due when
+    the student last studied, one must have happened that day.
 
 The deck itself (since 2026-10-06, after the owner's "there should be NO
 duplicates from reuploading an updated cahier" and "make sure the evaluation
 harness is catching this properly"):
 
-10. No card is in your deck twice. Fails on two cards in study, lesson cards
+13. No card is in your deck twice. Fails on two cards in study, lesson cards
     included, that are one card by the sure rule every card-writer uses
     (`src/lib/sameCard.js`), or that Claude judged the same card
     (`card_pairs`). A verdict counts only while both cards read as they did
@@ -2976,7 +3038,7 @@ harness is catching this properly"):
     Claude hasn't judged yet (the near search, as a new card meets it) make it
     wait, saying how many; so do the ones it can't read before migration_016.
     A pair the rule joins still fails before it.
-11. Nothing you deleted or corrected came back. Fails on a card in study that
+14. Nothing you deleted or corrected came back. Fails on a card in study that
     is a card the student removed (`archived_reason` 'removed') or the owner
     deleted (`parse_corrections`), by the sure rule, made after it was taken
     out; or the form a card had before the owner corrected it: the exact
@@ -2997,8 +3059,8 @@ Pierre."), and the first reached all three decks' repeat groups: the owner's
 63 (10 by the rule, 52 through the near search, the last only through its
 neighbours, "15 → en lettres" and "quinze"), and the others' 8.
 
-Checks 5, 6 and 8 need the set records, so they start the day after the
-first recorded set: 2026-09-29 at the earliest. Checks 10 and 11 read Claude's
+Checks 5, 6 and 9 need the set records, so they start the day after the
+first recorded set: 2026-09-29 at the earliest. Checks 13 and 14 read Claude's
 verdicts (`card_pairs`) and the owner's corrections (`parse_corrections`)
 besides the cards, everywhere the checks run.
 
@@ -3030,7 +3092,8 @@ The owner asked for the checks to meet the standards of a guide to evals
 (2026-10-06). Three things came of it, all in the Status window, which has a
 tab for each:
 
-- **All students.** The checks (nine then, eleven since the two of the deck)
+- **All students.** The checks (nine then, eleven after the two of the deck,
+  fourteen since three more on 2026-10-14)
   run on the server every morning (the
   second `cahier-daily` schedule) on every student who has answered a card,
   and the reports are kept in `status_reports` (migration_015). "Check
@@ -3062,7 +3125,7 @@ tab for each:
   model and every step that tidies Claude's reply into cards;
   `cardsFromExtracted` moved there for it) and the two app files it uses.
 - **Repeated cards** (2026-10-06, the owner: "make sure the evaluation
-  harness is catching this properly"). Checks 10 and 11 above, and two more
+  harness is catching this properly"). Checks 13 and 14 above, and two more
   things. The server's morning run (14:00 UTC) first puts to Claude the
   look-alike pairs of cards in study it hasn't judged, every student's in one
   pooled question (`judgeLookalikes`, `api/_lib/statusDaily.js`; the
@@ -3124,8 +3187,8 @@ stops an upload or the sync making them again.
 every same-or-different verdict of Claude's with both cards' text and ids and
 the question's version (`SAME_CARD_VERSION`, `api/_lib/sameCardQuestion.js`);
 on `user_cards`, `archived_reason` and `merged_into`, so a card put away as a
-repeat names the card it repeats; and `eval_runs.kind` 'repeats'. Checks 10
-and 11, the morning judging and the test of the question are built on them
+repeat names the card it repeats; and `eval_runs.kind` 'repeats'. Checks 13
+and 14, the morning judging and the test of the question are built on them
 (see *Repeated cards* above).
 
 ### The simulations (`tests/simulate/`)
@@ -3142,7 +3205,7 @@ assumptions.
   (since 2026-10-06: "une marque" and "la marque" in the demo notebook are one
   card, and a lesson card the notes already have isn't added), and a stand-in
   for Claude calls every look-alike pair different, so "No card is in your
-  deck twice" passes; nothing is deleted or corrected, so check 11 waits.
+  deck twice" passes; nothing is deleted or corrected, so check 14 waits.
 - Messy students (`messy` in `simulate`, since 2026-10-06), run alongside
   the tidy ones: on a share of study days the app deals from the browser's
   old copy on opening and deals again seconds later, a class's notes arrive
@@ -3627,7 +3690,7 @@ The owner asked to "make sure the evaluation harness is catching this
 properly". Two checks were added to the status check, both running the
 card-writers' own rule: no card in study twice (by the rule, or by Claude's
 verdict on two look-alikes), and nothing the student deleted or corrected back
-(see *The eleven checks*). The server's morning run now first asks Claude
+(see *The fourteen checks*). The server's morning run now first asks Claude
 about look-alike cards in study it hasn't judged, up to 200 a student a day,
 and keeps the verdicts; the morning check on the Mac reads them, the removal
 reasons and the corrections for every student, and says what the daily run
@@ -3646,7 +3709,7 @@ clean-up put right. Two students with answers would fail check 10 at once:
 demarajackson 19 repeats and laura.caufour 3, made inside one reading (see
 *Bugs and loose ends*). The same run showed check 6 failing four of the
 owner's sets over "lourd (adj)", a false alarm the clean-up's date moves made;
-check 6 now leaves such an order alone (see *The eleven checks*). The dry run of the reasons script found one of the 85
+check 6 now leaves such an order alone (see *The fourteen checks*). The dry run of the reasons script found one of the 85
 cards back in study: Leçon 2's lesson sync had taken over "après" (16650) at
 23:33 UTC.
 
