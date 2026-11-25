@@ -94,8 +94,9 @@ known both ways round.
   scheduled runs a day.
 - Claude, called only from the server: Haiku 4.5 reads class notes; Opus 5
   judges disputed marks; Opus 5.5 reviews feedback, settles look-alike cards,
-  and writes and marks the listening questions in Podcasts, which only the
-  owner has so far; and Sonnet 5 is the tutor.
+  writes and marks the listening questions in Podcasts, and marks Spanish
+  Exercises and Dialogues; Sonnet 5.5 reads the Spanish caderno; and Sonnet 5
+  is the tutor.
 - ts-fsrs for scheduling, and the FSRS team's optimizer for fitting each
   student's settings.
 - Playwright driving headless Chromium for the browser tests, and GitHub

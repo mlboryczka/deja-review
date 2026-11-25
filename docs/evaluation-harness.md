@@ -132,7 +132,7 @@ student has is the same card to learn. All three are tested against what the
 owner has already done in the app, so nobody has to sit down and label
 examples.
 
-Podcasts, which only the owner has so far, adds two more: which passages of
+Podcasts, which the owner and anyone signed in on the test app have, adds two more: which passages of
 an RFI episode to ask about, and whether an answer to one caught its ideas
 ("Got it", "Partly" or "Missed"). These are not yet tested against the
 owner's decisions. Nothing records yet what the owner thinks of a verdict or

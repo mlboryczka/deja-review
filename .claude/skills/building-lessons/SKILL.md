@@ -81,9 +81,12 @@ model for structure.
    every accent in the card's own answer. The verb forms whose accent counts
    are listed in `src/lib/spanishAccents.js` (made by
    `scripts/tense-accents.mjs`).
-7. **Exact marking ignores case, accents, brackets and the punctuation
-   . , ! ? ; : and quotes, but not hyphens, apostrophes or spaces**: *dix sept*
-   is wrong for *dix-sept*, and *je ai* for *j'ai*.
+7. **Exact marking ignores case, accents, brackets, apostrophes and the
+   punctuation . , ! ? ; : and quotes, but not hyphens or spaces**: *dix sept*
+   is wrong for *dix-sept*. A missing apostrophe is accepted (*jai* for
+   *j'ai*, *lhomme* for *l'homme*), but a space in its place is not (*je ai*).
+   So elision can only be tested where the apostrophe's absence would leave a
+   space.
 8. **A drill names its mood in the front**: `finir (impératif) → tu`. A
    lesson badge alone wasn't enough: *finis* is also the présent, and students
    reported the card as wrong (2026-09-12).
@@ -100,10 +103,15 @@ model for structure.
 12. **Pin down English that several French answers fit**, with a hint in
     brackets on the English side: `"How are you? (tu, with aller)"`. Brackets
     show on the prompt and are ignored by the marker.
-13. **On word and phrase cards, commas split answers too.** When every
-    comma-separated piece is short (under four words and 20 characters), each
-    piece is accepted on its own, so "Salut, ça va ?" would accept "Salut".
-    Avoid short comma pieces on either side of a `V` or `E` card.
+13. **On word and phrase cards, commas split answers too.** For English typed
+    to a French word or phrase with no comma (four words or fewer), every
+    comma-separated piece of the English is accepted on its own, however long
+    ("that serves no purpose, that's useless" accepts "that's useless"). On a
+    sentence, which has a comma or more than four words, a piece is accepted
+    on its own only when every piece is short (under four words and 20
+    characters), so "Salut, ça va ?" would accept "Salut". Avoid short comma
+    pieces on either side of a `V` or `E` card, and an English comma where the
+    shown side has none (`lessoncheck.mjs` warns of it).
 14. **Typo tolerance on phrase cards lets a one-letter verb swap through**:
     "Je suis bien" passes for "Je vais bien", the être / aller mistake Leçon 2
     is about. Put a contrast like that on exact (arrow) cards. In Spanish,
@@ -350,6 +358,21 @@ and confirm no `*` survives; `notescheck.mjs` (below) does this.
 - **Run the browser suites on a clean copy**: `git worktree add` at HEAD, plus
   your lesson files, `index.js` and the release list, so another session's
   unfinished work doesn't affect the result.
+
+## Spanish lessons
+
+Spanish lessons are separate files, `src/data/lessons/es/leccion<N>.js`, with
+Spanish fronts (the French rules about fronts and arrows don't apply).
+Releasing one differs from a French lesson in these steps:
+
+- Add its id to `ORDER` in `scripts/es-lessons-index.mjs` and run the script,
+  which writes `es/index.js`; an id not named in `ORDER` is left out.
+- Group it by stage in `src/data/lessons/es/stages.js`, not in `LESSON_GROUPS`.
+- The order a student meets new cards in is `MEETING_ORDER`, built from
+  `meetingOrder` in `src/data/lessons/index.js` (`catalogue.js` ranks lessons by
+  it). It names every French and Spanish lesson, so add a new lesson, French or
+  Spanish, to `meetingOrder` where the owner wants it met; one it doesn't name
+  comes last.
 
 ## Previewing for the owner
 

@@ -33,8 +33,8 @@ if (start < 0 || mStart < 0 || end < 3) throw new Error("could not find matchAns
 const lifted = path.join(os.tmpdir(), `lessoncheck-matcher-${process.pid}.mjs`);
 // The one import the matcher needs: which Spanish accents count.
 const accents = pathToFileURL(path.join(REPO, "src/lib/spanishAccents.js")).href;
-fs.writeFileSync(lifted, `import { accentCounts, OLD_ACCENTS } from ${JSON.stringify(accents)};\n` + app.slice(start, end) + "\nexport { matchAnswer, normalize };\n");
-const { matchAnswer } = await import(pathToFileURL(lifted).href + `?t=${Date.now()}`);
+fs.writeFileSync(lifted, `import { accentCounts, OLD_ACCENTS } from ${JSON.stringify(accents)};\n` + app.slice(start, end) + "\nexport { matchAnswer, normalize, hasMeaningList, stripParens };\n");
+const { matchAnswer, hasMeaningList, stripParens } = await import(pathToFileURL(lifted).href + `?t=${Date.now()}`);
 
 const CAT = { V: "vocab", E: "expr", G: "gram", P: "pron" };
 const twoWay = (c) => c === "V" || c === "E";
@@ -58,10 +58,16 @@ function marking(L, card, shown) {
   const correct = shown === "fr" ? back : front;
   const drill = shown === "fr" && String(front).includes("→"); // every arrow lesson card is exact
   const extra = [...(drill ? drillAlternates(front, back) : []), ...(shown === "fr" ? [back] : [])];
-  return { correct, extra, exact: drill };
+  // As submitTyped decides it: English typed for a word or phrase (or a short
+  // grammar card with a ";" list) whose French has no comma is a list of
+  // meanings, so each comma piece is an answer on its own, however long.
+  const frShown = stripParens(front) || "";
+  const meaningList = twoWay(cat) || (/;/.test(String(back || "")) && frShown.trim().split(/\s+/).length <= 4);
+  const meanings = shown === "fr" && !drill && meaningList && hasMeaningList(frShown);
+  return { correct, extra, exact: drill, meanings };
 }
 
-function accepted(correct, extra, exact) {
+function accepted(correct, extra, exact, meanings = false) {
   // Mirror matchAnswer's alternative-building, for display.
   const strip = (s) => String(s || "").replace(/\([^()]*\)/g, " ").replace(/\s+/g, " ").trim();
   const out = [];
@@ -70,7 +76,7 @@ function accepted(correct, extra, exact) {
     if (exact) { out.push(...x.split("/").map((s) => s.trim()).filter(Boolean)); continue; }
     for (const sp of x.split("/").map((s) => s.trim()).filter(Boolean)) {
       const sub = sp.split(/[,;|]/).map((s) => s.trim()).filter(Boolean);
-      const tooLong = sub.some((p) => p.split(/\s+/).filter(Boolean).length >= 4 || p.length >= 20);
+      const tooLong = !meanings && sub.some((p) => p.split(/\s+/).filter(Boolean).length >= 4 || p.length >= 20);
       if (tooLong) out.push(sp); else out.push(...sub);
     }
   }
@@ -124,6 +130,9 @@ async function report(file) {
       const pf = shortCommaPieces(front);
       if (pf) warn.push(`${n} French side splits on its comma into short pieces, each accepted alone: ${JSON.stringify(pf)}`);
       const pb = shortCommaPieces(back);
+      if (/,/.test(String(back).replace(/\([^()]*\)/g, " ")) && !/,/.test(String(front).replace(/\([^()]*\)/g, " "))) {
+        warn.push(`${n} English side has a comma but the shown side has none, so each comma piece is accepted alone, however long: "${back}"`);
+      }
       if (pb) warn.push(`${n} English side splits on its comma into short pieces, each accepted alone: ${JSON.stringify(pb)}`);
     }
     if (front.includes("/")) warn.push(`${n} INFO front shows a slash to students: "${front}"`);
@@ -132,10 +141,10 @@ async function report(file) {
     const lines = [`${n} ${JSON.stringify(front)} → ${JSON.stringify(back)}${was ? `  (was ${JSON.stringify(was)})` : ""}`];
     if (instr) lines.push(`    line above card: "${instr}"`);
     for (const s of sides) {
-      const { correct, extra, exact } = marking(L, card, s);
+      const { correct, extra, exact, meanings } = marking(L, card, s);
       const prompt = s === "fr" ? dropFinalPeriod(cleanFrenchPrompt(front, back)) : dropFinalPeriod(cleanEnglishPrompt(back));
       const lang = s === "en" ? "French" : arrow ? "French" : "English";
-      lines.push(`    shown ${s === "fr" ? "French" : "English"} side: "${prompt}" — type ${lang}, ${exact ? "EXACT" : "fuzzy"}; accepts ${JSON.stringify(accepted(correct, extra, exact))}`);
+      lines.push(`    shown ${s === "fr" ? "French" : "English"} side: "${prompt}" — type ${lang}, ${exact ? "EXACT" : "fuzzy"}; accepts ${JSON.stringify(accepted(correct, extra, exact, meanings))}`);
     }
     console.log(lines.join("\n"));
   });
@@ -155,7 +164,7 @@ async function tryOne(file, front, typed, shown = "fr") {
   const L = await loadLesson(file);
   const card = L.cards.find((c) => c[0] === front);
   if (!card) { console.log(`No card with front ${JSON.stringify(front)}`); process.exit(1); }
-  const { correct, extra, exact } = marking(L, card, shown);
+  const { correct, extra, exact, meanings } = marking(L, card, shown);
   // The Spanish module's lessons are marked with Spanish articles (see
   // matchAnswer's `articles`).
   const spanish = /\/lessons\/es\//.test(path.resolve(file));
@@ -166,7 +175,7 @@ async function tryOne(file, front, typed, shown = "fr") {
   const accents = spanish && (shown === "en" || exact);
   const words = spanish ? await imp("src/data/lessons/es/exactWords.js") : null;
   const exactWords = !words ? null : shown === "en" ? words.SPANISH_EXACT : words.ENGLISH_EXACT;
-  const r = matchAnswer(typed, correct, extra, { exact, articles, accents, exactWords });
+  const r = matchAnswer(typed, correct, extra, { exact, meanings, articles, accents, exactWords });
   console.log(JSON.stringify({ front, shown, typed, exact, result: r.match ? (r.close ? "close enough (right)" : "right") : r.wrongArticle ? "wrong article" : r.wrongAccent ? "wrong accent" : "wrong" }));
 }
 

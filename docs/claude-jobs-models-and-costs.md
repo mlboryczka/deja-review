@@ -1,7 +1,9 @@
 # Claude's jobs, models and costs
 
 Claude is only ever called from the server, never from the browser. It does
-seven jobs in the app, and is called again each week to test two of them:
+nine jobs in the app, and is called again each week to test three of them
+(the marking of typed answers, the reading of class notes, and the judging of
+look-alike cards):
 
 | Job | Model | Paid for by |
 |---|---|---|
@@ -10,9 +12,14 @@ seven jobs in the app, and is called again each week to test two of them:
 | Judging a disputed mark | Opus 5 | the student |
 | Reviewing feedback | Opus 5.5 | the owner |
 | The tutor | Sonnet 5 | the student |
-| Writing an episode's listening questions, in Podcasts (the owner's only, for now) | Opus 5.5 | the owner |
-| Marking an answer to a podcast passage (the owner's only, for now) | Opus 5.5 | the owner |
-| Testing its own marking and note reading | the same as the app | the owner |
+| Writing an episode's listening questions, in Podcasts (the owner anywhere, and anyone signed in on the test app) | Opus 5.5 | the caller's own key; the server's key for the owner and the named test-app accounts |
+| Marking an answer to a podcast passage (the same people) | Opus 5.5 | the same |
+| Reading the Spanish caderno into cards | Sonnet 5.5 | the owner |
+| Marking an answer in the Spanish Exercises and Dialogues (the same people as Podcasts) | Opus 5.5 | the caller's own key; the server's key for the owner and the named test-app accounts |
+| Testing its own marking, note reading and look-alike judging | the same as the app | the owner |
+
+The look-alike question is also put every morning by the daily run, for the
+cards each student added since the day before.
 
 "The owner" is the person who runs the app, and also studies with it. Three
 maintenance scripts use Claude as well: one splits cards that teach two
@@ -96,9 +103,10 @@ summarise it, since that is the exercise.
 ## Listening questions in Podcasts
 
 Podcasts is a part of the app for listening practice with RFI's podcasts for
-learners, such as Journal en français facile. For now only the owner has it,
-on a test copy of the app, while they try it out. Students don't see it, and
-the server refuses anyone else. Claude does two jobs there.
+learners, such as Journal en français facile. The owner has it everywhere, and
+anyone signed in on the test copy of the app has it there. On the students'
+app it is the owner's alone, and the server refuses anyone else. Claude does
+two jobs there.
 
 **Writing an episode's questions.** The first time an episode is opened,
 Claude reads RFI's transcript and picks passages from it: one for each story
@@ -117,8 +125,8 @@ holds, judging meaning rather than wording: the student's own words count,
 and a wrong meaning is a miss. The verdict follows from that: "Got it" when
 every idea is there, "Partly" when some are, and "Missed" when none are. It
 may add one sentence about a specific misunderstanding, such as « davantage »
-meaning "more", not "about". A passage not fully understood comes back three
-days later. Opus 5.5, at low effort, because the student is waiting.
+meaning "more", not "about". An answered passage is done, whatever the verdict: nothing comes back for
+another try. Opus 5.5, at low effort, because the student is waiting.
 
 Adding a word from a passage to the student's cards uses the same-card
 question above when the word looks like a card the student already has.
@@ -136,9 +144,11 @@ work no student asks for: reading every linked notebook (the daily job runs
 with no student there to pay), reviewing feedback (the reviews are for the
 owner), and the weekly tests of Claude's work.
 
-While Podcasts is the owner's alone, the owner pays for all of it. Before
-students get it, the owner will decide who pays for an episode's questions,
-which every student who opens the episode shares.
+On Podcasts and the Spanish Exercises and Dialogues, the caller's own key
+pays, except for the owner and the named test-app accounts (the owner's Claude
+account is shared with Laura on the test app), whose requests use the
+server's key (`api/_lib/anthropicKey.js`). The reading of the Spanish caderno
+runs on the owner's key.
 
 Before students brought their own keys, three routes accepted callers they
 shouldn't have, one of them anyone at all, signed in or not, and all three

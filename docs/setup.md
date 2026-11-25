@@ -44,6 +44,10 @@ Supabase. This is the step that's easiest to forget.
 2. Set **Site URL** to `http://localhost:5173` for now. You'll change it to
    your real address in step 7.
 3. Under **Redirect URLs**, add `http://localhost:5173`, and click **Save**.
+4. Open **Authentication** → **Email Templates**. In both the **Magic Link**
+   and the **Confirm signup** template (a first sign-in uses the second), add
+   `{{ .Token }}` to the message. The sign-in page asks for the emailed code,
+   and Supabase sends one only when the template includes it.
 
 ## 4. Copy your keys
 
@@ -95,9 +99,14 @@ deploy, add these environment variables:
   for theirs (see [Claude's jobs, models and costs](claude-jobs-models-and-costs.md#who-pays)).
 - `CRON_SECRET`: any long random string. Vercel sends it with each scheduled
   run, and without it the scheduled runs refuse to start.
+- `VITE_API_BASE` is set only when building the planned iPhone app, which
+  needs to know which deployment to talk to. It defaults to the test app,
+  `https://dejareview-mlb.vercel.app`; `npm run ios:students` sets it to the
+  students' app, `https://dejareview.vercel.app`. A normal build leaves it
+  unset.
 
-Only the three `VITE_` settings reach the browser. `.env.example` lists them
-all.
+Only the `VITE_` settings reach the browser: the three above, and
+`VITE_API_BASE` for the iPhone build. `.env.example` lists them all.
 
 Deploying takes about a minute. Every push to `main` deploys again.
 
@@ -108,8 +117,8 @@ Two things to know about Vercel's free Hobby plan:
   `api/_lib/`, which doesn't count.
 - `vercel.json` sets four scheduled runs a day, all on `api/cahier-daily`. At
   13:00 UTC it reads the linked notebooks, at 14:00 it runs the status check on
-  every student, and at 15:00 and 16:00 it runs the tests of Claude's marking
-  and note reading when they are due.
+  every student, and at 15:00 and 16:00 it runs the tests of Claude's marking,
+  note reading and look-alike judging when they are due.
 
 ## 7. Give Supabase your real address
 

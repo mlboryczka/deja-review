@@ -19,8 +19,8 @@ cards.
 
 Lessons are a fourth source, described below.
 
-Podcasts is a fifth, and for now only the owner has it, while they try it
-out. Under each passage of an RFI episode, the words worth learning, such as
+Podcasts is a fifth. The owner has it everywhere, and anyone signed in on
+the test app has it there. Under each passage of an RFI episode, the words worth learning, such as
 "un cortège" (a protest march), each have an "Add to my cards" button. The
 card it makes is an ordinary one, checked against the student's cards by the
 same rule as every other way in: a word they already have adds nothing, and
