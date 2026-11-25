@@ -1,0 +1,1 @@
+Old browser test rig from 2026-09-25. It cannot run from this repository any more: it points at a scratchpad folder that no longer exists, needs a browser build that is not installed, and its checks still use rules the app has since dropped. Kept only as reference for a future one-command browser simulation. The automatic tests do not run anything here.
