@@ -58,11 +58,15 @@ await settled(page);
   const rail = await page.evaluate(() =>
     [...document.querySelectorAll("[data-sidebar] nav button")].map((b) => {
       const svg = b.querySelector("svg").getBoundingClientRect();
-      return { x: svg.left + svg.width / 2, y: svg.top + svg.height / 2, toggle: b.hasAttribute("data-sidebar-toggle") };
+      return { x: svg.left + svg.width / 2, y: svg.top + svg.height / 2, toggle: b.hasAttribute("data-sidebar-toggle"), inSwitch: !!b.closest("[data-module-switch]") };
     })
   );
   const xs = rail.map((r) => r.x);
-  const gaps = rail.slice(1).map((r, i) => Math.round((r.y - rail[i].y) * 10) / 10);
+  // Every student now has the Flashcards | Podcasts switch (2026-11-25); its
+  // two icons are a tighter pair on purpose, so the even spacing is checked
+  // on the pages' icons below it.
+  const pages = rail.filter((r) => !r.toggle && !r.inSwitch);
+  const gaps = pages.slice(1).map((r, i) => Math.round((r.y - pages[i].y) * 10) / 10);
   ck("the expand button leads the column of icons", rail[0]?.toggle === true);
   ck("its icon is on the same centre line as the others", Math.max(...xs) - Math.min(...xs) <= 0.5, xs.map((x) => x.toFixed(1)).join(", "));
   ck("and evenly spaced with them", Math.max(...gaps) - Math.min(...gaps) <= 0.5, gaps.join(", "));
