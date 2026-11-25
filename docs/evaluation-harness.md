@@ -13,7 +13,7 @@ Déjà Review checks its own work in four ways:
    studies with it) has already made.
 3. **Simulated students**, who study for six months with the app's own code,
    including messy ones who reload and wander off mid-set.
-4. **39 test suites**, run on GitHub on every push.
+4. **Every test suite in `tests/suites`**, run on GitHub on every push.
 
 ## The status check
 
@@ -236,11 +236,11 @@ best choice depended on the student, so Automatic stays the default.
 
 ## The test suites
 
-`npm test` runs 39 suites. Twenty need no browser. They cover the rules for
+`npm test` runs every suite in `tests/suites`. About half need no browser. They cover the rules for
 dealing and scheduling, the study day, the status check itself, and most of the
 server functions, with stand-ins for the database and for Claude, so nothing
 leaves the machine. One of them checks that a caller without a verified sign-in
-can't cause a single request to Claude. The other nineteen drive the real app
+can't cause a single request to Claude. The rest drive the real app
 in headless Chromium against a mock database.
 
 The browser suites measure what a student would see, rather than trusting what
@@ -250,7 +250,7 @@ writes to the database. The stand-in database refuses what the real one
 refuses, because a more lenient stand-in twice let through a write that then
 failed on the live app.
 
-Every push to GitHub runs the build, the simulated students and all 39 suites,
+Every push to GitHub runs the build, the simulated students and every suite,
 in about nine minutes. A failure marks the commit with a red cross. A browser
 suite that fails gets one second try, and the summary names any suite that
 needed it, so a suite that fails now and then still gets noticed.

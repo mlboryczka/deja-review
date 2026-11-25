@@ -30,7 +30,7 @@ and its judging of whether two look-alike cards are the same card against
 repeats the owner put away and pairs that must stay apart. Before any change
 to scheduling, simulated students study for six months with the app's own
 code, including messy ones who reload mid-set or wander off into a lesson. And
-39 test suites run on GitHub on every push.
+Every test suite in `tests/suites` runs on GitHub on every push.
 [Evaluation harness](docs/evaluation-harness.md)
 
 ### Cards from class notes
@@ -47,7 +47,7 @@ at all. [How class notes become cards](docs/cards-from-notes.md)
 
 Each word has two schedules, one from French and one from English, because
 recognising a word and producing it are different skills. Once a student has
-given about 1,000 answers, FSRS is fitted to how that student forgets, and the
+given about 350 answers, FSRS is fitted to how that student forgets, and the
 fitted version is used only if it predicts their newest answers better than
 the settings already in use. The study day runs from 4am to 4am in the
 student's own time zone, so a late session counts as one day.

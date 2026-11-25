@@ -6,7 +6,7 @@
 // returned success with 0 rows affected, the modal would close, and the
 // change would quietly never persist).
 //
-// Request body: { row_id, front, back }, or { action: "remove" | "restore", row_id }
+// Request body: { row_id, front, back, original_front?, course? }, or { action: "remove" | "restore", row_id }
 // Response:     { ok: true, row: <updated row> }, or { ok: true, removed: true },
 //               or { ok: true, restored: true, row: <the card, back in study> }
 //               or { error: "..." } on 4xx/5xx
@@ -79,7 +79,7 @@ export async function updateCard(admin, req, res) {
 
   // A student removing a card: taken out of study and remembered, never
   // erased (api/_lib/removeCard.js). Here because the Hobby plan deploys at
-  // most 12 routes and there are 12.
+  // most 12 routes: keep new work in the routes already here.
   if (body.action === "remove") {
     const { status, json } = await removeCard({ admin, userId, rowId: body.row_id, table });
     return res.status(status).json(json);

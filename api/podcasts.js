@@ -2,8 +2,8 @@
 //
 // The Podcasts module (2026-10-09): RFI's learner podcasts, with passage
 // questions Claude writes once per episode and marks per answer. One route
-// for every action, because Vercel's Hobby plan deploys at most 12 routes and
-// this is the eleventh; never add another file to api/ for Podcasts.
+// for every action, because Vercel's Hobby plan deploys at most 12 routes
+// (api/ now holds 11); never add another file to api/ for Podcasts.
 //
 // Request body: { action, ... }
 //   follow    { link } (a Spotify episode or show link) or { slug }
