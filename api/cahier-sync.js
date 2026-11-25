@@ -11,6 +11,9 @@
 // cahier_links.classes (migration_011), as it always was.
 //
 // Request body (all optional):
+//   { course }   "es" for the Spanish caderno (2026-11-02): the same sync on
+//                the Spanish tables (migration_023), with the caderno's own
+//                dates and prompt (api/_lib/caderno.js)
 //   { url }      link or relink a doc, then sync it
 //   { limit }    how many unseen classes to parse this run (default 12)
 //   { force }    parse even if the doc was checked seconds ago
@@ -45,13 +48,16 @@
 // hundred words and this runs unattended, including from the daily check,
 // where no student is present to pay for it.
 
+import { docIdFrom } from "../src/lib/docId.js";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 
 import { requireUser, isAdmin } from "./_lib/auth.js";
 import { handleNotesChecks, supabaseNotesStore } from "./_lib/notesChecks.js";
 import { planReading } from "../src/lib/notesLines.js";
-import { claimReading, releaseReading, readDeck, saveRun, seedingFrom, classFingerprint } from "./_lib/notesReading.js";
+import { claimReading, releaseReading, readDeck, saveRun, seedingFrom, classFingerprint, notesTables } from "./_lib/notesReading.js";
+import { sliceCaderno, extractCadernoCards, cadernoCardsFromExtracted } from "./_lib/caderno.js";
+import { missingTable } from "../src/lib/dealLog.js";
 import { askSameCard } from "./_lib/sameCardQuestion.js";
 import {
   fetchGoogleDoc,
@@ -59,6 +65,11 @@ import {
   extractCardsFromBlock,
   cardsFromExtracted,
 } from "./parse-cahier.js";
+import { allowIphoneApp } from "./_lib/cors.js";
+import { claudeProblem } from "./_lib/claudeProblem.js";
+const isClaudeFailure = (e) => !!claudeProblem(e) || e instanceof Anthropic.APIError;
+// The one line a linked notebook shows when a class couldn't be read.
+export const CLASS_NOT_READ = "A class couldn't be read just now. It will be tried again.";
 
 export const config = { maxDuration: 300 };
 
@@ -72,11 +83,11 @@ const MAX_LIMIT = 25;
 // would parse the same class twice and pay for it twice.
 const MIN_SECONDS_BETWEEN_CHECKS = 30;
 
-export const docIdFrom = (url) => String(url || "").match(/\/document\/d\/([a-zA-Z0-9_-]+)/)?.[1] || null;
+export { docIdFrom };
 
-export const fingerprint = classFingerprint;
 
 export default async function handler(req, res) {
+  if (allowIphoneApp(req, res)) return;
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -126,11 +137,12 @@ export default async function handler(req, res) {
       url: req.body?.url,
       limit: req.body?.limit,
       force: req.body?.force,
+      course: req.body?.course === "es" ? "es" : "fr",
     });
     return res.status(result.ok ? 200 : 400).json(result);
   } catch (err) {
     console.error("[cahier-sync] failed:", err);
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: isClaudeFailure(err) ? CLASS_NOT_READ : err.message });
   }
 }
 
@@ -138,17 +150,36 @@ export default async function handler(req, res) {
 // asked, so the run can save inside the function's five minutes.
 const QUESTION_TIME_MS = 240 * 1000;
 
+// What differs between the French cahier and the Spanish caderno: the tables,
+// how a class's date is written, and what Claude is asked.
+const READERS = {
+  fr: { slice: (text) => sliceIntoBlocks(text), extract: extractCardsFromBlock, cards: cardsFromExtracted, noDates: "No class dates found in that doc. Each class should start with a line like 'Le 24 septembre 2026'." },
+  es: { slice: (text, now) => sliceCaderno(text, { now }), extract: extractCadernoCards, cards: cadernoCardsFromExtracted, noDates: "No class dates found in that doc. Each class should start with a line like '27 de octubre'." },
+};
+
 // The whole sync for one student. Exported so the daily check can call it for
 // every linked doc without going back through HTTP.
 //
 // `ask` replaces Claude's same-or-different question; only tests pass it.
 // `deadline` (a time in ms) is when the question must stop; the daily check
 // passes its own, shared by every student it reads.
-export async function syncUser({ admin, apiKey, userId, url, limit, force = false, now = new Date(), ask = null, deadline = null }) {
+// `course` "es" reads the Spanish caderno into the Spanish deck.
+export async function syncUser({ admin, apiKey, userId, url, limit, force = false, now = new Date(), ask = null, deadline = null, course = "fr" }) {
   const questionsUntil = deadline ?? Date.now() + QUESTION_TIME_MS;
   const take = Math.min(Math.max(1, Number(limit) || DEFAULT_LIMIT), MAX_LIMIT);
+  const tables = notesTables(course);
+  const reader = READERS[course] || READERS.fr;
 
-  let link = await loadLink(admin, userId);
+  let link;
+  try {
+    link = await loadLink(admin, userId, tables);
+  } catch (e) {
+    // The caderno's tables come with migration_023, which the owner runs.
+    if (course === "es" && e.missingTable) {
+      return { ok: false, error: "Linking the caderno needs a database update first: run migrations/migration_023_spanish_caderno.sql in Supabase's SQL editor, then link it again." };
+    }
+    throw e;
+  }
   if (url) {
     const docId = docIdFrom(url);
     if (!docId) {
@@ -157,10 +188,10 @@ export async function syncUser({ admin, apiKey, userId, url, limit, force = fals
     // A different doc starts again from the classes the deck has. After
     // migration_016 this matters little: what was read is the student's
     // record (notes_read), whichever doc it came from.
-    const classes = link && link.doc_id === docId ? link.classes || {} : await classesAlreadyInDeck(admin, userId);
+    const classes = link && link.doc_id === docId ? link.classes || {} : await classesAlreadyInDeck(admin, userId, tables, course);
     link = await linkDoc(admin, {
       user_id: userId, doc_id: docId, doc_url: url, classes, last_error: null,
-    });
+    }, tables);
   }
   if (!link) return { ok: true, linked: false, newClasses: [], cardsAdded: 0, remaining: 0 };
 
@@ -178,20 +209,20 @@ export async function syncUser({ admin, apiKey, userId, url, limit, force = fals
   try {
     rawText = await fetchGoogleDoc(link.doc_url);
   } catch (e) {
-    await updateLink(admin, userId, { last_checked_at: now.toISOString(), last_error: e.message });
+    await updateLink(admin, userId, { last_checked_at: now.toISOString(), last_error: e.message }, tables);
     return { ok: false, linked: true, error: e.message };
   }
 
-  const blocks = sliceIntoBlocks(rawText);
+  const blocks = reader.slice(rawText, now);
   if (blocks.length === 0) {
-    const message = "No class dates found in that doc. Each class should start with a line like 'Le 24 septembre 2026'.";
-    await updateLink(admin, userId, { last_checked_at: now.toISOString(), last_error: message });
+    const message = reader.noDates;
+    await updateLink(admin, userId, { last_checked_at: now.toISOString(), last_error: message }, tables);
     return { ok: false, linked: true, error: message };
   }
 
   // One reading of a student's notes at a time: the daily check and opening
   // the app, or two devices, used to read the same new class at once.
-  const reading = await claimReading(admin, { userId, kind: "sync" });
+  const reading = await claimReading(admin, { userId, kind: "sync", course });
   if (reading.busy) {
     return {
       ok: true, linked: true, busy: true, skipped: "your notes are being read already",
@@ -213,7 +244,7 @@ export async function syncUser({ admin, apiKey, userId, url, limit, force = fals
     const unrecorded = lines ? blocks.filter((b) => !Array.isArray(reading.classes?.[b.date])) : [];
     const changed = seedingFrom([], seen, reading.mode, { fromDoc: true }).changed;
     const unknown = unrecorded.some((b) => !(b.date in seen) || changed(b));
-    let deck = unknown ? await readDeck(admin, userId) : null;
+    let deck = unknown ? await readDeck(admin, userId, course) : null;
     const seed = seedingFrom(deck?.rows || [], seen, reading.mode, { fromDoc: true });
     const readDates = lines ? seed.readDates : new Set(Object.keys(seen));
     const plan = planReading({ blocks, classes: reading.classes, readDates, changed: seed.changed, knownLine: deck ? seed.knownLine : null });
@@ -226,11 +257,11 @@ export async function syncUser({ admin, apiKey, userId, url, limit, force = fals
       // Nothing to read, but the record may have filled itself in.
       if (reading.mode === "lines") {
         const saved = await saveRun({
-          admin, userId, reading, deck: deck || { rows: [], hasReasons: false }, plan, incoming: [], read: new Set(), ask: async () => [], source: "sync",
+          admin, userId, reading, deck: deck || { rows: [], hasReasons: false }, plan, incoming: [], read: new Set(), ask: async () => [], source: "sync", course,
         });
         if (!saved.ok) throw new Error(`Couldn't save which lines were read: ${saved.error}`);
       }
-      await updateLink(admin, userId, { last_checked_at: now.toISOString(), last_error: null });
+      await updateLink(admin, userId, { last_checked_at: now.toISOString(), last_error: null }, tables);
       return {
         ok: true, linked: true, checkedAt: now.toISOString(), newClasses: [],
         cardsAdded: 0, remaining: 0, lastResult: link.last_result || null,
@@ -242,8 +273,11 @@ export async function syncUser({ admin, apiKey, userId, url, limit, force = fals
     const raw = [];
     const results = await Promise.all(
       batch.map((p) =>
-        extractCardsFromBlock(anthropic, { date: p.date, text: p.text, newLines: p.partial ? p.newLines : null })
-          .catch((e) => ({ error: e.message }))
+        reader.extract(anthropic, { date: p.date, text: p.text, newLines: p.partial ? p.newLines : null })
+          // The linked doc is read on the server's own Claude account, so what the
+          // student sees says only that the class will be tried again: nothing
+          // about that account's limits or credit. The real error is in the log.
+          .catch((e) => { console.error("class read failed:", e); return { error: CLASS_NOT_READ }; })
       )
     );
     const parsed = [];
@@ -256,17 +290,17 @@ export async function syncUser({ admin, apiKey, userId, url, limit, force = fals
     // A class Claude could not read is left unread, so the next run tries it
     // again rather than losing it silently.
     if (parsed.length === 0) {
-      await updateLink(admin, userId, { last_checked_at: now.toISOString(), last_error: errors[0]?.error || "Could not read that class" });
+      await updateLink(admin, userId, { last_checked_at: now.toISOString(), last_error: errors[0]?.error || "Could not read that class" }, tables);
       return { ok: false, linked: true, error: errors[0]?.error || "Could not read that class", errors };
     }
 
-    const incoming = cardsFromExtracted(raw);
-    deck ||= await readDeck(admin, userId);
+    const incoming = reader.cards(raw);
+    deck ||= await readDeck(admin, userId, course);
     const result = await saveRun({
       admin, userId, reading, deck, plan, incoming,
       read: new Set(parsed.map((p) => p.date)), failedDates,
-      ask: ask || ((pairs) => askSameCard({ apiKey, pairs, deadline: questionsUntil })),
-      source: "sync",
+      ask: ask || ((pairs) => askSameCard({ apiKey, pairs, deadline: questionsUntil, language: course })),
+      source: "sync", course,
     });
     if (!result.ok) throw new Error(`Couldn't save the new cards: ${result.error}`);
 
@@ -276,7 +310,7 @@ export async function syncUser({ admin, apiKey, userId, url, limit, force = fals
     const waiting = new Set(result.waitingDates);
     const done = parsed.filter((p) => !waiting.has(p.date));
     const classes = { ...seen };
-    for (const p of done) classes[p.date] = fingerprint(p.text);
+    for (const p of done) classes[p.date] = classFingerprint(p.text);
     const dates = done.map((p) => p.date).sort();
     const lastResult = { at: now.toISOString(), dates, cards: result.added, updated: result.seenAgain };
     await updateLink(admin, userId, {
@@ -285,10 +319,10 @@ export async function syncUser({ admin, apiKey, userId, url, limit, force = fals
       last_synced_at: now.toISOString(),
       last_error: null,
       last_result: lastResult,
-    });
+    }, tables);
 
     const remaining = unread.length - done.length;
-    console.log(`[cahier-sync] ${userId}: ${parsed.length} classes read (${reading.mode}) → ${result.added} new cards, ${result.seenAgain} seen again, ${result.waiting} waiting, ${result.questions} questions (${remaining} classes left)`);
+    console.log(`[cahier-sync${course === "es" ? " es" : ""}] ${userId}: ${parsed.length} classes read (${reading.mode}) → ${result.added} new cards, ${result.seenAgain} seen again, ${result.waiting} waiting, ${result.questions} questions (${remaining} classes left)`);
     return {
       ok: true, linked: true, checkedAt: now.toISOString(),
       newClasses: dates, cardsAdded: result.added, cardsSeenAgain: result.seenAgain,
@@ -299,21 +333,27 @@ export async function syncUser({ admin, apiKey, userId, url, limit, force = fals
       dateRange: dates.length ? [dates[0], dates[dates.length - 1]] : null,
       errors,
     };
+  } catch (e) {
+    // Said on the link as well, where the student can see it. A save that
+    // failed used to leave no trace: on the live database the French link's
+    // every save failed from 2026-10-07, and nothing said so for a month.
+    await updateLink(admin, userId, { last_checked_at: now.toISOString(), last_error: isClaudeFailure(e) ? CLASS_NOT_READ : e.message }, tables).catch(() => {});
+    throw e;
   } finally {
-    await releaseReading(admin, userId, reading.runId);
+    await releaseReading(admin, userId, reading.runId, course);
   }
 }
 
-async function loadLink(admin, userId) {
-  const { data, error } = await admin.from("cahier_links").select("*").eq("user_id", userId).maybeSingle();
-  if (error) throw new Error(`Couldn't read the cahier link: ${error.message}`);
+async function loadLink(admin, userId, tables = notesTables("fr")) {
+  const { data, error } = await admin.from(tables.links).select("*").eq("user_id", userId).maybeSingle();
+  if (error) throw Object.assign(new Error(`Couldn't read the cahier link: ${error.message}`), { missingTable: missingTable(error) });
   return data || null;
 }
 
 // Linking, or relinking to a different doc: the whole row, which is the only
 // write that may create one.
-async function linkDoc(admin, row) {
-  const { data, error } = await admin.from("cahier_links").upsert(row, { onConflict: "user_id" }).select().maybeSingle();
+async function linkDoc(admin, row, tables = notesTables("fr")) {
+  const { data, error } = await admin.from(tables.links).upsert(row, { onConflict: "user_id" }).select().maybeSingle();
   if (error) throw new Error(`Couldn't save the cahier link: ${error.message}`);
   return data;
 }
@@ -327,25 +367,34 @@ async function linkDoc(admin, row) {
 // died on the first "last checked at" write. It showed up on the owner's
 // account as "Couldn't read that cahier" with a linked row that had never
 // been checked (2026-09-25).
-async function updateLink(admin, userId, patch) {
-  const { error } = await admin.from("cahier_links").update(patch).eq("user_id", userId);
+async function updateLink(admin, userId, patch, tables = notesTables("fr")) {
+  const { error } = await admin.from(tables.links).update(patch).eq("user_id", userId);
   if (error) throw new Error(`Couldn't save the cahier link: ${error.message}`);
 }
 
 // The classes this deck already holds cards from, marked as read without
 // parsing them again. This is what makes linking a doc cheap for someone who
 // uploaded the same notebook last month: only classes taught since are new.
-async function classesAlreadyInDeck(admin, userId) {
+//
+// The caderno's are marked differently. Its classes of 8 to 27 October were
+// put into the deck by hand on 2026-10-27, before there was a link or a record
+// of lines read, and Laura has added lines to its 27 October class since. So
+// a class of the caderno on a card counts as read the way a class the link
+// read when it was shorter does (seedingFrom's `changed`): its lines that are
+// on a card are read, and any other is read once, its card going through the
+// matching rule like any new card. The mark is a fingerprint no text has.
+const READ_BEFORE_LINK = "0000000000000000";
+async function classesAlreadyInDeck(admin, userId, tables = notesTables("fr"), course = "fr") {
   const classes = {};
   const PAGE = 1000;
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await admin
-      .from("user_cards").select("dates").eq("user_id", userId)
+      .from(tables.cards).select("dates").eq("user_id", userId)
       .order("id", { ascending: true }).range(from, from + PAGE - 1);
     if (error) throw new Error(`Couldn't read the deck: ${error.message}`);
     for (const row of data || []) {
       for (const d of Array.isArray(row.dates) ? row.dates : []) {
-        if (typeof d === "string") classes[d] = "already in your deck";
+        if (typeof d === "string") classes[d] = course === "es" ? READ_BEFORE_LINK : "already in your deck";
       }
     }
     if (!data || data.length < PAGE) break;

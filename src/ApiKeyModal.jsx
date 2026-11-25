@@ -11,14 +11,15 @@ import {
 
 // "Connect your Claude account".
 //
-// Everything in this app that calls Claude — the tutor, the answer reviewer,
-// the cahier parser — bills an Anthropic account per request. It used to be
+// Everything in this app that asks Claude on a student's behalf — the tutor,
+// answer reviews, marking in Exercises, Dialogues and Podcasts, and reading
+// class notes — bills an Anthropic account per request. It used to be
 // the deploy owner's, for any caller. Now each person brings their own.
 //
 // The key is written to this browser's localStorage and sent as a header on
 // the user's own requests. It is never stored on the server, so the app is
 // not a custodian of anyone's credentials.
-export default function ApiKeyModal({ open, onClose, user }) {
+export default function ApiKeyModal({ open, onClose, user, serverPays = false }) {
   const [value, setValue] = useState("");
   const [saved, setSaved] = useState("");
   const [error, setError] = useState("");
@@ -72,8 +73,9 @@ export default function ApiKeyModal({ open, onClose, user }) {
       <div style={S.modal} onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Connect your Claude account">
         <div style={S.title}>Connect your Claude account</div>
         <p style={S.body}>
-          The tutor, the &ldquo;my answer should be accepted&rdquo; review and
-          the document parser all call Claude, which costs money per request.
+          The tutor, the &ldquo;my answer should be accepted&rdquo; review,
+          the marking of Exercises, Dialogues and Podcasts, and the reading of
+          your class notes all ask Claude, which costs money per request.
           Add your own Anthropic API key and those requests bill your account.
         </p>
 
@@ -82,6 +84,8 @@ export default function ApiKeyModal({ open, onClose, user }) {
             <span>Connected &middot; <code style={S.code}>{maskKey(saved)}</code></span>
             <button style={S.linkBtn} onClick={disconnect}>Disconnect</button>
           </div>
+        ) : serverPays ? (
+          <div style={S.connected}>Your Claude account already pays for these, so you don&rsquo;t need a key. Add one only to bill an account of your own.</div>
         ) : (
           <div style={S.notConnected}>Not connected &mdash; those features are turned off.</div>
         )}
@@ -108,7 +112,7 @@ export default function ApiKeyModal({ open, onClose, user }) {
             console.anthropic.com
           </a>
           . It is stored in this browser only &mdash; never on the server &mdash; so you
-          will need to add it again on another device, and you can revoke it at
+          will need to add it again on another device and after you sign out, and you can revoke it at
           any time from the Anthropic console.
         </p>
 

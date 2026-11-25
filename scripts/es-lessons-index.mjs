@@ -1,0 +1,53 @@
+// Writes src/data/lessons/es/index.js, the Spanish module's catalogue, from
+// the lesson files in that folder, in course order. Run after adding a
+// Spanish lesson file:  node scripts/es-lessons-index.mjs
+import fs from "node:fs";
+import path from "node:path";
+
+const dir = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../src/data/lessons/es");
+// The course order: Lesson 7 and Lesson 12 are in parts, as Laura's Leçon 6
+// and Leçon 11 are.
+const ORDER = [
+  "leccion1", "leccion2", "leccion3", "leccion4", "leccion5", "leccion6",
+  "leccion7-1", "leccion7-2", "leccion7-3", "leccion8", "leccion9", "leccion10",
+  "leccion11", "leccion12-1", "leccion12-2", "leccion13", "leccion14", "leccion15",
+  "leccion16", "leccion17", "leccion18", "leccion19", "leccion20", "leccion21",
+  "leccion22", "leccion23",
+];
+// ONLY=leccion1,leccion2 limits it to those, for a preview while the others
+// are still being written.
+const only = (process.env.ONLY || "").split(",").filter(Boolean);
+const have = ORDER.filter((id) => fs.existsSync(path.join(dir, `${id}.js`)) && (!only.length || only.includes(id)));
+const name = (id) => id.replace("-", "_");
+
+const out = `// The Spanish module's lessons (test app, owner 2026-10-22): the 23-lesson
+// Latin American Spanish course adapted from Laura Caufour's LFL METHOD, in
+// Google Drive under Español / "New Lessons to Review". They are shown in the
+// course's four stages, the same as on Exercises (./stages.js; owner,
+// 2026-11-07). Written by scripts/es-lessons-index.mjs; run it again after
+// adding a lesson file.
+//
+// Every lesson starts in every Spanish deck, as the French ones do in the
+// French deck. Lessons 1 to 6 come up on Cards without a choice
+// (lib/lessonChoice.js): the owner has covered them with Laura.
+
+${have.map((id) => `import ${name(id)} from "./${id}.js";`).join("\n")}
+import { makeCatalogue } from "../catalogue.js";
+import { stagesOf, stageIds } from "./stages.js";
+
+const lessons = [${have.map(name).join(", ")}];
+const LESSON_STAGES = stagesOf(lessons);
+
+export const SPANISH = {
+  ...makeCatalogue({
+    lessons,
+    meetingOrder: ${JSON.stringify(have)},
+    groups: LESSON_STAGES.map((stage) => ({ title: stage.title, folds: true, ids: stageIds(stage) })),
+  }),
+  LESSON_STAGES,
+};
+
+export default SPANISH;
+`;
+fs.writeFileSync(path.join(dir, "index.js"), out);
+console.log(`es/index.js: ${have.length} of ${ORDER.length} lessons`);

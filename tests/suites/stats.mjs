@@ -148,6 +148,13 @@ console.log("\n  over time");
   const met = [...firstAt.values()].filter((t) => t > weekAgoEnd).length;
   ck("the chart says what the last 7 days added, and how many new cards were met",
      /In the last 7 days: ~\d+ more remembered/.test(trend) && trend.includes(`, ${met} new cards met.`), trend.slice(0, 200));
+  const big = await page.evaluate(() => document.querySelector("[data-stats-trend] [data-range]") && document.querySelector("[data-stats-trend]").innerText.split("\n")[0]);
+  const weekGain = trend.match(/In the last 7 days: ~(\d+) more remembered/)?.[1];
+  ck("on Last 7 days the headline is the week's gain, not the total", big === `+${weekGain} remembered`, big);
+  await page.click('[data-stats-trend] [data-range="all"]');
+  const bigAll = await page.evaluate(() => document.querySelector("[data-stats-trend]").innerText.split("\n")[0]);
+  ck("on the long range the headline is the total", /^~\d+ remembered$/.test(bigAll), bigAll);
+  await page.click('[data-stats-trend] [data-range="7"]');
   ck("the chart is drawn", await page.evaluate(() => !!document.querySelector("[data-stats-chart] path")));
   const days = await within("[data-stats-days]");
   const studied = new Set(records.map((x) => localDay(x.answered_at))).size;

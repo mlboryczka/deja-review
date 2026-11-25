@@ -17,119 +17,80 @@ import lecon2 from "./lecon2.js";
 import lecon3 from "./lecon3.js";
 import lecon4 from "./lecon4.js";
 import lecon5 from "./lecon5.js";
-import { drillInstruction } from "../../lib/cardInstruction.js";
-import { lessonIdOf, lessonCardKeyOf, lessonCardKey } from "../../lib/lessonSource.js";
-
-// How a stored card names which lesson card it is. Defined in src/lib, not
-// here, so the sync reconciler can use it without importing every lesson's
-// cards; re-exported so callers still reach it through the catalogue.
-export {
-  LESSON_SOURCE_PREFIX,
-  lessonSource,
-  lessonIdOf,
-  lessonCardKeyOf,
-  lessonCardKey,
-} from "../../lib/lessonSource.js";
+import lecon6 from "./lecon6.js";
+import lecon7 from "./lecon7.js";
+import lecon8 from "./lecon8.js";
+import lecon9 from "./lecon9.js";
+import lecon10 from "./lecon10.js";
+import lecon11 from "./lecon11.js";
+import lecon12 from "./lecon12.js";
+import lecon13 from "./lecon13.js";
+import lecon14 from "./lecon14.js";
+import lecon15 from "./lecon15.js";
+import lecon16 from "./lecon16.js";
+import lecon17 from "./lecon17.js";
+import lecon18 from "./lecon18.js";
+import lecon19 from "./lecon19.js";
+import lecon20 from "./lecon20.js";
+import gerondif from "./gerondif.js";
+import plusqueparfait from "./plusqueparfait.js";
+import voiepassive from "./voiepassive.js";
+import pronomsrelatifs from "./pronomsrelatifs.js";
+import subjonctif from "./subjonctif.js";
+import subjonctifpasse from "./subjonctifpasse.js";
+import condition from "./condition.js";
+import communication from "./communication.js";
+import demonstratifs from "./demonstratifs.js";
+import negation from "./negation.js";
+import pronomen from "./pronomen.js";
+import pronoms from "./pronoms.js";
+import { makeCatalogue } from "./catalogue.js";
+import { frenchStagesOf } from "./stages.js";
+import { stageIds } from "./es/stages.js";
 
 // New lessons go at the end. Where a lesson's cards come in the order a
-// student meets them is MEETING_ORDER, below, not its place here.
-export const LESSONS = [imperatif, adverbes, lecon2, lecon3, lecon4, lecon5, lecon1];
+// student meets them is the meeting order, below, not its place here.
+const ALL = [
+  imperatif, adverbes, lecon2, lecon3, lecon4, lecon5, lecon1, lecon6, lecon7, lecon8, lecon9, lecon10,
+  lecon11, lecon12, lecon13, lecon14, lecon15, lecon16, lecon17, lecon18, lecon19, lecon20,
+  gerondif, plusqueparfait, voiepassive, pronomsrelatifs,
+  subjonctif, subjonctifpasse, condition, communication,
+  demonstratifs, negation, pronomen, pronoms,
+];
 
 // The order a student meets the lessons' new cards in on Cards: part of every
 // lesson card's rank (lessonRank). Leçon 1 comes before Leçons 2 to 5, though
 // it was added after them (owner, 2026-10-06). L'impératif and the adverbs
 // keep their place ahead, so a student studying them saw no change. A lesson
 // not named here comes after, in catalogue order.
-const MEETING_ORDER = (() => {
-  const named = ["imperatif", "adverbes", "lecon1", "lecon2", "lecon3", "lecon4", "lecon5"];
-  return [...named, ...LESSONS.map((l) => l.id).filter((id) => !named.includes(id))];
-})();
-
-export const lessonById = (id) => LESSONS.find((l) => l.id === id) || null;
-
-// How the catalogue is shown: on the Lessons page, in the sidebar and on
-// Stats. Separate from LESSONS, whose order is part of every card's rank
-// (lessonRank), so that list only ever grows at the end. Laura's numbered
-// beginner lessons come first, together under one heading and in number
-// order, though Leçon 1 was added after Leçons 2 to 5 (owner, 2026-10-06).
-// Every other lesson follows. In the sidebar only a group that `folds` gets
-// a heading, with its lessons indented beneath it; the rest sit at the usual
-// indent, which is enough to set them apart. On the Lessons page, where the
-// cards are all the same width, they need their heading.
-const GROUPS = [
-  { title: "Basic Lessons", folds: true, ids: ["lecon1", "lecon2", "lecon3", "lecon4", "lecon5"] },
-];
-export const LESSON_GROUPS = (() => {
-  const grouped = new Set(GROUPS.flatMap((g) => g.ids));
-  return [
-    ...GROUPS.map((g) => ({ title: g.title, folds: g.folds, lessons: g.ids.map(lessonById).filter(Boolean) })),
-    { title: "More lessons", folds: false, lessons: LESSONS.filter((l) => !grouped.has(l.id)) },
-  ].filter((g) => g.lessons.length > 0);
-})();
-export const LESSONS_SHOWN = LESSON_GROUPS.flatMap((g) => g.lessons);
-
-// Where a lesson card sits in the order a student should meet it, or null for
-// a card that isn't a lesson card (or no longer matches one). Lower comes
-// first: lessons in MEETING_ORDER, then each lesson's `teachingOrder` of
-// sections, then the card's place in the lesson's array.
 //
-// A row written before lesson keys existed is matched by its front, the same
-// fallback reconcileLessons uses.
-const RANKS = new Map();
-// And which section each lesson card is in, for its instruction line.
-const SECTIONS = new Map();
-// And the lesson's current answer, so one the lesson has since widened
-// ("N'en parlons pas / N'en parlons plus") is accepted on rows synced before.
-const BACKS = new Map();
-LESSONS.forEach((lesson) => {
-  const li = MEETING_ORDER.indexOf(lesson.id);
-  const order = lesson.teachingOrder || [];
-  // Keyed by the card's identity, which is its FIRST front: a reworded card
-  // carries that as its fifth element, and the sync keys its rows by it.
-  // Keying by the current front alone left the 27 renamed impératif drills
-  // unranked. The current front is kept too, for a row keyed that way.
-  lesson.cards.forEach(([front, back, , section, was], ci) => {
-    const si = order.indexOf(section);
-    const rank = li * 1e8 + (si === -1 ? order.length : si) * 1e4 + ci;
-    for (const f of new Set([was ?? front, front])) {
-      const k = `${lesson.id}#${lessonCardKey(f)}`;
-      RANKS.set(k, rank);
-      SECTIONS.set(k, section);
-      BACKS.set(k, back);
-    }
-  });
-});
+// How the catalogue is shown: on the Lessons page, in the sidebar and on
+// Stats. Separate from meetingOrder above, which is every card's rank
+// (lessonRank). Laura's
+// numbered beginner lessons come first, in number order, though Leçon 1 was
+// added after Leçons 2 to 5 (owner, 2026-10-06): since 2026-11-13 in four
+// stages of five (./stages.js), as the Spanish lessons are, where they were
+// all under "Basic Lessons". Every other lesson follows, each on its own. In
+// the sidebar a stage opens and closes as Spanish's do; the other lessons sit
+// after the stages at the usual indent. On the Lessons page they have the
+// heading "More lessons".
+const LESSON_STAGES = frenchStagesOf(ALL);
 
-const lessonKeyOf = (card) => {
-  const id = lessonIdOf(card);
-  if (!id) return null;
-  const key = lessonCardKeyOf(card) || lessonCardKey(card.f ?? card.front);
-  return `${id}#${key}`;
+export const FRENCH = {
+  ...makeCatalogue({
+    lessons: ALL,
+    meetingOrder: [
+      "imperatif", "adverbes", "lecon1", "lecon2", "lecon3", "lecon4", "lecon5",
+      "lecon6", "lecon7", "lecon8", "lecon9", "lecon10",
+      "lecon11", "lecon12", "lecon13", "lecon14", "lecon15", "lecon16", "lecon17", "lecon18", "lecon19", "lecon20",
+    ],
+    groups: LESSON_STAGES.map((stage) => ({ title: stage.title, folds: true, ids: stageIds(stage) })),
+  }),
+  LESSON_STAGES,
 };
 
-export function lessonRank(card) {
-  const k = lessonKeyOf(card);
-  return k ? RANKS.get(k) ?? null : null;
-}
+export const {
+  LESSONS, lessonRank, cardInstructionFor,
+} = FRENCH;
 
-export function lessonBackFor(card) {
-  const k = lessonKeyOf(card);
-  return k ? BACKS.get(k) ?? null : null;
-}
-
-// The line above a grammar card saying exactly what to type, or null.
-//
-// Only grammar cards get one: a word or phrase card is a translation, and its
-// input already says which language to type. A conjugation drill's line comes
-// from its own shape, because that names the tense and the person; any other
-// lesson card takes its section's line from LESSON.instructions.
-export function cardInstructionFor(card) {
-  if (!card || (card.cat !== "gram" && card.cat !== "pron")) return null;
-  const front = card.f ?? card.front;
-  const drill = drillInstruction(front);
-  if (drill) return drill;
-  const k = lessonKeyOf(card);
-  if (!k) return null;
-  const lesson = lessonById(k.split("#")[0]);
-  return lesson?.instructions?.[SECTIONS.get(k)] || null;
-}
+// How a stored card names which lesson card it is lives in src/lib/lessonSource.js.

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // The status check on a student's real record, from the command line: the
-// same eleven checks the server runs on every student each day
+// same fourteen checks the server runs on every student each day
 // (src/lib/statusChecks.js), for looking into what they report. Claude runs
 // it each morning on this Mac (a scheduled task) and tells the owner only
 // when something needs their decision; the app itself shows no Status line.
@@ -22,8 +22,15 @@
 //   node scripts/status-check.mjs --from 2026-09-20   judge answers from an earlier day
 //   node scripts/status-check.mjs --tz Europe/Paris   time zone for answers saved without one
 //   node scripts/status-check.mjs --all               every detail, not the first six per check
+//   node scripts/status-check.mjs --rules-from 2026-09-27
+//                                                     hold the newer rules (2026-10-14) to answers from
+//                                                     that day: for the tests' simulated students
 //   node scripts/status-check.mjs --everyone          every student, and the tests of Claude's work
 //   node scripts/status-check.mjs --everyone --record the same, saving what's been raised (the morning check)
+//   node scripts/status-check.mjs --caderno          the Spanish caderno, per linked account: when it last synced, what
+//                                                     came in, any error (read only; for the nightly Morning review)
+//   node .claude/worktrees/testing/scripts/status-check.mjs --test-app --record
+//                                                     the owner's test app, with its own version of the checks
 //
 // The time zone defaults to this computer's; answers saved since migration_013
 // carry their own.
@@ -34,22 +41,21 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadEnv } from "./lib/loadEnv.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
 const argVal = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : null; };
 const ALL = args.includes("--all");
+// The day the app's newer rules are held from (lib/statusChecks.js), when not
+// their own: the tests' simulated students follow them from their first day.
+const RULES_FROM = argVal("--rules-from") ? { repeatsCount: argVal("--rules-from"), oneWayADay: argVal("--rules-from") } : null;
 const TZ = argVal("--tz") || Intl.DateTimeFormat().resolvedOptions().timeZone;
 process.env.TZ = TZ;
 
-for (const file of [".env.local", ".env"]) {
-  const p = path.join(ROOT, file);
-  if (!fs.existsSync(p)) continue;
-  for (const line of fs.readFileSync(p, "utf8").split("\n")) {
-    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
-    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
-  }
-}
+// Run from a worktree (.claude/worktrees/<name>, where the test app's branch
+// lives) that has no settings of its own, the main checkout's are read.
+loadEnv(ROOT);
 
 const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ADMIN_EMAIL } = process.env;
 const missing = Object.entries({ SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY })
@@ -59,7 +65,44 @@ if (missing.length) {
   console.error(`Missing: ${missing.join(", ")}\nPut them in .env.local or the environment.`);
   process.exit(1);
 }
-// --everyone: the morning check. The same eleven checks on every student who
+// --caderno: is the Spanish caderno keeping itself up to date? Per linked
+// account, from the link row the sync writes (es_cahier_links): when the doc
+// was last read, when it last brought in cards, what that run found, and any
+// error. The daily job (api/cahier-daily.js) reads every linked caderno; this
+// only reads. Exit code 1 when a caderno has an error or wasn't read in the
+// last 36 hours (a day's run, with room for a late one).
+if (args.includes("--caderno")) {
+  const { createClient } = await import("@supabase/supabase-js");
+  const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { data: links, error } = await db.from("es_cahier_links").select("user_id, doc_url, last_checked_at, last_synced_at, last_result, last_error");
+  if (error) {
+    console.log(/does not exist|schema cache|42P01/.test(error.message) ? "Caderno: no es_cahier_links table (migration_023 not run), so nothing is linked." : `Caderno: couldn't read the links: ${error.message}`);
+    process.exit(/does not exist|schema cache|42P01/.test(error.message) ? 0 : 1);
+  }
+  if (!links.length) { console.log("Caderno: no account has linked one."); process.exit(0); }
+  const ago = (iso) => {
+    if (!iso) return "never";
+    const h = (Date.now() - new Date(iso).getTime()) / 3600000;
+    return `${iso.slice(0, 16).replace("T", " ")} UTC (${h < 1 ? `${Math.round(h * 60)} min` : h < 48 ? `${Math.round(h)} h` : `${Math.round(h / 24)} days`} ago)`;
+  };
+  let bad = 0;
+  console.log(`Caderno: ${links.length} linked account${links.length === 1 ? "" : "s"}.`);
+  for (const l of links) {
+    const { data: u } = await db.auth.admin.getUserById(l.user_id);
+    const stale = !l.last_checked_at || Date.now() - new Date(l.last_checked_at).getTime() > 36 * 3600000;
+    const r = l.last_result || null;
+    console.log(`\n  ${u?.user?.email || l.user_id}`);
+    console.log(`    Last read:       ${ago(l.last_checked_at)}${stale ? "  <- more than 36 hours ago" : ""}`);
+    console.log(`    Last new cards:  ${ago(l.last_synced_at)}`);
+    console.log(`    That run:        ${r ? `${r.cards ?? 0} new cards from ${(r.dates || []).length} class${(r.dates || []).length === 1 ? "" : "es"}${(r.dates || []).length ? ` (${r.dates.join(", ")})` : ""}, ${r.updated ?? 0} seen again` : "none recorded"}`);
+    console.log(`    Error:           ${l.last_error || "none"}`);
+    if (stale || l.last_error) bad++;
+  }
+  console.log(bad ? `\nCaderno needs looking at: ${bad} account${bad === 1 ? "" : "s"} with an error or not read in 36 hours.` : "\nCaderno is up to date.");
+  process.exit(bad ? 1 : 0);
+}
+
+// --everyone: the morning check. The same fourteen checks on every student who
 // has answered anything, run now (api/_lib/statusDaily.js); what the server's
 // daily run last asked Claude about look-alike cards, from its kept reports;
 // and whether a change to how Claude is asked has made it get wrong what it
@@ -79,6 +122,115 @@ if (missing.length) {
 //
 // The last line says which: "All clear.", "Nothing new: ..." or "Something new
 // needs looking at."; the exit code is 0, 0 and 1.
+// A failing check's problems, each with what goes beneath it
+// (raisedProblems, src/lib/statusChecks.js).
+async function raise(prefix, c, problems, detail) {
+  const { raisedProblems } = await import("../src/lib/statusChecks.js");
+  for (const { line, detail: d } of raisedProblems(prefix, c)) {
+    problems.push(line);
+    if (d) detail.set(line, d);
+  }
+}
+
+function finish({ problems, detail, raised, raisedFile, unreadable }) {
+  const fresh = problems.filter((x) => !raised[x]);
+  const old = problems.filter((x) => raised[x]);
+  const beneath = (x) => (detail.has(x) ? `\n      ${detail.get(x)}` : "");
+  if (fresh.length) {
+    console.log(`\nNew since the last morning check (${fresh.length}):`);
+    for (const x of fresh) console.log(`  - ${x}${beneath(x)}`);
+  }
+  if (old.length) {
+    console.log(`\nRaised with the owner before and still failing (${old.length}):`);
+    for (const x of old) console.log(`  - ${x} (raised ${raised[x]})${beneath(x)}`);
+  }
+  if (args.includes("--record")) {
+    const today = new Date().toISOString().slice(0, 10);
+    // When part of the check couldn't be read, its problems aren't in this
+    // run's list: keep everything raised before, so none comes back as new.
+    const keep = Object.fromEntries(problems.map((x) => [x, raised[x] || today]));
+    if (unreadable) for (const [x, d] of Object.entries(raised)) if (!(x in keep)) keep[x] = d;
+    fs.mkdirSync(path.dirname(raisedFile), { recursive: true });
+    fs.writeFileSync(raisedFile, JSON.stringify(keep, null, 2) + "\n");
+  }
+
+  const isNew = fresh.length > 0 || unreadable;
+  console.log(!problems.length && !unreadable ? "\nAll clear."
+    : isNew ? "\nSomething new needs looking at."
+    : "\nNothing new: everything still failing was raised before.");
+  process.exit(isNew ? 1 : 0);
+}
+
+// --test-app: the morning check of the owner's test app, dejareview-mlb, whose
+// code is the testing branch (the owner, 2026-10-14: the daily run "should be
+// done also on the -mlb application"). Vercel runs scheduled jobs only on the
+// students' app, so the server's daily run never uses the test app's version
+// of the checks; the morning check runs this copy of the script from the
+// testing worktree instead. The owner and Laura (OWNERS_KEY_ON_TEST_APP)
+// study on the test app, so those records are judged here; everything else the morning check
+// looks at (Claude's tests, feedback, the free plans) is the same app-wide
+// and comes from the --everyone run. Problems raised are kept apart from that
+// run's, in raised-test-app.json, and each is named "Test app:".
+if (args.includes("--test-app")) {
+  const os = await import("node:os");
+  const { createClient } = await import("@supabase/supabase-js");
+  const { checkEveryone } = await import("../api/_lib/statusDaily.js");
+  const { statusText } = await import("../src/lib/statusChecks.js");
+  const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+  const tidy = (s) => String(s || "").trim().toLowerCase();
+  const owner = tidy(argVal("--email")) || tidy(ADMIN_EMAIL) || tidy(process.env.VITE_ADMIN_EMAIL);
+  if (!owner) {
+    console.error("Whose record? Pass --email, or set ADMIN_EMAIL.");
+    process.exit(1);
+  }
+  const RAISED_FILE = path.join(os.homedir(), ".claude", "scheduled-tasks", "morning-check", "raised-test-app.json");
+  let raised = {};
+  try { raised = JSON.parse(fs.readFileSync(RAISED_FILE, "utf8")); } catch {}
+  const problems = [];
+  const detail = new Map();
+  let unreadable = false;
+  const { OWNERS_KEY_ON_TEST_APP } = await import("../src/lib/testApp.js");
+  // Everyone known to study on the test app: the owner, and the accounts
+  // that share their Claude account there (Laura since 2026-10-19).
+  const who = new Set([owner, ...OWNERS_KEY_ON_TEST_APP]);
+  const frReports = await checkEveryone(db, { examples: Infinity, only: who, rulesFrom: RULES_FROM });
+  console.log(`The test app (dejareview-mlb.vercel.app), judged by its own version of the checks:`);
+  if (!frReports.some((x) => String(x.user_email).toLowerCase() === owner)) {
+    console.log(`  ${owner} hasn't answered anything yet.`);
+  }
+  for (const r of frReports) {
+    console.log(`\n  ${r.user_email}:`);
+    if (r.error) {
+      unreadable = true;
+      console.log(`  couldn't be checked: ${r.error}`);
+    } else {
+      console.log(statusText(r.report).split("\n").map((l) => `  ${l}`).join("\n"));
+      for (const c of r.report.results.filter((x) => x.status === "fail")) {
+        await raise(`Test app: ${r.user_email}`, c, problems, detail);
+      }
+    }
+  }
+
+  const esReports = await checkEveryone(db, { examples: Infinity, only: who, rulesFrom: RULES_FROM, course: "es" });
+  console.log(`\nThe same, on the Spanish deck:`);
+  if (!esReports.length) console.log("  nobody has answered a Spanish card yet.");
+  for (const es of esReports) {
+    console.log(`\n  ${es.user_email}:`);
+    if (es.error && /es_card_reviews|es_user_cards|schema cache|does not exist/i.test(es.error)) {
+      console.log("  waiting for the Spanish tables (migration_020).");
+    } else if (es.error) {
+      unreadable = true;
+      console.log(`  couldn't be checked: ${es.error}`);
+    } else {
+      console.log(statusText(es.report).split("\n").map((l) => `  ${l}`).join("\n"));
+      for (const c of es.report.results.filter((x) => x.status === "fail")) {
+        await raise(`Test app (Spanish): ${es.user_email}`, c, problems, detail);
+      }
+    }
+  }
+  finish({ problems, detail, raised, raisedFile: RAISED_FILE, unreadable });
+}
+
 if (args.includes("--everyone")) {
   const os = await import("node:os");
   const { createClient } = await import("@supabase/supabase-js");
@@ -97,7 +249,7 @@ if (args.includes("--everyone")) {
 
   // Every line of every check, not the first few: a problem past the few
   // shown was never raised (2026-10-09: 19 of the owner's 25 repeats).
-  const reports = await checkEveryone(db, { examples: Infinity });
+  const reports = await checkEveryone(db, { examples: Infinity, rulesFrom: RULES_FROM });
   console.log(`Every student who has answered (${reports.length}), checked now:`);
   for (const r of [...reports].sort((a, b) => Number(a.ok) - Number(b.ok))) {
     if (r.error) { unreadable = true; console.log(`\n  ${r.user_email}: couldn't be checked: ${r.error}`); continue; }
@@ -105,7 +257,7 @@ if (args.includes("--everyone")) {
     console.log(`\n  ${r.user_email}: ${r.answers} answers, ${r.failing} check${r.failing === 1 ? "" : "s"} failing.`);
     console.log(statusText(r.report).split("\n").map((l) => `    ${l}`).join("\n"));
     for (const c of r.report.results.filter((x) => x.status === "fail")) {
-      for (const d of c.details.length ? c.details : [c.summary]) problems.push(`${r.user_email}: ${c.title}: ${d}`);
+      await raise(r.user_email, c, problems, detail);
     }
   }
 
@@ -114,7 +266,31 @@ if (args.includes("--everyone")) {
   // Claude couldn't answer leaves those cards unjudged, which the check
   // above shows only as waiting, so it is said here.
   const kept = await latestReports(db);
+  if (kept.error) {
+    unreadable = true;
+    console.log(`\nThe daily run's kept reports couldn't be read: ${kept.error}`);
+  }
   const judged = [];
+  const keptBy = new Map((kept.reports || []).map((k) => [String(k.user_email || "").toLowerCase(), k]));
+  const STALE_MS = 30 * 3600 * 1000;
+  const staleLine = (email) => `${email}: the daily run hasn't checked them since its last kept report`;
+  if (!kept.error && !kept.missing && (kept.reports || []).length) {
+    // A daily run that didn't happen leaves an old report that reads as
+    // this morning's: raise it, and say which day it is from.
+    for (const r of reports) {
+      if (r.error) continue;
+      const k = keptBy.get(String(r.user_email || "").toLowerCase());
+      if (!k) {
+        const line = staleLine(r.user_email);
+        problems.push(line);
+        detail.set(line, "No report from the daily run is kept for them at all.");
+      } else if (Date.now() - Date.parse(k.checked_at) > STALE_MS) {
+        const line = staleLine(r.user_email);
+        problems.push(line);
+        detail.set(line, `The last kept report is from ${String(k.checked_at).slice(0, 10)}.`);
+      }
+    }
+  }
   for (const k of kept.reports || []) {
     const j = k.report?.judging;
     if (!j || (!j.asked && !j.left && !j.error && !j.putAway && !j.keptBoth && !j.putAwayError)) continue;
@@ -131,7 +307,9 @@ if (args.includes("--everyone")) {
       problems.push(line);
       detail.set(line, j.error);
     }
-    judged.push(`  ${k.user_email}, ${String(k.checked_at).slice(0, 10)}: ${judgingText(j).replace(/^Look-alike cards: /, "")}`);
+    const old = Date.now() - Date.parse(k.checked_at) > STALE_MS;
+    const said = judgingText(j).replace(/^Look-alike cards: /, "");
+    judged.push(`  ${k.user_email}, ${String(k.checked_at).slice(0, 10)}: ${old ? said.replace(" this morning", ` on ${String(k.checked_at).slice(0, 10)}`) : said}`);
   }
   if (judged.length) console.log(`\nLook-alike cards put to Claude by the daily run:\n${judged.join("\n")}`);
 
@@ -219,29 +397,7 @@ if (args.includes("--everyone")) {
     }
   }
 
-  const fresh = problems.filter((x) => !raised[x]);
-  const old = problems.filter((x) => raised[x]);
-  const beneath = (x) => (detail.has(x) ? `\n      ${detail.get(x)}` : "");
-  if (fresh.length) {
-    console.log(`\nNew since the last morning check (${fresh.length}):`);
-    for (const x of fresh) console.log(`  - ${x}${beneath(x)}`);
-  }
-  if (old.length) {
-    console.log(`\nRaised with the owner before and still failing (${old.length}):`);
-    for (const x of old) console.log(`  - ${x} (raised ${raised[x]})${beneath(x)}`);
-  }
-  if (args.includes("--record")) {
-    const today = new Date().toISOString().slice(0, 10);
-    const keep = Object.fromEntries(problems.map((x) => [x, raised[x] || today]));
-    fs.mkdirSync(path.dirname(RAISED_FILE), { recursive: true });
-    fs.writeFileSync(RAISED_FILE, JSON.stringify(keep, null, 2) + "\n");
-  }
-
-  const isNew = fresh.length > 0 || unreadable;
-  console.log(!problems.length && !unreadable ? "\nAll clear."
-    : isNew ? "\nSomething new needs looking at."
-    : "\nNothing new: everything still failing was raised before.");
-  process.exit(isNew ? 1 : 0);
+  finish({ problems, detail, raised, raisedFile: RAISED_FILE, unreadable });
 }
 
 // The admin's account: ADMIN_EMAIL, or the app's own VITE_ADMIN_EMAIL, which a
@@ -255,6 +411,7 @@ if (!EMAIL) {
 
 const { runStatusChecks, statusText, CHECKS_START } = await import("../src/lib/statusChecks.js");
 const { lessonRank } = await import("../src/data/lessons/index.js");
+const { latestZoneOf } = await import("../api/_lib/statusDaily.js");
 
 const BASE = SUPABASE_URL.replace(/\/$/, "");
 const HEADERS = { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` };
@@ -310,15 +467,18 @@ const report = runStatusChecks({
   pairs,
   pairsTable: pairs !== null,
   corrections,
-  timeZone: TZ,
+  // As the report for everyone does: the zone of the student's latest answer
+  // unless --tz says otherwise.
+  timeZone: argVal("--tz") || latestZoneOf(answers || []) || TZ,
   lessonRank,
   from: argVal("--from") || CHECKS_START,
   examples: ALL ? Infinity : undefined,
+  rulesFrom: RULES_FROM,
 });
 
 const withSettings = (answers || []).filter((r) => r.counted && Array.isArray(r.weights)).length;
 console.log(`${EMAIL}: ${answers?.length ?? 0} answers on record (${withSettings} saved with their settings), ${cards?.length ?? 0} cards, ` +
-  `${deals === null ? "no dealt_sets table yet (migration_013 not run)" : `${deals.length} sets recorded`}; time zone ${TZ}.`);
+  `${deals === null ? "no dealt_sets table yet (migration_013 not run)" : `${deals.length} sets recorded`}; time zone ${argVal("--tz") || latestZoneOf(answers || []) || TZ}.`);
 const removed = (cards || []).filter((c) => c.archived_reason === "removed").length;
 const count = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const fixes = corrections === null ? "no parse_corrections table" : count(corrections.length, "correction");
@@ -326,7 +486,7 @@ console.log(pairs === null
   ? `No card_pairs table yet (migration_016 not run): no verdicts of Claude's on look-alike cards, and no record of cards removed; ${fixes}.`
   : `${count(pairs.length, "verdict")} of Claude's on look-alike cards, ${count(removed, "card")} removed, ${fixes}.`);
 console.log(settings
-  ? `Settings: ${settings.target_mode === "fixed" ? `fixed at ${Math.round(settings.target * 100)}%` : `automatic, now ${Math.round(settings.target * 100)}%`}; ${settings.weights ? `own weights since ${settings.fitted_at}` : "starting weights"}.`
+  ? `Settings: ${settings.target_mode === "fixed" ? `fixed at ${Math.round(settings.target * 100)}%` : `automatic, now ${Math.round(settings.target * 100)}%`}; ${!settings.weights ? "starting weights" : settings.fit_result?.inUse === "first-gaps" ? `starting weights with own first gaps since ${settings.fitted_at}` : `own weights since ${settings.fitted_at}`}.`
   : "Settings: none saved (starting settings, 90%).");
 console.log("");
 console.log(statusText(report));

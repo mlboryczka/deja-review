@@ -6,12 +6,14 @@
 // returned success with 0 rows affected, the modal would close, and the
 // change would quietly never persist).
 //
-// Request body: { row_id, front, back }, or { action: "remove", row_id }
-// Response:     { ok: true, row: <updated row> }, or { ok: true, removed: true }
+// Request body: { row_id, front, back, original_front?, course? }, or { action: "remove" | "restore", row_id }
+// Response:     { ok: true, row: <updated row> }, or { ok: true, removed: true },
+//               or { ok: true, restored: true, row: <the card, back in study> }
 //               or { error: "..." } on 4xx/5xx
 
 import { createClient } from "@supabase/supabase-js";
-import { removeCard } from "./_lib/removeCard.js";
+import { removeCard, restoreCard } from "./_lib/removeCard.js";
+import { allowIphoneApp } from "./_lib/cors.js";
 
 // Force Vercel to parse JSON bodies for us. Without this, some runtime
 // combinations deliver req.body as undefined or a raw stream.
@@ -22,6 +24,7 @@ export const config = {
 };
 
 export default async function handler(req, res) {
+  if (allowIphoneApp(req, res)) return;
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -68,11 +71,22 @@ export async function updateCard(admin, req, res) {
   }
   console.log("[admin-update-card] body keys:", Object.keys(body));
 
+  // The Spanish module's cards are in es_user_cards (migration_020,
+  // 2026-10-22), numbered apart from the French ones: a Spanish row id looked
+  // up among French cards could find a French card.
+  const spanish = body.course === "es";
+  const table = spanish ? "es_user_cards" : "user_cards";
+
   // A student removing a card: taken out of study and remembered, never
   // erased (api/_lib/removeCard.js). Here because the Hobby plan deploys at
-  // most 12 routes and there are 12.
+  // most 12 routes: keep new work in the routes already here.
   if (body.action === "remove") {
-    const { status, json } = await removeCard({ admin, userId, rowId: body.row_id });
+    const { status, json } = await removeCard({ admin, userId, rowId: body.row_id, table });
+    return res.status(status).json(json);
+  }
+  // Undo on a card the tutor removed: back in study as it was.
+  if (body.action === "restore") {
+    const { status, json } = await restoreCard({ admin, userId, rowId: body.row_id, table });
     return res.status(status).json(json);
   }
 
@@ -97,7 +111,7 @@ export async function updateCard(admin, req, res) {
   let existing = null;
   if (rowIdValue !== null && rowIdValue !== "") {
     const { data, error } = await admin
-      .from("user_cards")
+      .from(table)
       .select("id, user_id, front")
       .eq("id", rowIdValue)
       .maybeSingle();
@@ -110,7 +124,7 @@ export async function updateCard(admin, req, res) {
   if (!existing && typeof original_front === "string" && original_front.trim()) {
     const key = original_front.trim().toLowerCase();
     const { data, error } = await admin
-      .from("user_cards")
+      .from(table)
       .select("id, user_id, front")
       .eq("user_id", userId)
       .ilike("front", original_front.trim())
@@ -124,8 +138,9 @@ export async function updateCard(admin, req, res) {
     );
   }
   if (!existing) {
+    console.error("admin-update-card: card not found", { row_id, original_front });
     return res.status(404).json({
-      error: `Card not found. (row_id=${JSON.stringify(row_id)}, original_front=${JSON.stringify(original_front)})`,
+      error: "That card isn't in your deck any more. Reload to see your cards.",
     });
   }
   if (existing.user_id !== userId) {
@@ -133,7 +148,7 @@ export async function updateCard(admin, req, res) {
   }
 
   const { data: updated, error: updErr } = await admin
-    .from("user_cards")
+    .from(table)
     .update({
       front: front.trim(),
       back: back.trim(),
@@ -151,11 +166,43 @@ export async function updateCard(admin, req, res) {
     if (updErr.code === "23505") {
       return res.status(409).json({
         // A card the student removed keeps its French too, out of study.
-        error: `You already have a card with the French side "${front.trim()}", in your deck or among the cards you removed. Edit that one instead, or remove this card.`,
+        error: `You already have a card with the ${spanish ? "Spanish" : "French"} side "${front.trim()}", in your deck or among the cards you removed. Edit that one instead, or remove this card.`,
         code: "duplicate_front",
       });
     }
     return res.status(500).json({ error: updErr.message });
+  }
+
+  // The answers the student had accepted are filed under the card's French
+  // (or Spanish) side, lowercased: move the 'fr' ones, whose answers are
+  // English and still hold, to the new side, so they aren't marked wrong again
+  // (code check 2026-11-07, no. 16). The schedule and answer history sit on
+  // the card itself and stay. Failing here never fails the edit.
+  const oldKey = String(existing.front || "").toLowerCase().trim();
+  const newKey = front.trim().toLowerCase();
+  if (oldKey && newKey && oldKey !== newKey) {
+    try {
+      const altTable = spanish ? "es_card_alternates" : "card_alternates";
+      const { data: old, error: readErr } = await admin
+        .from(altTable)
+        .select("direction, alternate_text")
+        .eq("user_id", userId)
+        .eq("card_id", oldKey)
+        .eq("direction", "fr");
+      if (readErr) throw readErr;
+      if (old?.length) {
+        const { error: putErr } = await admin.from(altTable).upsert(
+          old.map((r) => ({ user_id: userId, card_id: newKey, direction: r.direction, alternate_text: r.alternate_text })),
+          { onConflict: "user_id,card_id,direction,alternate_text", ignoreDuplicates: true }
+        );
+        if (putErr) throw putErr;
+        const { error: delErr } = await admin.from(altTable).delete()
+          .eq("user_id", userId).eq("card_id", oldKey).eq("direction", "fr");
+        if (delErr) throw delErr;
+      }
+    } catch (e) {
+      console.error("[admin-update-card] moving accepted answers failed:", e?.message || e);
+    }
   }
 
   return res.status(200).json({ ok: true, row: updated });

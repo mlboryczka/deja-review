@@ -6,7 +6,7 @@
 // two chunks with a gap, because "the answer appears as it is generated" is
 // the requirement and a single-shot response cannot test it.
 import { createServer } from "node:http";
-import { openApp, finish, checker, servedDeck, setting } from "../harness.mjs";
+import { openApp, finish, checker, servedDeck, setting, enableTypeMode, sessionCounter } from "../harness.mjs";
 
 const ck = checker();
 const deck = await servedDeck();
@@ -28,6 +28,12 @@ const PROPOSED = {
   category: "vocab",
   note: "the near-synonym you'll meet next",
 };
+
+// Asking the tutor to change the card on screen (2026-10-18).
+const EDIT_ASK = "take that off the card";
+const NEW_BACK = "a test gloss";
+// And to remove it (2026-10-28).
+const REMOVE_ASK = "i think remove it";
 
 // ── The stand-in tutor endpoint ────────────────────────────────────────────
 // Holds the stream open between the two halves of the answer so the test can
@@ -78,6 +84,25 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  // Asked to change a card: edits the one on screen, named as the request
+  // named it, which is how the real tutor learns which card it is.
+  if (requests.at(-1).messages?.at(-1)?.content === EDIT_ASK) {
+    const cc = requests.at(-1).context?.currentCard || {};
+    send({ type: "text", delta: "I'll change the English on that card." });
+    send({ type: "edits", edits: [{ front: cc.front || "", newFront: "", newBack: NEW_BACK }] });
+    send({ type: "done" });
+    res.end();
+    return;
+  }
+  if (requests.at(-1).messages?.at(-1)?.content === REMOVE_ASK) {
+    const cc = requests.at(-1).context?.currentCard || {};
+    send({ type: "text", delta: "I'll take that card out of your deck." });
+    send({ type: "edits", edits: [{ front: cc.front || "", remove: true }] });
+    send({ type: "done" });
+    res.end();
+    return;
+  }
+
   // Third: proposes a card the deck already has, under a different gloss.
   if (requests.length === 3) {
     send({ type: "text", delta: "Think of what you would climb on a walk. **Feminine**, too." });
@@ -87,7 +112,7 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  // Fourth: the function dies mid-answer. No "done", no error — just the end.
+  // Last: the function dies mid-answer. No "done", no error — just the end.
   send({ type: "text", delta: "The short answer is that it depends on" });
   setTimeout(() => res.end(), 200);
 });
@@ -146,7 +171,16 @@ await page.waitForFunction(
   null,
   { timeout: 8000 }
 );
-ck("the rest of the answer follows into the same bubble", true);
+// The smallest element holding both halves must be one answer, not the whole
+// thread: the student's own question is not inside it.
+const sameBubble = await page.evaluate((ask) => {
+  const panel = document.querySelector("[data-tutor-panel]");
+  const holds = (el) => /colline is feminine/i.test(el.innerText) && /already have it in your deck/i.test(el.innerText);
+  let el = [...panel.querySelectorAll("*")].filter(holds).pop();
+  if (!el) return false;
+  return !el.innerText.includes(ask.slice(0, 30));
+}, ASK);
+ck("the rest of the answer follows into the same bubble", sameBubble);
 
 // ── What the endpoint was told ─────────────────────────────────────────────
 const sent = requests[0] || {};
@@ -302,13 +336,19 @@ await page.waitForTimeout(500);
 // The last click was outside the panel (the direction button), so the key is
 // the card's.
 {
-  const beforeKey = await chip();
-  await page.keyboard.press("ArrowRight");
-  await page.waitForTimeout(300);
+  // On a card not yet turned over the first press only turns it, so judge by
+  // the counter: press until it moves on (at most three times).
+  const before = await sessionCounter(page);
+  let after = before;
+  for (let i = 0; i < 3 && after?.index === before?.index; i++) {
+    await page.keyboard.press("ArrowRight");
+    await page.waitForTimeout(300);
+    after = await sessionCounter(page);
+  }
   ck(
     "with the tutor beside the card, the arrow key still grades and moves on",
-    (await chip()) !== beforeKey,
-    `${beforeKey} → ${await chip()}`
+    !!before && !!after && after.index === before.index + 1,
+    `${JSON.stringify(before)} → ${JSON.stringify(after)}`
   );
 }
 let enCard = null;
@@ -371,6 +411,80 @@ if (!enCard) {
   await page.keyboard.press("ArrowRight");
   await page.waitForTimeout(300);
   ck("after a click in the panel, the arrow key leaves the card alone", (await chip()) === beforeKey, `${beforeKey} → ${await chip()}`);
+
+  // ── Changing a card the student has (2026-10-18) ─────────────────────────
+  // Asked to change a card, the tutor changes it through the card editor's
+  // endpoint, says what it said before, and Undo puts it back. It used to
+  // answer that it had no way to edit cards.
+  const saves = [];
+  await page.route("**/api/admin-update-card", (r) => {
+    const b = r.request().postDataJSON();
+    saves.push(b);
+    const body = b.action === "remove" ? { ok: true, removed: true }
+      : b.action === "restore" ? { ok: true, restored: true, row: deck.find((c) => c.id === b.row_id) }
+      : { ok: true, row: { id: b.row_id, front: b.front, back: b.back } };
+    return r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+  });
+  await page.fill("[data-tutor-panel] textarea", EDIT_ASK);
+  await page.click("button:text-is('Send')");
+  await page.waitForSelector("[data-edited-card][data-edit-status='done']", { timeout: 8000 }).catch(() => {});
+  const told = requests.at(-1)?.context?.currentCard || {};
+  ck("the tutor is told the card on screen as the deck stores it", told.front === enCard.front && told.back === enCard.back, JSON.stringify(told));
+  ck(
+    "the change is saved at once, through the card editor's endpoint, on that card",
+    saves.length === 1 && saves[0].row_id != null && saves[0].front === enCard.front && saves[0].back === NEW_BACK,
+    JSON.stringify(saves)
+  );
+  const editText = await page.locator("[data-edited-card]").innerText().catch(() => "");
+  ck("the chat shows the new English and what the card said before", editText.includes(NEW_BACK) && editText.includes(`It said “${enCard.back}”`), editText);
+  await page.click("[data-edited-card] button:text-is('Undo')");
+  await page.waitForSelector("[data-edited-card][data-edit-status='undone']", { timeout: 8000 }).catch(() => {});
+  ck(
+    "Undo puts the card back as it was",
+    saves.length === 2 && saves[1].row_id === saves[0].row_id && saves[1].front === enCard.front && saves[1].back === enCard.back,
+    JSON.stringify(saves[1] || null)
+  );
+
+  // ── Removing a card the student has (2026-10-28) ─────────────────────────
+  // Asked to remove a card, the tutor removes it as the card editor's Remove
+  // does, and Undo puts it back. It used to answer that it could only edit.
+  // Removed with a wrong answer showing, the card that takes its place comes
+  // up unanswered: "to hold", typed for "haber", showed under the next card,
+  // and Continue would have saved it to that card.
+  await enableTypeMode(page);
+  await page.fill("input[placeholder^='Type ']", "zzzz");
+  await page.keyboard.press("Enter");
+  await page.waitForFunction(() => /You wrote: zzzz/.test(document.body.innerText), null, { timeout: 8000 }).catch(() => {});
+  const removedPrompt = (await chip()).trim();
+  ck("a wrong answer typed for the card on screen shows", await page.evaluate(() => /You wrote: zzzz/.test(document.body.innerText)), removedPrompt);
+  await page.fill("[data-tutor-panel] textarea", REMOVE_ASK);
+  await page.click("button:text-is('Send')");
+  await page.waitForSelector("[data-edit-kind='remove'][data-edit-status='done']", { timeout: 8000 }).catch(() => {});
+  ck(
+    "the card is removed at once, through the card editor's own Remove",
+    saves.length === 3 && saves[2].action === "remove" && saves[2].row_id === saves[0].row_id && saves[2].front === undefined,
+    JSON.stringify(saves[2] || null)
+  );
+  const removeText = await page.locator("[data-edit-kind='remove']").innerText().catch(() => "");
+  ck("the chat says it was removed and its answers kept", /Removed from your deck\. Your answers on it are kept\./.test(removeText), removeText);
+  await page.waitForTimeout(400);
+  const nextPrompt = (await chip()).trim();
+  ck("the next card takes its place", nextPrompt && nextPrompt !== removedPrompt, `${removedPrompt} → ${nextPrompt}`);
+  ck(
+    "and comes up unanswered, without the answer typed for the card removed",
+    !(await page.evaluate(() => /You wrote: zzzz/.test(document.body.innerText))) &&
+      (await page.inputValue("input[placeholder^='Type ']").catch(() => "missing")) === "",
+    await page.inputValue("input[placeholder^='Type ']").catch(() => "no answer box")
+  );
+  await page.click("[data-edit-kind='remove'] button:text-is('Undo')");
+  await page.waitForSelector("[data-edit-kind='remove'][data-edit-status='undone']", { timeout: 8000 }).catch(() => {});
+  ck(
+    "Undo puts the card back in the deck",
+    saves.length === 4 && saves[3].action === "restore" && saves[3].row_id === saves[0].row_id &&
+      /The card is back in your deck/.test(await page.locator("[data-edit-kind='remove']").innerText().catch(() => "")),
+    JSON.stringify(saves[3] || null)
+  );
+  await page.unroute("**/api/admin-update-card");
 }
 
 // ── An answer that never finished ──────────────────────────────────────────
@@ -386,6 +500,11 @@ ck(
   await page.evaluate(() => /cut off/i.test(document.querySelector("[data-tutor-panel]")?.innerText || "")),
   ""
 );
+if (enCard) {
+  const told = (requests.at(-1)?.messages || []).flatMap((m) => m.edits || []);
+  ck("the next question tells the tutor the change was undone", told.length === 2 && told[0].status === "undone" && !told[0].removed, JSON.stringify(told));
+  ck("and that the card it removed was put back", told[1]?.removed === true && told[1].status === "undone", JSON.stringify(told[1] || null));
+}
 
 server.close();
 await finish(browser, ck);

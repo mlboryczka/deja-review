@@ -1,0 +1,9 @@
+{
+  "appId": "com.dejareview.app",
+  "appName": "Déjà Review",
+  "webDir": "dist",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#F7F3F1"
+  }
+}

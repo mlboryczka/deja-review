@@ -4,13 +4,16 @@
 // estimate in step with the settings in use. The app calls it once a day, in
 // the background; this decides whether there is anything to do.
 //
-//   1. Fitting. Once the student has given about 1,000 answers, their own
-//      settings are fitted from them (the official FSRS optimizer). Then again
-//      each month, once there are 500 more. A fit is only used if it predicts
-//      the student's most recent answers — ones it was not fitted on — better
-//      than the settings in use; otherwise nothing changes. On the FSRS team's
-//      open data (2026-09-26) a personal fit beat the starting settings for 78%
-//      of students at 1,000 answers, and was a coin flip at 250.
+//   1. Fitting. From about 350 answers, the student's own settings are fitted
+//      from them (the official FSRS optimizer), and again each week once there
+//      are 50 more. Two kinds are tried: every number fitted to the student,
+//      and the starting settings with only the student's own first gaps (lib/
+//      fsrsSettings.js says why). The better of the two is used only if it
+//      predicts the student's most recent answers — ones it was not fitted
+//      on — better than the settings in use; otherwise nothing changes. On the
+//      FSRS team's open data (2026-09-26) a full personal fit beat the starting
+//      settings for 78% of students at 1,000 answers, and was a coin flip at
+//      250, which is why nothing is used without that test.
 //   2. Estimates. Whenever the settings in use change — a fit is adopted, or
 //      the app's starting settings change — every card's memory estimate
 //      (stability and difficulty) is worked out again from its own answers
@@ -23,13 +26,17 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { requireUser } from "./_lib/auth.js";
+import { settingsKey } from "./_lib/settingsKey.js";
 import { buildHistories, fittingSequences, replayHistory } from "../src/lib/fsrsHistory.js";
 import { makeScheduler } from "../src/lib/spacedRepetition.js";
-import { STARTING_WEIGHTS, STARTING_VERSION, FIRST_FIT, fitDue, usableWeights } from "../src/lib/fsrsSettings.js";
+import { STARTING_WEIGHTS, STARTING_VERSION, FIRST_FIT, fitDue, usableWeights, withFirstGaps, settingsKind } from "../src/lib/fsrsSettings.js";
+import { allowIphoneApp } from "./_lib/cors.js";
+import { missingTable } from "../src/lib/dealLog.js";
 
 export const config = { maxDuration: 60 };
 
 export default async function handler(req, res) {
+  if (allowIphoneApp(req, res)) return;
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   const user = await requireUser(req, res);
   if (!user) return;
@@ -56,9 +63,6 @@ function validTimeZone(tz) {
   }
 }
 
-// Postgres "relation does not exist", or PostgREST's "not in the schema cache".
-const missing = (error) => error && (error.code === "42P01" || error.code === "PGRST205" || error.code === "PGRST202");
-
 async function readAll(query) {
   const out = [];
   for (let from = 0; ; from += 1000) {
@@ -74,7 +78,7 @@ export async function fitUser({ admin, userId, timeZone, now = Date.now(), optim
   const { data: row, error: rowError } = await admin
     .from("fsrs_settings").select("*").eq("user_id", userId).maybeSingle();
   if (rowError) {
-    if (missing(rowError)) return { ok: true, status: "not-set-up" };
+    if (missingTable(rowError)) return { ok: true, status: "not-set-up" };
     throw new Error(rowError.message);
   }
 
@@ -90,15 +94,18 @@ export async function fitUser({ admin, userId, timeZone, now = Date.now(), optim
   const answers = sequences.reduce((n, s) => n + s.length, 0);
 
   let weights = usableWeights(row?.weights) || STARTING_WEIGHTS;
-  let settings = usableWeights(row?.weights) ? `fit:${row.fitted_at}` : `start:${STARTING_VERSION}`;
+  let settings = usableWeights(row?.weights) ? settingsKey(`fit:${row.fitted_at}`) : `start:${STARTING_VERSION}`;
   const patch = {};
   let fit = null;
 
   if (fitDue({ answers, checkedAt: row?.fit_checked_at, checkedAnswers: row?.fit_checked_answers, now })) {
     const opt = optimizer || (await import("@open-spaced-repetition/binding"));
-    fit = await tryFit(opt, sequences, weights);
+    fit = await tryFit(opt, sequences, weights, usableWeights(row?.weights) ? Date.parse(row.fitted_at) : null);
     const at = new Date(now).toISOString();
-    Object.assign(patch, { fit_checked_at: at, fit_checked_answers: answers, fit_result: fit.result });
+    // The kind of settings in use after this try, kept with its result:
+    // settingsKind() reads it back.
+    const inUse = fit.weights ? fit.kind : settingsKind(row);
+    Object.assign(patch, { fit_checked_at: at, fit_checked_answers: answers, fit_result: { ...fit.result, inUse } });
     if (fit.weights) {
       weights = fit.weights;
       settings = `fit:${at}`;
@@ -107,7 +114,7 @@ export async function fitUser({ admin, userId, timeZone, now = Date.now(), optim
   }
 
   let recomputed = 0;
-  if (row?.computed_with !== settings) {
+  if (settingsKey(row?.computed_with) !== settings) {
     recomputed = await recompute({ admin, userId, histories, weights, timeZone });
     patch.computed_with = settings;
   }
@@ -130,32 +137,60 @@ export async function fitUser({ admin, userId, timeZone, now = Date.now(), optim
   };
 }
 
-// Fit on the older 80% of the student's answers, test on the newest 20%. Only
-// if the fit predicts those better than the settings in use is it kept — and
-// then fitted again on everything, for the settings actually used.
-async function tryFit(opt, sequences, current) {
+// Fit on the older 80% of the student's answers, test on the newest 20%. Two
+// sets of settings are tested there: every number the fit gives ("own"), and
+// the starting settings with only its first gaps ("first-gaps"). The better
+// one is kept only if it predicts those answers better than the settings in
+// use — and then fitted again on everything, for the settings actually used.
+// A tie between the two goes to "first-gaps", which changes less. Fitted with
+// FSRS's same-day rule on: the repeat after a miss counts since 2026-10-14,
+// and its weights (w17–w19) are fitted from those repeats like the rest.
+//
+// When the settings in use are themselves a fit (`fittedAtMs`), the test is
+// the newest fifth of the answers given AFTER that fit, so neither set of
+// settings was made from an answer it is judged on; the new fit trains on
+// everything before the test, the answers since the old fit included. With
+// too few answers since, the try waits (and is still recorded by the caller).
+export function testStart(itemTimes, fittedAtMs) {
+  const n = itemTimes.length;
+  if (!Number.isFinite(fittedAtMs)) return Math.floor(n * 0.8);
+  const firstAfter = itemTimes.findIndex((t) => t > fittedAtMs);
+  if (firstAfter < 0) return n;
+  return firstAfter + Math.floor((n - firstAfter) * 0.8);
+}
+
+async function tryFit(opt, sequences, current, fittedAtMs = null) {
   const items = [];
   for (const s of sequences) {
     for (let k = 1; k < s.length; k++) items.push({ reviews: s.slice(0, k + 1), at: s[k].at });
   }
   items.sort((a, b) => a.at - b.at);
-  const cut = Math.floor(items.length * 0.8);
+  const cut = testStart(items.map((it) => it.at), fittedAtMs);
   const toItems = (list) => list.map((it) =>
     new opt.FSRSBindingItem(it.reviews.map((r) => new opt.FSRSBindingReview(r.rating, r.deltaT))));
   const train = toItems(items.slice(0, cut));
   const test = toItems(items.slice(cut));
-  const result = { trainAnswers: train.length, testAnswers: test.length, lossFitted: null, lossInUse: null, adopted: false };
+  const result = {
+    trainAnswers: train.length, testAnswers: test.length,
+    lossFitted: null, lossFirstGaps: null, lossInUse: null, adopted: false, kind: null,
+  };
   if (train.length < 200 || test.length < 50) return { weights: null, result };
 
-  const candidate = usableWeights(await opt.computeParameters(train, { enableShortTerm: false }));
-  if (!candidate) return { weights: null, result };
-  result.lossFitted = new opt.FSRSBinding(candidate).evaluate(test).logLoss;
-  result.lossInUse = new opt.FSRSBinding([...current]).evaluate(test).logLoss;
-  if (!(result.lossFitted < result.lossInUse)) return { weights: null, result };
+  const fitted = usableWeights(await opt.computeParameters(train, { enableShortTerm: true }));
+  if (!fitted) return { weights: null, result };
+  const loss = (w) => new opt.FSRSBinding([...w]).evaluate(test).logLoss;
+  result.lossFitted = loss(fitted);
+  result.lossFirstGaps = loss(withFirstGaps(fitted));
+  result.lossInUse = loss(current);
+  const kind = result.lossFirstGaps <= result.lossFitted ? "first-gaps" : "own";
+  const best = kind === "first-gaps" ? result.lossFirstGaps : result.lossFitted;
+  if (!(best < result.lossInUse)) return { weights: null, result };
 
-  const weights = usableWeights(await opt.computeParameters(toItems(items), { enableShortTerm: false }));
-  result.adopted = !!weights;
-  return { weights, result };
+  const all = usableWeights(await opt.computeParameters(toItems(items), { enableShortTerm: true }));
+  if (!all) return { weights: null, result };
+  result.adopted = true;
+  result.kind = kind;
+  return { weights: kind === "own" ? all : withFirstGaps(all), kind, result };
 }
 
 // Every card's estimate, worked out again from its answers under `weights`,

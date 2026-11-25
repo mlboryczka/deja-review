@@ -4,6 +4,7 @@ import { CAT_DB_TO_UI } from "./lib/cardCategories";
 import { isArchived } from "./lib/archive";
 import { withLocalAnswers } from "./lib/directions";
 import { missingColumn } from "./lib/reviewLog";
+import { missingTable } from "./lib/dealLog";
 
 // Since migration_016 a card out of study says why (archived_reason), which
 // the lesson sync needs: a lesson card the student removed stays removed
@@ -11,6 +12,11 @@ import { missingColumn } from "./lib/reviewLog";
 // Before the migration the request is refused, and the deck is fetched again
 // without it, once per page.
 let askReasons = true;
+// Since migration_019 a card says how often its French is said, per million
+// words of French film and TV subtitles (said_per_million): the order new
+// cards come in reads it (lib/sessionQueue.js). Asked for the same way: while
+// the database has the column, and dropped first when a column is refused.
+let askSaid = true;
 
 // Loads the user's flashcard deck from user_cards.
 //
@@ -116,6 +122,9 @@ function shapeRow(row) {
     // When the card was added. Only read for tutor chat cards, which
     // came up in no class and are dated by this instead.
     created_at: row.created_at || null,
+    // How often its French is said, per million words (migration_019); 0 or
+    // null when it can't be counted, and the card keeps its place.
+    said: Number.isFinite(row.said_per_million) ? row.said_per_million : null,
     // FSRS scheduling state (migration_006). Nulls are legitimate:
     // a never-reviewed card has no stability and no last review.
     next_due_at: row.next_due_at || null,
@@ -139,17 +148,29 @@ function shapeRow(row) {
   };
 }
 
-export function useUserDeck(user) {
+// `table` and `store` are the Spanish module's (src/lib/course.js): its deck
+// is es_user_cards, kept in this browser under "es:<user id>". The French
+// deck is user_cards under the user id, as it always was.
+export function useUserDeck(user, { table = "user_cards", store = user?.id } = {}) {
   // Depend on the ID, not the object. supabase-js hands back a NEW user object
   // every time it refreshes the token — roughly hourly — and keying the effect
   // on the object meant every refresh re-downloaded the whole deck. The id is
   // what actually identifies whose deck this is.
   const userId = user?.id ?? null;
+  const storeId = userId ? store : null;
   // Seeded from the cache so the very first render already has a deck. Lazy
   // initialisers, so the read happens once rather than on every render.
-  const [cards, setCards] = useState(() => readCache(user?.id) || []);
-  const [loaded, setLoaded] = useState(() => readCache(user?.id) !== null);
+  const [cards, setCards] = useState(() => readCache(storeId) || []);
+  const [loaded, setLoaded] = useState(() => readCache(storeId) !== null);
+  // The table isn't there: the Spanish deck before migration_020 is run.
+  const [missing, setMissing] = useState(false);
   const [reloadCounter, setReloadCounter] = useState(0);
+  // The deck could not be read, and it is tried again (5s, 10s, 20s ... up to
+  // five minutes). While this is set the deck on screen may be the browser's
+  // old copy, so FlashcardApp says so.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const loadFailures = useRef(0);
+  const retryTimer = useRef(null);
   // The user whose deck is currently on screen. A refetch for that same user
   // (reload() after an edit, a delete, an upload, a card added from the tutor
   // chat) is a *background* refetch: it must not flip `loaded` back off.
@@ -182,12 +203,17 @@ export function useUserDeck(user) {
     }
     // A cached deck counts as loaded: the refetch below is then a background
     // refresh, exactly like a reload after an edit.
-    const cached = readCache(userId);
+    // Only on the first load for this user: a reload (an edit, "Check
+    // again") must keep the deck in memory, answers given since the last
+    // fetch included, until the refetch lands. The browser's copy is only as
+    // new as that fetch.
+    const known = loadedForUser.current === userId;
+    const cached = known ? null : readCache(storeId);
     if (cached) {
       setCards(cached);
       setLoaded(true);
       loadedForUser.current = userId;
-    } else if (loadedForUser.current !== userId) {
+    } else if (!known) {
       setLoaded(false);
     }
     (async () => {
@@ -199,14 +225,15 @@ export function useUserDeck(user) {
       let from = 0;
       while (true) {
         const { data, error } = await supabase
-          .from("user_cards")
+          .from(table)
           .select(
             "id, front, back, category, dates, flagged_for_review, batch_id, source, " +
               "next_due_at, lapses, stability, difficulty, fsrs_state, reps, " +
               "last_review, last_answer_correct, created_at, " +
               "en_next_due_at, en_lapses, en_stability, en_difficulty, en_fsrs_state, " +
               "en_reps, en_last_review, en_last_answer_correct" +
-              (askReasons ? ", archived_reason" : "")
+              (askReasons ? ", archived_reason" : "") +
+              (askSaid ? ", said_per_million" : "")
           )
           .eq("user_id", userId)
           // ORDER BY is not decoration here. A deck of several thousand cards
@@ -220,12 +247,19 @@ export function useUserDeck(user) {
           .range(from, from + PAGE - 1);
 
         if (cancelled) return;
+        if (error && askSaid && missingColumn(error)) {
+          askSaid = false;
+          allRows = [];
+          from = 0;
+          continue;
+        }
         if (error && askReasons && missingColumn(error)) {
           askReasons = false;
           allRows = [];
           from = 0;
           continue;
         }
+        if (missingTable(error)) setMissing(true);
         if (error) {
           console.error("Failed to load user deck:", error);
           // Keep whatever is already on screen. Blanking a cached deck over a
@@ -235,6 +269,11 @@ export function useUserDeck(user) {
           setCards((prev) => (prev.length ? prev : []));
           setLoaded(true);
           loadedForUser.current = userId;
+          setLoadFailed(true);
+          clearTimeout(retryTimer.current);
+          retryTimer.current = setTimeout(() => setReloadCounter((n) => n + 1),
+            Math.min(300000, 5000 * 2 ** loadFailures.current));
+          loadFailures.current += 1;
           return;
         }
         allRows = allRows.concat(data || []);
@@ -250,7 +289,9 @@ export function useUserDeck(user) {
       setArchived(allRows.filter(isArchived).map((row) => ({
         f: row.front, b: row.back, source: row.source, row_id: row.id, reason: row.archived_reason ?? null,
       })));
-        // Sort by frequency desc to match legacy buildDeck ordering
+        // Most-said first. buildSession keeps missed cards in this order and
+        // cuts at the set size, so when missed cards outnumber the set, the
+        // ones said most often make it (see lib/sessionQueue.js).
         shaped.sort((a, b) => b.freq - a.freq);
       const hourAgo = Date.now() - 60 * 60 * 1000;
       const mine = new Map();
@@ -258,17 +299,21 @@ export function useUserDeck(user) {
         if (w.at < hourAgo) localAnswers.current.delete(rowId);
         else mine.set(rowId, w.cols);
       }
+      loadFailures.current = 0;
+      setLoadFailed(false);
       setCards(withLocalAnswers(shaped, mine));
       setFetched((f) => ({ seq: f.seq + 1, at: startedAt }));
       setLoaded(true);
       loadedForUser.current = userId;
-      writeCache(userId, shaped);
+      setMissing(false);
+      writeCache(storeId, shaped);
     })();
 
     return () => {
       cancelled = true;
+      clearTimeout(retryTimer.current);
     };
-  }, [userId, reloadCounter]);
+  }, [userId, storeId, table, reloadCounter]);
 
   const reload = useCallback(() => setReloadCounter((n) => n + 1), []);
 
@@ -301,6 +346,14 @@ export function useUserDeck(user) {
     setCards((prev) => [...prev.filter((c) => c.row_id !== card.row_id), card]);
   }, []);
 
+  // Take out one card the app has just removed, without refetching, for the
+  // same reasons as add: the tutor's Remove (2026-10-28). The next load lists
+  // it among the cards out of study.
+  const drop = useCallback((rowId) => {
+    if (rowId == null) return;
+    setCards((prev) => prev.filter((c) => c.row_id !== rowId));
+  }, []);
+
   // Apply the same fields to every card: "Reset all progress", once its write
   // has succeeded. The cache is dropped rather than rewritten — the next load
   // writes it from the server.
@@ -308,8 +361,8 @@ export function useUserDeck(user) {
     // A reset: no answer from before it may be laid back over the next fetch.
     localAnswers.current.clear();
     setCards((prev) => prev.map((c) => ({ ...c, ...fields })));
-    try { if (userId) localStorage.removeItem(CACHE_PREFIX + userId); } catch {}
-  }, [userId]);
+    try { if (storeId) localStorage.removeItem(CACHE_PREFIX + storeId); } catch {}
+  }, [storeId]);
 
-  return { cards, archived, loaded, reload, patch, patchAll, add, freshSeq: fetched.seq, fetchedAt: fetched.at };
+  return { cards, archived, loaded, missing, reload, patch, patchAll, add, drop, freshSeq: fetched.seq, fetchedAt: fetched.at, loadFailed };
 }

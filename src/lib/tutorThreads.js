@@ -4,7 +4,9 @@
 // long-lived as it looks: the onboarding screen and the main app each render
 // their own, so adding the first card from the tutor swapped one for the other
 // and wiped the thread mid-conversation. Keyed by user, in memory only — it
-// never touches storage, and sign-out drops it.
+// never touches storage, and sign-out drops it. The Spanish tutor's thread
+// (2026-10-26) is kept apart, under "es:<user>" (lib/course.js), so that a
+// question about Spanish never arrives as turn nine of one about French.
 
 const threads = new Map();
 
@@ -20,6 +22,10 @@ export function writeThread(userId, messages) {
   if (userId) threads.set(userId, messages);
 }
 
+// Both of the user's threads, French and Spanish.
 export function clearTutorThread(userId) {
-  threads.delete(userId);
+  if (!userId) return;
+  for (const key of [...threads.keys()]) {
+    if (key === userId || key.endsWith(`:${userId}`)) threads.delete(key);
+  }
 }

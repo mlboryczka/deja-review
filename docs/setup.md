@@ -19,15 +19,21 @@ Anthropic for Claude.
    whole file into the editor and click **Run**. You should see "Success. No
    rows returned." This creates the tables, with row-level security so that
    each user can only see their own data.
-3. Run each file in `migrations/` the same way, in number order, from 002 to
-   015. Migrations 002 and 009 have the same email placeholder to replace.
-   Migration 003 has the original owner's address where the placeholder would
-   be, so replace that with yours too.
+3. Run every file in `migrations/` the same way, in number order, from 002 to
+   the highest number in the folder. Do not stop
+   at an older number: a copy built from `supabase/schema.sql` needs 025 to
+   save notes, and 024 and 025 replace the notes-saving functions that 016 and
+   023 install. Migrations 002 and 009 have the same email placeholder to
+   replace. Migration 003 has the original owner's address where the
+   placeholder would be, so replace that with yours too.
 
-Any migration can safely be run again except two. Running 004 again would
+Any migration can safely be run again except four. Running 004 again would
 blank the card numbers in the log of corrections. Running 007 again would
 overwrite every answered card's schedule with a guess and make them all due at
-once.
+once. Running 016 again after 025, or 023 again after 024, puts the older
+version of the notes-saving function back, and saving notes fails until 025
+(or 024) is run once more. If that happens, run 025 and 024 again; nothing is
+lost.
 
 ## 3. Set the sign-in addresses
 
@@ -38,6 +44,10 @@ Supabase. This is the step that's easiest to forget.
 2. Set **Site URL** to `http://localhost:5173` for now. You'll change it to
    your real address in step 7.
 3. Under **Redirect URLs**, add `http://localhost:5173`, and click **Save**.
+4. Open **Authentication** → **Email Templates**. In both the **Magic Link**
+   and the **Confirm signup** template (a first sign-in uses the second), add
+   `{{ .Token }}` to the message. The sign-in page asks for the emailed code,
+   and Supabase sends one only when the template includes it.
 
 ## 4. Copy your keys
 
@@ -64,7 +74,8 @@ in your inbox.
 
 Vite serves the app but not the server functions in `api/`, so anything that
 calls one only works on the deployed site: uploading notes, the linked
-notebook, the tutor, disputing a mark, and fitting each student's settings.
+notebook, the tutor, disputing a mark, fitting each student's settings, and
+Podcasts.
 
 ## 6. Deploy to Vercel
 
@@ -75,8 +86,9 @@ deploy, add these environment variables:
 - `VITE_SUPABASE_URL`: your Supabase URL.
 - `VITE_SUPABASE_ANON_KEY`: your anon key.
 - `VITE_ADMIN_EMAIL`: your email. It only decides whether the owner's menu
-  items are drawn. Anything starting with `VITE_` is built into the public
-  page, so it is never a security check.
+  items, and for now the Flashcards / Podcasts switch, are drawn. Anything
+  starting with `VITE_` is built into the public page, so it is never a
+  security check.
 - `SUPABASE_URL`: the same as `VITE_SUPABASE_URL`.
 - `SUPABASE_SERVICE_ROLE_KEY`: the service_role key.
 - `ADMIN_EMAIL`: your email. This is the real owner check, made on the server.
@@ -84,24 +96,29 @@ deploy, add these environment variables:
   [console.anthropic.com](https://console.anthropic.com). It pays for reading
   every student's linked notebook, Claude's review of feedback, the weekly
   tests of Claude's work, and your own requests. Students bring their own key
-  for theirs (see [Where Claude is used](where-claude-is-used.md#who-pays)).
+  for theirs (see [Claude's jobs, models and costs](claude-jobs-models-and-costs.md#who-pays)).
 - `CRON_SECRET`: any long random string. Vercel sends it with each scheduled
   run, and without it the scheduled runs refuse to start.
+- `VITE_API_BASE` is set only when building the planned iPhone app, which
+  needs to know which deployment to talk to. It defaults to the test app,
+  `https://dejareview-mlb.vercel.app`; `npm run ios:students` sets it to the
+  students' app, `https://dejareview.vercel.app`. A normal build leaves it
+  unset.
 
-Only the three `VITE_` settings reach the browser. `.env.example` lists them
-all.
+Only the `VITE_` settings reach the browser: the three above, and
+`VITE_API_BASE` for the iPhone build. `.env.example` lists them all.
 
 Deploying takes about a minute. Every push to `main` deploys again.
 
 Two things to know about Vercel's free Hobby plan:
 
-- It deploys at most 12 server functions, and this app has exactly 12, one per
-  file in `api/`. A 13th file fails the whole deployment. Shared code lives in
+- It deploys at most 12 server functions, and this app has 11, one per file
+  in `api/`. A 13th file fails the whole deployment. Shared code lives in
   `api/_lib/`, which doesn't count.
 - `vercel.json` sets four scheduled runs a day, all on `api/cahier-daily`. At
   13:00 UTC it reads the linked notebooks, at 14:00 it runs the status check on
-  every student, and at 15:00 and 16:00 it runs the tests of Claude's marking
-  and note reading when they are due.
+  every student, and at 15:00 and 16:00 it runs the tests of Claude's marking,
+  note reading and look-alike judging when they are due.
 
 ## 7. Give Supabase your real address
 

@@ -50,11 +50,13 @@ export function localISODate(d = new Date()) {
 
 // Whether a card has already had its review for the day.
 //
-// FSRS gets one answer per card per day: the first. The app's scheduler runs
-// with short-term steps off, which models memory across DAYS, and a second
-// answer minutes after the first says nothing about that — you have just been
-// shown the answer. Recording it anyway moved the schedule the wrong way every
-// time. Measured against this app's own scheduler settings:
+// FSRS gets one answer per card per day: the first, plus (since 2026-10-14,
+// see countsAnswer in sessionQueue.js) the repeat after a miss. The app's
+// scheduler runs with short-term steps off, which models memory across DAYS,
+// and a second answer minutes after the first says nothing about that — you
+// have just been shown the answer. Recording every such repeat moved the
+// schedule the wrong way each time. Measured against this app's own scheduler
+// settings, before that change:
 //
 //   • a known card missed, then right on the retry: due in 3 days became 4,
 //     and last_answer_correct flipped back to true, so the miss lost its place

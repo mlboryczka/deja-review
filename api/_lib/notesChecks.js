@@ -31,6 +31,8 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import * as cardMaking from "../parse-cahier.js";
 import { missingTable } from "../../src/lib/dealLog.js";
+import { lessonIdOf } from "../../src/lib/lessonSource.js";
+import { addedByStudent } from "../../src/lib/sessionQueue.js";
 import { pooled, outcome, tally } from "./evalRuns.js";
 
 const { EXTRACTION_PROMPT, EXTRACTION_MODEL } = cardMaking;
@@ -38,16 +40,30 @@ const { EXTRACTION_PROMPT, EXTRACTION_MODEL } = cardMaking;
 export const NOTES_RUNS = 3;
 const AT_ONCE = 20;
 
-// The code a class goes through to become cards: the whole of
-// api/parse-cahier.js (the question, the model, cutting the cahier into
-// classes, and every step that tidies Claude's reply, cardsFromExtracted
-// included) and the two app files it leans on. Read as text so that a change
-// to any helper counts, not only to the functions it exports; a change
-// anywhere else in parse-cahier.js counts too, and costs one extra run.
-const SOURCES = ["../parse-cahier.js", "../../src/lib/cardInstruction.js", "../../src/lib/cardTypes.js"];
+// The code a class goes through to become cards: the part of
+// api/parse-cahier.js that reads a class (its tables of months and pronouns,
+// and everything from cutting the cahier into classes to the last step that
+// tidies Claude's reply, cardsFromExtracted included, but not the request
+// handlers, the sign-in or the saving), and the app files it leans on,
+// including sameCard.js, which decides which repeated cards are one. Read as
+// text so that a change to any helper counts. An edit to the handlers (the
+// iPhone-app lines of 2026-11) is not a change to how a class is read, so it
+// doesn't give the test a new version.
+const SOURCES = ["../../src/lib/cardInstruction.js", "../../src/lib/cardTypes.js", "../../src/lib/sameCard.js", "../../src/lib/cardText.js"];
+// The reading path of parse-cahier.js: from its small tables to the request
+// handler, then from cutting a cahier into classes to the end of the file.
+export function readingPathOf(text) {
+  const t = String(text);
+  const tables = t.indexOf("const MONTHS_FR");
+  const handler = t.indexOf("export default async function handler");
+  const reading = t.indexOf("export function sliceIntoBlocks");
+  if (tables < 0 || handler < tables || reading < handler) return t;
+  return t.slice(tables, handler) + t.slice(reading);
+}
 function sourceText() {
   try {
-    return SOURCES.map((p) => readFileSync(new URL(p, import.meta.url), "utf8")).join("\n");
+    const cahier = readingPathOf(readFileSync(new URL("../parse-cahier.js", import.meta.url), "utf8"));
+    return [cahier, ...SOURCES.map((p) => readFileSync(new URL(p, import.meta.url), "utf8"))].join("\n");
   } catch {
     // Wherever the files can't be read, the exported functions' own text.
     return Object.values(cardMaking).map((v) => (typeof v === "function" ? v.toString() : String(v))).join("\n");
@@ -123,9 +139,26 @@ export function judge(c, cards) {
 export function buildCases(corrections, cardsById, blocks) {
   const classes = blocks.map((b) => ({ ...b, l: loose(b.text) }));
   const out = [];
-  for (const c of corrections) {
+  // A change put back (the tutor's change, then Undo, which logs the reverse
+  // edit) leaves the card as Claude read it: neither entry is a misreading.
+  const same = (x, y) => tidy(x) === tidy(y);
+  const reverses = (later, first) => later.card_id != null && later.card_id === first.card_id &&
+    same(later.original_front, first.corrected_front) && same(later.original_back, first.corrected_back) &&
+    same(later.corrected_front, first.original_front) && same(later.corrected_back, first.original_back);
+  const undone = new Set();
+  corrections.forEach((first, i) => {
+    if (first.action === "delete" || undone.has(i)) return;
+    const j = corrections.findIndex((later, k) => k > i && !undone.has(k) && later.action !== "delete" && reverses(later, first));
+    if (j >= 0) { undone.add(i); undone.add(j); }
+  });
+  for (const [at, c] of corrections.entries()) {
+    if (undone.has(at)) continue;
     const kind = caseKind(c);
     if (!kind) continue;
+    // A lesson card, or one the student added (the tutor, a podcast), never
+    // came from the notes, so correcting it says nothing about how they are read.
+    const made = cardsById.get(c.card_id);
+    if (made && (lessonIdOf(made) || addedByStudent(made))) continue;
     const before = String(c.created_at || "9999").slice(0, 10);
     const words = [c.original_front, c.corrected_front, String(c.original_front || "").split(/[:(=<]/)[0]]
       .map(loose).filter((t) => t.length >= 3);
@@ -165,15 +198,21 @@ const WAITING = "Waiting for the database update (migration_015).";
 // `store`: corrections(), cards(ids), link(userId), runs(), saveRun(row).
 // `readDoc(url)`: the notebook's text. `blocksOf(text)`: its classes.
 async function loadCases({ store, readDoc, blocksOf }) {
-    const corrections = (await store.corrections()).rows || [];
+    const got = await store.corrections();
+    if (got.error) throw new Error(`couldn't read the corrections: ${got.error}`);
+    const corrections = got.rows || [];
     const users = [...new Set(corrections.map((c) => c.user_id))];
-    const cards = (await store.cards(corrections.map((c) => c.card_id).filter(Boolean))).rows || [];
+    const found = await store.cards(corrections.map((c) => c.card_id).filter(Boolean));
+    if (found.error) throw new Error(`couldn't read the corrected cards: ${found.error}`);
+    const cards = found.rows || [];
     const cardsById = new Map(cards.map((c) => [c.id, c]));
     const cases = [];
     const blocksByUser = new Map();
     const problems = [];
     for (const user of users) {
-      const link = (await store.link(user)).row;
+      const got = await store.link(user);
+      if (got.error) { problems.push(`Couldn't read a student's linked notebook: ${got.error}`); continue; }
+      const link = got.row;
       if (!link?.doc_url) { problems.push("A student whose corrections these are has no linked notebook."); continue; }
       try {
         blocksByUser.set(user, blocksOf(await readDoc(link.doc_url)));
@@ -216,7 +255,9 @@ export const notesPass = (c) => notesJudge(c) === "pass";
 // for nothing; a case with none is counted apart as untried. `read(block)` is
 // one reading of a class, as cards.
 export async function runNotesTest({ store, readDoc, blocksOf, read, deadline = Infinity }) {
-  const { cases, blocksByUser, problems } = await loadCases({ store, readDoc, blocksOf });
+  let loaded;
+  try { loaded = await loadCases({ store, readDoc, blocksOf }); } catch (e) { return { skipped: e.message }; }
+  const { cases, blocksByUser, problems } = loaded;
   const testable = cases.filter((c) => c.date);
   if (!testable.length) return { skipped: problems[0] || "No corrections to test yet." };
   const keys = [...new Set(testable.map((c) => `${c.user_id}|${c.date}`))];
@@ -257,7 +298,7 @@ export function supabaseNotesStore(db) {
     },
     async cards(ids) {
       if (!ids.length) return { rows: [] };
-      return out(await db.from("user_cards").select("id, front, back, dates").in("id", [...new Set(ids)]));
+      return out(await db.from("user_cards").select("id, front, back, dates, source").in("id", [...new Set(ids)]));
     },
     async link(userId) {
       const { data, error } = await db.from("cahier_links").select("doc_url").eq("user_id", userId).maybeSingle();

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { docIdFrom } from "./lib/docId.js";
 import { supabase } from "./supabase";
 import { T } from "./theme";
 
@@ -23,9 +24,14 @@ import { runUpload } from "./lib/uploadRun";
 //   onSuccess     — called with the server response on successful upload
 //   hasExisting   — if true, shows a "replace existing deck" checkbox
 //   cahier        — useCahierSync(): the linked doc, and the sync itself
+//   caderno       — the Spanish module's (2026-11-02): only the link, to
+//                   Laura's doc of the Spanish classes. Notes are never
+//                   pasted or uploaded in Spanish.
 
-export function CahierUpload({ open, onClose, onSuccess, hasExisting, initialTab, user, cahier }) {
-  const [tab, setTab] = useState(initialTab || "paste"); // paste | file | link
+export function CahierUpload({ open, onClose, onSuccess, hasExisting, initialTab, user, cahier, caderno = false }) {
+  const [tabChosen, setTab] = useState(initialTab || "paste"); // paste | file | link
+  const tab = caderno ? "link" : tabChosen;
+  const notes = caderno ? "caderno" : "cahier";
   const [url, setUrl] = useState("");
   // When the modal is reopened with a different initialTab, switch to it.
   useEffect(() => {
@@ -182,25 +188,28 @@ export function CahierUpload({ open, onClose, onSuccess, hasExisting, initialTab
     // until none are left.
     if (tab === "link") {
       const href = url.trim();
-      if (!href.includes("docs.google.com/document/")) {
+      if (!href.includes("docs.google.com/document/") || !docIdFrom(href)) {
         setError("That should be a Google Doc link, like https://docs.google.com/document/d/…");
         return;
       }
       setStatus("uploading");
-      setProgress("Reading your cahier…");
+      setProgress(`Reading your ${notes}…`);
       const result = await cahier?.sync({
         url: href,
         force: true,
         onProgress: (run) => setProgress(
           run.remaining
-            ? `Adding your classes… ${run.addedSoFar} cards so far, ${run.remaining} classes to go`
-            : `Adding your classes… ${run.addedSoFar} cards so far`
+            ? `Adding your classes… ${run.addedSoFar} ${run.addedSoFar === 1 ? "card" : "cards"} so far, ${run.remaining} ${run.remaining === 1 ? "class" : "classes"} to go`
+            : `Adding your classes… ${run.addedSoFar} ${run.addedSoFar === 1 ? "card" : "cards"} so far`
         ),
       });
       setStatus("idle");
       setProgress("");
-      if (!result?.ok) { setStatus("error"); setError(result?.error || "Couldn't read that cahier."); return; }
+      if (!result?.ok) { setStatus("error"); setError(result?.error || `Couldn't read that ${notes}.`); return; }
       setUrl("");
+      // Linked, but a class couldn't be read this time: the link and the cards
+      // already added stand.
+      if (result.error) setError(`Your ${notes} is linked, but one class couldn't be read this time: ${result.error}`);
       onSuccess?.({
         linked: true,
         cardsInserted: result.cards,
@@ -212,7 +221,7 @@ export function CahierUpload({ open, onClose, onSuccess, hasExisting, initialTab
 
     if (tab === "paste" || tab === "file") {
       if (!text.trim() || text.trim().length < 50) {
-        setError("Please paste your cahier text (at least 50 characters).");
+        setError(tab === "file" ? "Choose a .txt, .pdf or .docx file with your class notes first." : "Please paste your cahier text (at least 50 characters).");
         return;
       }
       mode = "text";
@@ -277,7 +286,7 @@ export function CahierUpload({ open, onClose, onSuccess, hasExisting, initialTab
       }
       if (res.status >= 500) {
         throw new Error(
-          `Server error (HTTP ${res.status}). The function may have crashed — check Vercel logs.`
+          "Something went wrong on the server. Try again in a few minutes."
         );
       }
       throw new Error(
@@ -294,7 +303,7 @@ export function CahierUpload({ open, onClose, onSuccess, hasExisting, initialTab
     <div style={M.overlay} onClick={status === "uploading" ? null : onClose}>
       <div style={M.modal} onClick={(e) => e.stopPropagation()}>
         <div style={M.header}>
-          <h2 style={M.title}>Upload your cahier</h2>
+          <h2 style={M.title}>{caderno ? "Link your caderno" : "Upload your cahier"}</h2>
           {status !== "uploading" && (
             <button style={M.closeBtn} onClick={onClose} aria-label="Close">
               ×
@@ -303,10 +312,10 @@ export function CahierUpload({ open, onClose, onSuccess, hasExisting, initialTab
         </div>
 
         <p style={M.desc}>
-          Your lesson notes, turned into cards.
+          {caderno ? "The notes of your Spanish classes, turned into cards." : "Your class notes, turned into cards."}
         </p>
 
-        <div style={M.tabs}>
+        {!caderno && <div style={M.tabs}>
           {[
             ["paste", "Paste text"],
             ["file", "Upload file"],
@@ -324,7 +333,7 @@ export function CahierUpload({ open, onClose, onSuccess, hasExisting, initialTab
               {label}
             </button>
           ))}
-        </div>
+        </div>}
 
         <div style={M.tabBody}>
           {tab === "paste" && (
@@ -403,9 +412,9 @@ fonder / créer une entreprise
                 disabled={status === "uploading"}
               />
               <p style={M.linkText}>
-                The app reads the doc when you open it, and once a day. Any line it hasn't
-                read before becomes cards. A word you already have only gets the new class
-                date, so nothing you've studied changes.
+                {caderno
+                  ? "The app reads the doc once a day by itself, and again when you open Spanish (at most once an hour). Any line it hasn't read before becomes cards: words and phrases, not grammar. A word you already have only gets the new class date, so nothing you've studied changes."
+                  : "The app reads the doc when you open it, and once a day. Any line it hasn't read before becomes cards. A word you already have only gets the new class date, so nothing you've studied changes."}
               </p>
               <p style={M.linkText}>
                 The doc has to be shared so that anyone with the link can view it.
@@ -418,10 +427,10 @@ fonder / créer une entreprise
                       ? `Last checked ${timeAgo(cahier.link.last_checked_at)}.`
                       : "Not checked yet."}
                     {cahier.link.last_result?.cards
-                      ? ` Last added ${cahier.link.last_result.cards.toLocaleString()} cards from ${cahier.link.last_result.dates?.length || 0} classes.`
+                      ? ` Last added ${cahier.link.last_result.cards.toLocaleString()} ${cahier.link.last_result.cards === 1 ? "card" : "cards"} from ${cahier.link.last_result.dates?.length || 0} ${cahier.link.last_result.dates?.length === 1 ? "class" : "classes"}.`
                       : ""}
                   </div>
-                  {cahier.link.last_error && <div style={M.error}>{cahier.link.last_error}</div>}
+                  {(cahier.error || cahier.link.last_error) && <div style={M.error}>{cahier.error || cahier.link.last_error}</div>}
                   <div style={M.linkedActions}>
                     <button style={M.smallBtn} disabled={cahier.checking} onClick={() => cahier.sync({ force: true })}>
                       {cahier.checking ? "Checking…" : "Check now"}
@@ -464,9 +473,9 @@ fonder / créer une entreprise
           <button
             style={M.submitBtn}
             onClick={handleSubmit}
-            disabled={status === "uploading"}
+            disabled={status === "uploading" || (tab === "link" && !!cahier?.checking)}
           >
-            {status === "uploading" ? "Uploading…" : "Upload"}
+            {caderno || tab === "link" ? (status === "uploading" ? "Linking…" : "Link") : status === "uploading" ? "Uploading…" : "Upload"}
           </button>
         </div>
       </div>
@@ -602,11 +611,6 @@ const M = {
     fontFamily: T.font.sans,
     color: T.color.onSurface,
   },
-  fileInput: {
-    fontSize: 14,
-    marginBottom: 8,
-    fontFamily: T.font.sans,
-  },
   dropZone: {
     border: `2px dashed rgba(3,22,50,0.12)`,
     borderRadius: T.radius.xl,
@@ -638,15 +642,6 @@ const M = {
   dropZoneTextSub: {
     fontSize: 12,
     color: T.color.onSurfaceVariant,
-  },
-  filePreview: {
-    padding: 12,
-    background: T.color.tertiaryFixed,
-    color: T.color.onSecondaryContainer,
-    borderRadius: T.radius.lg,
-    fontSize: 13,
-    marginTop: 10,
-    fontWeight: 500,
   },
   linkText: { fontFamily:T.font.sans, fontSize:13, lineHeight:1.7, color:T.color.onSurfaceVariant, margin:"14px 0 0" },
   linkedBox: { marginTop:16, padding:"12px 14px", borderRadius:10, background:T.color.surfaceHigh,

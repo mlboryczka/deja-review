@@ -2,11 +2,12 @@
 //
 // Everything here is read back from the lesson data rather than typed in, so
 // adding a second lesson or renaming a section can't silently go stale. The
-// deck served to the app IS the lesson's own cards, which also means the
-// once-per-mount sync finds nothing missing and writes nothing — the mock
-// serves GET and PATCH only.
+// deck served to the app IS the lesson's own cards. The once-per-mount sync
+// still sends its writes; this suite's stand-in serves reads only and
+// does not look at them. lesson-sync.mjs is where the sync's writes
+// are checked.
 
-import { openApp, finish, checker, servedDeck, sessionCounter } from "../harness.mjs";
+import { openApp, finish, checker, sessionCounter } from "../harness.mjs";
 import LESSON from "../../src/data/lessons/imperatif.js";
 
 const ck = checker();
@@ -214,12 +215,16 @@ ck("the space before ! is a narrow no-break space", spacing === "U+202F", spacin
 const stillOpen = async (what) =>
   ck(`${what} leaves the notes open`, (await page.$("[data-lesson-panel]")) !== null);
 
-await page.evaluate(() => {
-  const card = [...document.querySelectorAll("div")].find(
-    (d) => d.getBoundingClientRect().width > 300 && /→|Tap to reveal/.test(d.innerText || "")
-  );
-  (card || document.querySelector("main")).click();
-});
+// A real click at the centre of the card itself (the element that turns), not a
+// script click on an outer frame that the card never hears.
+{
+  const box = await page.evaluate(() => {
+    const el = [...document.querySelectorAll("div")].find((d) => getComputedStyle(d).transformStyle === "preserve-3d");
+    const r = el?.getBoundingClientRect();
+    return r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
+  });
+  if (box) await page.mouse.click(box.x, box.y);
+}
 await page.waitForTimeout(400);
 await stillOpen("clicking the card");
 
@@ -251,8 +256,17 @@ const barText = () => page.evaluate(() => document.querySelector("[data-lesson-p
 const total = LESSON.cards.length;
 const startBar = `0/${total} remembered`;
 ck("the bar shows the lesson's progress", (await barText()) === startBar, await barText());
-await page.keyboard.press("ArrowRight");
-await page.waitForTimeout(300);
+// Answer the card for real: on a card not yet turned over the first press only
+// turns it, so press until the counter moves on (at most three times).
+{
+  let c = await sessionCounter(page);
+  for (let i = 0; i < 3 && c?.index === 1; i++) {
+    await page.keyboard.press("ArrowRight");
+    await page.waitForTimeout(300);
+    c = await sessionCounter(page);
+  }
+  ck("a card was really answered (the counter moved on)", c?.index === 2, JSON.stringify(c));
+}
 ck("an answer does not move it", (await barText()) === startBar, await barText());
 {
   // Work the rest of the block through to its checkpoint.
@@ -278,10 +292,5 @@ ck("at the checkpoint it moves by the grammar just learned, not the phrases met 
    Math.abs(n - grammarInBlock) <= 1, `${shown}; ${grammarInBlock} grammar cards in the block`);
 ck("and the checkpoint names the lesson as what moved", await page.evaluate((t) =>
   document.querySelector("[data-checkpoint]").innerText.includes(t), LESSON.title));
-
-// The fixture is the lesson, so the sync had nothing to do. Confirm it did not
-// quietly rewrite the deck behind us.
-const after = await servedDeck();
-ck("the mock deck is still intact", Array.isArray(after), `${after.length} rows`);
 
 await finish(browser, ck);

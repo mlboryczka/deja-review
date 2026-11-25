@@ -1,6 +1,6 @@
 # Déjà Review
 
-[![Tests](https://github.com/mlboryczka/french-flashcards/actions/workflows/tests.yml/badge.svg)](https://github.com/mlboryczka/french-flashcards/actions/workflows/tests.yml)
+[![Tests](https://github.com/mlboryczka/deja-review/actions/workflows/tests.yml/badge.svg)](https://github.com/mlboryczka/deja-review/actions/workflows/tests.yml)
 
 Déjà Review is a flashcard app for learning French, built around the notebook a
 student keeps with their teacher. Claude reads each new class in the notebook
@@ -8,7 +8,7 @@ and turns it into flashcards. A model of memory called FSRS then decides which
 cards the student sees each day, so that each word comes back shortly before it
 would be forgotten.
 
-Live at [french-flashcards-nine.vercel.app](https://french-flashcards-nine.vercel.app).
+Live at [dejareview.vercel.app](https://dejareview.vercel.app).
 
 ![Studying a lesson card, with the lesson's notes open beside it](docs/screenshots/studying.png)
 
@@ -16,7 +16,7 @@ Live at [french-flashcards-nine.vercel.app](https://french-flashcards-nine.verce
 
 ### Evaluation harness
 
-Every morning the server runs eleven checks on every student's record of
+Every morning the server runs fourteen checks on every student's record of
 answers and their deck. They confirm that each answer was scheduled the way
 FSRS says, that no card came up before it was due, that missed cards came back
 first and new cards arrived in the agreed order, that FSRS's predictions match
@@ -30,10 +30,8 @@ and its judging of whether two look-alike cards are the same card against
 repeats the owner put away and pairs that must stay apart. Before any change
 to scheduling, simulated students study for six months with the app's own
 code, including messy ones who reload mid-set or wander off into a lesson. And
-36 test suites run on GitHub on every push.
+every test suite in `tests/suites` runs on GitHub on every push.
 [Evaluation harness](docs/evaluation-harness.md)
-
-![The Status window, where the owner sees the nine checks](docs/screenshots/status.png)
 
 ### Cards from class notes
 
@@ -43,13 +41,13 @@ the notes is read once, however they come in, so uploading an updated notebook
 adds only what is new, and a word taught again keeps its card and gains the
 new date. Only what can be answered by typing becomes a card: a
 conjugation table becomes one drill per form, and a grammar rule makes no card
-at all. [How class notes become cards](docs/cards-from-notes.md)
+at all. [Class notes to flashcards](docs/class-notes-to-flashcards.md)
 
 ### Scheduling fitted to each student
 
 Each word has two schedules, one from French and one from English, because
 recognising a word and producing it are different skills. Once a student has
-given about 1,000 answers, FSRS is fitted to how that student forgets, and the
+given about 350 answers, FSRS is fitted to how that student forgets, and the
 fitted version is used only if it predicts their newest answers better than
 the settings already in use. The study day runs from 4am to 4am in the
 student's own time zone, so a late session counts as one day.
@@ -62,14 +60,30 @@ conjugation drill must be exact, because typo tolerance would accept the very
 mistake being drilled, such as "je vend" for *je vends*. A student who thinks
 a mark is wrong can ask Claude to judge it, and an answer Claude accepts is
 accepted for that student from then on.
-[Where Claude is used](docs/where-claude-is-used.md)
+[Claude's jobs, models and costs](docs/claude-jobs-models-and-costs.md)
 
 ### Lessons
 
-There are seven built-in lessons, six of them from Laura Caufour's LFL METHOD
-course, each with notes that sit beside the card while the student answers.
-The five beginner lessons come up in daily cards from the start, and each
-student chooses which of the others to add.
+The students' app has seven built-in French lessons: Leçons 1 to 5 of Laura
+Caufour's LFL METHOD beginner course, L'impératif and the adverbs. The test
+app has 34: the whole 20-lesson beginner course, in four stages of five, and
+14 lessons on single subjects, such as L'impératif and the subjunctive. Each
+lesson has notes that sit beside the card while the student answers. Leçons 1
+to 5 come up in daily cards from the start, and each student chooses which of
+the others to add.
+
+### Spanish, on the test app
+
+Spanish is a second language beside French, on the test app only for now. A
+flag in the top-right corner switches between the two, and each keeps its own
+deck and progress. It follows a 23-lesson Latin American Spanish course
+adapted from Laura Caufour's LFL METHOD, with three ways to practise each
+lesson: Flashcards of its words and phrases, Exercises that ask every item of
+its exercise sheets, and Dialogues, where the student types the lesson's text
+back into Spanish from its English. Laura's Google Doc of the classes is read
+into cards by itself, as the French notebook is. On Stats each Spanish lesson
+has three bars, Words, Grammar and Text, and is rated Not started, Learning or
+Learned by its weakest part.
 
 ### Feedback reviewed by Claude
 
@@ -90,12 +104,15 @@ known both ways round.
 ## How it's built
 
 - React 18 and Vite, with no router and no CSS framework.
+- Capacitor, which wraps the same pages as an iPhone app (`ios/`).
 - Supabase: Postgres with row-level security, and sign-in by emailed link.
-- Vercel: 12 server functions, the most its free plan allows, and four
+- Vercel: 11 server functions, one fewer than its free plan allows, and four
   scheduled runs a day.
-- Claude, called only from the server: Haiku 4.5 reads class notes, Opus 5
-  judges disputed marks, Opus 5.5 reviews feedback and settles look-alike
-  cards, and Sonnet 5 is the tutor.
+- Claude, called only from the server: Haiku 4.5 reads class notes; Opus 5
+  judges disputed marks; Opus 5.5 reviews feedback, settles look-alike cards,
+  writes and marks the listening questions in Podcasts, and marks Spanish
+  Exercises and Dialogues; Sonnet 5.5 reads the Spanish caderno; and Sonnet 5
+  is the tutor.
 - ts-fsrs for scheduling, and the FSRS team's optimizer for fitting each
   student's settings.
 - Playwright driving headless Chromium for the browser tests, and GitHub
@@ -104,7 +121,7 @@ known both ways round.
 ## Built with Claude Code
 
 The app is built with Claude Code. Each working session starts from the
-[working notes](french%20flashcards%20context.md), which describe the app as it
+[working notes](dejareview%20design%20and%20decisions.md), which describe the app as it
 is, record each of the owner's decisions with its date and reason, and list
 what is still open. They are updated with every change. How a lesson is made is
 written down as a [skill](.claude/skills/building-lessons/SKILL.md) that Claude
@@ -114,9 +131,9 @@ follows.
 
 - [Evaluation harness](docs/evaluation-harness.md)
 - [How cards are scheduled](docs/scheduling.md)
-- [How class notes become cards](docs/cards-from-notes.md)
-- [Where Claude is used, and who pays](docs/where-claude-is-used.md)
+- [Class notes to flashcards](docs/class-notes-to-flashcards.md)
+- [Claude's jobs, models and costs](docs/claude-jobs-models-and-costs.md)
 - [Running your own copy](docs/setup.md)
 - [The tests guide](tests/README.md): every test suite, and what each checks
-- [The working notes](french%20flashcards%20context.md): the full design
+- [dejareview design and decisions](dejareview%20design%20and%20decisions.md): the full design
   history

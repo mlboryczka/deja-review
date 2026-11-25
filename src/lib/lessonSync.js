@@ -44,7 +44,7 @@ export const ADOPTED_SOURCE = "cahier-upload";
  * @param {Array} deckCards shaped deck rows from useUserDeck
  * @param {Array} archivedCards the rows out of study ({ f, b, source, reason }),
  *             from useUserDeck's `archived`
- * @returns {{ missing: Array, rekey: Array, retext: Array, stale: number[], archive: number[], adopt: number[], unkeyed: Array, taken: Array, away: Array }}
+ * @returns {{ missing: Array, rekey: Array, retext: Array, recat: Array, stale: number[], archive: number[], adopt: number[], unkeyed: Array, taken: Array, away: Array }}
  *   missing — lesson cards this deck has no row for, ready for insert
  *             (the caller adds user_id)
  *   rekey   — legacy rows that DO match a lesson card, re-upserted on the same
@@ -57,6 +57,16 @@ export const ADOPTED_SOURCE = "cahier-upload";
  *             the rename neither retires the row nor resets its FSRS state.
  *             Only rows whose stored front is still exactly the old text are
  *             rewritten — one the user edited is theirs and is left alone.
+ *             Likewise a card whose sixth element is the back it used to
+ *             have: a row still showing that old back takes the new one.
+ *   recat   — { row_id, category, back } for rows the lesson now asks as a
+ *             word or a phrase although they were written as grammar cards:
+ *             the Spanish module's sentences to translate, when its grammar
+ *             cards went (owner, 2026-10-25). Same card, same history; the
+ *             row's category is what makes it asked both ways round, and it
+ *             takes the lesson's English too, which is now a prompt ("I tried
+ *             to open the door… (with querer)"). Once only, as the row is a
+ *             phrase after it, and only G to V or E: nothing else is moved.
  *   stale   — row_ids to delete: keyed rows whose lesson no longer has them,
  *             never answered either way, so there is nothing to lose
  *   archive — row_ids of keyed rows the lesson no longer has that the student
@@ -105,6 +115,7 @@ export function reconcileLessons(lessons, deckCards, archivedCards = []) {
   const missing = [];
   const rekey = [];
   const retext = [];
+  const recat = [];
   const stale = [];
   const archive = [];
   const adopt = [];
@@ -126,11 +137,14 @@ export function reconcileLessons(lessons, deckCards, archivedCards = []) {
   const ownCards = [...(deckCards || []), ...outOfStudy].filter((card) => !lessonIdOf(card));
   const own = new Set(ownCards.map((card) => card.f));
   const ownIndex = cardIndex(ownCards.map((card) => ({ front: card.f, back: card.b, source: card.source })));
+  // Every front the deck has, in study or out of it: the database allows one
+  // card per front, so a card cannot be renamed onto one of them.
+  const allFronts = new Set([...(deckCards || []), ...outOfStudy].map((card) => card.f));
   const ownHas = (c) => own.has(c.f) || !!ownIndex.sure({ front: c.f, back: c.b });
 
   for (const lesson of lessons) {
     const want = new Map(
-      lesson.cards.map(([f, b, c, , was]) => [lessonCardKey(was ?? f), { f, b, c, was }])
+      lesson.cards.map(([f, b, c, , was, wasBack]) => [lessonCardKey(was ?? f), { f, b, c, was, wasBack }])
     );
     const have = (deckCards || []).filter((card) => lessonIdOf(card) === lesson.id);
     const claimed = new Set();
@@ -147,7 +161,20 @@ export function reconcileLessons(lessons, deckCards, archivedCards = []) {
           claimed.add(stored);
           const c = want.get(stored);
           if (c.was && card.f === c.was && card.row_id != null) {
+            // The new wording is already a card of the student's: the rename
+            // would be refused by the database and stop the whole update.
+            if (allFronts.has(c.f) || ownHas(c)) taken.push({ lesson: lesson.id, front: c.f });
+            else retext.push({ row_id: card.row_id, front: c.f, back: c.b });
+          } else if (c.wasBack && card.f === c.f && card.b === c.wasBack && card.row_id != null) {
+            // The lesson corrected the English it shows (a sixth element, the
+            // back it used to have): written to rows still showing the old
+            // one, so the prompt changes and nothing else does. "¿Qué tienen
+            // sobre México?" lost its "(ustedes)" on screen (code check
+            // 2026-11-07, no. 11).
             retext.push({ row_id: card.row_id, front: c.f, back: c.b });
+          }
+          if (card.cat === "gram" && (c.c === "V" || c.c === "E") && card.row_id != null) {
+            recat.push({ row_id: card.row_id, category: c.c, back: c.b });
           }
         } else if (card.row_id != null) {
           if (fromNotes(card)) adopt.push(card.row_id);
@@ -187,5 +214,5 @@ export function reconcileLessons(lessons, deckCards, archivedCards = []) {
     }
   }
 
-  return { missing, rekey, retext, stale, archive, adopt, unkeyed, taken, away };
+  return { missing, rekey, retext, recat, stale, archive, adopt, unkeyed, taken, away };
 }

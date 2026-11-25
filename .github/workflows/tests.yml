@@ -13,7 +13,7 @@ name: Tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, testing]
   pull_request:
   workflow_dispatch:
 
@@ -41,6 +41,11 @@ jobs:
 
       - name: Simulated students through the status check
         run: npm run simulate
+
+      # The suites that run the real SQL need initdb, pg_ctl and psql; the
+      # runner has Postgres installed but not on the PATH.
+      - name: Postgres on the PATH for the suites that run the real SQL
+        run: ls -d /usr/lib/postgresql/*/bin | sort -V | tail -1 >> "$GITHUB_PATH"
 
       - name: Every test suite
         run: npm test

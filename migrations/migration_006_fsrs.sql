@@ -34,8 +34,10 @@
 -- is migration_007's job. The two were originally one file, and the seeding
 -- half was wrong (it read the `dates` array — cahier lesson dates — as if it
 -- were review history, which marked every card as already-in-review). Keeping
--- the seeding in its own re-runnable file means running this one again can
--- never undo the correction.
+-- the seeding in its own file means running this one again can never undo the
+-- correction. migration_007 itself must never be run again: it would replace
+-- every answered card's schedule with a guess, so it stops with a message once
+-- any answer is kept.
 
 alter table public.user_cards
   add column if not exists stability real,

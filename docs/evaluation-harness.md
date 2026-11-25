@@ -5,7 +5,7 @@ early, a missed word fails to come back first, or a schedule is saved from the
 wrong answer, the student still just sees cards, and nothing looks broken. So
 Déjà Review checks its own work in four ways:
 
-1. **The status check**: eleven checks on every student's real record of
+1. **The status check**: fourteen checks on every student's real record of
    answers and their deck, run every morning.
 2. **Tests of Claude's work**: its marking of disputed answers, its reading
    of class notes, and its judging of whether two look-alike cards are the
@@ -13,9 +13,7 @@ Déjà Review checks its own work in four ways:
    studies with it) has already made.
 3. **Simulated students**, who study for six months with the app's own code,
    including messy ones who reload and wander off mid-set.
-4. **36 test suites**, run on GitHub on every push.
-
-![The Status window: each of the nine checks with its result](screenshots/status.png)
+4. **Every test suite in `tests/suites`**, run on GitHub on every push.
 
 ## The status check
 
@@ -39,8 +37,11 @@ The checks, as the reports name them:
 1. *Every answer was scheduled the way FSRS says.* Each answer is replayed
    through FSRS. The stored memory estimates must match to four figures, and
    the gap must fall within FSRS's usual random spread.
-2. *FSRS counted one answer per card, each way, each day.* Only the day's first
-   answer may move a schedule. A retry later in the set is practice.
+2. *FSRS counted each way's first answer of the day, and the repeat after a
+   miss.* From 2026-10-15 a later answer may count only after a counted miss
+   that day. The record doesn't say which later answer was the retry (a card
+   asked again after a detour into a lesson isn't one), so one left uncounted
+   passes. Before then only the day's first answer counted.
 3. *Every card's schedule is its last answer's result.*
 
 **Following the app's rules**
@@ -49,28 +50,49 @@ The checks, as the reports name them:
 5. *Due cards came before new ones, missed cards first.*
 6. *New cards came in the agreed order.* The rules are written out again inside
    the check rather than borrowed from the code that deals the cards, so a
-   mistake in that code can't hide in its own check.
+   mistake in that code can't hide in its own check. From 2026-10-14 older
+   classes' cards come most said first. Each set records how often each new
+   card in it is said, as the app knew it then, so a set dealt before the
+   counts, or from a deck loaded before them, is judged by the order it was
+   dealt in. A card counted after the set was dealt isn't judged by its
+   count, and a counted card isn't judged against one that wasn't.
 7. *A new word met one way at a time.* A word's French-to-English and
    English-to-French questions are never both new on the same day.
-8. *Every card asked came from a set, never straight back.*
+8. *A word was asked one way a day.* Added 2026-10-14. From 2026-10-15 no word
+   is answered both ways round on one day, and no set deals it both ways.
+9. *Every card asked came from a set, never straight back.*
 
 **How well it's working**
 
-9. *FSRS's predictions match your results.* Over the last 30 days, answers are
+10. *FSRS's predictions match your results.* Over the last 30 days, answers are
    grouped by the chance FSRS gave them of being right. A group fails if its
    real share right is 10 points off once it holds 100 answers, and all the
    answers together fail at 5 points off once there are 300.
+11. *A new word's first gap suits how you remember.* Added 2026-10-14. A
+    word's second answer is judged on its own, split by whether its first
+    answer was right or wrong, with the settings in use now: what share they
+    expect right after the gap the word actually had, against what the
+    student got. Each half fails at 10 points off once it holds 100 words. On
+    the owner's record the starting settings were wrong about both halves in
+    opposite directions (112 of 119 right where 88% was expected; 60 of 103
+    where 71% was), and the two cancelled out in check 10, which passed.
+12. *Your own settings were tried when due.* Added 2026-10-14. The app tries
+    each student's own settings from about 350 answers, then every week once
+    there are 50 more ([How cards are scheduled](scheduling.md)). If a try
+    was due when the student last studied, one must have happened that day.
+    The report says which settings are in use: the starting ones, the
+    starting ones with the student's own first gaps, or the student's own.
 
 **The deck itself**
 
-10. *No card is in your deck twice.* Two cards in study fail it when they are
+13. *No card is in your deck twice.* Two cards in study fail it when they are
     one card by the rule every path that makes cards from notes uses, or when
     Claude has judged the pair the same card. A card that is one item of
     another card's list, such as "à l'heure" beside "à temps / à l'heure", is
     one card twice (the owner's decision). The check imports that rule
     rather than restating it, so it means by "the same card" exactly what the
     upload and the linked notebook mean.
-11. *Nothing you deleted or corrected came back.* A card the student removed,
+14. *Nothing you deleted or corrected came back.* A card the student removed,
     or the form a card had before the owner corrected it, fails it when it is
     in study again, made after it was taken out.
 
@@ -78,17 +100,22 @@ Run on a copy of the live tables taken before a clean-up of repeated cards,
 the last check named exactly the three cards that clean-up put right, and the
 first reached every group of repeats it put away.
 
-The checks are one file, used in three places:
+The checks are one file, used in these places:
 
-- **In the app**, for the owner. "Status" in the profile menu opens a window
-  that marks each check passed, failed or waiting, and names the cards behind
-  any failure. A red dot on the avatar means something needs a look. "Copy
-  details" copies the report, ready to paste into a Claude session.
 - **On the server, every morning**, for every student who has answered a card.
-  The reports are kept, and a failed check for any student lights the same red
-  dot. The Status window's "All students" tab shows them.
+  The reports are kept (the in-app Status window, which used to show them, was
+  removed on 2026-10-06).
 - **In the terminal**, as a script that runs the checks on any student's live
   record and only reads.
+- **On the owner's test app, every morning** (added 2026-10-14). Vercel runs
+  scheduled jobs only on the students' app, so the server's daily run always
+  uses the students' version of the checks. The morning check on the owner's
+  Mac therefore also runs the test app's version, from the testing branch, on
+  the owner's record, since the owner is the only one using the test app. Its
+  problems are named "Test app:" and remembered separately. It also runs the
+  same checks on the owner's Spanish deck, with problems named "Test app
+  (Spanish):". Claude isn't asked about Spanish look-alike cards, so for
+  Spanish, "No card is in your deck twice" uses the fixed rule alone.
 
 The checks were tuned on real data so that they don't raise false alarms. When
 they first ran on the owner's own record, three failed, and none of the
@@ -108,6 +135,19 @@ student has is the same card to learn. All three are tested against what the
 owner has already done in the app, so nobody has to sit down and label
 examples.
 
+Podcasts, which the owner and anyone signed in on the test app have, adds two more: which passages of
+an RFI episode to ask about, and whether an answer to one caught its ideas
+("Got it", "Partly" or "Missed"). These are not yet tested against the
+owner's decisions. Nothing records yet what the owner thinks of a verdict or
+a passage, so there are no right answers to test against. Their code is
+tested with a stand-in for Claude: a passage that isn't word for word in the
+transcript is dropped, and "Got it" needs every idea caught.
+
+Claude's marking of the Spanish Exercises and Dialogues, on the test app, isn't
+tested against the owner's decisions either. Its code is tested with a
+stand-in for Claude (`tests/suites/es-exercises.mjs` and
+`tests/suites/es-dialogues.mjs`).
+
 ### Marking disputed answers
 
 When the app marks a typed answer wrong, the student can press "My answer
@@ -118,7 +158,8 @@ What Claude should have said is read from what the owner did next. If Claude
 refused and the owner pressed "Accept anyway", the refusal was wrong. If Claude
 refused and the owner moved on, it was right. If Claude accepted and the owner
 let it stand, that was right. Another student's disputes count only once the
-owner has marked them in the Status window.
+owner has marked them. Nothing in the app marks them any more, so only the
+owner's own disputes, and any marked before the Status window went, count.
 
 The test asks Claude again about every answer whose right verdict is known,
 three times each, with the same question and the same model the app uses. Each case comes out
@@ -169,13 +210,11 @@ all the code that turns Claude's reply into cards. Results are kept per
 version, so a new version can be compared with the last. There is no button to
 press.
 
-The red dot lights only when a case that passed before a change of version
+The morning check raises a case only when a case that passed before a change of version
 fails after it. Claude can answer the same question differently from one run
 to the next, and a review of the first design found that a few borderline
 cases would have lit the warning most weeks by chance. Cases Claude gets wrong
-are still listed in the Status window either way.
-
-![The Status window's "Claude's marking" tab](screenshots/status-claude.png)
+are still counted either way.
 
 ## Simulated students
 
@@ -205,11 +244,11 @@ best choice depended on the student, so Automatic stays the default.
 
 ## The test suites
 
-`npm test` runs 36 suites. Eighteen need no browser. They cover the rules for
+`npm test` runs every suite in `tests/suites`. About half need no browser. They cover the rules for
 dealing and scheduling, the study day, the status check itself, and most of the
 server functions, with stand-ins for the database and for Claude, so nothing
 leaves the machine. One of them checks that a caller without a verified sign-in
-can't cause a single request to Claude. The other eighteen drive the real app
+can't cause a single request to Claude. The rest drive the real app
 in headless Chromium against a mock database.
 
 The browser suites measure what a student would see, rather than trusting what
@@ -219,7 +258,7 @@ writes to the database. The stand-in database refuses what the real one
 refuses, because a more lenient stand-in twice let through a write that then
 failed on the live app.
 
-Every push to GitHub runs the build, the simulated students and all 36 suites,
+Every push to GitHub runs the build, the simulated students and every suite,
 in about nine minutes. A failure marks the commit with a red cross. A browser
 suite that fails gets one second try, and the summary names any suite that
 needed it, so a suite that fails now and then still gets noticed.
@@ -230,17 +269,16 @@ failed.
 
 ## In the code
 
-- `src/lib/statusChecks.js`: the eleven checks, shared by the server, the
+- `src/lib/statusChecks.js`: the fourteen checks, shared by the server, the
   script and the simulations; the deck checks import `src/lib/sameCard.js`,
   the rule the card-writers use
-- `src/StatusModal.jsx`: the Status window
 - `api/_lib/statusDaily.js`: the morning run for every student
 - `api/_lib/answerChecks.js`, `api/_lib/notesChecks.js` and
   `api/_lib/repeatsChecks.js`: the tests of Claude's marking, note reading and
   judging of look-alike cards (the pairs that must stay apart, and the cards
   that are one item of another card's list, are in `api/_lib/keepApart.js`);
   `api/_lib/evalRuns.js` decides when they are due,
-  and `api/_lib/evalStatus.js` when the red dot lights
+  and `api/_lib/evalStatus.js` which cases the morning check raises
 - `scripts/status-check.mjs`: the checks from the terminal
 - `tests/simulate/`: the simulated students
 - `.github/workflows/tests.yml`: the tests on every push

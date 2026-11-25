@@ -32,6 +32,8 @@ import {
   cleanFrenchFront,
   splitSlashPairs,
 } from "./parse-cahier.js";
+import { allowIphoneApp } from "./_lib/cors.js";
+import { claudeError } from "./_lib/podcasts.js";
 export const config = {
   api: {
     bodyParser: { sizeLimit: "10mb" },
@@ -40,6 +42,7 @@ export const config = {
 };
 
 export default async function handler(req, res) {
+  if (allowIphoneApp(req, res)) return;
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -122,7 +125,7 @@ export async function readClasses({ admin, userId, apiKey, body = {} }) {
     work.map((b) =>
       b.text.trim().length < 20
         ? Promise.resolve([])
-        : extractCardsFromBlock(anthropic, b).catch((e) => ({ __error: e?.message || String(e), date: b.date }))
+        : extractCardsFromBlock(anthropic, b).catch((e) => { console.error("class read failed:", e); return { __error: claudeError(e, "read this class").json.error, date: b.date }; })
     )
   );
   for (const r of results) {
@@ -141,8 +144,8 @@ export async function readClasses({ admin, userId, apiKey, body = {} }) {
   // cards_parsed, added to rather than overwritten, for a multi-chunk upload.
   if (batchId && cards.length > 0) {
     try {
-      const { data: cur } = await admin.from("upload_batches").select("cards_parsed").eq("id", batchId).single();
-      await admin.from("upload_batches").update({ cards_parsed: (cur?.cards_parsed || 0) + cards.length }).eq("id", batchId);
+      const { data: cur } = await admin.from("upload_batches").select("cards_parsed").eq("id", batchId).eq("user_id", userId).single();
+      await admin.from("upload_batches").update({ cards_parsed: (cur?.cards_parsed || 0) + cards.length }).eq("id", batchId).eq("user_id", userId);
     } catch (e) {
       console.warn("[cahier-parse] cards_parsed update threw:", e?.message || e);
     }

@@ -14,6 +14,8 @@
 --                  kind       "card"  editing the card fixes it
 --                             "app"   it needs a change to the app or a lesson
 --                             "none"  nothing should change
+--                             "remove" the card should be put away (Apply
+--                                     archives it; added later)
 --                  reasoning  whether the feedback is right, and why
 --                  fix        { front, back } for "card"
 --                  brief      for "app": what to tell a coding session

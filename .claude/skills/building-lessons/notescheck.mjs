@@ -16,7 +16,7 @@ const out = [];
 const richLeft = (s) => String(s).split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g).filter(Boolean)
   .map((p) => p.startsWith("**") ? p.slice(2, -2) : p.startsWith("*") ? p.slice(1, -1) : p);
 
-const JARGON = /\b(agree|agrees|agreement|aspirate|mute h|liaison|elision|elided|determiner|partitive|conjugated|infinitive|subject pronoun|stem|radical)\b/i;
+const JARGON = /\b(agree|agrees|agreement|aspirate|mute h|liaison|elision|elided|determiner|partitive|conjugated|subject pronoun|stem|radical)\b/i;
 const POINTERS = /\b(above|below|earlier|the others|as before|see the|other tab|Leçon \d|lesson \d|everywhere else)\b/i;
 
 const tabs = (L.notes || []).map((s) => s.tab);

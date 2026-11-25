@@ -42,8 +42,8 @@ import { looseKey, partsOf, isDrillFront } from "./sameCard.js";
 export function normalizeLine(line) {
   return String(line ?? "")
     .normalize("NFC")
-    .replace(/[​-‍﻿]/g, "")
-    .replace(/ /g, " ")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "") // zero-width space, joiners and the byte-order mark
+    .replace(/\u00A0/g, " ") // no-break space
     .replace(/[’‘`´]/g, "'")
     .replace(/[“”«»]/g, '"')
     .replace(/[–—]/g, "-")
@@ -71,8 +71,9 @@ function cyrb53(str) {
 
 export const lineFingerprint = (line) => cyrb53(normalizeLine(line)).toString(36);
 
-// A section heading makes no card, so it is never a line to read.
-const HEADING = /^(?:(?:vocabulaire|vocab|expressions?|prononciation|grammaire|et|&|\/|-|:|,)\s*)+$/i;
+// A section heading makes no card, so it is never a line to read. The
+// Spanish caderno's headings too (2026-11-02): Laura's template in Spanish.
+const HEADING = /^(?:(?:vocabulaire|vocab|expressions?|prononciation|grammaire|vocabulario|expresi[oó]n(?:es)?|gram[aá]tica|pronunciaci[oó]n|et|&|\/|-|:|,)\s*)+$/i;
 
 // The lines of a class worth reading: not blank, not a heading, each once.
 export function classLines(text) {

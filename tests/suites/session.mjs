@@ -16,7 +16,7 @@
 // the check counts the actual PATCHes to user_cards rather than watching the
 // counter, which only shows where you are, not what was written.
 
-import { openApp, finish, checker, servedDeck, settled, sessionCounter, cardBox, firstBlockItems } from "../harness.mjs";
+import { openApp, finish, checker, servedDeck, settled, sessionCounter, cardBox, firstBlockItems, tapCard as tapCardOf } from "../harness.mjs";
 
 const ck = checker();
 const deck = await servedDeck();
@@ -61,13 +61,7 @@ async function pressInto(headingRe) {
 }
 const gotItButton = () => page.$('button:has-text("Got It")');
 const cardOnScreen = async () => !(await page.$("[data-checkpoint]")) && (await cardBox(page)) !== null;
-const tapCard = () =>
-  page.evaluate(() => {
-    const el = [...document.querySelectorAll("div")].find(
-      (d) => getComputedStyle(d).transformStyle === "preserve-3d"
-    );
-    if (el) el.click();
-  });
+const tapCard = () => tapCardOf(page);
 
 // Flip through the queue until there is nothing left to grade. Guarded well
 // above the deck size: if the session never ends, that IS the bug, and the
@@ -221,7 +215,8 @@ await browser.close();
 
 console.log("\n  FSRS gets one answer per card per day");
 // The retry after a miss, and a card revisited with Previous card, are both
-// still answerable — but the first answer of the day is the review. Counted
+// still answerable. The first answer of the day is the review, and since
+// 2026-10-14 the retry after a miss counts too; a card revisited doesn't. Counted
 // as PATCHes to user_cards, for the same reason as above: the counter shows
 // where you are, not what was written.
 {
@@ -233,7 +228,6 @@ console.log("\n  FSRS gets one answer per card per day");
         await r.continue();
       }),
   });
-  const has = (re) => page.evaluate(([s, f]) => new RegExp(s, f).test(document.body.innerText), [re.source, re.flags]);
   // One answer: the first press turns the card, the second grades it.
   const press = async (key) => {
     for (let i = 0; i < 2; i++) { await page.keyboard.press(key); await page.waitForTimeout(150); }
@@ -249,22 +243,22 @@ console.log("\n  FSRS gets one answer per card per day");
   ck("French side up, one question per card", total === firstBlockItems(deck, "fr").length,
      `${total} vs ${firstBlockItems(deck, "fr").length}`);
 
-  // Miss the first card. Its retry takes the last place in the block, and the
-  // card that was there waits for the next block: the block stays `total`
-  // answers long, with no tail of retries after it.
+  // Miss the first card. The block is shorter than the set size, so its retry
+  // is added at the end and no card makes way for it: every card is still
+  // answered in this block, then the retry (the owner's Lesson 8, 2026-10-27).
   await press("ArrowLeft");
-  for (let i = 1; i < total - 1; i++) await press("ArrowRight");
+  for (let i = 1; i < total; i++) await press("ArrowRight");
   const onRetry = await sessionCounter(page);
-  ck("the last card in the block is the missed card, back for its retry",
-     onRetry?.index === total && onRetry?.total === total && !!(await page.$("[data-retry]")),
+  ck("the missed card comes back after every card in the block, which grew by one",
+     onRetry?.index === total + 1 && onRetry?.total === total + 1 && !!(await page.$("[data-retry]")),
      JSON.stringify(onRetry));
-  ck("every card so far written once: one of them made way for the retry",
-     oneADay.length === total - 1, `${oneADay.length} writes for ${total - 1} cards shown`);
+  ck("every card written once: none made way for the retry",
+     oneADay.length === total, `${oneADay.length} writes for ${total} cards shown`);
 
   await press("ArrowRight"); // get the retry right
-  ck("answering the retry ends the block, at exactly its length", !!(await page.$("[data-checkpoint]")));
-  ck("and writes nothing: that card already had today's review",
-     oneADay.length === total - 1, `${oneADay.length} writes`);
+  ck("answering the retry ends the block", !!(await page.$("[data-checkpoint]")));
+  ck("and writes it: the repeat after a miss counts",
+     oneADay.length === total + 1, `${oneADay.length} writes`);
 
   // Stepping back from the end lands on the last card before the retry, with
   // the retry still after it — two answers to finish, both cards already
@@ -275,7 +269,7 @@ console.log("\n  FSRS gets one answer per card per day");
   await press("ArrowRight");
   await press("ArrowRight");
   ck("answering both again is graded on screen", !!(await page.$("[data-checkpoint]")));
-  ck("but writes nothing either", oneADay.length === total - 1, `${oneADay.length} writes`);
+  ck("but writes nothing more: the same grades again change nothing", oneADay.length === total + 1, `${oneADay.length} writes`);
 
   await browser.close();
 }

@@ -46,7 +46,7 @@ const GLUE = new Set([
 // headword. "il" is deliberately absent from GLUE for this reason.
 const CLAUSE_WORDS = new Set([
   "je", "j", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles",
-  "ça", "ca", "c", "ce", "qui", "que", "qu", "quoi", "dont", "où",
+  "ça", "ca", "c", "qui", "que", "qu", "quoi", "dont", "où",
   "comment", "pourquoi", "quand", "si", "ne", "n", "y",
 ]);
 
@@ -157,8 +157,12 @@ export function isGrammarCard(card) {
 // Keyed weakly, so nothing is held alive for the cache's sake.
 const CACHE = new WeakMap();
 
-export function classifyCard(card) {
+export function classifyCard(card, course = "fr") {
   if (!card) return "phrase";
+  // A Spanish card is sorted by the type it was added with (V word, E phrase,
+  // G or P grammar), which the lessons and the caderno set on purpose: the
+  // French word lists below say nothing about Spanish.
+  if (course === "es") return card.cat === "gram" || card.cat === "pron" ? "grammar" : card.cat === "expr" ? "phrase" : "vocab";
 
   const hit = CACHE.get(card);
   if (hit !== undefined) return hit;
@@ -176,7 +180,10 @@ function classify(card) {
 
   const all = tokens(frenchSide(card));
   // A subject or a clause marker means this is a sentence, not a headword.
-  if (all.some((t) => CLAUSE_WORDS.has(t.replace(/['’]$/, "")))) return "phrase";
+  // "ce" only marks a clause before a form of être ("ce sont", "ce n'est");
+  // "ce matin" and "cette semaine" are a headword with its small word.
+  const ceClause = all.some((t, i) => t === "ce" && /^(est|sont|était|étaient|sera|serait|fut)$/.test(all[i + 1] || ""));
+  if (ceClause || all.some((t) => CLAUSE_WORDS.has(t.replace(/['’]$/, "")))) return "phrase";
 
   const units = all.filter((t) => !GLUE.has(t.replace(/['’]$/, "")));
   return units.length <= MAX_CONCEPT_UNITS ? "vocab" : "phrase";

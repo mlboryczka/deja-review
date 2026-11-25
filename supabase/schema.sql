@@ -1,4 +1,4 @@
--- French Flashcards — database schema
+-- dejareview: database schema
 -- Run this in the Supabase SQL Editor once when setting up a new project.
 -- Dashboard → SQL Editor → New Query → paste → Run.
 
@@ -44,7 +44,10 @@ create index if not exists card_progress_user_id_idx
   on public.card_progress(user_id);
 
 -- ═══════════════════════════════════════════════════════════════════════════
--- FEEDBACK: user-reported "this should have been accepted" submissions
+-- FEEDBACK SUBMISSIONS (legacy): the old "this should have been accepted" flow.
+-- Nothing in the app writes this table now: disputes go to answer_reviews
+-- through /api/review-answer. Only the never-shown FeedbackAdminView and
+-- scripts/resolve-disputes.mjs still read it.
 -- ═══════════════════════════════════════════════════════════════════════════
 
 create table if not exists public.feedback_submissions (
@@ -68,7 +71,7 @@ create index if not exists feedback_submissions_status_idx
 
 alter table public.feedback_submissions enable row level security;
 
--- Anyone signed in can insert their own feedback
+-- Anyone signed in can insert their own feedback (legacy; see above)
 create policy "Users can submit feedback"
   on public.feedback_submissions for insert
   with check (auth.uid() = user_id);
@@ -93,11 +96,12 @@ create policy "Admin can update feedback"
   using (auth.jwt() ->> 'email' = 'YOUR_EMAIL_HERE@example.com');
 
 -- ═══════════════════════════════════════════════════════════════════════════
--- CARD ALTERNATES: approved-via-feedback alternative answers
+-- CARD ALTERNATES: alternative answers a student has had accepted
 -- ═══════════════════════════════════════════════════════════════════════════
--- When you approve a feedback submission, a row lands here. The client fetches
+-- When /api/review-answer accepts an answer (on Claude's accept, or on the
+-- student's Accept anyway), a row lands here. The client fetches
 -- these on load and treats them as additional acceptable answers during
--- matching. This means approved feedback goes live without redeploying.
+-- matching. This means an accepted answer goes live without redeploying.
 
 -- Alternates are PER USER. card_id is the lowercased front text, which is
 -- shared across everyone's decks, so a table without user_id meant one
@@ -111,14 +115,13 @@ create table if not exists public.card_alternates (
   alternate_text text not null,
   source_feedback_id uuid references public.feedback_submissions(id) on delete set null,
   created_at timestamptz not null default now(),
-  unique (user_id, card_id, direction, alternate_text)
+  -- Named as migration_008 names its index, so a fresh build holds one
+  -- unique rule, not two (migration_033).
+  constraint card_alternates_owner_key unique (user_id, card_id, direction, alternate_text)
 );
 
 create index if not exists card_alternates_user_id_idx
   on public.card_alternates(user_id);
-
-create index if not exists card_alternates_card_id_idx
-  on public.card_alternates(card_id);
 
 alter table public.card_alternates enable row level security;
 
@@ -159,6 +162,29 @@ create policy "Users manage their own alternates"
 --   migration_015 → answer_reviews (Claude's verdicts on disputed answers),
 --                   eval_runs (tests of Claude's work), status_reports (the
 --                   daily status check on every student)
+--   migration_016 → notes_read, card_pairs, and archived_reason, archived_at,
+--                   merged_into on this table (no card made twice from the
+--                   same notes)
+--   migration_029 → archived_by on user_cards (marks the repeats the daily
+--                   run put away on Claude's verdict)
+--   migration_031 → 'script' allowed as the source of an answer_reviews row
+--   migration_032 → only the server may set archived_reason, merged_into or
+--                   archived_by on user_cards
+--   migration_033 → the unused card_alternates lookup by card dropped
+--   migration_034 → es_parse_corrections linked to accounts
+--   migration_017 → podcast_episodes (shared, written by the server),
+--                   podcast_follows, podcast_answers (the Podcasts module)
+--   migration_011 → cahier_links
+--   migration_018 → database routines only (plan usage)
+--   migration_019 → said_per_million, said_counted_at on user_cards
+--   migration_020, 021, 023 → the Spanish tables: es_ copies of the French
+--                   ones, plus the Spanish logs and caderno tables
+--   migration_022 → es_exercise_answers (Spanish Exercises and Dialogues)
+--   migration_024, 025 → replace the notes save functions (database
+--                   routines only)
+--   migration_026 → hints kept with each Spanish exercise answer
+--   migration_027 → es_exercise_disputes
+--   migration_028 → feedback accepted only in the sender's own name
 -- Run this file first, then the migrations in order.
 
 create table if not exists public.user_cards (
@@ -172,7 +198,9 @@ create table if not exists public.user_cards (
   -- The LESSON dates this word appeared on in the notebook — not review
   -- history. Every parsed card has them, which is exactly the mistake
   -- migration_006 originally made; see migration_007 for the repair.
-  dates jsonb not null default '[]'::jsonb,
+  -- text[], as on the live database. This file said jsonb until 2026-11-07, and
+  -- the notes saves written from it failed on every call (migration_025).
+  dates text[] not null default '{}',
   source text,
   flagged_for_review boolean not null default false,
   created_at timestamptz not null default now(),
@@ -215,7 +243,8 @@ create policy "Users can delete own cards"
 -- ═══════════════════════════════════════════════════════════════════════════
 -- Drives the day-streak counter in Stats. A day is either in here or it
 -- isn't, so the primary key doubles as the dedupe: the app upserts with
--- ignoreDuplicates on every answer and the repeats are no-ops server-side.
+-- ignoreDuplicates with the first answer of each day (and again until it is
+-- saved) and the repeats are no-ops server-side.
 
 create table if not exists public.user_review_dates (
   user_id uuid references auth.users(id) on delete cascade not null,
@@ -244,11 +273,11 @@ create policy "Users can delete own review dates"
 -- answer should have been accepted". This one is free-form: a message, and
 -- optionally a screenshot and a snapshot of whichever card was on screen.
 --
--- screenshot and card_context are nullable and the client retries without
--- them if the insert complains, so an older database still accepts feedback.
+-- screenshot and card_context are nullable.
 
 create table if not exists public.beta_feedback (
-  id uuid primary key default gen_random_uuid(),
+  -- A number, as in the live database (feedback #57 and so on).
+  id bigint generated by default as identity primary key,
   user_id uuid references auth.users(id) on delete set null,
   user_email text,
   message text not null,
@@ -278,6 +307,22 @@ create policy "Users can submit beta feedback"
   on public.beta_feedback for insert
   with check (auth.role() = 'authenticated');
 
+-- Applied on top of the rule above: feedback only in the sender's own account
+-- and email, with no review and not marked as dealt with (migration_028).
+create policy "Feedback only in the sender's own name"
+  on public.beta_feedback
+  as restrictive
+  for insert
+  to authenticated
+  with check (
+    user_id = auth.uid()
+    and lower(coalesce(user_email, '')) = lower(coalesce(auth.jwt() ->> 'email', ''))
+    and review is null
+    and reviewed_at is null
+    and resolved_at is null
+    and resolution is null
+  );
+
 create policy "Users can read own beta feedback"
   on public.beta_feedback for select
   using (auth.uid() = user_id);
@@ -290,9 +335,9 @@ create policy "Admin can read all beta feedback"
   on public.beta_feedback for select
   using (auth.jwt() ->> 'email' = 'YOUR_EMAIL_HERE@example.com');
 
--- The admin feedback view deletes rows. Without this policy the delete is
--- silently blocked by RLS — success, zero rows affected — and the entry
--- reappears on refresh.
+-- The app no longer deletes feedback (the Delete buttons went on 12 September
+-- 2026; entries are resolved through Apply or Dismiss). This policy is kept
+-- so an admin can still delete a row from the app if one is ever added back.
 create policy "Admin can delete beta feedback"
   on public.beta_feedback for delete
   using (auth.jwt() ->> 'email' = 'YOUR_EMAIL_HERE@example.com');

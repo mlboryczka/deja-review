@@ -10,8 +10,8 @@
 // of being right both ways, read at the end of that day from the answers given
 // up to then: an answer's record keeps the memory strength it left
 // (stability_after), and the chance falls from there with time exactly as it
-// does for the card now. Only answers FSRS counted, the first of each day,
-// carry a strength.
+// does for the card now. Only answers FSRS counted carry a strength: the first
+// of each day, and since 2026-10-14 the repeat after a miss.
 //
 // A card's history starts again the last time it was answered as a new card,
 // as in lib/fsrsHistory.js: "Reset all progress" keeps the record. A card that
@@ -20,7 +20,7 @@
 //
 // Days are the student's own, 4am to 4am (lib/studyDay.js).
 
-import { retrievability, areaOf } from "./progress.js";
+import { retrievability, areaOf, isSeen } from "./progress.js";
 import { isTwoWay } from "./directions.js";
 import { State } from "./spacedRepetition.js";
 import { localISODate, startOfLocalDay } from "./studyDay.js";
@@ -38,9 +38,6 @@ const sideAfter = (rec) => ({
   last_review: rec.answered_at,
   last_answer_correct: rec.correct,
 });
-
-const isSeenNow = (card) =>
-  (card.fsrs_state ?? NEW) !== NEW || (isTwoWay(card) && (card.en_fsrs_state ?? NEW) !== NEW);
 
 // The start of each of the student's days from `first` to `now`, oldest first.
 function dayStarts(first, now) {
@@ -80,8 +77,14 @@ export function statsOverTime({ cards, rows, now = Date.now() }) {
     let life = lives.get(rec.card_id);
     if (!life) lives.set(rec.card_id, (life = { card: rec.card, fr: [], en: [] }));
     const list = rec.direction === "en" ? life.en : life.fr;
-    // Answered as new again: the history before is over.
-    if (rec.state_before === NEW) list.length = 0;
+    // Answered as new again on a way that already had answers: the card was
+    // reset (Reset all progress), so the history before is over for both ways,
+    // or the other way's old answers would still count until it is met too.
+    const met = life.fr.length > 0 || life.en.length > 0;
+    if (rec.state_before === NEW && list.length) { life.fr.length = 0; life.en.length = 0; }
+    // A new card is one first met in this life of the card (the first, or
+    // the first since a reset), judged as the answers are replayed.
+    rec.fresh = rec.state_before === NEW && (!met || list.length === 0 && !life.fr.length && !life.en.length);
     list.push(rec);
   }
   for (const life of lives.values()) {
@@ -92,7 +95,7 @@ export function statsOverTime({ cards, rows, now = Date.now() }) {
     for (const list of [life.fr, life.en]) if (list.length && (!first || list[0].at < first.at)) first = list[0];
     life.firstId = first && first.state_before === NEW ? first.id : null;
     life.firstAt = first ? (first.state_before === NEW ? first.at : -Infinity) : Infinity;
-    life.counts = isSeenNow(life.card);
+    life.counts = isSeen(life.card);
     life.area = areaOf(life.card, now);
     life.twoWay = isTwoWay(life.card);
   }
@@ -132,12 +135,20 @@ export function statsOverTime({ cards, rows, now = Date.now() }) {
       const end = i + 1 < starts.length ? starts[i + 1] - 1 : now;
       days.push({ iso: localISODate(new Date(starts[i])), start: starts[i], end, cards: 0, fresh: 0, reviews: 0, retries: 0, right: 0, remembered: 0 });
     }
+    // A retry is a way's later answer the same day: practice, or since
+    // 2026-10-14 the repeat after a miss, which FSRS counts. Either way it
+    // isn't a new card or a review, nor a first try.
+    const countedOn = new Map(); // "card_id:direction" -> the day of its last counted answer
     for (const rec of records) {
-      const day = days[index.get(localISODate(new Date(rec.at)))];
+      const iso = localISODate(new Date(rec.at));
+      const day = days[index.get(iso)];
       if (!day) continue;
       day.cards++;
-      if (!rec.counted) { day.retries++; continue; }
-      if (lives.get(rec.card_id)?.firstId === rec.id) day.fresh++;
+      const way = `${rec.card_id}:${rec.direction === "en" ? "en" : "fr"}`;
+      const repeat = rec.counted && countedOn.get(way) === iso;
+      if (rec.counted) countedOn.set(way, iso);
+      if (!rec.counted || repeat) { day.retries++; continue; }
+      if (rec.fresh) day.fresh++;
       else day.reviews++;
       if (rec.correct) day.right++;
     }

@@ -21,9 +21,11 @@ process.env.ANTHROPIC_API_KEY = "sk-ant-server-key-must-never-be-spent-by-others
 // A stand-in for Anthropic that counts what reaches it. The SDK reads
 // ANTHROPIC_BASE_URL, so every billable call lands here and nowhere else.
 //
-// This replaced a counter wrapped around globalThis.fetch, which the SDK
-// never calls: it reported "0 Anthropic calls" while a request was going
-// out, and the suite passed with the auth hole put back on purpose.
+// This replaced a counter wrapped around globalThis.fetch. The SDK does go
+// through globalThis.fetch, but a counter there missed requests that reached
+// the server by another path ("0 Anthropic calls" while one was going out), and
+// the suite passed with the auth hole put back on purpose. A stand-in server
+// counts what actually arrives, which is what costs money.
 import { createServer } from "node:http";
 
 let anthropicCalls = 0;
@@ -68,6 +70,19 @@ const SPENDERS = [
    { user_answer: "a hill", expected_answer: "a hill", card_id: "une colline" }],
   ["/api/review-answer (feedback)", "../../api/review-answer.js", { feedback: { action: "review" } }],
   ["/api/cahier-parse", "../../api/cahier-parse.js", { text: "bonjour = hello" }],
+  // The notes upload and the linked notebook both call Claude.
+  ["/api/parse-cahier (extract)", "../../api/parse-cahier.js", { action: "extract", text: "bonjour = hello" }],
+  ["/api/parse-cahier (commit)", "../../api/parse-cahier.js", { action: "commit", classes: [] }],
+  ["/api/cahier-sync", "../../api/cahier-sync.js", { action: "sync" }],
+  // Podcasts (2026-10-09): the three actions that can call Claude. Open to the
+  // owner and, on the test app, anyone signed in (since 2026-10-19), so the
+  // forged admin token below matters here too.
+  ["/api/podcasts (episode: writing its questions)", "../../api/podcasts.js",
+   { action: "episode", episodeId: "00000000-0000-4000-8000-000000000001" }],
+  ["/api/podcasts (mark)", "../../api/podcasts.js",
+   { action: "mark", episodeId: "00000000-0000-4000-8000-000000000001", key: "s1-00000000", typed: "The drivers are on strike." }],
+  ["/api/podcasts (add-card: the same-card question)", "../../api/podcasts.js",
+   { action: "add-card", episodeId: "00000000-0000-4000-8000-000000000001", front: "un cortège", back: "a protest march" }],
 ];
 
 console.log("\n  no session: the endpoint refuses, and nothing is billed");
@@ -154,8 +169,30 @@ r = resolveAnthropicKey({ headers: {} }, { id: "u3", email: "Owner@Example.com "
 ck("a near-miss on the owner's address does not get the server key",
    r.code === "byok_required", r.code || r.payer);
 
+// On the test app the owner's key also pays for the accounts they named
+// (owner, 2026-10-19: "she can just use mine"), by id, and only there.
+console.log("\n  who pays on the test app: the owner's key for the accounts they named");
+{
+  const { OWNERS_KEY_ON_TEST_APP } = await import("../../src/lib/testApp.js");
+  const LAURA = { id: OWNERS_KEY_ON_TEST_APP[0], email: "laura@example.com" };
+  const on = (host, extra = {}) => ({ headers: { host, ...extra } });
+  r = resolveAnthropicKey(on("dejareview-mlb.vercel.app"), LAURA);
+  ck("Laura on the test app falls back to the server key",
+     r.key === process.env.ANTHROPIC_API_KEY && r.payer === "server", r.code || r.payer);
+  r = resolveAnthropicKey(on("french-flashcards-git-testing-mlboryczkas-projects.vercel.app"), LAURA);
+  ck("  at its other address too", r.payer === "server", r.code || r.payer);
+  r = resolveAnthropicKey(on("dejareview.vercel.app"), LAURA);
+  ck("Laura on the students' app brings her own key, as any student does", r.code === "byok_required", r.code || r.payer);
+  r = resolveAnthropicKey(on("dejareview-mlb.vercel.app"), STUDENT);
+  ck("another student on the test app brings their own key", r.code === "byok_required", r.code || r.payer);
+  r = resolveAnthropicKey(on("dejareview-mlb.vercel.app"), { id: "u9", email: LAURA.email });
+  ck("  even with the same email on another account: it's the id that counts", r.code === "byok_required", r.code || r.payer);
+  r = resolveAnthropicKey(on("dejareview-mlb.vercel.app", { "x-anthropic-key": USER_KEY }), LAURA);
+  ck("Laura's own key, if she adds one, still wins", r.key === USER_KEY && r.payer === "user", r.payer);
+  r = resolveAnthropicKey(on("dejareview-mlb.vercel.app"), OWNER);
+  ck("the owner on the test app is unchanged", r.payer === "server", r.code || r.payer);
+}
+
 anthropic.close();
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

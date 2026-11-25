@@ -3,8 +3,10 @@
 // keeps its own state (the chart's range, what's folded, the hover box), so
 // pointing at a day doesn't redraw the whole page. The figures come in
 // worked out (lib/progress.js, lib/progressHistory.js); these only draw them.
+import { niceStep } from "./lib/niceStep.js";
 import { useState } from "react";
 import { T } from "./theme";
+import { localISODate } from "./lib/studyDay";
 
 const NAVY = T.color.primary;
 const dayLong = (ms) => new Date(ms).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
@@ -25,10 +27,15 @@ function Tip({ tip }) {
   );
 }
 
-const dayLines = (d, isToday) => [
-  isToday ? "Today" : dayLong(d.start),
-  ...(d.cards > 0 ? [plural(d.cards, "card", "cards"), splitText(d)] : ["Didn't study"]),
-];
+const dayLines = (d, isToday, more = null) => {
+  const items = more?.items || 0, sentences = more?.sentences || 0;
+  const lines = [isToday ? "Today" : dayLong(d.start)];
+  if (d.cards > 0) lines.push(plural(d.cards, "card", "cards"), splitText(d));
+  if (items > 0) lines.push(plural(items, "exercise item", "exercise items"));
+  if (sentences > 0) lines.push(plural(sentences, "dialogue sentence", "dialogue sentences"));
+  if (lines.length === 1) lines.push("Didn't study");
+  return lines;
+};
 
 // One bar in three bands: remembered (solid), seen but not remembered now
 // (light), not yet seen (the empty track).
@@ -43,18 +50,16 @@ export function Bands({ summary, height, color = NAVY }) {
   );
 }
 
-// Round numbers for the chart's gridlines: 1, 2 or 5 times a power of ten.
-function niceStep(range) {
-  const raw = Math.max(range, 1) / 4;
-  const p = 10 ** Math.floor(Math.log10(raw));
-  return [1, 2, 5, 10].map((m) => m * p).find((s) => s >= raw);
-}
 
 const remWord = (gain) =>
   gain > 0 ? `~${gain.toLocaleString()} more remembered` : gain < 0 ? `~${(-gain).toLocaleString()} fewer remembered` : "no change in remembered";
 
+// The headline on Last 7 days: what the week added, not the total.
+const weekBig = (gain) =>
+  gain > 0 ? `+${gain.toLocaleString()} remembered` : gain < 0 ? `−${(-gain).toLocaleString()} remembered` : "No change";
+
 // ~N remembered, day by day. points: one per day, oldest first, today last.
-export function RememberedChart({ points, now, week, all, allLabel }) {
+export function RememberedChart({ points, week, all, allLabel }) {
   const [range, setRange] = useState("7");
   const [hover, setHover] = useState(null);
   const shown = range === "7" ? points.slice(-8) : points;
@@ -120,7 +125,7 @@ export function RememberedChart({ points, now, week, all, allLabel }) {
     <div style={S.card} data-stats-trend>
       <div style={S.trendHead}>
         <div>
-          <div style={S.trendBig}>~{Math.round(points.at(-1)?.remembered ?? all.remembered).toLocaleString()} remembered</div>
+          <div style={S.trendBig}>{range === "7" ? weekBig(week.gain) : `~${Math.round(points.at(-1)?.remembered ?? all.remembered).toLocaleString()} remembered`}</div>
           <div style={S.trendLine}>{sentence}</div>
         </div>
         <div style={S.seg} role="radiogroup" aria-label="Chart range">
@@ -138,17 +143,22 @@ export function RememberedChart({ points, now, week, all, allLabel }) {
 }
 
 // Every day since the first answer, as a calendar of the last six weeks,
-// shaded by how many cards were studied.
-const LEVELS = [
-  { min: 70, label: "70 cards or more", bg: NAVY },
-  { min: 50, label: "50 to 69 cards", bg: "rgba(3,22,50,0.6)" },
-  { min: 1, label: "Under 50 cards", bg: "rgba(3,22,50,0.28)" },
+// shaded by how many cards were studied. In Spanish, `extra` adds each day's
+// exercise items and dialogue sentences ({ [YYYY-MM-DD]: { items, sentences } }),
+// so a day of only Exercises or Dialogues counts as studied (owner,
+// 2026-11-25), and the shading counts every answer.
+const levelsFor = (unit) => [
+  { min: 70, label: `70 ${unit} or more`, bg: NAVY },
+  { min: 50, label: `50 to 69 ${unit}`, bg: "rgba(3,22,50,0.6)" },
+  { min: 1, label: `Under 50 ${unit}`, bg: "rgba(3,22,50,0.28)" },
 ];
-const levelOf = (n) => LEVELS.find((l) => n >= l.min);
 
-export function StudyCalendar({ days, since }) {
+export function StudyCalendar({ days, since, extra = null }) {
   const [hover, setHover] = useState(null);
-  const studied = days.filter((d) => d.cards > 0).length;
+  const LEVELS = levelsFor(extra ? "answers" : "cards");
+  const levelOf = (n) => LEVELS.find((l) => n >= l.min);
+  const answered = (d) => d.cards + (extra?.[d.iso]?.items || 0) + (extra?.[d.iso]?.sentences || 0);
+  const studied = days.filter((d) => answered(d) > 0).length;
   const shown = days.slice(-42);
   const lead = shown.length ? (new Date(shown[0].start).getDay() + 6) % 7 : 0;
   const cells = [...Array(lead).fill(null), ...shown];
@@ -172,11 +182,12 @@ export function StudyCalendar({ days, since }) {
             if (d === null) return <div key={i} />;
             if (d === "future") return <div key={i} style={{ ...S.day, background: "transparent", border: "1px dashed rgba(3,22,50,0.12)" }} />;
             const isToday = d === shown.at(-1);
-            const level = d.cards > 0 ? levelOf(d.cards) : null;
+            const n = answered(d);
+            const level = n > 0 ? levelOf(n) : null;
             return (
-              <div key={i} data-day={d.iso} data-cards={d.cards}
+              <div key={i} data-day={d.iso} data-cards={d.cards} data-answers={n}
                 style={{ ...S.day, background: level ? level.bg : T.color.surfaceMid, ...(isToday ? S.today : null) }}
-                onMouseMove={(e) => setHover({ x: e.clientX, y: e.clientY, lines: dayLines(d, isToday) })}
+                onMouseMove={(e) => setHover({ x: e.clientX, y: e.clientY, lines: dayLines(d, isToday, extra?.[d.iso]) })}
                 onMouseLeave={() => setHover(null)} />
             );
           })}
@@ -199,28 +210,88 @@ const Chevron = ({ open, size = 18 }) => (
 const deltaText = (d) =>
   d > 0 ? `+${d.toLocaleString()} remembered in 7 days` : d < 0 ? `−${(-d).toLocaleString()} remembered in 7 days` : "no change in 7 days";
 
-function AreaRow({ row, name, onClick, open }) {
-  const s = row.summary;
+// Spanish lessons have three parts (owner, 2026-11-25): Words (the cards,
+// as before), Grammar (the lesson's exercise items) and Text (its dialogue's
+// sentences). Grammar and Text are out of every item and sentence: right
+// (solid), tried but not right (light), not tried (the empty track). The
+// figures come in worked out (lib/lessonMastery.js), with the lesson's
+// rating from its lowest part.
+const RATING = {
+  "not-started": { label: "Not started", style: { color: "rgba(3,22,50,0.6)", background: "rgba(3,22,50,0.06)" } },
+  learning: { label: "Learning", style: { color: NAVY, background: "rgba(3,22,50,0.1)" } },
+  learned: { label: "Learned", style: { color: T.color.background, background: NAVY } },
+};
+
+// The study days (from 4am, lib/studyDay.js) of the answers that count.
+const studyDayShort = (ms) => dayShort(new Date(`${localISODate(new Date(ms))}T12:00:00`).getTime());
+const spanText = (s) => {
+  if (s.first == null) return "";
+  const a = studyDayShort(s.first), b = studyDayShort(s.last);
+  return a === b ? a : `${a} – ${b}`;
+};
+
+function partText(s, one, many) {
+  if (!s.tried) return `${plural(s.total, one, many)} · not started`;
+  return [
+    `${s.right.toLocaleString()} of ${plural(s.total, one, many)} right${s.almost ? ` (${s.almost} almost)` : ""}`,
+    `${s.tried.toLocaleString()} tried`,
+    ...(s.hinted ? [`${s.hinted} with a hint`] : []),
+    spanText(s),
+  ].filter(Boolean).join(" · ");
+}
+
+const asBands = (s) => ({ total: s.total, seen: s.tried, remembered: s.right });
+
+function Part({ label, summary, text, part, children }) {
   return (
-    <div style={onClick ? { ...S.area, cursor: "pointer" } : S.area} onClick={onClick}
-      role={onClick ? "button" : undefined} aria-expanded={onClick ? open : undefined}
-      data-stats-area={row.key}>
-      <div style={S.areaHead}>
-        <span style={S.areaName}>{name ?? row.label}</span>
-        {row.sub && <span style={S.areaSub}>{row.sub}</span>}
-      </div>
-      <Bands summary={s} height={10} />
-      <div style={S.areaFoot}>
-        <span style={S.areaFig}>{s.seen.toLocaleString()} seen · ~{Math.round(s.remembered).toLocaleString()} remembered · {plural(s.total, "card", "cards")}</span>
-        {row.delta != null && (
-          <span style={row.delta > 0 ? S.deltaUp : row.delta < 0 ? S.deltaDown : S.deltaFlat}>{deltaText(row.delta)}</span>
-        )}
-      </div>
+    <div style={S.part} data-stats-part={part}>
+      <div style={S.partHead}><span style={S.partLabel}>{label}</span><span style={S.areaFig}>{text}</span>{children}</div>
+      <Bands summary={summary} height={8} />
     </div>
   );
 }
 
-export function ProgressByLesson({ groups, rows }) {
+function AreaRow({ row, name, onClick, open }) {
+  const s = row.summary;
+  const delta = row.delta != null && (
+    <span style={row.delta > 0 ? S.deltaUp : row.delta < 0 ? S.deltaDown : S.deltaFlat}>{deltaText(row.delta)}</span>
+  );
+  const wordsText = `${s.seen.toLocaleString()} seen · ~${Math.round(s.remembered).toLocaleString()} remembered · ${plural(s.total, "card", "cards")}`;
+  const rating = row.rating && RATING[row.rating];
+  return (
+    <div style={onClick ? { ...S.area, cursor: "pointer" } : S.area} onClick={onClick}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => {
+        if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onClick(); }
+      } : undefined}
+      role={onClick ? "button" : undefined} aria-expanded={onClick ? open : undefined}
+      data-stats-area={row.key}>
+      <div style={S.areaHead}>
+        <span style={S.areaName}>{name ?? row.label}</span>
+        {rating && <span style={{ ...S.rating, ...rating.style }} data-stats-rating={row.rating}>{rating.label}</span>}
+        {row.sub && <span style={S.areaSub}>{row.sub}</span>}
+      </div>
+      {row.parts ? (
+        <div style={S.parts}>
+          {/* The 7-day change is the cards' ~N remembered, so it goes on Words. */}
+          <Part part="words" label="Words" summary={s} text={wordsText}>{delta && <span style={{ marginLeft: "auto" }}>{delta}</span>}</Part>
+          {row.parts.grammar && <Part part="grammar" label="Grammar" summary={asBands(row.parts.grammar)} text={partText(row.parts.grammar, "item", "items")} />}
+          {row.parts.text && <Part part="text" label="Text" summary={asBands(row.parts.text)} text={partText(row.parts.text, "sentence", "sentences")} />}
+        </div>
+      ) : (
+        <>
+          <Bands summary={s} height={10} />
+          <div style={S.areaFoot}>
+            <span style={S.areaFig}>{wordsText}</span>
+            {delta}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+export function ProgressByLesson({ groups, rows, parts = false }) {
   const [open, setOpen] = useState(true);
   const [openGroups, setOpenGroups] = useState(() => new Set());
   const toggleGroup = (key) => setOpenGroups((prev) => {
@@ -237,8 +308,8 @@ export function ProgressByLesson({ groups, rows }) {
         {/* What the bars' two colours are, once for every bar. */}
         {open && (
           <div style={S.barKey} data-stats-bar-key>
-            <span style={S.barKeyItem}><span style={{ ...S.barKeySq, background: NAVY }} />Remembered</span>
-            <span style={S.barKeyItem}><span style={{ ...S.barKeySq, background: NAVY, opacity: 0.3 }} />Seen</span>
+            <span style={S.barKeyItem}><span style={{ ...S.barKeySq, background: NAVY }} />{parts ? "Remembered or right" : "Remembered"}</span>
+            <span style={S.barKeyItem}><span style={{ ...S.barKeySq, background: NAVY, opacity: 0.3 }} />{parts ? "Seen or tried" : "Seen"}</span>
           </div>
         )}
       </div>
@@ -293,6 +364,11 @@ const S = {
   barKeyItem: { display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, fontFamily: T.font.sans, color: T.color.onSurfaceVariant },
   barKeySq: { width: 10, height: 10, borderRadius: 3, flexShrink: 0 },
   foldHead: { display: "flex", alignItems: "center", gap: 10, padding: 0, border: "none", background: "transparent", cursor: "pointer", fontFamily: T.font.serif, fontSize: 18, fontWeight: 600, color: NAVY, textAlign: "left", marginBottom: 14 },
+  parts: { display: "flex", flexDirection: "column", gap: 10 },
+  part: { display: "flex", flexDirection: "column", gap: 5 },
+  partHead: { display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" },
+  partLabel: { fontSize: 12.5, fontFamily: T.font.sans, fontWeight: 600, color: NAVY, minWidth: 58 },
+  rating: { fontSize: 11.5, fontFamily: T.font.sans, fontWeight: 600, padding: "2px 9px", borderRadius: 999, whiteSpace: "nowrap" },
   areaList: { display: "flex", flexDirection: "column", gap: 10 },
   nested: { display: "flex", flexDirection: "column", gap: 8, margin: "-2px 0 2px 18px", paddingLeft: 14, borderLeft: `2px solid ${T.color.surfaceHigh}` },
   area: { background: T.color.surfaceLowest, borderRadius: T.radius.xl, padding: "14px 18px", border: "1px solid rgba(3,22,50,0.06)" },

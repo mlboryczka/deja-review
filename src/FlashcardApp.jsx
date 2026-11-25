@@ -1,17 +1,21 @@
-import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from "react";
+import { feedbackRequest } from "./lib/feedbackApi";
+import { useState, useEffect, useCallback, useMemo, useRef, useId, Fragment, lazy, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { RAW } from "./data/cards"; // only used for the admin "seed demo deck" action
-import { LESSONS, LESSON_GROUPS, LESSONS_SHOWN, lessonIdOf, lessonRank, cardInstructionFor, lessonBackFor } from "./data/lessons";
+import { lessonIdOf } from "./lib/lessonSource.js";
+import { catalogueFor } from "./data/lessons/byCourse";
+import { SPANISH_EXACT, ENGLISH_EXACT } from "./data/lessons/es/exactWords.js";
+import { accentCounts, OLD_ACCENTS } from "./lib/spanishAccents.js";
+import { courseOf } from "./lib/course";
 import { reconcileLessons, ADOPTED_SOURCE } from "./lib/lessonSync";
 import { archivedSource, ARCHIVE_PREFIX } from "./lib/archive";
 import { readPlace, writePlace, dropSets, packSet, unpackEntries } from "./lib/studyPlace";
 import { CHOICE_KEY, choicesOf, startedLessons, lessonsInCards, onCards, setKeyOf, dealScopeOf } from "./lib/lessonChoice";
-import { withdrawRetry } from "./lib/sessionQueue";
 import LessonPanel, { LESSON_PANEL_WIDTH } from "./LessonPanel";
 import Tour from "./Tour";
 import { tourSteps, TOUR_LESSON } from "./lib/tourSteps";
 import { useProgress } from "./useProgress";
-import { cleanFrenchPrompt, cleanEnglishPrompt, dropFinalPeriod } from "./lib/cardText";
+import { cleanFrenchPrompt, cleanEnglishPrompt, dropFinalPeriod, firstAnswer } from "./lib/cardText";
 import { drillAlternates, isConjugationDrill } from "./lib/cardInstruction";
 import { PANEL_ANIM_MS, PANEL_EASING } from "./lib/motion";
 import { classifyCard, CARD_TYPES, TYPE_LABEL, TYPE_COLOR } from "./lib/cardTypes";
@@ -25,11 +29,17 @@ import ApiKeyModal from "./ApiKeyModal";
 import FsrsSettingsModal from "./FsrsSettingsModal";
 import { useFsrsSettings } from "./useFsrsSettings";
 import { keyHeaders, hasKey } from "./lib/anthropicKey";
+import { IN_IPHONE_APP, appHost } from "./lib/nativeApp";
 
 const SIDEBAR_WIDTH = 256;
 // The sidebar can be minimized to a rail of icons. Remembered per browser.
 const SIDEBAR_MIN_WIDTH = 64;
 const SIDEBAR_MIN_KEY = "sidebar:minimized";
+// The phone layout: the iPhone app, and any window narrower than this, which
+// no computer's window is in practice. One column, with the sidebar a drawer
+// behind a menu button in a bar across the top.
+const PHONE_MAX_WIDTH = 600;
+const PHONE_BAR_HEIGHT = 52;
 const SIDEBAR_TOGGLE_ICON = (minimized) => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <rect x="3" y="4" width="18" height="16" rx="2" />
@@ -37,22 +47,27 @@ const SIDEBAR_TOGGLE_ICON = (minimized) => (
     <path d={minimized ? "M14 10l2 2-2 2" : "M16 10l-2 2 2 2"} />
   </svg>
 );
-// Narrowest content column worth reflowing to.
+// Narrowest content column worth reflowing to, on every page.
 //
-// Measured, not guessed. The card is height-driven and 1.6:1, so in a 900px
-// window it wants 375 tall and 600 wide; with mainInner's 40px of padding
-// either side that is a 680px column. Give it less and the width caps while
-// the height does not, and the card turns portrait — 404x375 at a 484px
-// column, 340x375 at 420.
+// A side panel (the tutor, the lesson notes) makes room for itself: the page
+// narrows and stays live beside it. Covering the page under a dim is only for
+// a window with no room at all. The owner has asked for this more than once:
+// for Podcasts (2026-10-18, the tutor dimmed over the passage being asked
+// about in a 1,395px window) and for every page (2026-11-01, the tutor dimmed
+// over Exercises: "REFLOW THE PAGE WHEN THE SIDE PANE IS OPEN!").
 //
-// The top bar used to go first — below about 700 the chips stopped fitting on
-// one row and stacked — but they scroll now (.chip-row in styles.css), so the
-// card is the only thing this floor is protecting.
-const MIN_REFLOW_CONTENT = 680;
+// So the floor is not what each page would like but the least anything still
+// reads in. Passages, exercises and word rows wrap. The card is height-driven
+// and 1.6:1 and turns portrait below a 680px column (404x375 at 484, 340x375
+// at 420), which is better than the card under a dim. At 360 a window under
+// about 1,080px (sidebar 256 + panel 460 + 360) still gets the panel over
+// the page, or under about 890 with the sidebar folded to icons.
+const MIN_REFLOW_CONTENT = 360;
 import ChatPanel, { CHAT_PANEL_WIDTH } from "./ChatPanel";
 import { T } from "./theme";
 import {
   speakFrench,
+  setSpeechLanguage,
   stopSpeaking,
   WavRecorder,
   assessPronunciation,
@@ -70,19 +85,189 @@ import { localISODate, reviewedToday, endOfLocalDay, browserTimeZone } from "./l
 import { progressByArea, progressChanges, aboutRemembered, areaDates } from "./lib/progress";
 import { statsOverTime, HISTORY_COLUMNS, endOfDayAgo, allSeenBy } from "./lib/progressHistory";
 import { RememberedChart, StudyCalendar, ProgressByLesson, Bands, splitText } from "./StatsSections";
-import { buildSession, applyAnswer, placeRetry, countBuckets, BLOCK_SIZE } from "./lib/sessionQueue";
+import { buildSession, practiceSession, applyAnswer, placeRetry, withdrawRetry, countBuckets, countsAnswer, BLOCK_SIZE } from "./lib/sessionQueue";
 import { RE_QUEUE_OFFSET, State, settingsInUse } from "./lib/spacedRepetition";
 import { sideOf, sideColumns, directionsOf, isTwoWay, itemKey, resetColumns } from "./lib/directions";
 import { newReviewId, reviewRow, withoutExtras, missingColumn } from "./lib/reviewLog";
 import { dealRow, missingTable } from "./lib/dealLog";
-import { uploadResultText } from "./lib/uploadText";
+import { uploadResultText, yourClasses } from "./lib/uploadText";
+// The Podcasts module (owner, 2026-10-09). Its pages, their hooks and all of
+// the episode audio live in PodcastsPage; the shell here only owns which
+// module is showing, which podcasts page, and the sidebar that marks it.
+import PodcastsPage from "./PodcastsPage";
+import { usePodcastFollows } from "./usePodcasts";
+import { podcastBySlug } from "./lib/podcastCatalogue";
+import { testAppModulesOpenTo, usesOwnersKeyOnTestApp } from "./lib/testApp";
+// The Spanish Exercises module (owner, 2026-10-24): the written exercises of
+// each Spanish lesson's sheet, answered and marked one item at a time. Its
+// pages are ExercisesPage's; the shell owns which one is showing.
+// Loaded only when Exercises is opened: its 27 sheets are about 800 KB that
+// no one else, French included, should have to download.
+const ExercisesPage = lazy(() => import("./ExercisesPage"));
+import { TITLES as EXERCISE_TITLE_OF, TEXT_OF as EXERCISE_TEXT_OF, EXERCISE_GROUPS } from "./data/exercises/es/titles.js";
+// The Spanish Dialogues module (owner, 2026-11-07): each lesson's text, typed
+// back into Spanish from the sheet's English. Its pages are DialoguesPage's,
+// loaded only when Dialogues is opened, as with Exercises.
+const DialoguesPage = lazy(() => import("./DialoguesPage"));
+import { DIALOGUE_TITLE_OF, DIALOGUE_GROUPS } from "./data/exercises/es/dialogueTitles.js";
+import { stageOf } from "./data/lessons/es/stages.js";
 
 const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase();
+// The owner's account. Client-side only, so it only ever HIDES things: every
+// podcasts action is refused on the server for anyone else (api/podcasts.js).
+const isAdminUser = (user) => !!(user?.email && user.email.toLowerCase() === ADMIN_EMAIL);
+// Podcasts: the owner, and anyone signed in on the owner's test app
+// (lib/testApp.js, owner 2026-10-19). The server checks the same rule.
+const podcastsUser = (user) => testAppModulesOpenTo({
+  isOwner: isAdminUser(user),
+  signedIn: !!user?.id,
+  host: appHost(),
+});
+// The Spanish module (2026-10-22): the same people, who switch between French
+// and Spanish with the flag in the top-right corner (LanguageFlag, below).
+export const hasLanguageChoice = (user) => podcastsUser(user);
 
-// Feature flag: hide the pronunciation assessment UI (mic button + results
-// panel) without removing any code. The Azure backend, audio.js parser, and
-// PronunciationPanel component all stay in place — they just don't render.
-// Flip to `true` to bring it back.
+// ─── PODCASTS: WHERE THE OWNER WAS ───────────────────────────────────────
+// The sidebar's switch has two buttons, Flashcards and Podcasts (owner,
+// 2026-10-09). Since 2026-10-19 the owner sees it anywhere, and anyone signed
+// in on the test app; Podcasts stays owner-only on the students' app, so it has no switch, no Podcasts
+// pages and writes nothing new to this browser.
+//
+// The page a reload opens has always been Cards: `mode` is never saved, only
+// the place inside the cards (lib/studyPlace.js). Podcasts is a module, not a
+// page, and an episode half-answered is a place, so the owner's place there is
+// kept per user, in this browser: whether Podcasts was showing, and which of
+// its pages. A reload on Flashcards still opens Cards exactly as before.
+//
+// Read only for the owner, written only for the owner, dropped on sign-out
+// (App.jsx). Every access is wrapped: storage throws in private windows and
+// when it is full, and a lost place only costs a click.
+const PODCASTS_PLACE_KEY = "podcasts-place:";
+const PODCASTS_PLACE_VERSION = 1;
+const POD_VIEWS = ["episodes", "mine", "podcast", "episode"];
+const POD_TABS = ["questions", "transcript", "words"];
+// Where Podcasts opens the first time: the Episodes list.
+const POD_HOME = { view: "episodes", podcast: null, episodeId: null, from: "episodes", tab: "questions" };
+// One empty list, not a new one per render, for the page's effects to compare.
+const NO_FOLLOWS = [];
+
+// A podcasts page as PodcastsPage expects it (build spec §11), from whatever
+// was stored. Anything that doesn't add up (an episode page with no episode)
+// goes back to Episodes rather than to a page that can't draw.
+function cleanPodView(v) {
+  if (!v || typeof v !== "object" || !POD_VIEWS.includes(v.view)) return POD_HOME;
+  const podcast = typeof v.podcast === "string" && v.podcast ? v.podcast : null;
+  const episodeId = typeof v.episodeId === "string" && v.episodeId ? v.episodeId : null;
+  // A podcast the catalogue no longer has would be marked in the sidebar
+  // while the page (PodcastsPage's own check) shows Episodes.
+  if (v.view === "podcast" && !podcastBySlug(podcast)) return POD_HOME;
+  if (v.view === "episode" && !episodeId) return POD_HOME;
+  return {
+    view: v.view,
+    podcast,
+    episodeId,
+    from: v.from === "podcast" ? "podcast" : "episodes",
+    tab: POD_TABS.includes(v.tab) ? v.tab : "questions",
+  };
+}
+
+function readPodcastsPlace(userId) {
+  if (!userId) return null;
+  try {
+    const p = JSON.parse(localStorage.getItem(PODCASTS_PLACE_KEY + userId) || "null");
+    if (!p || p.v !== PODCASTS_PLACE_VERSION) return null;
+    return { open: p.open === true, view: cleanPodView(p.view) };
+  } catch {
+    return null;
+  }
+}
+
+function writePodcastsPlace(userId, { open, view }) {
+  if (!userId) return;
+  try {
+    localStorage.setItem(PODCASTS_PLACE_KEY + userId, JSON.stringify({ v: PODCASTS_PLACE_VERSION, open, view }));
+  } catch { /* storage blocked: the place is a convenience, not a record */ }
+}
+
+// Called by App.jsx's sign-out, with the deck cache, the tutor thread and the
+// study place: the next person on this browser must not open on the owner's
+// episode.
+export function clearPodcastsPlace(userId) {
+  if (!userId) return;
+  try { localStorage.removeItem(PODCASTS_PLACE_KEY + userId); } catch { /* storage blocked */ }
+  try { localStorage.removeItem(EXERCISES_PLACE_KEY + userId); } catch { /* storage blocked */ }
+  try { localStorage.removeItem(EXERCISES_FOLDED_KEY + userId); } catch { /* storage blocked */ }
+  try { localStorage.removeItem(DIALOGUES_PLACE_KEY + userId); } catch { /* storage blocked */ }
+  // The exercises started again (ExercisesPage's own key).
+  try { localStorage.removeItem("es-exercises-again:" + userId); } catch { /* storage blocked */ }
+}
+
+// ─── EXERCISES: WHERE YOU WERE (Spanish, 2026-10-24) ─────────────────────
+// The Spanish sidebar's switch has three buttons, Flashcards, Exercises and
+// Dialogues, as French has Flashcards and Podcasts. Whether Exercises was showing, and which
+// lesson, is kept per user in this browser like the place in Podcasts, so a
+// reload opens where you were. Only for someone with Spanish.
+const EXERCISES_PLACE_KEY = "es-exercises-place:";
+function readExercisesPlace(userId) {
+  if (!userId) return null;
+  try {
+    const p = JSON.parse(localStorage.getItem(EXERCISES_PLACE_KEY + userId) || "null");
+    if (!p || typeof p !== "object") return null;
+    return { open: p.open === true, lesson: EXERCISE_TITLE_OF[p.lesson] ? p.lesson : null };
+  } catch {
+    return null;
+  }
+}
+function writeExercisesPlace(userId, { open, lesson }) {
+  if (!userId) return;
+  try {
+    localStorage.setItem(EXERCISES_PLACE_KEY + userId, JSON.stringify({ open, lesson }));
+  } catch { /* storage blocked: the place is a convenience, not a record */ }
+}
+// The same for Dialogues, the switch's third part (2026-11-07).
+const DIALOGUES_PLACE_KEY = "es-dialogues-place:";
+function readDialoguesPlace(userId) {
+  if (!userId) return null;
+  try {
+    const p = JSON.parse(localStorage.getItem(DIALOGUES_PLACE_KEY + userId) || "null");
+    if (!p || typeof p !== "object") return null;
+    return { open: p.open === true, lesson: DIALOGUE_TITLE_OF[p.lesson] ? p.lesson : null };
+  } catch {
+    return null;
+  }
+}
+function writeDialoguesPlace(userId, { open, lesson }) {
+  if (!userId) return;
+  try {
+    localStorage.setItem(DIALOGUES_PLACE_KEY + userId, JSON.stringify({ open, lesson }));
+  } catch { /* storage blocked: the place is a convenience, not a record */ }
+}
+// The lessons under All exercises, folded away by All exercises or the arrow
+// beside it (owner, 2026-10-25: "need to be able to remove the subheadings
+// (lessons)").
+// Kept folded in this browser until opened again.
+const EXERCISES_FOLDED_KEY = "es-exercises-folded:";
+function readExercisesFolded(userId) {
+  try { return !!userId && localStorage.getItem(EXERCISES_FOLDED_KEY + userId) === "1"; } catch { return false; }
+}
+
+// Two tutor contexts with the same content. The podcasts page and the
+// exercises page hand one up whenever what is on screen changes; a fresh
+// object with nothing new in it must not re-render the whole app (and,
+// through new props, the page again).
+const sameTutorContext = (a, b) => {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  try { return JSON.stringify(a) === JSON.stringify(b); } catch { return false; }
+};
+
+// Reads a card's text as it is (French cards have one answer to read).
+const sameText = (text) => text;
+
+// Feature flag: hides the pronunciation assessment UI (mic button + results
+// panel). Flipping it to `true` would not bring pronunciation scoring back:
+// the scoring backend (api/pronounce.js) was removed on 2026-09-08, and
+// assessPronunciation in audio.js now always returns an error.
 const PRONUNCIATION_ENABLED = false;
 
 // Cards are labelled by the three types in lib/cardTypes (grammar / word /
@@ -104,16 +289,38 @@ function normalize(s) {
     .replace(/\([^)]*\)/g, "")
     // Curly quotes too: smart punctuation types ’, so "d’un air" and "d'un air" differ
     // by a character the reader can't see.
-    .replace(/[.,!?;:""''«»’‘“”…]/g, "")
+    // ¿ and ¡ open a Spanish question or exclamation (the Spanish module):
+    // "Cómo estás?" typed without them is the same answer.
+    // A leading elided l' ("l'eau", "l'IA") is the article l, so it may be
+    // left off like le and la (code check 2026-11-07, no. 15). The apostrophe
+    // is removed below, which made "l'eau" one word that never split.
+    .replace(/^\s*l['’](?=\S)/, "l ")
+    .replace(PUNCTUATION, "")
     .replace(/\s+/g, " ")
     .trim();
 }
+// The punctuation a typed answer ignores, kept in one place for normalize and
+// keepAccents, which must split words the same way.
+const PUNCTUATION = /[.,!?;:""''«»’‘“”…¿¡]/g;
 // English particles are interchangeable / optional, but French articles carry gender
 const EN_PARTICLES = new Set(["to", "the", "a", "an"]);
-const FR_ARTICLES = new Set(["le", "la", "les", "un", "une", "des", "du", "de", "l'", "d'"]);
+// Which leading words count as an article, by `articles` (see matchAnswer):
+// both languages' for French (d' is no article: "abord" is not "d'abord"); in the Spanish module only the
+// answer's own language, so a Spanish "le" (him, her) or "a" (to) is never
+// set aside as a French or English article.
+const ARTICLES = {
+  fr: /^(to |the |a |an |le |la |les |un |une |des |du |de |l )/i,
+  es: /^(el |la |los |las |un |una |unos |unas )/i,
+  en: /^(to |the |a |an )/i,
+};
 // Separate leading article from content
-function splitArticle(s) {
-  const m = s.match(/^(to |the |a |an |le |la |les |un |une |des |du |de |l'|d')/i);
+// `graveA`: the text began with "à", which normalize() has made an "a": a
+// French preposition, never the English article (code check 2026-11-07, no.
+// 13), so "maison" is not "à la maison".
+const startsWithGraveA = (raw) => /^\s*à(\s|$)/i.test(String(raw || ""));
+function splitArticle(s, articles = "fr", graveA = false) {
+  const re = ARTICLES[articles];
+  const m = re && !(graveA && /^a /.test(s)) ? s.match(re) : null;
   if (m) {
     const article = m[0].trim().toLowerCase();
     return { article, rest: s.slice(m[0].length).trim() };
@@ -127,8 +334,8 @@ function articlesCompatible(tArt, aArt) {
   if (tArt === aArt) return true; // exact match
   // Both English → interchangeable (a/an/the/to)
   if (EN_PARTICLES.has(tArt) && EN_PARTICLES.has(aArt)) return true;
-  // Both French → strict (gender matters: un ≠ une, le ≠ la)
-  if (FR_ARTICLES.has(tArt) && FR_ARTICLES.has(aArt)) return false;
+  // Any other pair is strict: French, and the Spanish module's el, los, las,
+  // una, unos and unas, carry gender (un ≠ une, le ≠ la, "la mano" is not "el mano").
   return false;
 }
 // Damerau-Levenshtein edit distance (transpositions count as 1)
@@ -162,6 +369,90 @@ function stripParens(s) {
   do { prev = out; out = out.replace(/\([^()]*\)/g, " "); } while (out !== prev);
   return out.replace(/\(.*$/, " ").replace(/\)/g, " ").replace(/\s+/g, " ").trim();
 }
+// Spanish answers are marked with the accents that change a verb's tense
+// (owner, 2026-10-22: "accents must be checked"; 2026-10-26: "the accents
+// shouldn't be a criteria for marking something incorrect, unless the word
+// NEEDS the accent (for instance to determine the proper tense)"): "habló"
+// is not "hablo", but "esta" is right for está, "tu" for tú and "ano" for
+// año (src/lib/spanishAccents.js). The match itself is made with
+// accents set aside, as before, so a typo elsewhere is still forgiven; then
+// every typed word that is a word of the answer but for an accent that
+// counts is a wrong answer. A word with a typo in it isn't judged for its
+// accents: the tolerance has already judged it. French answers are marked as
+// they always were, accents aside.
+function keepAccents(s) {
+  return String(s || "").toLowerCase().normalize("NFC")
+    .replace(/\([^)]*\)/g, "")
+    .replace(PUNCTUATION, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+const withoutAccents = (w) => w.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+const noTilde = (w) => w.replace(/ñ/g, "n");
+function accentsRight(typed, answer) {
+  const forms = new Map();
+  for (const w of keepAccents(answer).split(" ")) {
+    const k = withoutAccents(w);
+    if (!forms.has(k)) forms.set(k, new Set());
+    forms.get(k).add(w);
+  }
+  for (const w of keepAccents(typed).split(" ")) {
+    const fs = forms.get(withoutAccents(w));
+    if (!fs || fs.has(w)) continue;
+    // A missing ñ is no mistake even on a word whose accent counts: "bano"
+    // for baño (code check 2026-11-07, no. 19). Only the vowel's accent
+    // decides: "enseño" for enseñó is still the wrong tense.
+    if ([...fs].some((f) => noTilde(f) === noTilde(w))) continue;
+    if (OLD_ACCENTS.has(w) && fs.has(OLD_ACCENTS.get(w))) continue;
+    if (![...fs].some(accentCounts)) continue;
+    return false;
+  }
+  return true;
+}
+// The words of the answer that must be typed exactly (owner, 2026-10-25),
+// accents included where they change a verb's tense: those on `exactWords`,
+// a Map from each to the spellings that count as typing it
+// (src/data/lessons/es/exactWords.js: the Spanish lessons' irregular verb
+// forms, numbers and months), and any word with a figure in it. "right" when
+// each was typed, "accent" when one was typed but for an accent that counts,
+// and "missing" when one wasn't typed at all: "poní" for puse, "setenta" for
+// sesenta, "July" for June.
+// Each typed word that is another spelling of an exact word the answer has
+// becomes that word: "3" for three, "7th" for seventh (code check 2026-11-07,
+// no. 18). Without it the figure counted only where the typo tolerance
+// happened to cover the difference.
+function foldFigures(typed, answer, exactWords) {
+  const swap = new Map();
+  for (const w of keepAccents(answer).split(" ")) {
+    const ways = exactWords.get(w);
+    if (ways) for (const x of ways) if (x !== w) swap.set(x, w);
+  }
+  if (!swap.size) return typed;
+  return String(typed).split(/(\s+)/).map((part) => {
+    const k = keepAccents(part);
+    return swap.has(k) ? swap.get(k) : part;
+  }).join("");
+}
+function exactWordsTyped(typed, answer, exactWords) {
+  if (!exactWords) return "right";
+  const want = keepAccents(answer).split(" ").filter((w) => exactWords.has(w) || /\d/.test(w));
+  if (!want.length) return "right";
+  const words = keepAccents(typed).split(" ");
+  const asTyped = new Set(words);
+  // A number typed without its hyphen ("forty five") is the same words
+  // (code check 2026-11-07, no. 14); "forty four" still isn't forty-five.
+  const spaced = ` ${words.join(" ").replace(/-/g, " ")} `;
+  const bare = new Set(words.map(withoutAccents));
+  let accent = false;
+  for (const w of want) {
+    const ways = exactWords.get(w) || [w];
+    if (ways.some((x) => asTyped.has(x) || (x.includes("-") && spaced.includes(` ${x.replace(/-/g, " ")} `)))) continue;
+    if (!ways.some((x) => bare.has(withoutAccents(x)))) return "missing";
+    if (accentCounts(w)) accent = true;
+  }
+  return accent ? "accent" : "right";
+}
+
 // Match typed answer against correct answer, handling alternatives and fuzz.
 //
 // `exact` turns the fuzz off: the typed answer must equal one of the
@@ -175,10 +466,51 @@ function stripParens(s) {
 // between commas or semicolons is an answer on its own, however long. "ça
 // sert à rien" = "that serves no purpose, that's useless" refused "that's
 // useless" (the owner, 2026-10-09) because "that serves no purpose" is four
-// words. Only when the side shown has no comma: "Quand il pleut, je reste à
-// la maison" = "When it rains, I stay at home" is one sentence, and "I stay
-// at home" isn't the answer.
-function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings = false } = {}) {
+// words. Only when the side shown is a few words with no comma (see
+// hasMeaningList): "Quand il pleut, je reste à la maison" = "When it rains, I
+// stay at home" is one sentence, and "I stay at home" isn't the answer. The
+// whole answer, all its meanings typed, is right as well.
+//
+// `articles` says which leading words are articles, which may be left off
+// and must have the right gender: "fr", the French app's (French and English
+// together); in the Spanish module "en" for an English answer, "es" for a
+// Spanish word card, and "none" for a Spanish phrase, where a leading le, la
+// or lo is a pronoun, so a wrong one isn't called a wrong article. (The
+// tolerance below still lets a slightly shorter answer through, as on French
+// phrase cards; the lessons test pronouns on exact cards.)
+//
+// `accents`: the answer is Spanish, and its accents that change a verb's
+// tense are checked (see accentsRight). A match that is right but for such an
+// accent ("hablo" for habló) is { match: false, wrongAccent: true }.
+//
+// `exactWords`: words the tolerance must not touch, on a Spanish card the
+// irregular verb forms, numbers and months (see exactWordsTyped). A near miss
+// is still a match, but only with each of them typed as the answer has it:
+// "Ayer puse la computadora en la sla" is close enough, "Ayer poní la
+// computadora en la sala" is wrong, and "Ayer pusé…" is right, its accent
+// changing no tense.
+// Whether the English for a shown word or phrase may be a list of meanings,
+// each right on its own. Only for a word or short phrase without a comma: a
+// sentence's English is one answer, so "If I were you" alone isn't right for
+// "Yo en tu lugar no le diría nada" = "If I were you, I wouldn't tell him
+// anything" (code check 2026-11-07, no. 3), and "Quand il pleut, je reste à
+// la maison" isn't answered by "I stay at home".
+function hasMeaningList(shown) {
+  const text = String(shown || "").trim();
+  return !!text && text.split(/\s+/).length <= 4 && !/[,;→]/.test(text);
+}
+
+// "LA" (or "L.A.") typed for an answer that says Los Ángeles is Los Ángeles
+// (feedback #59, the owner, 2026-10-30: "LA always means los angeles"). It
+// is spelled as the answer spells it, so the Spanish accent is never what
+// makes it wrong. Only in capitals: a lower-case "la" is the Spanish article.
+function spellOutLA(typed, answers) {
+  const name = answers.map((a) => String(a || "").match(/Los [ÁA]ngeles/i)?.[0]).find(Boolean);
+  return name ? String(typed).replace(/(^|[^\p{L}])L\.? ?A\.?(?!\p{L})/gu, `$1${name}`) : typed;
+}
+
+function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings = false, articles = "fr", accents = false, exactWords = null } = {}) {
+  typed = spellOutLA(typed, [correct, ...extraAlts]);
   const t = normalize(typed);
   if (!t) return { match: false };
 
@@ -207,6 +539,9 @@ function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings =
       if (tooLong) {
         alternatives.push(sp);
       } else {
+        // The whole answer is right too, and tried first, so typing all of
+        // it is an exact match, not a "Close enough" against one of its parts.
+        if (subParts.length > 1) alternatives.push(sp);
         for (const ap of subParts) alternatives.push(ap);
       }
     }
@@ -216,36 +551,59 @@ function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings =
     // Only "/" separates answers here. The comma/semicolon split above is for
     // glosses, and in an exact answer a comma is part of it: "Oui, j'y vais"
     // split into "Oui" and "j'y vais" would accept "oui" and refuse the whole.
-    const squash = (x) => normalize(x).replace(/\s+/g, " ").trim();
     const pool = sources.flatMap((src) => { const x = stripParens(src) || src; return [x, ...x.split("/")]; });
-    return { match: pool.some((alt) => squash(alt) && squash(alt) === squash(t)) };
+    const hits = pool.filter((alt) => normalize(alt) && normalize(alt) === t);
+    if (!hits.length) return { match: false };
+    if (!accents || hits.some((alt) => accentsRight(typed, alt))) return { match: true };
+    return { match: false, wrongAccent: true };
   }
+
+  // An answer right but for its accents, kept while the other answers are
+  // tried: one of them may be right with them.
+  let accentMiss = false;
+  // Likewise an answer right but for its article's gender: "une enfant" is
+  // the wrong article for "un enfant", but right once accepted as an
+  // alternate, so every alternative is tried before saying so (code check
+  // 2026-11-07, no. 1).
+  let articleMiss = false;
+  // A near match on one answer is kept while the rest are tried, so one
+  // typed exactly wins: "muchas" is right, not close enough, for "mucho /
+  // mucha / muchos / muchas" (feedback #65, the owner, 2026-11-18).
+  let closeHit = null;
 
   for (const alt of alternatives) {
     const a = normalize(alt);
     if (!a) continue;
+    // A figure typed for a number word ("3" for three) is that word.
+    const typedHere = exactWords ? foldFigures(typed, alt, exactWords) : typed;
+    const tt = normalize(typedHere);
     // Split article off both sides
-    const typedSplit = splitArticle(t);
-    const answerSplit = splitArticle(a);
+    const typedSplit = splitArticle(tt, articles, startsWithGraveA(typed));
+    const answerSplit = splitArticle(a, articles, startsWithGraveA(alt));
     // Enforce French gender on articles
     if (!articlesCompatible(typedSplit.article, answerSplit.article)) {
       // Record that the article was wrong specifically, so we can feedback
       // "wrong article" instead of just "wrong"
-      if (normalize(typedSplit.rest) === normalize(answerSplit.rest)) {
-        return { match: false, wrongArticle: true };
-      }
+      if (normalize(typedSplit.rest) === normalize(answerSplit.rest)) articleMiss = true;
       continue;
     }
     const tRest = typedSplit.rest;
     const aRest = answerSplit.rest;
     // Exact match
-    if (tRest === aRest) return { match: true };
-    // Substring match (user typed part of a longer answer)
-    if (aRest.includes(tRest) && tRest.length >= Math.max(4, aRest.length - 3)) {
-      return { match: true, close: true };
+    if (tRest === aRest) {
+      if (accents && !accentsRight(typedHere, alt)) { accentMiss = true; continue; }
+      return { match: true };
     }
-    if (tRest.includes(aRest) && aRest.length >= 4) {
-      return { match: true, close: true };
+    // Every match below forgives something, but never in one of exactWords:
+    // one typed wrong fails this answer, one wrong only in its accents is
+    // wrong for them.
+    const exactAre = exactWordsTyped(typedHere, alt, exactWords);
+    // Substring match (user typed part of a longer answer)
+    if ((aRest.includes(tRest) && tRest.length >= Math.max(4, aRest.length - 3)) ||
+        (tRest.includes(aRest) && aRest.length >= 4)) {
+      if (exactAre === "missing") continue;
+      if (exactAre === "accent" || (accents && !accentsRight(typedHere, alt))) { accentMiss = true; continue; }
+      { closeHit ??= { match: true, close: true }; continue; }
     }
     // Token-set overlap: only accepts word-order changes, not wrong/missing words.
     // Previous 0.8 threshold let "betrayal" pass for "trahison" in long phrases.
@@ -255,21 +613,29 @@ function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings =
       let shared = 0;
       for (const tok of tTokens) if (aTokens.has(tok)) shared++;
       if (shared === tTokens.size && shared === aTokens.size) {
-        return { match: true, close: true };
+        if (exactAre === "missing") continue;
+        if (exactAre === "accent" || (accents && !accentsRight(typedHere, alt))) { accentMiss = true; continue; }
+        { closeHit ??= { match: true, close: true }; continue; }
       }
     }
     // Fuzzy: edit distance within threshold
     const dist = editDistance(tRest, aRest);
     const longest = Math.max(tRest.length, aRest.length);
     const threshold = longest <= 4 ? 0 : longest <= 8 ? 1 : longest <= 14 ? 2 : 3;
-    if (dist <= threshold) return { match: true, close: dist > 0 };
+    if (dist <= threshold) {
+      if (exactAre === "missing") continue;
+      if (exactAre === "accent" || (accents && !accentsRight(typedHere, alt))) { accentMiss = true; continue; }
+      if (dist === 0) return { match: true };
+      closeHit ??= { match: true, close: true };
+      continue;
+    }
   }
-  return { match: false };
+  if (closeHit) return closeHit;
+  if (articleMiss) return { match: false, wrongArticle: true };
+  return accentMiss ? { match: false, wrongAccent: true } : { match: false };
 }
 
-// The columns an answer changes, as they stood before it — so a corrected
-// grade can be recomputed from the card as it was, not from the answer being
-// replaced.
+// Flip or type, kept on this browser.
 const STUDY_MODE_KEY = "study-mode";
 // Auto-speak and the number of cards in a set, kept on this browser like the
 // flip/type choice. A new set size applies to the set on screen at once (the
@@ -292,7 +658,14 @@ const AREA_LABEL = Object.freeze({ recent: "Last two weeks of class", earlier: "
 // "Your class of 24 September: 31 new cards" — said in classes, because that
 // is what the student recognises, with the count second.
 // What linking a cahier did, said in classes rather than in lessons parsed.
-function uploadDoneText({ cardsInserted = 0, datesCovered = 0, busy = false }) {
+function uploadDoneText({ cardsInserted = 0, datesCovered = 0, busy = false }, caderno = false) {
+  // The Spanish caderno (2026-11-02): said the same way, of the caderno.
+  if (caderno) {
+    const after = "\n\nFrom now on, each class Laura adds becomes cards on its own when you open Spanish.";
+    if (busy && cardsInserted === 0) return `Your caderno is linked. It is being read right now, so its new classes will be added on the next check.${after}`;
+    if (cardsInserted === 0) return `Your caderno is linked. Nothing new to add yet: every class in it is already in your deck.${after}`;
+    return `Your caderno is linked.\n\n${cardsInserted} new ${cardsInserted === 1 ? "card" : "cards"} from ${datesCovered} ${datesCovered === 1 ? "class" : "classes"}. They join your deck as new cards, so they arrive once your reviews are done.${after}`;
+  }
   // Only one reading of a student's notes runs at a time (2026-10-06).
   if (busy && cardsInserted === 0) {
     return "Your cahier is linked. Your notes are being read right now, by an upload or the daily check, so its new classes will be added on the next check.\n\nFrom now on, each class Laura adds becomes cards on its own.";
@@ -300,14 +673,11 @@ function uploadDoneText({ cardsInserted = 0, datesCovered = 0, busy = false }) {
   if (cardsInserted === 0) {
     return "Your cahier is linked. Nothing new to add yet — every class in it is already in your deck.\n\nFrom now on, each class Laura adds becomes cards on its own.";
   }
-  return `Your cahier is linked.\n\n${cardsInserted} cards from ${datesCovered} ${datesCovered === 1 ? "class" : "classes"} you hadn't studied yet. They join your deck as new cards, so they arrive once your reviews are done.\n\nFrom now on, each class Laura adds becomes cards on its own.`;
+  return `Your cahier is linked.\n\n${cardsInserted} ${cardsInserted === 1 ? "card" : "cards"} from ${datesCovered} ${datesCovered === 1 ? "class" : "classes"} you hadn't studied yet. They join your deck as new cards, so they arrive once your reviews are done.\n\nFrom now on, each class Laura adds becomes cards on its own.`;
 }
 
-function cahierArrivalText({ dates = [], cards = 0 } = {}) {
-  const asDay = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "long" });
-  const when = dates.length === 0 ? "Your cahier"
-    : dates.length === 1 ? `Your class of ${asDay(dates[0])}`
-    : `Your classes from ${asDay(dates[0])} to ${asDay(dates[dates.length - 1])}`;
+function cahierArrivalText({ dates = [], cards = 0 } = {}, caderno = false) {
+  const when = dates.length === 0 ? (caderno ? "Your caderno" : "Your cahier") : yourClasses(dates);
   return `${when}: ${cards.toLocaleString()} new ${cards === 1 ? "card" : "cards"} added to your deck.`;
 }
 
@@ -328,12 +698,34 @@ function typedGotIt(typeResult) {
   return typeResult === "correct" || typeResult === "close";
 }
 
-export default function FlashcardApp({ user, onSignOut }) {
-  const { progress, loaded: progressLoaded, updateCard, resetAll: resetAllProgress } = useProgress(user);
-  const { cards: userCards, archived: archivedCards, loaded: deckLoaded, reload: reloadDeck, patch: patchDeckCard, patchAll: patchAllDeckCards, add: addDeckCard, freshSeq: deckFreshSeq, fetchedAt: deckFetchedAt } = useUserDeck(user);
+// `course` is which language's cards to show: "fr", the app as it always
+// was, or "es", the Spanish module (test app, 2026-10-22; src/lib/course.js).
+// App.jsx mounts the app afresh for each, so nothing of one course's set,
+// deck or place carries over to the other. `onCourse("fr" | "es")` switches;
+// it is only passed to someone who has both, and draws the flag that does it.
+export default function FlashcardApp({ user, onSignOut: rawSignOut, course: courseId = "fr", onCourse: rawOnCourse }) {
+  const course = courseOf(courseId);
+  // The Spanish module: its own deck, lessons and voice. No document uploads
+  // or tour, which are about French cards; its notebook is the caderno
+  // (useCahierSync with "es", since 2026-11-02). Its tutor is the Spanish
+  // one (owner, 2026-10-26), and card editing works on Spanish cards.
+  const spanish = course.id === "es";
+  // A Spanish card shows one answer of the list it accepts (lib/cardText.js).
+  const oneAnswer = spanish ? firstAnswer : sameText;
+  // Which table each thing is in, and what this browser keeps it under.
+  const tbl = course.table;
+  const storeId = course.store(user?.id);
+  // The course's lessons. The same object on every render, so it never
+  // changes a hook's dependencies.
+  const { LESSONS, LESSON_GROUPS, LESSON_STAGES, lessonById, lessonRank, cardInstructionFor, lessonBackFor } = catalogueFor(course.id);
+  // The browser voice reads this course's language.
+  setSpeechLanguage(course.speech);
+  const { progress, loaded: progressLoaded, updateCard, resetAll: resetAllProgress } = useProgress(user, { table: tbl("card_progress"), store: storeId });
+  const { cards: userCards, archived: archivedCards, loaded: deckLoaded, missing: deckMissing, reload: reloadDeck, patch: patchDeckCard, patchAll: patchAllDeckCards, add: addDeckCard, drop: dropDeckCard, freshSeq: deckFreshSeq, fetchedAt: deckFetchedAt, loadFailed: deckLoadFailed } = useUserDeck(user, { table: tbl("user_cards"), store: storeId });
   // The linked cahier, read again when the app opens: a class taught after
-  // the last visit is already cards by the time the student studies.
-  const cahier = useCahierSync(user);
+  // the last visit is already cards by the time the student studies. In
+  // Spanish, the caderno (2026-11-02), in tables of its own.
+  const cahier = useCahierSync(user, spanish ? "es" : "fr");
   // Cards that arrived from it are only in the database until the deck is
   // read again. They then reach the student the way any new card does — the
   // scheduler deals them once due work runs out, most recent class first.
@@ -376,7 +768,7 @@ export default function FlashcardApp({ user, onSignOut }) {
   // a new page, so that is dropped here.
   const placeRef = useRef(null);
   if (placeRef.current === null) {
-    const stored = readPlace(user?.id);
+    const stored = readPlace(storeId);
     const today = localISODate();
     const sets = {};
     for (const [k, v] of Object.entries(stored?.sets || {})) if (v?.day === today) sets[k] = { ...v, seq: null };
@@ -389,15 +781,52 @@ export default function FlashcardApp({ user, onSignOut }) {
   // What the last deal or return of a set was made from — see the guard at the
   // top of the deck-build effect.
   const scheduledRef = useRef(null);
-  const [mode, setMode] = useState("study"); // study | stats | feedback
-  // seen/got/missed count TYPED answers only — those are verifiable, and
-  // accuracy built from self-reported flips would be meaningless. `answered`
-  // counts every graded card in either mode, so the end-of-session summary
-  // has something true to say when nothing was typed.
+  // The cards of each lesson gone through again today (practiceSession), by
+  // the set's key, so a lesson bigger than the set is gone through a set at a
+  // time. This page's only: a reload starts the lesson again from the top.
+  // "Go through the lesson again" asks for the top (practiceFreshRef), and the
+  // card answered last never starts the next set (lastAnsweredRef).
+  const practicedRef = useRef({ day: null, bySig: {} });
+  const practicedIn = (sig) => {
+    const today = localISODate();
+    if (practicedRef.current.day !== today) practicedRef.current = { day: today, bySig: {} };
+    const by = practicedRef.current.bySig;
+    if (!by[sig]) by[sig] = new Set();
+    return by[sig];
+  };
+  const practiceFreshRef = useRef(false);
+  const lastAnsweredRef = useRef(null);
+  // The owner's place in Podcasts, read once (see readPodcastsPlace). Never
+  // read for anyone without Podcasts, so a student's app opens exactly as it
+  // always has.
+  const podPlaceRef = useRef(undefined);
+  if (podPlaceRef.current === undefined) {
+    podPlaceRef.current = podcastsUser(user) && !spanish ? readPodcastsPlace(user?.id) : null;
+  }
+  // The same for Exercises, in Spanish.
+  const exPlaceRef = useRef(undefined);
+  if (exPlaceRef.current === undefined) {
+    exPlaceRef.current = podcastsUser(user) && spanish ? readExercisesPlace(user?.id) : null;
+  }
+  // And for Dialogues.
+  const dgPlaceRef = useRef(undefined);
+  if (dgPlaceRef.current === undefined) {
+    dgPlaceRef.current = podcastsUser(user) && spanish ? readDialoguesPlace(user?.id) : null;
+  }
+  // The page: study | lessons | stats | podcasts. "study" is Cards and also
+  // the inside of a lesson (lessonFilter). "podcasts" is the whole Podcasts
+  // module, whichever of its pages is showing (podView, below), so the module
+  // is derived from the page rather than kept as state of its own: the tour
+  // and enterLesson set the page, and that alone brings the sidebar back to
+  // Flashcards. A separate module flag left behind on Podcasts would have the
+  // tour pointing at a Lessons item that isn't drawn.
+  const [mode, setMode] = useState(() => (podPlaceRef.current?.open ? "podcasts" : exPlaceRef.current?.open ? "exercises" : dgPlaceRef.current?.open ? "dialogues" : "study"));
+  // `answered` counts every graded card in either mode, so the
+  // end-of-session summary has something true to say when nothing was typed.
   // firstAnswered/firstGot count each card's FIRST answer of the day, in
   // either mode — what the checkpoint reports as "right first time". A retry
   // or a card revisited with Previous card is not a first answer.
-  const [stats, setStats] = useState({ seen:0, got:0, missed:0, answered:0, firstAnswered:0, firstGot:0 });
+  const [stats, setStats] = useState({ answered:0, firstAnswered:0, firstGot:0 });
   // Bumped by Continue to deal the next block from the deck already in memory.
   const [blockSeq, setBlockSeq] = useState(0);
   // Progress when the current block was dealt, so the checkpoint can say what
@@ -464,7 +893,7 @@ export default function FlashcardApp({ user, onSignOut }) {
     try { localStorage.setItem(SET_SIZE_KEY, String(setSize)); } catch { /* storage blocked */ }
   }, [setSize]);
   const [typedAnswer, setTypedAnswer] = useState("");
-  const [typeResult, setTypeResult] = useState(null); // null | 'correct' | 'wrong'
+  const [typeResult, setTypeResult] = useState(null); // null | 'correct' | 'close' | 'wrong' | 'wrongArticle' | 'wrongAccent' | 'revealed'
   const studyInputRef = useRef(null);
 
   // Upload & onboarding state
@@ -481,7 +910,7 @@ export default function FlashcardApp({ user, onSignOut }) {
   // panel opens INSIDE the sidebar and needs its full width to write in, so
   // opening it widens the sidebar, and closing it puts the sidebar back the
   // way it was.
-  const [sidebarMin, setSidebarMin] = useState(() => {
+  const [sidebarMinPref, setSidebarMin] = useState(() => {
     try { return localStorage.getItem(SIDEBAR_MIN_KEY) === "1"; } catch { return false; }
   });
   const widenedForFeedback = useRef(false);
@@ -546,17 +975,7 @@ export default function FlashcardApp({ user, onSignOut }) {
   // set size. Closes on a click outside it or Escape.
   const [showSettings, setShowSettings] = useState(false);
   const settingsRef = useRef(null);
-  useEffect(() => {
-    if (!showSettings) return;
-    const onDown = (e) => { if (!settingsRef.current?.contains(e.target)) setShowSettings(false); };
-    const onKey = (e) => { if (e.key === "Escape") setShowSettings(false); };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [showSettings]);
+  useCloseOnOutside(showSettings, settingsRef, () => setShowSettings(false));
 
   // Leaving a lesson closes its notes.
   //
@@ -593,28 +1012,18 @@ export default function FlashcardApp({ user, onSignOut }) {
   // "How much to remember", and the student's own FSRS settings behind it:
   // applied to the scheduler, checked once a day (useFsrsSettings).
   const [showFsrsSettings, setShowFsrsSettings] = useState(false);
-  const fsrs = useFsrsSettings(user, { cards: userCards, freshSeq: deckFreshSeq, dir, onEstimatesChanged: reloadDeck });
+  // The daily check is the French deck's: it fits the settings from French
+  // answers and writes their estimates to French cards. The Spanish deck uses
+  // the settings it gives.
+  // The cards a set is dealt from (candidatesFrom, below), so a lesson switched
+  // off doesn't count as cards left undone.
+  const dealtFromRef = useRef(null);
+  const fsrs = useFsrsSettings(user, { cards: userCards, freshSeq: deckFreshSeq, dir, dealtFromRef, onEstimatesChanged: reloadDeck, daily: !spanish });
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const profileRef = useRef(null);
 
-  // Close the profile menu on an outside click or Escape. Mousedown rather
-  // than click so the menu is gone before whatever was underneath reacts,
-  // and containment rather than a target check so clicks on the menu's own
-  // items still run their handlers.
-  useEffect(() => {
-    if (!showProfileMenu) return;
-    const onDown = (e) => {
-      if (profileRef.current && profileRef.current.contains(e.target)) return;
-      setShowProfileMenu(false);
-    };
-    const onKey = (e) => { if (e.key === "Escape") setShowProfileMenu(false); };
-    document.addEventListener("mousedown", onDown);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [showProfileMenu]);
+  // Close the profile menu on an outside click or Escape (see useCloseOnOutside).
+  useCloseOnOutside(showProfileMenu, profileRef, () => setShowProfileMenu(false));
 
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showUsersModal, setShowUsersModal] = useState(false);
@@ -625,8 +1034,7 @@ export default function FlashcardApp({ user, onSignOut }) {
   const [editingCard, setEditingCard] = useState(null); // null | card object
 
   // The window's width, because whether a panel can sit beside the card is a
-  // question about how much room is left. There is no phone layout: the app
-  // is for a computer's browser (the owner, 2026-09-29).
+  // question about how much room is left, and whether this is a phone.
   const [winWidth, setWinWidth] = useState(
     typeof window !== "undefined" ? window.innerWidth : 1400
   );
@@ -648,6 +1056,18 @@ export default function FlashcardApp({ user, onSignOut }) {
       if (frame !== null) cancelAnimationFrame(frame);
     };
   }, []);
+  // A phone, the iPhone app above all (owner, 2026-10-27: "i want it to be a
+  // proper application, so will need to go through the app store"). The
+  // sidebar is a drawer there, always at full width: the rail is a choice
+  // for a computer, kept for when the window is wide again.
+  const phone = IN_IPHONE_APP || winWidth < PHONE_MAX_WIDTH;
+  const sidebarMin = sidebarMinPref && !phone;
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  // For styles.css, and for the panels and modals, which render outside the
+  // app's own box.
+  useEffect(() => {
+    document.documentElement.classList.toggle("phone", phone);
+  }, [phone]);
   // Review dates for streak tracking, loaded from Supabase.
   // Set of ISO date strings (e.g. "2026-04-16") on which the user reviewed
   // at least one card. Populated on mount and appended to in answer().
@@ -657,7 +1077,7 @@ export default function FlashcardApp({ user, onSignOut }) {
     if (!user?.id) return;
     (async () => {
       const { data, error } = await supabase
-        .from("user_review_dates")
+        .from(tbl("user_review_dates"))
         .select("review_date")
         .eq("user_id", user.id)
         .order("review_date", { ascending: false })
@@ -679,10 +1099,159 @@ export default function FlashcardApp({ user, onSignOut }) {
   // 2026-09-27). The result used to land on whichever card was on screen when
   // it came back, and accepted a wrong answer there.
   const disputeRef = useRef(null);
-  const autoAdvanceTimer = useRef(null);
-  const isAdmin = !!(user?.email && user.email.toLowerCase() === ADMIN_EMAIL);
+  const isAdmin = isAdminUser(user);
+  // Whose Claude account pays: the owner anywhere, and Laura on the test app
+  // (api/_lib/anthropicKey.js decides the same on the server).
+  const serverPays = isAdmin || usesOwnersKeyOnTestApp({ userId: user?.id, host: typeof window !== "undefined" ? window.location.host : "" });
   // "Status" in the profile menu (admin only): whether the cards are being
   // shown the way FSRS and the app's rules say. See lib/statusChecks.js.
+
+  // ── PODCASTS (owner anywhere, test-app users too, 2026-10-19) ──────────────────────────────────
+  // Everything the shell keeps for the Podcasts module sits here, above the
+  // early returns (Loading, the onboarding screen): a hook below them would
+  // change the number of hooks once the deck loads, and React throws.
+  //
+  // Who has it: the owner, and anyone signed in on the test app (owner,
+  // 2026-10-19; lib/testApp.js).
+  //
+  // The same people have the Spanish module (2026-10-22), switched to with
+  // the flag in the top-right corner. Podcasts is French: not in Spanish.
+  const hasModules = podcastsUser(user);
+  const hasPodcasts = hasModules && !spanish;
+  // Whether Podcasts is showing. Owner only: `mode` can only become
+  // "podcasts" through goPodcasts or the owner's saved place, both of which
+  // check, and this checks again so nothing a student could reach depends on
+  // that holding.
+  const podcastsOn = hasPodcasts && mode === "podcasts";
+  useEffect(() => { if (mode === "podcasts" && !hasPodcasts) setMode("study"); }, [mode, hasPodcasts]);
+  // Which Podcasts page: Episodes, My podcasts, one podcast, or one episode
+  // and its tab (shape: build spec §11). Kept here, not in the page, because
+  // the sidebar marks Episodes, My podcasts or the podcast you're in from it,
+  // and because the page unmounts whenever Flashcards is showing; coming back
+  // to Podcasts opens the page you left.
+  const [podView, setPodView] = useState(() => podPlaceRef.current?.view || POD_HOME);
+  // The Flashcards page to go back to: switching back opens Lessons or Stats
+  // if that is where you were, not Cards every time. Nothing else is touched
+  // on the way out or back: the set, the card on screen, a typed answer and
+  // the retries lined up all stay as they were, because the deck-build effect
+  // and the place-saving effect don't depend on the page (never add `mode` to
+  // either; owner rule: updates never reset progress).
+  const lastCardsModeRef = useRef("study");
+  useEffect(() => { if (mode !== "podcasts" && mode !== "exercises" && mode !== "dialogues") lastCardsModeRef.current = mode; }, [mode]);
+  // The switch's buttons. Stable, so the tour can call goFlashcards.
+  const goPodcasts = useCallback(() => {
+    if (hasPodcasts) setMode("podcasts");
+  }, [hasPodcasts]);
+  const goFlashcards = useCallback(() => {
+    setMode((m) => (m === "podcasts" || m === "exercises" || m === "dialogues" ? lastCardsModeRef.current || "study" : m));
+  }, []);
+  // ── EXERCISES (Spanish, 2026-10-24) ──
+  // The Exercises and Dialogues buttons of the Spanish switch, for the same people as Spanish.
+  // Leaving for Flashcards and coming back touches nothing in the cards, as
+  // with Podcasts above.
+  const hasExercises = hasModules && spanish;
+  const exercisesOn = hasExercises && mode === "exercises";
+  useEffect(() => { if (mode === "exercises" && !hasExercises) setMode("study"); }, [mode, hasExercises]);
+  const [exView, setExView] = useState(() => ({ lesson: exPlaceRef.current?.lesson || null }));
+  // A lesson's exercises open its notes, the panel Flashcards opens beside the
+  // cards (owner, 2026-11-01: "lesson notes need to be available on exercises
+  // as well as vocab"). Lesson 8's time-and-date sheet opens Lesson 8's, as
+  // it shows Lesson 8's text. Another lesson, or the list, closes them, as
+  // another lesson does on Flashcards.
+  const exNotesLesson = exView.lesson
+    ? LESSONS.find((l) => l.id === (EXERCISE_TEXT_OF[exView.lesson] || exView.lesson)) || null
+    : null;
+  useEffect(() => { setShowLessonPanel(false); }, [exView.lesson]);
+  // ── DIALOGUES (Spanish, 2026-11-07) ──
+  // The switch's third part, for the same people as Exercises, with its own
+  // place and the same panel of lesson notes.
+  const dialoguesOn = hasExercises && mode === "dialogues";
+  useEffect(() => { if (mode === "dialogues" && !hasExercises) setMode("study"); }, [mode, hasExercises]);
+  const [dgView, setDgView] = useState(() => ({ lesson: dgPlaceRef.current?.lesson || null }));
+  const dgNotesLesson = dgView.lesson ? LESSONS.find((l) => l.id === dgView.lesson) || null : null;
+  useEffect(() => { setShowLessonPanel(false); }, [dgView.lesson]);
+  // Going anywhere from the drawer puts it away: a page, a lesson, the tutor,
+  // anything from the account menu. Folding Lessons goes nowhere, so the
+  // drawer stays.
+  useEffect(() => { setDrawerOpen(false); }, [
+    mode, lessonFilter, podView, exView, dgView, showChat, showUpload, showKeyModal,
+    showFsrsSettings, showFeedbackModal, showUsersModal, courseId,
+  ]);
+  // Feedback opens inside the sidebar, so on a phone it opens the drawer
+  // (the flag on a card does this too). After the effect above, so that
+  // opening it from the tutor, which closes the tutor, still opens the drawer.
+  useEffect(() => { if (phone && showFeedback) setDrawerOpen(true); }, [phone, showFeedback]);
+  const goExercises = useCallback(() => {
+    if (hasExercises) setMode("exercises");
+  }, [hasExercises]);
+  useEffect(() => {
+    if (!hasExercises || !user?.id) return;
+    writeExercisesPlace(user.id, { open: exercisesOn, lesson: exView.lesson });
+  }, [hasExercises, user?.id, exercisesOn, exView.lesson]);
+  const goDialogues = useCallback(() => {
+    if (hasExercises) setMode("dialogues");
+  }, [hasExercises]);
+  useEffect(() => {
+    if (!hasExercises || !user?.id) return;
+    writeDialoguesPlace(user.id, { open: dialoguesOn, lesson: dgView.lesson });
+  }, [hasExercises, user?.id, dialoguesOn, dgView.lesson]);
+  // Folding the lessons under All exercises folds them under All dialogues too.
+  const [exLessonsFolded, setExLessonsFolded] = useState(() => readExercisesFolded(user?.id));
+  useEffect(() => {
+    if (!user?.id) return;
+    try { localStorage.setItem(EXERCISES_FOLDED_KEY + user.id, exLessonsFolded ? "1" : "0"); } catch { /* storage blocked */ }
+  }, [user?.id, exLessonsFolded]);
+  // The stages open in the sidebar: under All exercises, and under Lessons on
+  // Spanish Flashcards (French has no stages).
+  const exStageFolds = useStageFolds(EXERCISE_GROUPS, exView.lesson);
+  const dgStageFolds = useStageFolds(DIALOGUE_GROUPS, dgView.lesson);
+  const lessonOpenHere = mode === "study" && lessonFilter !== "all" ? lessonFilter : null;
+  const lessonStageFolds = useStageFolds(LESSON_STAGES, lessonOpenHere);
+  // Changing module stops the browser voice: a card being read aloud must
+  // not carry on over an episode, nor a podcast word over the next card. The
+  // episode's own recording is the podcasts page's to pause, and it does so
+  // as it unmounts. Keyed on the change itself, so it never runs for a
+  // student, whose app can't change module.
+  const moduleOn = podcastsOn || exercisesOn || dialoguesOn;
+  const moduleWasOnRef = useRef(moduleOn);
+  useEffect(() => {
+    if (moduleWasOnRef.current === moduleOn) return;
+    moduleWasOnRef.current = moduleOn;
+    stopSpeaking();
+  }, [moduleOn]);
+  // The podcasts the owner follows, listed under My podcasts in the sidebar
+  // and handed to the page. Not asked for at all in a student's app.
+  const podFollows = usePodcastFollows(user, { enabled: hasPodcasts });
+  const followedSlugs = useMemo(
+    () => (podFollows?.follows || NO_FOLLOWS).map((f) => f?.podcast).filter((s) => typeof s === "string" && s),
+    [podFollows?.follows]
+  );
+  // The owner's place, kept as it changes (see readPodcastsPlace). Never
+  // written for anyone else.
+  useEffect(() => {
+    if (!hasPodcasts || !user?.id) return;
+    writePodcastsPlace(user.id, { open: podcastsOn, view: podView });
+  }, [hasPodcasts, user?.id, podcastsOn, podView]);
+  // What the tutor is told about the episode on screen: the podcasts page
+  // hands it up (shape: build spec §11) and the tutor gets it while Podcasts
+  // is showing. The hidden flashcard is never sent from here: tutorCard is
+  // null on any page but Cards.
+  const [tutorPodcast, setTutorPodcast] = useState(null);
+  const onTutorPodcast = useCallback((ctx) => {
+    const next = ctx && typeof ctx === "object" ? ctx : null;
+    setTutorPodcast((prev) => (sameTutorContext(prev, next) ? prev : next));
+  }, []);
+  // The same for the exercise being worked on, on the Spanish Exercises
+  // (2026-10-26), while Exercises is showing.
+  const [tutorExercise, setTutorExercise] = useState(null);
+  const onTutorExercise = useCallback((ctx) => {
+    const next = ctx && typeof ctx === "object" ? ctx : null;
+    setTutorExercise((prev) => (sameTutorContext(prev, next) ? prev : next));
+  }, []);
+  // The callbacks of the tutor and the pages, made once, so a page effect that depends on them
+  // doesn't run again on every render of the app.
+  const tutorCardAdded = useCallback((row) => (row ? addDeckCard(row) : reloadDeck()), [addDeckCard, reloadDeck]);
+  const openKeyModal = useCallback(() => setShowKeyModal(true), []);
 
   // Load card alternates from Supabase on mount (and when user changes)
   useEffect(() => {
@@ -693,7 +1262,7 @@ export default function FlashcardApp({ user, onSignOut }) {
       // one person's accepted answer loosened everyone's grading. See
       // migration_008.
       const { data, error } = await supabase
-        .from("card_alternates")
+        .from(tbl("card_alternates"))
         .select("card_id, direction, alternate_text")
         .eq("user_id", user.id);
       if (error) { console.error("Failed to load alternates:", error); return; }
@@ -705,7 +1274,7 @@ export default function FlashcardApp({ user, onSignOut }) {
       }
       setAlternates(map);
     })();
-  }, [user]);
+  }, [user?.id]);
 
   // ── AUDIO STATE ─────────────────────────────────────────────────────
   // Pronunciation states: 'idle' | 'recording' | 'processing' | 'result' | 'error'
@@ -737,7 +1306,7 @@ export default function FlashcardApp({ user, onSignOut }) {
   // views (that used to reshuffle and snap back to card 0 mid-session).
   //
   // Selection is spaced-repetition driven: the working set comes from
-  // buildSession (lapses → due reviews → new once those run out → spot-checks).
+  // buildSession (lapses → due reviews → new once those run out).
   //
   // There is deliberately no category filter. Studying one category at a time
   // is blocked practice, which feels easier during the session and tests worse
@@ -753,7 +1322,14 @@ export default function FlashcardApp({ user, onSignOut }) {
   const lessonChoicesRef = useRef(lessonChoices);
   lessonChoicesRef.current = lessonChoices;
   const sessionChoices = JSON.stringify(choicesOf(user));
-  useEffect(() => { setLessonChoices(JSON.parse(sessionChoices)); }, [sessionChoices]);
+  // Saves of a switch still under way. The account echoes each save back as
+  // the session changes; an echo of an earlier save, taken while a later tap
+  // is still being saved, would put that tap's older map back.
+  const choiceSavesRef = useRef(0);
+  useEffect(() => {
+    if (choiceSavesRef.current > 0) return;
+    setLessonChoices(JSON.parse(sessionChoices));
+  }, [sessionChoices]);
   // Whether the account says the first-visit tour has been shown, read at the
   // same time: null until the server has answered (see the tour, below).
   const [accountTourSeen, setAccountTourSeen] = useState(null);
@@ -797,7 +1373,13 @@ export default function FlashcardApp({ user, onSignOut }) {
     lessonChoicesRef.current = next;
     setLessonChoices(next);
     setChoiceFailed(null);
-    const { error } = await supabase.auth.updateUser({ data: { [CHOICE_KEY]: next } });
+    choiceSavesRef.current += 1;
+    let error;
+    try {
+      ({ error } = await supabase.auth.updateUser({ data: { [CHOICE_KEY]: next } }));
+    } finally {
+      choiceSavesRef.current -= 1;
+    }
     if (!error) return;
     console.error("Saving the lesson switch failed:", error);
     setLessonChoices((cur) => ({ ...cur, [id]: was }));
@@ -825,7 +1407,7 @@ export default function FlashcardApp({ user, onSignOut }) {
   // switched off.
   const poolFrom = useCallback((cards) => {
     let candidates = cards;
-    if (typeFilter !== "all") candidates = candidates.filter(c => classifyCard(c) === typeFilter);
+    if (typeFilter !== "all") candidates = candidates.filter(c => classifyCard(c, course.id) === typeFilter);
     if (lessonFilter !== "all") candidates = candidates.filter(c => lessonIdOf(c) === lessonFilter);
     return candidates;
   }, [typeFilter, lessonFilter]);
@@ -836,6 +1418,7 @@ export default function FlashcardApp({ user, onSignOut }) {
     if (lessonFilter !== "all") return pool;
     return pool.filter((c) => onCards(c, { scope, lessonsOn, lessonIds }));
   }, [poolFrom, lessonFilter, scope, lessonsOn, lessonIds]);
+  dealtFromRef.current = candidatesFrom;
 
   // The record of each set dealt (lib/dealLog.js), for the status check. Never
   // waited on and never retried: a set is studied the same whether its record
@@ -846,7 +1429,7 @@ export default function FlashcardApp({ user, onSignOut }) {
   const recordDeal = (fields) => {
     if (!user?.id || dealLogOffRef.current === localISODate()) return;
     const row = dealRow({ id: newReviewId(), userId: user.id, timeZone: browserTimeZone(), ...fields });
-    supabase.from("dealt_sets").insert(row).then(({ error }) => {
+    supabase.from(tbl("dealt_sets")).insert(row).then(({ error }) => {
       if (!error) return;
       if (missingTable(error) || missingColumn(error)) dealLogOffRef.current = localISODate();
       else console.warn("Recording a dealt set failed:", error.message || error);
@@ -890,7 +1473,9 @@ export default function FlashcardApp({ user, onSignOut }) {
       const head = entries.slice(0, at + 1);
       const tail = entries.slice(at + 1);
       const answered = (c) => blockAnswersRef.current.has(slotKeyOf(c));
-      const staying = tail.filter((c) => c._retry || answered(c));
+      // A lesson gone through again keeps its cards: none of them is due, and
+      // dealing again would drop them.
+      const staying = tail.filter((c) => c._retry || answered(c) || c._bucket === "practice");
       for (let over = head.length + staying.length - size, j = staying.length - 1; over > 0 && j >= 0; j--) {
         if (!answered(staying[j])) { staying.splice(j, 1); over--; }
       }
@@ -929,8 +1514,16 @@ export default function FlashcardApp({ user, onSignOut }) {
           size: dealtSizeRef.current,
         });
       }
+      // Except a lesson's set that was finished: coming back to the lesson, or
+      // opening the app on it, deals its next set, or goes through the lesson
+      // again once nothing in it is left (the owner, 2026-10-27: "should
+      // reload automatically when you navigate away from the lesson").
+      // Its last card, on screen at its checkpoint, was answered last, and
+      // doesn't start the next set, after a reload too.
       const saved = placeRef.current.sets[filterSig];
-      const back = saved && saved.day === today ? unpackEntries(saved, pool) : null;
+      const finishedLesson = !!saved?.done && lessonFilter !== "all";
+      if (finishedLesson && lastAnsweredRef.current == null) lastAnsweredRef.current = saved.entries?.[saved.idx]?.r ?? null;
+      const back = saved && saved.day === today && !finishedLesson ? unpackEntries(saved, pool) : null;
       if (back && back.entries.length > 0) {
         blockAnswersRef.current = new Map(saved.answers || []);
         for (const [, a] of blockAnswersRef.current) if (a?.reviewId) knownReviewIdsRef.current.add(a.reviewId);
@@ -953,7 +1546,7 @@ export default function FlashcardApp({ user, onSignOut }) {
         setDeckSig(filterSig);
         setIdx(at);
         setSessionDone(!!saved.done);
-        setStats(saved.stats || { seen:0, got:0, missed:0, answered:0, firstAnswered:0, firstGot:0 });
+        setStats(saved.stats || { answered:0, firstAnswered:0, firstGot:0 });
         // The card on screen as it was left: one whose answer had been seen
         // comes back showing it, so it can't be graded as if seen afresh.
         const face = saved.face;
@@ -1006,24 +1599,37 @@ export default function FlashcardApp({ user, onSignOut }) {
     const started = blockAnswersRef.current.size > 0 || answerSeen;
     if (!filterChanged && deck.length > 0 && !newDay && !(outOfDate && !started)) {
       const byRow = new Map(pool.map(c => [c.row_id, c]));
-      const patched = deck
-        .map(c => {
-          const u = byRow.get(c.row_id);
-          // A card edited into grammar is asked only as written: its English-
-          // side entry would record to a state the card no longer uses.
-          if (!u || (c.shownDir === "en" && !isTwoWay(u))) return null;
-          return { ...u, shownDir: c.shownDir, flippable: isTwoWay(u), _bucket: c._bucket, _retry: c._retry, _rid: c._rid, _displaced: c._displaced };
-        })
-        .filter(Boolean);
+      const kept = deck.map(c => {
+        const u = byRow.get(c.row_id);
+        // A card edited into grammar is asked only as written: its English-
+        // side entry would record to a state the card no longer uses.
+        if (!u || (c.shownDir === "en" && !isTwoWay(u))) return null;
+        return { ...u, shownDir: c.shownDir, flippable: isTwoWay(u), _bucket: c._bucket, _retry: c._retry, _rid: c._rid, _added: c._added, _displaced: c._displaced };
+      });
+      const patched = kept.filter(Boolean);
+      // The card on screen stays on screen: the place moves back one for each
+      // card dropped before it. If the card on screen is the one that went
+      // (removed in the editor, by the tutor, or on another device), the next
+      // card takes its place unanswered. Both used to go wrong (2026-10-28):
+      // the place stayed put, so the card after slid in under the answer
+      // already typed, and Continue saved that answer to it. "to hold", typed
+      // for "haber", showed under "He is bored" once haber was removed.
+      const at = Math.min(kept.slice(0, idx).filter(Boolean).length, Math.max(0, patched.length - 1));
+      if (!kept[idx]) {
+        skipFlipAnim.current = true;
+        setFlipped(false); setTypedAnswer(""); setTypeResult(null);
+        disputeRef.current = null; setFeedbackState(null); setFeedbackVerdict(null);
+        requestAnimationFrame(() => { skipFlipAnim.current = false; });
+      }
       let next = patched;
       if (outOfDate || resized) {
-        next = redealRest(patched, Math.min(idx, patched.length - 1), resized ? setSize : patched.length);
+        next = redealRest(patched, at, resized ? setSize : patched.length);
         dealtSeqRef.current = deckFreshSeq;
         dealtSwitchRef.current = switchSig;
       }
       dealtSizeRef.current = setSize;
       setDeck(next);
-      setIdx(i => Math.min(i, Math.max(0, next.length - 1)));
+      setIdx(Math.min(at, Math.max(0, next.length - 1)));
       return;
     }
 
@@ -1035,13 +1641,27 @@ export default function FlashcardApp({ user, onSignOut }) {
     // which ways of words and phrases are dealt. Grammar and pronunciation
     // cards are rules with examples, not translations — always shown as
     // written, whatever the setting.
-    const dealt = buildSession(candidates, {
+    let dealt = buildSession(candidates, {
       direction: dirRef.current,
       target: setSizeRef.current,
       lessonMode: lessonFilter !== "all",
       lessonRank,
     });
-    const { queue: cards, counts } = dealt;
+    // A lesson with nothing due and nothing new is gone through again
+    // (practiceSession): the rest of the time round, or from the top once
+    // every card has been gone through, or when the student asked for it.
+    if (dealt.queue.length === 0 && lessonFilter !== "all") {
+      const done = practicedIn(filterSig);
+      if (practiceFreshRef.current || !candidates.some((c) => !done.has(c.row_id ?? c.id))) done.clear();
+      practiceFreshRef.current = false;
+      dealt = practiceSession(candidates, {
+        direction: dirRef.current,
+        target: setSizeRef.current,
+        done,
+        avoid: lastAnsweredRef.current,
+      });
+    }
+    const { queue: cards } = dealt;
     recordDeal({ kind: "new", scope: dealScope, direction: dirRef.current, slots: setSizeRef.current, dealt });
     blockStartRef.current = progressByArea(userCards);
 
@@ -1077,7 +1697,7 @@ export default function FlashcardApp({ user, onSignOut }) {
     setIdx(0);
     // A rebuilt queue is unworked, whatever the last one's state was.
     setSessionDone(false);
-    setStats({ seen:0, got:0, missed:0, answered:0, firstAnswered:0, firstGot:0 });
+    setStats({ answered:0, firstAnswered:0, firstGot:0 });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, typeFilter, lessonFilter, scope, switchSig, userCards, blockSeq, deckFreshSeq, recheck, setSize]);
 
@@ -1105,7 +1725,7 @@ export default function FlashcardApp({ user, onSignOut }) {
       const PAGE = 1000;
       for (let from = 0; ; from += PAGE) {
         const { data, error } = await supabase
-          .from("card_reviews")
+          .from(tbl("card_reviews"))
           .select(HISTORY_COLUMNS)
           .eq("user_id", user.id)
           .order("answered_at", { ascending: true })
@@ -1126,15 +1746,32 @@ export default function FlashcardApp({ user, onSignOut }) {
     () => (mode === "stats" && historyRows ? statsOverTime({ cards: userCards, rows: historyRows, now: Date.now() }) : null),
     [mode, userCards, historyRows],
   );
+  // Spanish Stats: each lesson's Grammar (Exercises) and Text (Dialogues),
+  // and the days of those answers (owner, 2026-11-25). Read when Stats opens,
+  // with the exercises loaded only then, so French never downloads them
+  // (lib/spanishMastery.js). null until read, or if it can't be.
+  const [esMastery, setEsMastery] = useState(null);
+  useEffect(() => {
+    if (mode !== "stats" || !spanish || !user?.id) return;
+    let live = true;
+    import("./lib/spanishMastery.js")
+      .then(({ loadSpanishMastery }) => loadSpanishMastery({ supabase, userId: user.id }))
+      .then((m) => { if (live) setEsMastery(m); })
+      .catch(() => { if (live) setEsMastery(null); });
+    return () => { live = false; };
+  }, [mode, spanish, user?.id]);
   const lastElsewhereCheckRef = useRef(0);
   const checkElsewhere = useCallback(async () => {
-    if (!user?.id || !deckFetchedAt) return;
+    if (!user?.id) return;
     if (Date.now() - lastElsewhereCheckRef.current < 15000) return;
     lastElsewhereCheckRef.current = Date.now();
+    // No fetch has landed yet (the first read failed): read the deck again
+    // rather than study on from the browser's old copy.
+    if (!deckFetchedAt) { reloadDeck(); return; }
     // Ten minutes' margin for a device whose clock runs behind.
     const since = new Date(deckFetchedAt - 10 * 60 * 1000).toISOString();
     const { data, error } = await supabase
-      .from("card_reviews")
+      .from(tbl("card_reviews"))
       .select("id")
       .eq("user_id", user.id)
       .gte("answered_at", since)
@@ -1166,37 +1803,29 @@ export default function FlashcardApp({ user, onSignOut }) {
   //   changes   the areas the block moved: seen and about-remembered deltas
   //   next      the block Continue would deal, to say "reviews only" or
   //             "all caught up" before the student presses anything
-  //   waiting   inside a lesson, cards due today elsewhere in the deck
+  // Inside a lesson it used to add how many cards were due elsewhere in the
+  // deck ("9 cards from the rest of your deck are due"); the owner had that
+  // line removed (2026-10-27).
+  //   practiceLeft  a lesson being gone through again has cards still to
+  //             come (practiceSession), which Continue deals
   const checkpoint = useMemo(() => {
     if (!sessionDone) return null;
     const now = Date.now();
     const after = progressByArea(userCards, now);
     const changes = blockStartRef.current ? progressChanges(blockStartRef.current, after) : [];
-    const next = buildSession(candidatesFrom(userCards), {
+    const candidates = candidatesFrom(userCards);
+    const next = buildSession(candidates, {
       now,
       direction: dir,
       lessonMode: lessonFilter !== "all",
       lessonRank,
     });
-    const endToday = endOfLocalDay(new Date(now));
-    // Counted the way the student is studying: in EN→FR, a word due only
-    // French side up is not waiting for them.
-    const dueToday = (side) => (side.fsrs_state ?? State.New) !== State.New && !!side.next_due_at &&
-      new Date(side.next_due_at).getTime() <= endToday;
-    // Elsewhere is what Cards would deal: not the lessons switched off, and
-    // under My cahier no lesson at all.
-    let waiting = 0;
-    if (lessonFilter !== "all") {
-      for (const c of userCards) {
-        if (lessonIdOf(c) === lessonFilter || !onCards(c, { scope, lessonsOn, lessonIds })) continue;
-        for (const d of directionsOf(c)) {
-          if (isTwoWay(c) && dir !== "mix" && d !== dir) continue;
-          if (dueToday(sideOf(c, d))) waiting++;
-        }
-      }
-    }
-    return { after, changes, next, waiting };
-  }, [sessionDone, userCards, candidatesFrom, lessonFilter, scope, lessonsOn, lessonIds, dir]);
+    const done = lessonFilter !== "all" && deckSig ? practicedIn(deckSig) : null;
+    const practiceLeft = !!done && done.size > 0 && next.queue.length === 0 &&
+      candidates.some((c) => !done.has(c.row_id ?? c.id));
+    return { after, changes, next, practiceLeft };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionDone, userCards, candidatesFrom, lessonFilter, dir, deckSig]);
   // Keep the ref in sync so deck rebuilds can find the current card.
   useEffect(() => { currentCardIdRef.current = card ? itemKey(card) : null; }, [card]);
   // The card on screen as the tutor needs it: what it asks, and whether its
@@ -1248,14 +1877,22 @@ export default function FlashcardApp({ user, onSignOut }) {
   }, [tourSeenKey, user]);
   const startTour = useCallback(() => {
     markTourSeen();
+    // The tour is about the cards and walks the Flashcards sidebar (Lessons,
+    // Cards, Stats, Tutor). "Take the tour again" pressed on Podcasts brings
+    // Flashcards back first, or its first step would light an item that
+    // isn't drawn.
+    goFlashcards();
     setShowProfileMenu(false);
     setShowSettings(false);
     setShowChat(false);
     setShowFeedback(false);
     setTourRun((n) => n + 1);
     setTourOpen(true);
-  }, [markTourSeen]);
+  }, [markTourSeen, goFlashcards]);
   useEffect(() => {
+    // Not on a phone: the steps point at the computer's sidebar, which is in
+    // the drawer there. Nothing is marked, so it opens on a computer instead.
+    if (phone) return;
     if (tourChecked.current || !user || !loaded || !deckFreshSeq || !tourLesson || accountTourSeen === null) return;
     let seenHere = false;
     try { seenHere = !!localStorage.getItem(tourSeenKey); } catch {}
@@ -1264,7 +1901,7 @@ export default function FlashcardApp({ user, onSignOut }) {
     if (!userCards.some((c) => lessonIdOf(c) === TOUR_LESSON)) return;
     tourChecked.current = true;
     startTour();
-  }, [user, loaded, deckFreshSeq, userCards, tourLesson, tourSeenKey, accountTourSeen, startTour]);
+  }, [phone, user, loaded, deckFreshSeq, userCards, tourLesson, tourSeenKey, accountTourSeen, startTour]);
   // What the steps do to set the page up. Read through a ref, so the steps
   // are made once and still act on the page as it is now.
   const tourActsRef = useRef(null);
@@ -1309,8 +1946,8 @@ export default function FlashcardApp({ user, onSignOut }) {
     };
   }, []);
   const tourStepList = useMemo(
-    () => (tourLesson ? tourSteps(tourActions, tourLesson) : []),
-    [tourActions, tourLesson]
+    () => (tourLesson ? tourSteps(tourActions, tourLesson, serverPays) : []),
+    [tourActions, tourLesson, serverPays]
   );
   // Whether a typed answer counts as recalled: the matcher's verdict, or a
   // "my answer should be accepted" dispute that was accepted. An accepted
@@ -1347,7 +1984,7 @@ export default function FlashcardApp({ user, onSignOut }) {
     });
     placeRef.current.sets[deckSig] = set;
     placeRef.current.current = { lessonFilter, typeFilter, scope, dir };
-    pendingPlaceRef.current = { userId: user.id, write: { key: deckSig, set, current: placeRef.current.current, today: localISODate() } };
+    pendingPlaceRef.current = { userId: storeId, write: { key: deckSig, set, current: placeRef.current.current, today: localISODate() } };
     clearTimeout(placeTimerRef.current);
     placeTimerRef.current = setTimeout(flushPlace, 400);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1382,7 +2019,14 @@ export default function FlashcardApp({ user, onSignOut }) {
     const asked = (c) => !c.flippable || dir === "mix" || c.shownDir === dir;
     const head = deck.slice(0, firstOpen);
     const tail = deck.slice(firstOpen);
-    const kept = new Set(tail.filter((c) => asked(c) || blockAnswersRef.current.has(slotKeyOf(c))));
+    // A lesson gone through again keeps its cards (none of them is due, so
+    // nothing could replace them): the ones shown the other way are turned to
+    // the new direction, as redealRest keeps them.
+    const turned = new Map();
+    for (const c of tail) {
+      if (!asked(c) && c._bucket === "practice" && !blockAnswersRef.current.has(slotKeyOf(c))) turned.set(c, { ...c, shownDir: dir });
+    }
+    const kept = new Set(tail.filter((c) => asked(c) || blockAnswersRef.current.has(slotKeyOf(c)) || turned.has(c)));
     const room = tail.length - kept.size;
     const dealt = room > 0
       ? buildSession(candidatesFrom(userCards), {
@@ -1390,13 +2034,13 @@ export default function FlashcardApp({ user, onSignOut }) {
           target: room,
           lessonMode: lessonFilter !== "all",
           lessonRank,
-          inBlock: [...head, ...kept],
+          inBlock: [...head, ...[...kept].map((c) => turned.get(c) ?? c)],
         })
       : null;
     if (dealt) recordDeal({ kind: "direction", scope: dealScopeOf(setKeyOf(typeFilter, lessonFilter, scope), switchSig), direction: dir, slots: room, dealt, kept: [...head, ...kept] });
     const fill = dealt ? dealt.queue : [];
     let f = 0;
-    const next = [...head, ...tail.map((c) => (kept.has(c) ? c : fill[f++])).filter(Boolean)];
+    const next = [...head, ...tail.map((c) => (kept.has(c) ? (turned.get(c) ?? c) : fill[f++])).filter(Boolean)];
     setDeck(next);
     if (next.length <= idx) {
       // Nothing left to ask this way round: the block ends where it is.
@@ -1429,35 +2073,44 @@ export default function FlashcardApp({ user, onSignOut }) {
 
   const tutorCard = useMemo(() => {
     // After the last card of a block the checkpoint replaces it on screen.
+    // Off Cards there is no card on screen, Podcasts included: the set is
+    // still dealt behind it, and that hidden card must not reach the tutor
+    // as "Card on screen" while the question is about an episode.
     if (mode !== "study" || !card || sessionDone) return null;
-    const answered = flipped || !!typeResult || revealedSlot === cardSlot;
     return {
       ...card,
-      answered,
-      ...(typeResult ? { result: typeResult } : null),
+      answered: answerSeen,
+      // An answer marked wrong and then accepted on review counts as right:
+      // the tutor is told so, not that it is still wrong.
+      ...(typeResult ? { result: disputeAccepted && typeResult !== "revealed" ? "accepted" : typeResult } : null),
       ...(typeResult && typeResult !== "revealed" && typedAnswer.trim()
         ? { typed: typedAnswer.trim() }
         : null),
     };
-  }, [mode, card, sessionDone, flipped, typeResult, typedAnswer, revealedSlot, cardSlot]);
+  }, [mode, card, sessionDone, answerSeen, typeResult, typedAnswer, disputeAccepted]);
   const flip = useCallback(() => setFlipped(f => !f), []);
 
-  // Auto-speak French when a French side becomes visible
+  // Auto-speak French when a French side becomes visible. Keyed on the card's
+  // slot, not the card object: a deck patch makes a new object for the same
+  // card, and the last card turns back to its front behind the checkpoint.
+  const cardForSpeechRef = useRef(card);
+  cardForSpeechRef.current = card;
   useEffect(() => {
-    if (!autoSpeak || !card || mode !== "study") return;
+    const c = cardForSpeechRef.current;
+    if (!autoSpeak || !c || mode !== "study" || sessionDone) return;
     const isFrenchVisible =
-      (card.shownDir === "fr" && !flipped) || (card.shownDir === "en" && flipped);
+      (c.shownDir === "fr" && !flipped) || (c.shownDir === "en" && flipped);
     if (isFrenchVisible) {
       // Slight delay so the speech starts after the flip animation
-      const t = setTimeout(() => speakFrench(cleanFrenchPrompt(card.f, card.b)), 200);
+      const t = setTimeout(() => speakFrench(oneAnswer(cleanFrenchPrompt(c.f, c.b))), 200);
       return () => clearTimeout(t);
     }
-  }, [autoSpeak, card, flipped, mode]);
+  }, [autoSpeak, cardSlot, flipped, mode, sessionDone, oneAnswer]);
 
   // Speak French manually (button handler)
   const speakCard = useCallback(() => {
-    if (card) speakFrench(cleanFrenchPrompt(card.f, card.b));
-  }, [card]);
+    if (card) speakFrench(oneAnswer(cleanFrenchPrompt(card.f, card.b)));
+  }, [card, oneAnswer]);
 
   // Speak any specific text (used for "tap a word to hear it")
   const speakText = useCallback((text) => {
@@ -1556,21 +2209,13 @@ export default function FlashcardApp({ user, onSignOut }) {
     }
   }, [typeMode, idx, typeResult, mode, flipped]);
 
-  // Clear any pending auto-advance timer on unmount or card change
-  useEffect(() => {
-    return () => {
-      if (autoAdvanceTimer.current) {
-        clearTimeout(autoAdvanceTimer.current);
-        autoAdvanceTimer.current = null;
-      }
-    };
-  }, [idx]);
-
 
   // Answer handling: update progress + spaced-repetition state.
   //
   // Two parallel updates per answer:
-  //   1. card_progress (legacy score/seen/got) — still drives the Stats view.
+  //   1. card_progress (legacy score/seen/got) — read only by the admin users
+  //      page's Studied and Mastered columns (api/admin-users.js). The Stats
+  //      page does not read it.
   //   2. user_cards spaced-rep fields (box, next_due_at, lapses) — drives
   //      session selection on the next deck build.
   //
@@ -1621,11 +2266,11 @@ export default function FlashcardApp({ user, onSignOut }) {
   const reviewExtrasOffRef = useRef(null);
   const saveReviewRow = async (row) => {
     if (reviewExtrasOffRef.current !== localISODate()) {
-      const res = await supabase.from("card_reviews").upsert(row, { onConflict: "id" });
+      const res = await supabase.from(tbl("card_reviews")).upsert(row, { onConflict: "id" });
       if (!missingColumn(res.error)) return res;
       reviewExtrasOffRef.current = localISODate();
     }
-    return supabase.from("card_reviews").upsert(withoutExtras(row), { onConflict: "id" });
+    return supabase.from(tbl("card_reviews")).upsert(withoutExtras(row), { onConflict: "id" });
   };
   // `send` makes a fresh request each time: a retry sends it again.
   const save = (key, answer, send) => {
@@ -1640,7 +2285,17 @@ export default function FlashcardApp({ user, onSignOut }) {
     window.addEventListener("beforeunload", onLeave);
     return () => window.removeEventListener("beforeunload", onLeave);
   }, [unsavedCount]);
-  useEffect(() => () => clearTimeout(retryTimerRef.current), []);
+  // Leaving the page (another language, signing out) takes this component
+  // away and with it the retry timer, so every answer still waiting gets one
+  // last try on its way out, and the student is asked first.
+  useEffect(() => () => {
+    clearTimeout(retryTimerRef.current);
+    for (const e of unsavedRef.current.values()) if (e.failed) { try { e.send(); } catch { /* nothing more to do */ } }
+  }, []);
+  const confirmLeaveUnsaved = () => unsavedRef.current.size === 0 ||
+    window.confirm("Some answers are not saved yet. The app will try once more as you leave, but they can be lost if you are offline. Leave anyway?");
+  const onSignOut = () => { if (confirmLeaveUnsaved()) rawSignOut?.(); };
+  const onCourse = rawOnCourse ? (id) => { if (confirmLeaveUnsaved()) rawOnCourse(id); } : undefined;
 
   // What "Mark for review" did to the card it was pressed on, shown beside the
   // counter for a few seconds. The card moves on at once, so without this
@@ -1679,10 +2334,11 @@ export default function FlashcardApp({ user, onSignOut }) {
     // updateCard logs its own failures and never throws.
     updateCard(card.id, newProg);
 
-    // Spaced-repetition update — the FIRST answer of the day only. A retry,
-    // or a card revisited with Previous card, is still shown and still
-    // graded on screen, but FSRS already has today's answer for it; see
-    // reviewedToday() for what recording a second one did to the schedule.
+    // Spaced-repetition update — the FIRST answer of the day, and since
+    // 2026-10-14 the retry after a miss counted today (countsAnswer, and
+    // nextCard in lib/spacedRepetition.js for FSRS's same-day rule). Anything
+    // else shown again the same day is still graded on screen, but FSRS
+    // already has today's answer for it.
     //
     // Optimistic local deck patch first so the in-memory card carries today's
     // last_review into its retry; DB update is fire-and-forget (errors
@@ -1692,18 +2348,22 @@ export default function FlashcardApp({ user, onSignOut }) {
     // review: if its first answer in this block was the one recorded, the new
     // grade replaces it, recomputed from the card's state before that answer.
     // Without this, a mistaken Got It stood — the day's answer was already in,
-    // so the corrected Again was shown and never recorded. Retries are never
-    // corrections; they stay practice.
+    // so the corrected Again was shown and never recorded. A counted retry
+    // answered again is corrected the same way.
     //
     // Everything here is for the way round the card was SHOWN: "la pomme → ?"
     // is recorded to the French-side state and "apple → ?" to the English-side
     // one, and the other is never touched. applyAnswer returns only the shown
     // direction's columns, so patching every entry for this card with them is
     // right even when the block holds it both ways.
+    //
+    // A lesson gone through again is practice, and never counted
+    // (practiceSession): its answers are recorded and change no schedule.
     const cardDir = card.shownDir ?? "fr";
     const slotKey = slotKeyOf(card);
     const earlier = blockAnswersRef.current.get(slotKey);
     const isCorrection = !!earlier;
+    const practice = card._bucket === "practice";
     const answeredAt = Date.now();
     let recordsReview = false;
     let sr = null;
@@ -1712,9 +2372,11 @@ export default function FlashcardApp({ user, onSignOut }) {
         sr = applyAnswer({ ...card, ...earlier.before }, got, answeredAt, cardDir);
       }
     } else {
-      recordsReview = !card._retry && !reviewedToday(sideOf(card, cardDir).last_review);
+      recordsReview = !practice && countsAnswer(sideOf(card, cardDir), { retry: !!card._retry }, answeredAt);
       if (recordsReview) sr = applyAnswer(card, got, answeredAt, cardDir);
     }
+    if (practice) practicedIn(deckSig).add(card.row_id ?? card.id);
+    lastAnsweredRef.current = card.row_id ?? card.id;
     const before = isCorrection ? earlier.before : recordsReview ? sideColumns(sideOf(card, cardDir), cardDir) : null;
     const reviewId = isCorrection ? earlier.reviewId : newReviewId();
     knownReviewIdsRef.current.add(reviewId);
@@ -1726,7 +2388,7 @@ export default function FlashcardApp({ user, onSignOut }) {
       // And the deck the next block is built from — see patch() in useUserDeck.
       patchDeckCard(card.row_id, sr);
       if (card.row_id != null) {
-        save(`card:${itemKey(card)}`, reviewId, () => supabase.from("user_cards").update(sr).eq("id", card.row_id));
+        save(`card:${itemKey(card)}`, reviewId, () => supabase.from(tbl("user_cards")).update(sr).eq("id", card.row_id));
       }
     }
     // The first answer inside a lesson switches it on for Cards: the class has
@@ -1759,43 +2421,47 @@ export default function FlashcardApp({ user, onSignOut }) {
         next.add(todayISO);
         return next;
       });
-      // Fire-and-forget. upsert with ignoreDuplicates is idempotent against
-      // the (user_id, review_date) primary key, so repeated reviews on the
-      // same day are no-ops server-side.
-      supabase
-        .from("user_review_dates")
-        .upsert(
-          { user_id: user.id, review_date: todayISO },
-          { onConflict: "user_id,review_date", ignoreDuplicates: true }
-        )
-        .then(({ error }) => { if (error) console.error("Record review date failed:", error); });
+      // Saved like each answer: tried again until it goes through, and counted
+      // in the "not saved yet" notice, since the day is added above before it
+      // is saved. upsert with ignoreDuplicates is idempotent against the
+      // (user_id, review_date) primary key, so a repeat is a no-op server-side.
+      save(`day:${todayISO}`, `day:${todayISO}`, () =>
+        supabase
+          .from(tbl("user_review_dates"))
+          .upsert(
+            { user_id: user.id, review_date: todayISO },
+            { onConflict: "user_id,review_date", ignoreDuplicates: true }
+          )
+      );
     }
     // Accuracy counts typed answers only — those are verifiable, and a
     // flip-mode "got it" is self-reported. `answered` counts both, so the
     // end of a flip-only session still has something true to report.
     // A correction changes the block's count of right answers, never its count
     // of answers: the checkpoint's "50 answers" is the block's own length.
-    const recordedBefore = isCorrection && !!earlier.before;
+    // "Right first time" is about first answers: a counted retry isn't one.
+    // In a lesson gone through again, where nothing counts, it is each card's
+    // first answer in the set.
+    const recordedBefore = isCorrection && !card._retry && (practice || !!earlier.before);
+    const firstAnswer = (practice ? !isCorrection : recordsReview) && !card._retry;
     setStats(s => ({
       ...s,
       answered: s.answered + (isCorrection ? 0 : 1),
-      firstAnswered: s.firstAnswered + (recordsReview ? 1 : 0),
-      firstGot: s.firstGot + (recordsReview && got ? 1 : 0)
+      firstAnswered: s.firstAnswered + (firstAnswer ? 1 : 0),
+      firstGot: s.firstGot + (firstAnswer && got ? 1 : 0)
         + (recordedBefore ? (got ? 1 : 0) - (earlier.got ? 1 : 0) : 0),
-      ...(source === "typed"
-        ? { seen: s.seen+1, got: s.got+(got?1:0), missed: s.missed+(got?0:1) }
-        : null),
     }));
     // Wrong answers: the card comes back RE_QUEUE_OFFSET cards later, INSIDE
-    // the block, taking the place of the block's last unseen card — see
-    // placeRetry. The block never grows past its length. Splice runs after
+    // the block — added on top while the block is shorter than the set size,
+    // otherwise taking the place of the block's last unseen card (see
+    // placeRetry). The block never grows past the set size. Splice runs after
     // setDeck above so we use the post-SR-patch deck.
     if (!got && !(isCorrection && earlier.got === false)) {
       setDeck(prev =>
         // A correction to a miss gets a retry only if the card has none coming.
         prev.slice(idx + 1).some((c) => c._retry && itemKey(c) === itemKey(card))
           ? prev
-          : placeRetry(prev, idx, { ...card, ...(sr || {}), _rid: Math.random().toString(36).slice(2) }, RE_QUEUE_OFFSET)
+          : placeRetry(prev, idx, { ...card, ...(sr || {}), _rid: Math.random().toString(36).slice(2) }, RE_QUEUE_OFFSET, setSizeRef.current)
       );
     }
     // A miss changed to right: its retry is taken back out, and the card that
@@ -1810,8 +2476,8 @@ export default function FlashcardApp({ user, onSignOut }) {
     setTypeResult(null);
     setTypedAnswer("");
     disputeRef.current = null; setFeedbackState(null); setFeedbackVerdict(null);
-    // Cap at last index. The block's length never changes (a retry replaces
-    // an unseen card), so the last card stays put, and `sessionDone` below is
+    // Cap at last index. A miss on the last card adds nothing after it (a
+    // retry needs a card between), so the last card stays put, and `sessionDone` below is
     // what turns that into a visible end — the clamp alone can't, since idx
     // reads the same before and after the last card is answered.
     setIdx(i => Math.min(i + 1, deck.length - 1));
@@ -1835,7 +2501,7 @@ export default function FlashcardApp({ user, onSignOut }) {
     const missedBefore = blockAnswersRef.current.get(slotKeyOf(card))?.got === false;
     const comesBackInSet =
       deck.slice(idx + 1).some((c) => c._retry && itemKey(c) === key) ||
-      (!missedBefore && placeRetry(deck, idx, card, RE_QUEUE_OFFSET) !== deck);
+      (!missedBefore && placeRetry(deck, idx, card, RE_QUEUE_OFFSET, setSizeRef.current) !== deck);
     const sr = answer(false, "typed");
     let when = "later in this set";
     if (!comesBackInSet) {
@@ -1844,13 +2510,13 @@ export default function FlashcardApp({ user, onSignOut }) {
       const tomorrowEnds = endOfLocalDay(new Date(endOfLocalDay(now) + 1));
       when = !Number.isFinite(due) || due <= endOfLocalDay(now) ? "in your next set"
         : due <= tomorrowEnds ? "tomorrow"
-        : `on ${new Date(due).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}`;
+        : `on ${new Date(`${localISODate(new Date(due))}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}`;
     }
     // No card name: the student has just pressed the button on it, and a long
     // front ran the message off the top bar on a narrow window.
     setReviewMark(`Marked for review: counted as wrong, back ${when}`);
     clearTimeout(reviewMarkTimerRef.current);
-    reviewMarkTimerRef.current = setTimeout(() => setReviewMark(null), 5000);
+    reviewMarkTimerRef.current = setTimeout(() => setReviewMark(null), 6000);
   };
 
   // Submit typed answer
@@ -1863,8 +2529,10 @@ export default function FlashcardApp({ user, onSignOut }) {
     // a subjunctive is right with or without its que.
     // Only a real drill or a lesson card: a leftover rule card with an arrow
     // ("si + imparfait → conditionnel") has English prose for an answer.
+    // The tutor's grammar cards too ("Il pleut. → bien que"), which have a
+    // French answer by design (code check 2026-11-07, no. 12).
     const drill = card.shownDir === "fr" && String(card.f || "").includes("→") &&
-      (isConjugationDrill(card.f) || !!lessonIdOf(card));
+      (isConjugationDrill(card.f) || !!lessonIdOf(card) || card.source === "tutor-chat");
     const extraAlts = [
       ...(alternates[altKey] || []),
       ...(drill ? drillAlternates(card.f, card.b) : []),
@@ -1873,11 +2541,32 @@ export default function FlashcardApp({ user, onSignOut }) {
       ...(card.shownDir === "fr" ? [lessonBackFor(card)].filter(Boolean) : []),
     ];
     // English typed for a word or phrase whose French has no comma: the
-    // answer's commas separate meanings (see matchAnswer).
-    const meanings = card.shownDir === "fr" && !drill && isTwoWay(card) && !/[,;]/.test(stripParens(card.f));
-    const result = matchAnswer(typedAnswer, correctText, extraAlts, { exact: drill, meanings });
+    // answer's commas separate meanings (see matchAnswer). A grammar card
+    // too, when its French is a few words and its answer a ";" list: "en même
+    // temps" = "at the same time; meanwhile" refused "at the same time"
+    // (feedback #44, the owner, 2026-10-14). A rule's prose answer stays whole.
+    const frShown = stripParens(card.f) || "";
+    const meaningList = isTwoWay(card) ||
+      (/;/.test(String(card.b || "")) && frShown.trim().split(/\s+/).length <= 4);
+    const meanings = card.shownDir === "fr" && !drill && meaningList && hasMeaningList(frShown);
+    // In Spanish, which leading words are articles depends on the answer's
+    // language and the kind of card (see matchAnswer).
+    const articles = !spanish ? "fr"
+      : card.shownDir === "fr" ? "en"
+      : card.cat === "vocab" ? "es" : "none";
+    // Spanish answers have their accents checked: a drill's and any card's
+    // asked English side up (owner, 2026-10-22).
+    const accents = spanish && (card.shownDir === "en" || drill);
+    // And on a Spanish card the irregular verb forms, numbers and months are
+    // marked exactly, whichever side is typed (owner, 2026-10-25; see
+    // matchAnswer).
+    const exactWords = !spanish ? null : card.shownDir === "en" ? SPANISH_EXACT : ENGLISH_EXACT;
+    const result = matchAnswer(typedAnswer, correctText, extraAlts, { exact: drill, meanings, articles, accents, exactWords });
     if (result.match) {
       setTypeResult(result.close ? "close" : "correct");
+      setFlipped(true);
+    } else if (result.wrongAccent) {
+      setTypeResult("wrongAccent");
       setFlipped(true);
     } else if (result.wrongArticle) {
       setTypeResult("wrongArticle");
@@ -1903,10 +2592,6 @@ export default function FlashcardApp({ user, onSignOut }) {
     // Stepping back puts an answerable card on screen again, so the session
     // is no longer over.
     setSessionDone(false);
-    if (autoAdvanceTimer.current) {
-      clearTimeout(autoAdvanceTimer.current);
-      autoAdvanceTimer.current = null;
-    }
     skipFlipAnim.current = true;
     setFlipped(false);
     setIdx(i => Math.max(0, i-1));
@@ -1925,7 +2610,7 @@ export default function FlashcardApp({ user, onSignOut }) {
     setDeck([]);
     currentCardIdRef.current = null;
     setFlipped(false);
-    setStats({ seen:0, got:0, missed:0, answered:0, firstAnswered:0, firstGot:0 });
+    setStats({ answered:0, firstAnswered:0, firstGot:0 });
     setSessionDone(false);
     setTypedAnswer("");
     setTypeResult(null);
@@ -1943,7 +2628,7 @@ export default function FlashcardApp({ user, onSignOut }) {
     setDeck([]);
     currentCardIdRef.current = null;
     setFlipped(false);
-    setStats({ seen:0, got:0, missed:0, answered:0, firstAnswered:0, firstGot:0 });
+    setStats({ answered:0, firstAnswered:0, firstGot:0 });
     setSessionDone(false);
     setTypedAnswer("");
     setTypeResult(null);
@@ -1955,6 +2640,24 @@ export default function FlashcardApp({ user, onSignOut }) {
     checkElsewhere();
   };
 
+  // "Go through the lesson again", from the checkpoint of a lesson with
+  // nothing left in it: every card of it, from the top (practiceSession).
+  const goThroughAgain = () => {
+    practiceFreshRef.current = true;
+    startNextBlock();
+  };
+
+  // Leaving a lesson's finished set for another page (Stats, the Lessons page,
+  // Exercises) deals the lesson's next set, so that one is waiting on the way
+  // back (the owner, 2026-10-27: "should reload automatically when you
+  // navigate away from the lesson"). Going to another lesson or to Cards does
+  // the same in the deck-build effect, which doesn't bring a finished lesson
+  // set back.
+  useEffect(() => {
+    if (mode !== "study" && sessionDone && lessonFilter !== "all") startNextBlock();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
+
   // Keyboard shortcuts (study mode). Uses refs so the handler always
   // calls the latest version of each function without needing them in
   // the useEffect dependency array. Works in both flip mode and type
@@ -1962,12 +2665,8 @@ export default function FlashcardApp({ user, onSignOut }) {
   // (e.g. after a result is shown and Again/Got It buttons are visible).
   const flipRef = useRef(flip);
   const answerRef = useRef(answer);
-  const goBackRef = useRef(goBack);
-  const giveUpRef = useRef(giveUpTyped);
   useEffect(() => { flipRef.current = flip; }, [flip]);
   useEffect(() => { answerRef.current = answer; });
-  useEffect(() => { goBackRef.current = goBack; });
-  useEffect(() => { giveUpRef.current = giveUpTyped; });
 
   // Anything layered over the study view. While one of these is up the card
   // is not what the keyboard is addressing: pressing Enter to submit in a
@@ -1992,9 +2691,9 @@ export default function FlashcardApp({ user, onSignOut }) {
   // with Tab. Not a clicked one: Chrome leaves focus on a tab you click, and
   // that held the keys the same way. (Nor :focus-visible, which Chrome turns
   // on for a clicked button at the very keypress being asked about.)
-  const sidebarWidth = sidebarMin ? SIDEBAR_MIN_WIDTH : SIDEBAR_WIDTH;
-  const roomToReflow = (panelWidth) =>
-    winWidth - sidebarWidth - panelWidth >= MIN_REFLOW_CONTENT;
+  const sidebarWidth = phone ? 0 : sidebarMin ? SIDEBAR_MIN_WIDTH : SIDEBAR_WIDTH;
+  const roomToReflow = (panelWidth, floor = MIN_REFLOW_CONTENT) =>
+    winWidth - sidebarWidth - panelWidth >= floor;
   const chatReflow = showChat && roomToReflow(CHAT_PANEL_WIDTH);
   const lessonReflow = showLessonPanel && roomToReflow(LESSON_PANEL_WIDTH);
   // On a window too narrow for the notes to sit beside the cards, they cover
@@ -2121,6 +2820,13 @@ export default function FlashcardApp({ user, onSignOut }) {
           english: card.b,
           user_answer: typedAnswer,
           expected_answer: correctText,
+          // A drill is answered in French or Spanish, so Claude isn't told
+          // its answer is English. The same rule as submitTyped's.
+          drill: card.shownDir === "fr" && String(card.f || "").includes("→") &&
+            (isConjugationDrill(card.f) || !!lessonIdOf(card)),
+          // Spanish cards are judged as Spanish, and an accepted answer is
+          // kept with the Spanish deck (api/review-answer.js).
+          ...(spanish ? { course: "es" } : {}),
         }),
       });
       const responseText = await res.text();
@@ -2177,6 +2883,7 @@ export default function FlashcardApp({ user, onSignOut }) {
           // The server honours this now: it records the alternate without a
           // model call instead of re-running the review it just lost.
           force: true,
+          ...(spanish ? { course: "es" } : {}),
         }),
       });
       if (!res.ok) {
@@ -2206,9 +2913,11 @@ export default function FlashcardApp({ user, onSignOut }) {
   // could see. The owner decided the same day that the streak goes too. The
   // record of past answers (card_reviews) is history, and stays.
   const resetAll = async () => {
-    if (!confirm("Reset all of your progress? Every card goes back to not yet seen, and your streak starts again. This can't be undone.")) return;
+    if (!confirm(spanish
+      ? "Reset all of your Spanish progress? Every Spanish card goes back to not yet seen, and your Spanish streak starts again. Your French cards aren't touched. This can't be undone."
+      : "Reset all of your progress? Every card goes back to not yet seen, and your streak starts again. This can't be undone.")) return;
     const reset = resetColumns();
-    const { error } = await supabase.from("user_cards").update(reset).eq("user_id", user.id);
+    const { error } = await supabase.from(tbl("user_cards")).update(reset).eq("user_id", user.id);
     if (error) {
       console.error("Reset failed:", error);
       alert("Your progress couldn't be reset, and nothing was changed. Please try again.");
@@ -2222,14 +2931,14 @@ export default function FlashcardApp({ user, onSignOut }) {
     clearTimeout(placeTimerRef.current);
     pendingPlaceRef.current = null;
     placeRef.current.sets = {};
-    dropSets(user.id);
+    dropSets(storeId);
     await resetAllProgress();
     // The streak. Asked to return what it deleted: a delete that row security
     // refuses reports success and removes nothing, and the streak would
     // quietly survive the reset.
     const hadDays = reviewDates.size > 0;
     const { data: cleared, error: streakError } = await supabase
-      .from("user_review_dates").delete().eq("user_id", user.id).select("review_date");
+      .from(tbl("user_review_dates")).delete().eq("user_id", user.id).select("review_date");
     if (streakError || (hadDays && !(cleared || []).length)) {
       console.error("Clearing the streak failed:", streakError || "no rows deleted");
       alert("Your cards were reset, but your streak couldn't be cleared.");
@@ -2239,10 +2948,7 @@ export default function FlashcardApp({ user, onSignOut }) {
     resetSession();
   };
 
-  // ── SEED DEMO DECK (admin only) ─────────────────────────────────────
-  // Bulk-inserts RAW into user_cards for the current user. Preserves
-  // categories (vocab/expr/gram/pron → V/E/G/P) and dates so Matt's existing
-  // card_progress rows continue to match via the lowercased-front id.
+  // ── LESSON SYNC ─────────────────────────────────────────────────────
   // Keep every lesson's cards in step with the lesson itself.
   //
   // Lessons are part of the app, not something a student uploads: a new
@@ -2261,11 +2967,16 @@ export default function FlashcardApp({ user, onSignOut }) {
   // since would look never answered there, and be deleted with its history
   // instead of kept. So this waits for the first fetch to land.
   const lessonsSynced = useRef(false);
+  // The lesson sync has finished (or failed) for this deck: until then a deck
+  // that came back empty is a new student whose lessons are being added, not
+  // someone to show the Welcome page.
+  const [lessonSyncDone, setLessonSyncDone] = useState(false);
   useEffect(() => {
     if (!user || !deckLoaded || !deckFreshSeq || lessonsSynced.current) return;
     lessonsSynced.current = true;
     (async () => {
-      const { missing, rekey, retext, stale, archive, adopt, unkeyed, taken, away } = reconcileLessons(LESSONS, userCards, archivedCards);
+      try {
+      const { missing, rekey, retext, recat, stale, archive, adopt, unkeyed, taken, away } = reconcileLessons(LESSONS, userCards, archivedCards);
       if (away.length) {
         // Out of study: the student removed them, or they were put away as a
         // repeat. Putting them back would undo that. See reconcileLessons.
@@ -2285,37 +2996,73 @@ export default function FlashcardApp({ user, onSignOut }) {
           unkeyed.map((c) => c.f)
         );
       }
-      if (!missing.length && !rekey.length && !retext.length && !stale.length && !archive.length && !adopt.length) return;
+      if (!missing.length && !rekey.length && !retext.length && !recat.length && !stale.length && !archive.length && !adopt.length) return;
       const owned = (rows) => rows.map((r) => ({ ...r, user_id: user.id }));
       try {
         if (missing.length) {
           const { error } = await supabase
-            .from("user_cards")
+            .from(tbl("user_cards"))
             .upsert(owned(missing), { onConflict: "user_id,front" });
           if (error) throw error;
         }
         if (rekey.length) {
           const { error } = await supabase
-            .from("user_cards")
+            .from(tbl("user_cards"))
             .upsert(owned(rekey), { onConflict: "user_id,front" });
           if (error) throw error;
         }
         for (const r of retext) {
           const { error } = await supabase
-            .from("user_cards")
+            .from(tbl("user_cards"))
             .update({ front: r.front, back: r.back })
+            .eq("id", r.row_id)
+            .eq("user_id", user.id);
+          // One refused rename (the database has that front already) must not
+          // stop the rest of the update on every load.
+          if (error) console.error("[lessons] rename refused:", r.front, error);
+        }
+        // A grammar card the lesson now asks as a word or phrase. See
+        // reconcileLessons.
+        for (const r of recat) {
+          const { error } = await supabase
+            .from(tbl("user_cards"))
+            .update({ category: r.category, back: r.back })
             .eq("id", r.row_id)
             .eq("user_id", user.id);
           if (error) throw error;
         }
+        // A card with an answer on record, even after "Reset all progress"
+        // zeroed its schedule, is taken out of study, not deleted: deleting a
+        // card deletes its answers with it. Asked of the answer record
+        // itself; if that cannot be read, nothing is deleted.
+        const answeredStale = new Set();
+        let readable = true;
+        for (let i = 0; i < stale.length && readable; i += 25) {
+          const ids = stale.slice(i, i + 25);
+          for (let from = 0; ; from += 1000) {
+            const { data, error } = await supabase
+              .from(tbl("card_reviews"))
+              .select("card_id")
+              .in("card_id", ids)
+              .eq("user_id", user.id)
+              .range(from, from + 999);
+            if (error) { readable = false; break; }
+            for (const r of data || []) answeredStale.add(r.card_id);
+            if (!data || data.length < 1000) break;
+          }
+        }
+        const toDelete = readable ? stale.filter((id) => !answeredStale.has(id)) : [];
+        const toArchive = readable ? [...archive, ...stale.filter((id) => answeredStale.has(id))] : [...archive, ...stale];
         // Deleted only if still never answered either way, checked by the
         // database itself: a card answered on another device since the deck
-        // was read is left, and archived on the next visit.
-        if (stale.length) {
+        // was read is left, and archived on the next visit. A few hundred at
+        // a time, as the ids go in the address: the Spanish grammar cards
+        // left a deck 900 at once (2026-10-25).
+        for (let i = 0; i < toDelete.length; i += 200) {
           const { error } = await supabase
-            .from("user_cards")
+            .from(tbl("user_cards"))
             .delete()
-            .in("id", stale)
+            .in("id", toDelete.slice(i, i + 200))
             .eq("user_id", user.id)
             .eq("fsrs_state", 0)
             .eq("en_fsrs_state", 0);
@@ -2323,10 +3070,10 @@ export default function FlashcardApp({ user, onSignOut }) {
         }
         // A card the student has answered is taken out of study, not deleted:
         // its answers stay on record. See reconcileLessons.
-        for (const rowId of archive) {
+        for (const rowId of toArchive) {
           const row = userCards.find((c) => c.row_id === rowId);
           const { error } = await supabase
-            .from("user_cards")
+            .from(tbl("user_cards"))
             .update({ source: archivedSource(row?.source) })
             .eq("id", rowId)
             .eq("user_id", user.id);
@@ -2336,15 +3083,15 @@ export default function FlashcardApp({ user, onSignOut }) {
         // landed on: it stays, as one of their own cards. See reconcileLessons.
         if (adopt.length) {
           const { error } = await supabase
-            .from("user_cards")
+            .from(tbl("user_cards"))
             .update({ source: ADOPTED_SOURCE })
             .in("id", adopt)
             .eq("user_id", user.id);
           if (error) throw error;
         }
         console.info(
-          `[lessons] synced: +${missing.length} card(s), ${rekey.length} re-keyed, ${retext.length} renamed, ` +
-            `-${stale.length} never answered and removed, ${archive.length} answered and kept out of study, ` +
+          `[lessons] synced: +${missing.length} card(s), ${rekey.length} re-keyed, ${retext.length} renamed, ${recat.length} now words or phrases, ` +
+            `-${toDelete.length} never answered and removed, ${toArchive.length} answered and kept out of study, ` +
             `${adopt.length} kept as cards from your notes`
         );
         reloadDeck();
@@ -2352,6 +3099,9 @@ export default function FlashcardApp({ user, onSignOut }) {
         // A lesson that cannot sync is not worth blocking the app for; the
         // deck the student already has still works.
         console.error("Lesson sync failed:", e);
+      }
+      } finally {
+        setLessonSyncDone(true);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2361,6 +3111,10 @@ export default function FlashcardApp({ user, onSignOut }) {
   // "Add" button that no longer exists, because the sync above puts every
   // lesson in every deck on load. Nothing had called it since.
 
+  // ── SEED DEMO DECK (admin only) ─────────────────────────────────────
+  // Bulk-inserts RAW into user_cards for the current user. Preserves
+  // categories (vocab/expr/gram/pron → V/E/G/P) and dates so Matt's existing
+  // card_progress rows continue to match via the lowercased-front id.
   const seedDemoDeck = async () => {
     if (!user) return;
     setSeeding(true);
@@ -2389,7 +3143,7 @@ export default function FlashcardApp({ user, onSignOut }) {
       for (let i = 0; i < rows.length; i += 500) {
         const chunk = rows.slice(i, i + 500);
         const { error } = await supabase
-          .from("user_cards")
+          .from(tbl("user_cards"))
           .upsert(chunk, { onConflict: "user_id,front" });
         if (error) throw error;
       }
@@ -2434,6 +3188,8 @@ export default function FlashcardApp({ user, onSignOut }) {
           original_front: ctx.originalFront || null,
           front: trimmedFront,
           back: trimmedBack,
+          // A Spanish card is edited in the Spanish deck (2026-10-22).
+          ...(spanish ? { course: "es" } : {}),
         }),
       });
       if (!res.ok) {
@@ -2445,29 +3201,25 @@ export default function FlashcardApp({ user, onSignOut }) {
         // a human-readable `error` string — surface it directly. Only fall
         // back to the noisy "HTTP N + raw response" dump for unexpected 5xx.
         const friendly = body && typeof body === "object" && body.error;
-        if (res.status >= 400 && res.status < 500 && friendly) {
-          alert(friendly);
-        } else {
-          alert(
-            `Card update failed.\n` +
+        // The reason is returned, and shown once in the Edit card window.
+        if (res.status >= 400 && res.status < 500 && friendly) return { error: friendly };
+        return {
+          error: `Card update failed.\n` +
             `HTTP ${res.status}\n` +
-            `Response: ${typeof body === "string" ? body.slice(0, 400) : JSON.stringify(body).slice(0, 400)}`
-          );
-        }
-        return false;
+            `Response: ${typeof body === "string" ? body.slice(0, 400) : JSON.stringify(body).slice(0, 400)}`,
+        };
       }
     } catch (e) {
       console.error("Card update network error:", e);
-      alert(`Card update network error: ${e.message || e}`);
-      return false;
+      return { error: `Card update network error: ${e.message || e}` };
     }
 
-    // Fire-and-forget: log to the parse-corrections ledger every time a
-    // save succeeds. No diff guard — the small cost of logging a no-op
+    // Fire-and-forget: log to the parse-corrections ledger every time the
+    // owner's save succeeds (the route refuses anyone else). No diff guard — the small cost of logging a no-op
     // save is nothing compared to the cost of silently swallowing logs
     // because the guard mis-fires.
     const frontChanged = ctx.originalFront !== trimmedFront;
-    logCorrection({
+    if (isAdmin) logCorrection({
       category: frontChanged
         ? CORRECTION_CATEGORIES.FRONT_TEXT_EDIT
         : CORRECTION_CATEGORIES.BACK_TEXT_EDIT,
@@ -2478,6 +3230,7 @@ export default function FlashcardApp({ user, onSignOut }) {
       original_back: ctx.originalBack ?? null,
       corrected_front: trimmedFront,
       corrected_back: trimmedBack,
+      ...(spanish ? { course: "es" } : {}),
     });
 
     reloadDeck();
@@ -2494,7 +3247,7 @@ export default function FlashcardApp({ user, onSignOut }) {
       const res = await fetch("/api/admin-update-card", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token || ""}` },
-        body: JSON.stringify({ action: "remove", row_id: rowId }),
+        body: JSON.stringify({ action: "remove", row_id: rowId, ...(spanish ? { course: "es" } : {}) }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok || !body.ok) {
@@ -2520,22 +3273,42 @@ export default function FlashcardApp({ user, onSignOut }) {
     return true;
   };
 
-  const flagCard = async (rowId) => {
-    const { error } = await supabase
-      .from("user_cards")
-      .update({
-        flagged_for_review: true,
-        flagged_at: new Date().toISOString(),
-      })
-      .eq("id", rowId);
-    if (error) {
-      console.error("Flag failed:", error);
-      return;
-    }
-    reloadDeck();
-  };
-
   if (!loaded) return <div style={S.loading}>Loading…</div>;
+
+  // An empty Spanish deck is never a new student to welcome: the lesson sync
+  // is adding the lessons' cards, or the database hasn't the Spanish tables
+  // yet (migration_020), which only the owner can fix. Either way, a way
+  // back to French.
+  if (spanish && userCards.length === 0) {
+    return (
+      <div style={S.onbPage}>
+        <div style={{ ...S.onboarding, marginTop: 120 }} data-spanish-empty>
+          <p style={{ margin: "0 0 18px", fontSize: 17, color: T.color.onSurface }}>
+            {deckMissing
+              ? "Spanish needs one update to the database before it can open: run migration_020_spanish.sql in Supabase, then reload."
+              : LESSONS.length
+                ? "Adding the Spanish lessons to your cards…"
+                : "There are no Spanish lessons yet."}
+          </p>
+          <button style={S.onbTopSignOut} onClick={() => onCourse?.("fr")}>Back to French</button>
+        </div>
+      </div>
+    );
+  }
+
+  // A new French student: the deck came back empty and the lesson sync is
+  // adding the lessons' cards, which swaps this page for the app within
+  // seconds. The Welcome page is for when that has finished and the deck is
+  // still empty (or the deck could not be read at all).
+  if (userCards.length === 0 && deckFreshSeq > 0 && !lessonSyncDone && LESSONS.length) {
+    return (
+      <div style={S.onbPage}>
+        <div style={{ ...S.onboarding, marginTop: 120 }} data-lessons-adding>
+          <p style={{ margin: 0, fontSize: 17, color: T.color.onSurface }}>Adding the lessons to your cards…</p>
+        </div>
+      </div>
+    );
+  }
 
   // ── ONBOARDING (empty deck) ─────────────────────────────────────────
   if (userCards.length === 0) {
@@ -2550,13 +3323,13 @@ export default function FlashcardApp({ user, onSignOut }) {
           </div>
         )}
 
-        <div style={S.onbInner}>
+        <div style={S.onbInner} className="page-pad">
           {/* Hero — left text + right typographic preview */}
           <section style={S.onbHero}>
             <div style={S.onbHeroLeft}>
               <h1 style={S.onbHeroTitle}>Welcome.</h1>
               <p style={S.onbHeroText}>
-                Upload your document to get started. We'll turn your lesson notes into a personal deck — vocabulary, expressions, grammar, and conjugation drills.
+                Upload your document to get started. We'll turn your class notes into a personal deck — vocabulary, expressions, grammar, and conjugation drills.
               </p>
               <button style={S.onbHeroCta} onClick={() => openUpload("paste")}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
@@ -2596,8 +3369,8 @@ export default function FlashcardApp({ user, onSignOut }) {
               <div style={{...S.onbCardIcon, ...S.onbCardIconFeatured}}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
               </div>
-              <h3 style={S.onbCardTitle}>Upload .txt file</h3>
-              <p style={S.onbCardDesc}>Drag and drop a plain text file from your computer.</p>
+              <h3 style={S.onbCardTitle}>Upload a file</h3>
+              <p style={S.onbCardDesc}>Drag and drop a .txt, .pdf or .docx file of your class notes.</p>
               <div style={S.onbCardArrow}>→</div>
             </button>
             <button style={S.onbCard} onClick={() => openUpload("link")}>
@@ -2636,16 +3409,18 @@ export default function FlashcardApp({ user, onSignOut }) {
           open={showChat}
           onClose={() => setShowChat(false)}
           user={user}
+          logsCorrections={isAdmin}
           cards={userCards}
-          onCardAdded={(row) => (row ? addDeckCard(row) : reloadDeck())}
+          onCardAdded={tutorCardAdded}
           onCardUpdated={patchDeckCard}
-          onNeedKey={() => setShowKeyModal(true)}
+          onNeedKey={openKeyModal}
         />
 
         <ApiKeyModal
           open={showKeyModal}
           onClose={() => setShowKeyModal(false)}
           user={user}
+          serverPays={serverPays}
         />
 
         <CahierUpload
@@ -2671,15 +3446,45 @@ export default function FlashcardApp({ user, onSignOut }) {
   // 256px-wide column, or a 64px rail when minimized.
   // Defined here (inside the component) so it captures all the closure
   // variables it needs without prop-drilling.
-  // Icon SVGs for sidebar nav (14×14, inline, match Material Symbols style)
+  // Icon SVGs for sidebar nav (18×18, inline, match Material Symbols style)
   const NAV_ICONS = {
     study: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>,
     stats: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>,
     lessons: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>,
     tutor: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9.1 9a2.5 2.5 0 0 1 4.9.6c0 1.7-2.5 2.5-2.5 2.5"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>,
+    // Podcasts (the owner, and test-app users): Episodes, My podcasts, and the switch's button on
+    // the rail. The same drawings as the approved mockup.
+    episodes: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg>,
+    mine: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16.85 18.58a9 9 0 1 0-9.7 0"/><path d="M8 14a5 5 0 1 1 8 0"/><circle cx="12" cy="11" r="1"/><path d="M13 17a1 1 0 1 0-2 0l.5 4.5a.5.5 0 1 0 1 0Z"/></svg>,
+    // Exercises (Spanish): the switch's button on the rail, and All exercises.
+    pencil: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>,
+    // Dialogues (Spanish): the switch's third part on the rail.
+    dialogues: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/></svg>,
+    headphones: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></svg>,
   };
 
   const navItems = [["study", "Cards"], ["lessons", "Lessons"], ["stats", "Stats"]];
+
+  // ── Podcasts' side of the sidebar (owner only, 2026-10-09) ──
+  // Episodes, then My podcasts with the podcasts followed beneath it, then
+  // Tutor, as on Flashcards. Same buttons, same marker, same rail.
+  const podNavItems = [["episodes", "Episodes"], ["mine", "My podcasts"]];
+  // Which one is marked: exactly one, as on Flashcards. Episodes and My
+  // podcasts are their own pages. On a podcast's page, or one of its
+  // episodes, the podcast under My podcasts is marked, however you got there.
+  // Where that podcast isn't drawn (the rail has no room for sub-items, and a
+  // podcast still loading isn't listed yet), My podcasts, which it sits
+  // under, stands in for it, so the marker never vanishes.
+  const podMarked = (() => {
+    const v = podView.view;
+    if (v === "episodes" || v === "mine") return v;
+    const slug = podView.podcast;
+    return slug && !sidebarMin && followedSlugs.includes(slug) ? `follow:${slug}` : "mine";
+  })();
+  // Opening a podcasts page from the sidebar. An episode page is reached from
+  // the pages themselves; they set `from`, which the back pill reads.
+  const openPodPage = (view, podcast = null) =>
+    setPodView({ ...POD_HOME, view, podcast, from: view === "podcast" ? "podcast" : "episodes" });
 
   // Exactly one thing in the nav is ever marked.
   //
@@ -2707,7 +3512,7 @@ export default function FlashcardApp({ user, onSignOut }) {
   // See MIN_REFLOW_CONTENT for where the floor comes from.
   // (roomToReflow, chatReflow and lessonReflow are computed further up, before
   // the keyboard handlers, which need to know whether the tutor covers the card.)
-  const shellStyle = S.shell;
+  const shellStyle = phone ? { ...S.shell, ...S.shellPhone } : S.shell;
   // The room is made by MAIN, not by the shell. Padding the shell shrank the
   // sidebar too — its account block jumped up the page and left a gap —
   // when the sidebar is not what either panel covers. Only the content column
@@ -2716,19 +3521,50 @@ export default function FlashcardApp({ user, onSignOut }) {
     ...S.main,
     boxSizing: "border-box",
     paddingRight: chatReflow ? CHAT_PANEL_WIDTH : lessonReflow ? LESSON_PANEL_WIDTH : 0,
+    // Clear of the phone's bar across the top.
+    paddingTop: phone ? `calc(${PHONE_BAR_HEIGHT}px + env(safe-area-inset-top))` : 0,
     // Same duration and curve as the panel's own slide, so the page and the
     // panel move together instead of as two separate animations. (There is no
     // padding-bottom any more: the feedback panel moved into the sidebar.)
     transition: `padding-right ${PANEL_ANIM_MS}ms ${PANEL_EASING}`,
   };
   
+  // On a phone the corner flag sits below the bar across the top.
+  const cornerFlagTopPhone = `calc(${PHONE_BAR_HEIGHT + 14}px + env(safe-area-inset-top))`;
   const sidebar = (
+    <>
+    {/* On a phone: the bar across the top, with the menu button that opens the
+        sidebar as a drawer, and the dim behind the open drawer that closes it. */}
+    {phone && (
+      <>
+        <header data-phone-bar style={S.phoneBar}>
+          <button
+            data-drawer-toggle
+            style={S.phoneMenuBtn}
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Menu"
+            aria-expanded={drawerOpen}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+          </button>
+          <span style={S.phoneBarTitle}>Déjà Review</span>
+        </header>
+        <div
+          data-drawer-scrim
+          style={{ ...S.drawerScrim, opacity: drawerOpen ? 1 : 0, pointerEvents: drawerOpen ? "auto" : "none" }}
+          onClick={() => setDrawerOpen(false)}
+        />
+      </>
+    )}
     <aside
       data-sidebar
       data-minimized={sidebarMin ? "" : undefined}
-      style={sidebarMin ? { ...S.sideBar, ...S.sideBarMin } : S.sideBar}
+      data-drawer={phone ? (drawerOpen ? "open" : "closed") : undefined}
+      style={phone
+        ? { ...S.sideBar, ...S.sideBarPhone, transform: drawerOpen ? "translateX(0)" : "translateX(-100%)", boxShadow: drawerOpen ? S.sideBarPhone.boxShadow : "none" }
+        : sidebarMin ? { ...S.sideBar, ...S.sideBarMin } : S.sideBar}
     >
-      {!sidebarMin && (
+      {!sidebarMin && !phone && (
         // Full width: in the corner of the sidebar's top padding, clear of the nav.
         <button
           data-sidebar-toggle
@@ -2741,8 +3577,11 @@ export default function FlashcardApp({ user, onSignOut }) {
           {SIDEBAR_TOGGLE_ICON(false)}
         </button>
       )}
-      {/* Nav items with icons */}
-      <nav style={S.sideNav}>
+      {/* Nav items with icons. Full width, the nav scrolls on its own, so a
+          long list (Exercises' 27 lessons) never pushes the account and Send
+          feedback out of view, nor the feedback card that opens above them
+          (owner, 2026-10-25: "usernamef/feedback should always been in view"). */}
+      <nav style={sidebarMin ? S.sideNavMin : S.sideNav}>
         {sidebarMin && (
           // Minimized, the expand button is one more item in the rail: the
           // same button style as Cards and the rest, so it shares their centre
@@ -2761,7 +3600,153 @@ export default function FlashcardApp({ user, onSignOut }) {
             <span style={S.sideIcon}>{SIDEBAR_TOGGLE_ICON(true)}</span>
           </button>
         )}
-        {navItems.map(([m, label]) => {
+        {/* Flashcards or Podcasts (owner, 2026-10-09): the buttons at the top
+            of the nav, below the rail's expand button, the selected one
+            white. On the rail they stack as icons, named on hover. Owner
+            only until the owner has tried it, except on the test app: a
+            student's sidebar has no switch and is exactly what it was. */}
+        {/* Spanish, a part of the app of its own (owner, 2026-10-22: "the
+            spanish module and the french modules should be separate"), has
+            Exercises and Dialogues there instead (2026-10-24). */}
+        {(hasPodcasts || hasExercises) && (
+          <div
+            data-module-switch
+            role="group"
+            aria-label={hasExercises ? "Flashcards, exercises or dialogues" : "Flashcards or podcasts"}
+            style={sidebarMin ? S.modSwitchMin : S.modSwitch}
+          >
+            {[
+              ["flashcards", "Flashcards", NAV_ICONS.study, goFlashcards],
+              ...(hasExercises
+                ? [["exercises", "Exercises", NAV_ICONS.pencil, goExercises], ["dialogues", "Dialogues", NAV_ICONS.dialogues, goDialogues]]
+                : [["podcasts", "Podcasts", NAV_ICONS.headphones, goPodcasts]]),
+            ].map(([key, label, icon, go]) => {
+              const on = key === (podcastsOn ? "podcasts" : exercisesOn ? "exercises" : dialoguesOn ? "dialogues" : "flashcards");
+              return (
+                <button
+                  key={key}
+                  data-module={key}
+                  className="mod-btn"
+                  aria-pressed={on}
+                  // Composed from four parts with the same keys whichever
+                  // button is selected and whichever width: React updates styles property by
+                  // property, and an override setting a key the other variant
+                  // lacks is left behind on the way back (the 24b55b7 bug).
+                  style={{ ...S.modBtn, ...(sidebarMin ? S.modBtnRail : S.modBtnWide), ...(on ? S.modBtnOn : S.modBtnOff) }}
+                  onClick={go}
+                  title={sidebarMin ? label : undefined}
+                  aria-label={sidebarMin ? label : undefined}
+                >
+                  {sidebarMin ? <span style={S.sideIcon}>{icon}</span> : label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {podcastsOn && podNavItems.map(([key, label]) => {
+          const baseStyle = sidebarMin ? { ...S.sideItem, ...S.sideItemMin } : S.sideItem;
+          const marked = podMarked === key;
+          return (
+            <Fragment key={key}>
+              <button
+                data-pod-nav={key}
+                className="side-btn"
+                aria-current={marked ? "page" : undefined}
+                style={marked ? { ...baseStyle, ...S.sideItemActive } : baseStyle}
+                onClick={() => openPodPage(key)}
+                title={sidebarMin ? label : undefined}
+                aria-label={sidebarMin ? label : undefined}
+              >
+                <span style={S.sideIcon}>{NAV_ICONS[key]}</span>
+                {!sidebarMin && label}
+              </button>
+              {/* The podcasts followed, under My podcasts, each opening its
+                  own page. Not on the rail, which has no room to nest
+                  anything (as with the lessons under Lessons). */}
+              {key === "mine" && !sidebarMin && followedSlugs.map((slug) => {
+                const on = podMarked === `follow:${slug}`;
+                return (
+                  <button
+                    key={slug}
+                    data-pod-follow={slug}
+                    className="side-btn"
+                    aria-current={on ? "page" : undefined}
+                    style={on ? { ...S.sideSubItem, ...S.sideSubItemActive } : S.sideSubItem}
+                    onClick={() => openPodPage("podcast", slug)}
+                  >
+                    {podcastBySlug(slug)?.name || slug}
+                  </button>
+                );
+              })}
+            </Fragment>
+          );
+        })}
+        {/* Exercises' side: All exercises, with every lesson beneath it,
+            the one open marked. Not on the rail, which has no room to nest
+            anything. All exercises, or the arrow beside it, folds the
+            lessons away and back (owner, 2026-10-26: not only the arrow);
+            All exercises also opens its page. Folded, the lesson you're in
+            still shows, as under Basic Lessons. Dialogues' side is the same,
+            with its own lessons. */}
+        {(exercisesOn || dialoguesOn) && (() => {
+          const side = exercisesOn
+            ? { all: "All exercises", view: exView, setView: setExView, stages: EXERCISE_GROUPS, folds: exStageFolds, titles: EXERCISE_TITLE_OF, data: "ex" }
+            : { all: "All dialogues", view: dgView, setView: setDgView, stages: DIALOGUE_GROUPS, folds: dgStageFolds, titles: DIALOGUE_TITLE_OF, data: "dlg" };
+          return (
+          <>
+            <div style={S.sideItemWrap}>
+              <button
+                {...{ [`data-${side.data}-nav`]: "all" }}
+                className="side-btn"
+                aria-current={!side.view.lesson ? "page" : undefined}
+                style={{ ...(sidebarMin ? { ...S.sideItem, ...S.sideItemMin } : S.sideItem), ...(!side.view.lesson || sidebarMin ? S.sideItemActive : null) }}
+                onClick={() => {
+                  // Already on All: nothing changes but the fold, so the phone's
+                  // drawer, which closes whenever the view changes, stays open.
+                  side.setView((v) => (v.lesson ? { lesson: null } : v));
+                  // The rail shows no lessons, so there is nothing to fold.
+                  if (!sidebarMin) setExLessonsFolded((v) => !v);
+                }}
+                title={sidebarMin ? side.all : undefined}
+                aria-label={sidebarMin ? side.all : undefined}
+                aria-expanded={!sidebarMin ? !exLessonsFolded : undefined}
+              >
+                <span style={S.sideIcon}>{NAV_ICONS.episodes}</span>
+                {!sidebarMin && side.all}
+              </button>
+              {!sidebarMin && (
+                <button
+                  {...{ [`data-${side.data}-fold`]: true }}
+                  className="side-btn"
+                  style={S.sideFoldBtn}
+                  onClick={() => setExLessonsFolded((v) => !v)}
+                  aria-expanded={!exLessonsFolded}
+                  aria-label={exLessonsFolded ? "Show the lessons" : "Hide the lessons"}
+                  title={exLessonsFolded ? "Show the lessons" : "Hide the lessons"}
+                >
+                  <span style={{ ...S.sideChevron, ...(exLessonsFolded ? null : S.sideChevronOpen), marginLeft:0 }} aria-hidden="true">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                  </span>
+                </button>
+              )}
+            </div>
+            {/* Folded, only the lesson you're in. Unfolded, the four stages
+                of the course (SideStages). */}
+            {!sidebarMin && (
+              <SideStages
+                stages={side.stages}
+                folds={side.folds}
+                folded={exLessonsFolded}
+                current={side.view.lesson}
+                titleOf={(id) => side.titles[id]}
+                onPick={(id) => side.setView({ lesson: id })}
+                data={side.data}
+              />
+            )}
+          </>
+          );
+        })()}
+        {!podcastsOn && !exercisesOn && !dialoguesOn && navItems.map(([m, label]) => {
           const baseStyle = sidebarMin ? { ...S.sideItem, ...S.sideItemMin } : S.sideItem;
           const activeStyle = S.sideItemActive;
           return (
@@ -2787,15 +3772,31 @@ export default function FlashcardApp({ user, onSignOut }) {
                 {!sidebarMin && label}
                 {m === "lessons" && !sidebarMin && (
                   <span style={lessonsOpen ? { ...S.sideChevron, ...S.sideChevronOpen } : S.sideChevron} aria-hidden="true">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                   </span>
                 )}
               </button>
               {/* Lessons are the one nav item with children: each lesson sits
                   under it as a sub-item, so picking one is a single click
                   rather than a trip through the catalogue. Not on the rail,
-                  which has no room to nest anything. */}
-              {m === "lessons" && !sidebarMin && lessonsOpen && LESSON_GROUPS.map((group) => {
+                  which has no room to nest anything. In Spanish they are in
+                  the same stages as on Exercises (owner, 2026-11-07), and
+                  French has stages of its own (2026-11-13). */}
+              {m === "lessons" && !sidebarMin && lessonsOpen && LESSON_STAGES && (
+                <SideStages
+                  stages={LESSON_STAGES}
+                  folds={lessonStageFolds}
+                  current={lessonOpenHere}
+                  titleOf={(id) => lessonById(id)?.title}
+                  tooltip={(id) => `Study ${lessonById(id)?.title}`}
+                  onPick={enterLesson}
+                  data="lesson"
+                />
+              )}
+              {/* Without stages, every group; with them, the lessons in no
+                  stage, which follow the stages one by one: French
+                  L'impératif and the adverbs (owner, 2026-11-13). */}
+              {m === "lessons" && !sidebarMin && lessonsOpen && LESSON_GROUPS.filter((group) => !LESSON_STAGES || !group.folds).map((group) => {
                 // Folded, it still shows the lesson you're in. (It used to
                 // refuse to fold there, so the press did nothing you could
                 // see.)
@@ -2843,6 +3844,9 @@ export default function FlashcardApp({ user, onSignOut }) {
             nav items but never takes the active state. It lives here rather
             than in the profile menu because looking a word up mid-session is
             a primary action, and nobody finds it behind an avatar. */}
+        {/* In Spanish too (owner, 2026-10-26: "tutor needs to be added to
+            spanish module"): there it is a Spanish tutor, and the cards it
+            adds and changes are Spanish cards (ChatPanel's course). */}
         <button
           data-tutor-toggle
           data-tour="nav-tutor"
@@ -2866,10 +3870,12 @@ export default function FlashcardApp({ user, onSignOut }) {
             panel well clear of Tutor. On a short window it holds a floor while
             the panel is open, and the sidebar scrolls instead of the panel
             climbing over the nav. */}
+        {/* Open, it never gives up height: the nav scrolls instead, so the
+            whole card is in view as it opens (owner, 2026-10-25). */}
         <div
           ref={setFeedbackDock}
           data-feedback-dock
-          style={{ ...S.sideFeedbackDock, minHeight: showFeedback ? 244 : 0 }}
+          style={{ ...S.sideFeedbackDock, minHeight: showFeedback ? 244 : 0, flexShrink: showFeedback ? 0 : 1 }}
         />
         <div style={sidebarMin ? { ...S.sideDivider, ...S.sideDividerMin } : S.sideDivider} />
         <div style={sidebarMin ? { ...S.sideBottom, ...S.sideBottomMin } : S.sideBottom}>
@@ -2891,6 +3897,18 @@ export default function FlashcardApp({ user, onSignOut }) {
                   >
                     Ask the tutor
                   </button>
+                  {/* Uploads are French only: they make cards from French
+                      notes. Spanish links the caderno instead. */}
+                  {spanish && (
+                  <button
+                    data-caderno-link
+                    style={S.profileMenuItem}
+                    onClick={() => { setShowUpload(true); setShowProfileMenu(false); }}
+                  >
+                    {cahier.link ? "Caderno ✓" : "Link your caderno"}
+                  </button>
+                  )}
+                  {!spanish && (
                   <button
                     data-tour="upload"
                     style={S.profileMenuItem}
@@ -2898,11 +3916,12 @@ export default function FlashcardApp({ user, onSignOut }) {
                   >
                     Upload document
                   </button>
+                  )}
                   <button
                     style={S.profileMenuItem}
                     onClick={() => { setShowKeyModal(true); setShowProfileMenu(false); }}
                   >
-                    {hasKey(user?.id) ? "Claude account ✓" : "Connect Claude account"}
+                    {hasKey(user?.id) || serverPays ? "Claude account ✓" : "Connect Claude account"}
                   </button>
                   <button
                     data-fsrs-settings-toggle
@@ -2911,7 +3930,7 @@ export default function FlashcardApp({ user, onSignOut }) {
                   >
                     How much to remember
                   </button>
-                  {tourStepList.length > 0 && (
+                  {tourStepList.length > 0 && !spanish && !phone && (
                     <button data-tour-again style={S.profileMenuItem} onClick={startTour}>
                       Take the tour again
                     </button>
@@ -2942,8 +3961,12 @@ export default function FlashcardApp({ user, onSignOut }) {
             <BetaFeedback
               compact={sidebarMin}
               user={user}
-              currentPage={mode}
-              currentCard={mode === "study" ? card : null}
+              // Which Podcasts page feedback came from (podcasts/episode,
+              // podcasts/mine…), not just "podcasts": the review reads it as
+              // "from the <page> page".
+              currentPage={podcastsOn ? `podcasts/${podView.view}` : exercisesOn ? `Spanish exercises/${exView.lesson || "all"}` : dialoguesOn ? `Spanish dialogues/${dgView.lesson || "all"}` : spanish ? `Spanish ${mode}` : mode}
+              currentCard={mode === "study" && !sessionDone ? card : null}
+              course={course.id}
               open={showFeedback}
               onOpen={openFeedback}
               onClose={() => setShowFeedback(false)}
@@ -2955,6 +3978,7 @@ export default function FlashcardApp({ user, onSignOut }) {
         </>
       )}
     </aside>
+    </>
   );
 
   // ── SHARED MODALS ───────────────────────────────────────────────────
@@ -2966,7 +3990,7 @@ export default function FlashcardApp({ user, onSignOut }) {
     lessonFilter,
     typeMode: typeMode && !!card,
     front: card && !sessionDone
-      ? dropFinalPeriod(card.shownDir === "fr" ? cleanFrenchPrompt(card.f, card.b) : cleanEnglishPrompt(card.b))
+      ? dropFinalPeriod(oneAnswer(card.shownDir === "fr" ? cleanFrenchPrompt(card.f, card.b) : cleanEnglishPrompt(card.b)))
       : "",
     hasCard: !!card && !sessionDone,
     // Never answered the way round it is shown.
@@ -2984,7 +4008,7 @@ export default function FlashcardApp({ user, onSignOut }) {
       <LessonPanel
         open={showLessonPanel}
         onClose={() => setShowLessonPanel(false)}
-        lesson={LESSONS.find((l) => l.id === lessonFilter) || null}
+        lesson={exercisesOn ? exNotesLesson : dialoguesOn ? dgNotesLesson : LESSONS.find((l) => l.id === lessonFilter) || null}
         reflow={lessonReflow}
         sidebarWidth={sidebarWidth}
       />
@@ -3003,15 +4027,30 @@ export default function FlashcardApp({ user, onSignOut }) {
         open={showChat}
         onClose={() => setShowChat(false)}
         user={user}
+        logsCorrections={isAdmin}
+        // In the Spanish module, the Spanish tutor and the Spanish deck.
+        course={course.id}
         cards={userCards}
         // Live rather than a snapshot, so the tutor follows you as you advance
         // through the session — with whether each card's answer has been shown.
         currentCard={tutorCard}
+        // On Podcasts, the episode on screen instead, and the passage being
+        // answered, handed up by the podcasts page. Only while Podcasts is
+        // showing: a context left over from an episode must not ride along
+        // with a question asked on Cards.
+        podcast={podcastsOn ? tutorPodcast : null}
+        // On the Spanish Exercises, the exercise being worked on, handed up
+        // by the exercises page in the same way; on Dialogues, the text.
+        exercise={exercisesOn || dialoguesOn ? tutorExercise : null}
         thread={tutorThread}
         // The insert hands back the row, so the deck takes it in place; only a
         // write that returned nothing falls back to a refetch.
-        onCardAdded={(row) => (row ? addDeckCard(row) : reloadDeck())}
+        onCardAdded={tutorCardAdded}
         onCardUpdated={patchDeckCard}
+        // A card the tutor removed leaves the deck in place, as the editor's
+        // Remove leaves it: the set keeps its place, and if it was the card on
+        // screen, the next one comes up unanswered.
+        onCardRemoved={dropDeckCard}
         onNeedKey={() => { setShowChat(false); setShowKeyModal(true); }}
         reflow={chatReflow}
         sidebarWidth={sidebarWidth}
@@ -3020,6 +4059,7 @@ export default function FlashcardApp({ user, onSignOut }) {
         open={showKeyModal}
         onClose={() => setShowKeyModal(false)}
         user={user}
+        serverPays={serverPays}
       />
       <FsrsSettingsModal
         open={showFsrsSettings}
@@ -3030,13 +4070,14 @@ export default function FlashcardApp({ user, onSignOut }) {
         open={showUpload}
         user={user}
         cahier={cahier}
+        caderno={spanish}
         onClose={() => setShowUpload(false)}
         hasExisting={userCards.length > 0}
         initialTab={uploadInitialTab}
         onSuccess={(result) => {
           setShowUpload(false);
           reloadDeck();
-          if (result.linked) return alert(uploadDoneText(result));
+          if (result.linked) return alert(uploadDoneText(result, spanish));
           alert(uploadResultText(result));
         }}
       />
@@ -3049,6 +4090,7 @@ export default function FlashcardApp({ user, onSignOut }) {
       {editingCard && (
         <EditCardModal
           card={editingCard}
+          language={course.language}
           onClose={() => setEditingCard(null)}
           onSave={async (newFront, newBack) => {
             // Pass originals + batch_id through from the modal itself, so
@@ -3064,7 +4106,7 @@ export default function FlashcardApp({ user, onSignOut }) {
                 batchId: editingCard.batch_id,
               }
             );
-            if (ok) setEditingCard(null);
+            if (ok === true) setEditingCard(null);
             return ok;
           }}
           onDelete={async () => {
@@ -3076,6 +4118,7 @@ export default function FlashcardApp({ user, onSignOut }) {
             // get the list of codes too, and their pick was refused without a
             // word; Cancel on it called off a removal they had just said yes
             // to (2026-10-06).
+            let removalCategory = null;
             if (isAdmin) {
               // duplicate_detected is the default: by far the commonest
               // reason. Anything not on the menu falls back to it.
@@ -3097,23 +4140,27 @@ export default function FlashcardApp({ user, onSignOut }) {
               );
               // Pressing Cancel returns null — treat as abort.
               if (categoryInput === null) return;
-              const category = CATEGORY_MENU.includes(categoryInput.trim())
+              removalCategory = CATEGORY_MENU.includes(categoryInput.trim())
                 ? categoryInput.trim()
                 : "duplicate_detected";
+            }
 
-              // Logged first, as the removal is a correction of Claude's reading.
+            const ok = await deleteCard(editingCard.row_id);
+            if (!ok) return;
+            // Logged only once the removal has worked, as a saved edit is, so a
+            // failed removal leaves no "delete" in the ledger.
+            if (isAdmin && removalCategory) {
               logCorrection({
-                category,
+                category: removalCategory,
                 action: CORRECTION_ACTIONS.DELETE,
                 card_id: editingCard.row_id,
                 batch_id: editingCard.batch_id || null,
                 original_front: editingCard.f,
                 original_back: editingCard.b,
+                ...(spanish ? { course: "es" } : {}),
               });
             }
-
-            const ok = await deleteCard(editingCard.row_id);
-            if (ok) setEditingCard(null);
+            setEditingCard(null);
           }}
         />
       )}
@@ -3123,17 +4170,113 @@ export default function FlashcardApp({ user, onSignOut }) {
     </>
   );
 
-  // ── STATS VIEW ──────────────────────────────────────────────────────
+  // The frame every module page shares: the same three children as every other
+  // page (sidebar, main, modals), in the same places, with the French / Spanish
+  // flag in the corner it has on every page. Built here, not as a component of
+  // its own, so React sees exactly the tree it saw before.
+  const modulePage = (page) => (
+    <div style={shellStyle}>
+      {sidebar}
+      <main style={{ ...mainStyle, position: "relative" }}>
+        {onCourse && (
+          // Clear of the tutor or notes panel, which main makes room for.
+          <div style={{ ...S.cornerFlag, right: (mainStyle.paddingRight || 0) + 24, top: phone ? cornerFlagTopPhone : S.cornerFlag.top }}>
+            <LanguageFlag course={course.id} onCourse={onCourse} />
+          </div>
+        )}
+        {page}
+      </main>
+      {modals}
+    </div>
+  );
+
+  // ── PODCASTS (owner only, 2026-10-09) ───────────────────────────────
+  // Every page of the module is PodcastsPage's: Episodes, My podcasts, a
+  // podcast, an episode with its questions, and the episode's audio.
+  //
+  // The same three children as every other page (sidebar, main, modals), in
+  // the same places, so React keeps the sidebar, the tutor, the lesson notes
+  // and the tour mounted across the switch: anything added beside them, or a
+  // wrapper round them, would remount the tutor and lose a question being
+  // typed. The page sits INSIDE main, so the tutor's reflow (main's right
+  // padding) moves it aside like any page; a play bar fixed to the window
+  // would sit under the tutor instead.
+  if (podcastsOn) {
+    return modulePage(
+      <PodcastsPage
+        user={user}
+        view={podView}
+        setView={setPodView}
+        follows={podFollows?.follows || NO_FOLLOWS}
+        followsMissing={!!podFollows?.missing}
+        reloadFollows={podFollows?.reload}
+        deckCards={userCards}
+        archivedCards={archivedCards}
+        onCardAdded={tutorCardAdded}
+        onTutorContext={onTutorPodcast}
+        openChat={openChat}
+        onNeedKey={openKeyModal}
+      />
+    );
+  }
+
+  // ── EXERCISES (Spanish, 2026-10-24) ─────────────────────────────────
+  // The same three children as every other page, as with Podcasts above.
+  if (exercisesOn) {
+    return modulePage(
+      <Suspense fallback={null}>
+        <ExercisesPage
+          user={user}
+          view={exView}
+          setView={setExView}
+          onNeedKey={openKeyModal}
+          onTutorContext={onTutorExercise}
+          openChat={openChat}
+          notes={exNotesLesson?.notes?.length
+            ? { open: showLessonPanel, onToggle: toggleLessonPanel, toggleRef: lessonToggleRef }
+            : null}
+        />
+      </Suspense>
+    );
+  }
+
+  // ── DIALOGUES (Spanish, 2026-11-07) ─────────────────────────────────
+  // The same three children again.
+  if (dialoguesOn) {
+    return modulePage(
+      <Suspense fallback={null}>
+        <DialoguesPage
+          user={user}
+          view={dgView}
+          setView={setDgView}
+          onNeedKey={openKeyModal}
+          onTutorContext={onTutorExercise}
+          openChat={openChat}
+          notes={dgNotesLesson?.notes?.length
+            ? { open: showLessonPanel, onToggle: toggleLessonPanel, toggleRef: lessonToggleRef }
+            : null}
+        />
+      </Suspense>
+    );
+  }
+
   // ── LESSONS ──────────────────────────────────────────────────────────
   // The catalogue. A lesson you have added is studied from here or from the
   // sidebar; one you haven't is added, which copies its cards into your deck.
   if (mode === "lessons") {
+    // A lesson card whose front the deck already had as its own is not added
+    // (reconcileLessons' `taken`), but the word is there. The same for every
+    // lesson, so worked out once.
+    const ownFronts = new Set(userCards.filter((c) => !lessonIdOf(c)).map((c) => c.f));
     return (
       <div style={shellStyle}>
         {sidebar}
         <main style={mainStyle}>
-          <div style={S.mainInnerScroll}>
-            <h1 style={S.statsHeading}>Lessons</h1>
+          <div style={S.mainInnerScroll} className="page-pad">
+            <div style={S.pageHead}>
+              <h1 style={S.statsHeading}>Lessons</h1>
+              {onCourse && <LanguageFlag course={course.id} onCourse={onCourse} style={S.pageHeadFlag} />}
+            </div>
             {LESSON_GROUPS.map((group) => (
               <Fragment key={group.title || "lessons"}>
               {group.title && (group.folds ? (
@@ -3154,9 +4297,6 @@ export default function FlashcardApp({ user, onSignOut }) {
               {!(group.folds && pageClosedGroups.has(group.title)) && group.lessons.map((lesson) => {
               const owned = userCards.filter((c) => lessonIdOf(c) === lesson.id);
               const added = owned.length > 0;
-              // A lesson card whose front the deck already had as its own is
-              // not added (reconcileLessons' `taken`), but the word is there.
-              const ownFronts = new Set(userCards.filter((c) => !lessonIdOf(c)).map((c) => c.f));
               // A lesson card taken out as a repeat of a card in the deck is
               // there as that card: "Allons-y !" as the notes card "On y va /
               // Allons-y" (the owner, 2026-10-12: "why 107/108?").
@@ -3167,16 +4307,9 @@ export default function FlashcardApp({ user, onSignOut }) {
               // how many are due today, the way the student is studying: in
               // EN→FR a word due only French side up is not waiting for them.
               const on = lessonsOn.has(lesson.id);
-              const endToday = endOfLocalDay(new Date());
-              let due = 0;
-              for (const c of owned) {
-                for (const d of directionsOf(c)) {
-                  if (isTwoWay(c) && dir !== "mix" && d !== dir) continue;
-                  const side = sideOf(c, d);
-                  if ((side.fsrs_state ?? State.New) !== State.New && side.next_due_at &&
-                      new Date(side.next_due_at).getTime() <= endToday) due++;
-                }
-              }
+              // The dealer's own count (a card once, and a way held back when
+              // its other way was answered today), with nothing taken.
+              const due = buildSession(owned, { now: Date.now(), direction: dir, target: 0 }).dueRemaining;
               return (
                 <div key={lesson.id} style={S.lessonCard} data-tour-lesson={lesson.id}>
                   <div style={S.lessonHead}>
@@ -3238,18 +4371,25 @@ export default function FlashcardApp({ user, onSignOut }) {
     );
   }
 
+  // ── STATS ───────────────────────────────────────────────────────────
   if (mode === "stats") {
     const now = Date.now();
     const todayISO = localISODate();
 
+    // Spanish: the days of Exercises and Dialogues answers count as studied
+    // too (owner, 2026-11-25), { [YYYY-MM-DD]: { items, sentences } }.
+    const answerDays = spanish ? esMastery?.days ?? null : null;
+    const todayAnswers = answerDays?.[todayISO] ?? null;
+
     // Streak: based on actual review days stored in Supabase
-    // (loaded into reviewDates state on mount, appended to by answer()).
+    // (loaded into reviewDates state on mount, appended to by answer()),
+    // and in Spanish the days of exercise and dialogue answers.
     let streak = 0;
     for (let i = 0; i < 365; i++) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const iso = localISODate(d);
-      if (reviewDates.has(iso)) streak++;
+      if (reviewDates.has(iso) || answerDays?.[iso]) streak++;
       // Not having studied yet TODAY doesn't end a streak — the day isn't over.
       else if (iso !== todayISO) break;
     }
@@ -3317,10 +4457,28 @@ export default function FlashcardApp({ user, onSignOut }) {
     // Progress by Lesson: a group that folds (Basic Lessons) as one row, its
     // lessons added together, then every other lesson, then the two class
     // groups. Each with its change over the last 7 days.
-    const lessonRow = (l) => ({
-      key: `lesson:${l.id}`, label: l.title, summary: areas.lessons[l.id],
-      delta: weekAgo ? gain(areas.lessons[l.id].remembered, weekAgo.byArea[`lesson:${l.id}`]) : null,
-    });
+    // In Spanish each lesson also has Grammar and Text, and a rating from
+    // its lowest part (lib/lessonMastery.js).
+    const lessonRow = (l) => {
+      const m = spanish && esMastery ? esMastery.byLesson[l.id] || {} : null;
+      return {
+        key: `lesson:${l.id}`, label: l.title, summary: areas.lessons[l.id],
+        delta: weekAgo ? gain(areas.lessons[l.id].remembered, weekAgo.byArea[`lesson:${l.id}`]) : null,
+        ...(m ? {
+          parts: { grammar: m.grammar || null, text: m.text || null },
+          rating: esMastery.rate({ words: areas.lessons[l.id], grammar: m.grammar, text: m.text }),
+        } : null),
+      };
+    };
+    // A group's Grammar or Text: its lessons' added together.
+    const sumParts = (rows, k) => {
+      const list = rows.map((r) => r.parts?.[k]).filter(Boolean);
+      if (!list.length) return null;
+      const firsts = list.map((x) => x.first).filter((x) => x != null), lasts = list.map((x) => x.last).filter((x) => x != null);
+      const add = (f) => list.reduce((n, x) => n + x[f], 0);
+      return { total: add("total"), right: add("right"), almost: add("almost"), tried: add("tried"), hinted: add("hinted"),
+        first: firsts.length ? Math.min(...firsts) : null, last: lasts.length ? Math.max(...lasts) : null };
+    };
     const lessonGroups = [];
     const lessonRows = [];
     for (const g of LESSON_GROUPS) {
@@ -3328,10 +4486,13 @@ export default function FlashcardApp({ user, onSignOut }) {
       if (!rows.length) continue;
       if (!g.folds) { lessonRows.push(...rows); continue; }
       const sum = (k) => rows.reduce((n, r) => n + r.summary[k], 0);
+      // Lessons, not parts: Spanish Lesson 7's three parts are one lesson.
+      const lessonCount = new Set(rows.map((r) => r.label.split(" · ")[0])).size;
       lessonGroups.push({
-        key: `group:${g.title}`, label: g.title, sub: `${rows.length} ${rows.length === 1 ? "lesson" : "lessons"}`, lessons: rows,
+        key: `group:${g.title}`, label: g.title, sub: `${lessonCount} ${lessonCount === 1 ? "lesson" : "lessons"}`, lessons: rows,
         summary: { total: sum("total"), seen: sum("seen"), remembered: sum("remembered"), notSeen: sum("notSeen") },
         delta: weekAgo ? rows.reduce((n, r) => n + r.delta, 0) : null,
+        ...(rows.some((r) => r.parts) ? { parts: { grammar: sumParts(rows, "grammar"), text: sumParts(rows, "text") } } : null),
       });
     }
     const classRows = ["recent", "earlier"].map((k) => ({
@@ -3343,8 +4504,11 @@ export default function FlashcardApp({ user, onSignOut }) {
       <div style={shellStyle}>
         {sidebar}
         <main style={mainStyle}>
-          <div style={S.mainInnerScroll}>
-            <h1 style={S.statsHeading}>Progress</h1>
+          <div style={S.mainInnerScroll} className="page-pad">
+            <div style={S.pageHead}>
+              <h1 style={S.statsHeading}>Progress</h1>
+              {onCourse && <LanguageFlag course={course.id} onCourse={onCourse} style={S.pageHeadFlag} />}
+            </div>
 
             {/* Row 1: Today · Right first time today · Streak */}
             <div style={S.statsRow3}>
@@ -3352,8 +4516,15 @@ export default function FlashcardApp({ user, onSignOut }) {
                 <div style={S.metricLabel}>Today</div>
                 <div><span style={S.metricVal}>{today.cards.toLocaleString()}</span> <span style={S.metricUnit}>{today.cards === 1 ? "card" : "cards"}</span></div>
                 <div style={S.metricSub}>
-                  {today.cards === 0 ? "nothing studied yet today" : today.fresh == null ? "" : splitText(today)}
+                  {today.cards === 0 ? (todayAnswers ? "" : "nothing studied yet today") : today.fresh == null ? "" : splitText(today)}
                 </div>
+                {todayAnswers && (
+                  <div style={S.metricSub} data-stats-today-answers>
+                    {[todayAnswers.items && `${todayAnswers.items.toLocaleString()} exercise ${todayAnswers.items === 1 ? "item" : "items"}`,
+                      todayAnswers.sentences && `${todayAnswers.sentences.toLocaleString()} dialogue ${todayAnswers.sentences === 1 ? "sentence" : "sentences"}`]
+                      .filter(Boolean).join(" · ")}
+                  </div>
+                )}
               </div>
               <div style={S.metricCard} data-stats-first-time>
                 <div style={S.metricLabel}>Right first time today</div>
@@ -3375,7 +4546,6 @@ export default function FlashcardApp({ user, onSignOut }) {
             {history && points.length > 0 && (
               <RememberedChart
                 points={points}
-                now={now}
                 week={{ gain: gain(areas.all.remembered, weekAgo.all), met: history.newMetBetween(endOfDayAgo(7, now), now) }}
                 all={{ remembered: aboutRemembered(areas.all), met: history.newMetBetween(-Infinity, now) }}
                 allLabel={startedThen ? "Since you started" : `Since ${firstDayLong}`}
@@ -3391,7 +4561,7 @@ export default function FlashcardApp({ user, onSignOut }) {
                 <div style={S.pipeLegItem}><div style={{...S.pipeDot, background:T.color.primary, opacity:0.3}} />{Math.max(0, areas.all.seen - aboutRemembered(areas.all)).toLocaleString()} seen, not currently remembered</div>
                 <div style={S.pipeLegItem}><div style={{...S.pipeDot, background:T.color.surfaceHigh}} />{areas.all.notSeen.toLocaleString()} not yet seen</div>
               </div>
-              <p style={S.statsFootnote}>A word or phrase counts as remembered once you'd get it right from French and from English. It's an estimate: it rises when you study and falls when you don't.</p>
+              <p style={S.statsFootnote}>A word or phrase counts as remembered once you'd get it right from {course.language} and from English. It's an estimate: it rises when you study and falls when you don't.</p>
               {allSeenDate && (
                 <div style={S.finishLine} data-stats-finish>
                   At your current pace, all seen by <b>{allSeenDate.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</b>.
@@ -3401,15 +4571,15 @@ export default function FlashcardApp({ user, onSignOut }) {
 
             {/* The days studied since the first answer on record */}
             {history && history.days.length > 0 && (
-              <StudyCalendar days={history.days} since={startedThen ? `since you started on ${firstDayLong}` : `since ${firstDayLong}`} />
+              <StudyCalendar days={history.days} extra={answerDays} since={startedThen ? `since you started on ${firstDayLong}` : `since ${firstDayLong}`} />
             )}
 
             {/* Each lesson, Basic Lessons folded together, and the class groups */}
             {(lessonGroups.length > 0 || lessonRows.length > 0 || classRows.length > 0) && (
-              <ProgressByLesson groups={lessonGroups} rows={[...lessonRows, ...classRows]} />
+              <ProgressByLesson groups={lessonGroups} rows={[...lessonRows, ...classRows]} parts={!!(spanish && esMastery)} />
             )}
 
-            <button style={S.resetBtn} onClick={resetAll}>Reset all progress</button>
+            <button style={S.resetBtn} onClick={resetAll}>{spanish ? "Reset all Spanish progress" : "Reset all progress"}</button>
           </div>
         </main>
         {modals}
@@ -3417,15 +4587,15 @@ export default function FlashcardApp({ user, onSignOut }) {
     );
   }
 
-  // ── FEEDBACK VIEW (admin only) ──────────────────────────────────────
   // ── STUDY MODE ──────────────────────────────────────────────────────
   // French shown as the prompt gets its English gloss stripped — otherwise the
   // card answers itself. English shown as the prompt loses any note naming the
   // French form ("to re-elect (past participle: réélu)"), for the same reason.
   // The answer side keeps everything, apart from a sentence-final full stop,
-  // which neither side shows.
-  const front = card ? dropFinalPeriod(card.shownDir==="fr" ? cleanFrenchPrompt(card.f, card.b) : cleanEnglishPrompt(card.b)) : "";
-  const back = card ? dropFinalPeriod(card.shownDir==="fr" ? card.b : card.f) : "";
+  // which neither side shows. In Spanish both sides show only the first of
+  // the answers the card accepts; marking still takes them all.
+  const front = card ? dropFinalPeriod(oneAnswer(card.shownDir==="fr" ? cleanFrenchPrompt(card.f, card.b) : cleanEnglishPrompt(card.b))) : "";
+  const back = card ? dropFinalPeriod(oneAnswer(card.shownDir==="fr" ? card.b : card.f)) : "";
   // Typing mode: user enabled it AND the card exists. All cards are
   // typable — if the back is a long explanation, the user can hit
   // "Show answer" to skip. The old isTypable guard (back ≤ 25 chars)
@@ -3433,12 +4603,10 @@ export default function FlashcardApp({ user, onSignOut }) {
   // appear broken.
   const effectiveTypeMode = typeMode && !!card;
 
-  // The card face is the same affordance as the "Show answer" button, so in
-  // What the completion panel says it did. Accuracy needs a denominator you
-  // can trust, so it is only offered when something was actually typed;
-  // otherwise the honest report is a count of what you worked through.
-  // Answers, not cards: a block of 50 includes its retries. Right first time
-  // counts each card's first answer of the day.
+  // What the completion panel says it did: a count of the answers given, and
+  // how many were right the first time. Answers, not cards: a block of 50
+  // includes its retries. Right first time counts each card's first answer of
+  // the day, flipped or typed.
   const blockSummary = stats.firstAnswered > 0
     ? `${stats.answered} ${stats.answered === 1 ? "answer" : "answers"}, ${stats.firstGot} right first time`
     : `${stats.answered} ${stats.answered === 1 ? "answer" : "answers"}`;
@@ -3448,12 +4616,14 @@ export default function FlashcardApp({ user, onSignOut }) {
       : LESSONS.find((l) => `lesson:${l.id}` === area)?.title || "Lesson";
   const moreOrFewer = (n, word) => `about ${Math.abs(n)} ${n >= 0 ? "more" : "fewer"} ${word}`;
 
-  // type mode tapping it has to run giveUpTyped. A bare flip() would turn the
-  // card over while leaving typeResult null — the answer visible, but the app
-  // still believing the card was unanswered, so the action row never appears.
-  // Once the answer is showing, the card is the same affordance as
-  // "Continue →": tapping it grades and moves on, so you can work through a
-  // session without moving the pointer off the card.
+  const cardLesson = card ? LESSONS.find((l) => l.id === lessonIdOf(card)) || null : null;
+  // What to type, above the prompt of a grammar card: "Present tense, with
+  // je", "Write the adverb for this adjective". "vivre → je" never said which
+  // tense, and "relatif → adverbe" read as a word to translate. In italics, like
+  // the tap hint, so it reads as the app talking rather than part of the card.
+  // Grammar cards are only ever shown French side.
+  const instruction = card && card.shownDir === "fr" ? cardInstructionFor(card) : null;
+
   // Which language the typed answer is supposed to be in.
   //
   // Not the same question as which side is showing. A vocab card shown
@@ -3464,20 +4634,19 @@ export default function FlashcardApp({ user, onSignOut }) {
   //
   // The arrow is the test, the same marker classifyCard treats as definitive
   // for a conjugation drill.
-  const cardLesson = card ? LESSONS.find((l) => l.id === lessonIdOf(card)) || null : null;
-  // What to type, above the prompt of a grammar card: "Present tense, with
-  // je", "Write the adverb for this adjective". "vivre → je" never said which
-  // tense, and "relatif → adverbe" read as a word to translate. In italics, like
-  // the tap hint, so it reads as the app talking rather than part of the card.
-  // Grammar cards are only ever shown French side.
-  const instruction = card && card.shownDir === "fr" ? cardInstructionFor(card) : null;
-
   const answerLang = (c) =>
     !c ? "English"
-      : c.shownDir === "en" ? "French"
-      : String(c.f || "").includes("→") ? "French"
+      : c.shownDir === "en" ? course.language
+      : String(c.f || "").includes("→") ? course.language
       : "English";
 
+  // The card face is the same affordance as the "Show answer" button, so in
+  // type mode tapping it has to run giveUpTyped. A bare flip() would turn the
+  // card over while leaving typeResult null — the answer visible, but the app
+  // still believing the card was unanswered, so the action row never appears.
+  // Once the answer is showing, the card is the same affordance as
+  // "Continue →": tapping it grades and moves on, so you can work through a
+  // session without moving the pointer off the card.
   const onCardClick = () => {
     if (!effectiveTypeMode) return flip();
     // With an answer typed but not checked, tapping the card checks it. It
@@ -3495,7 +4664,7 @@ export default function FlashcardApp({ user, onSignOut }) {
       {sidebar}
       <main style={mainStyle}>
         {/* Top app bar — kind of card, settings menu, sticky glass */}
-        <div style={S.topBar}>
+        <div style={S.topBar} className="page-pad">
           <div style={S.topBarInner}>
           {/* The row scrolls in a narrow window rather than squeezing; the gear
               sits outside it, as the scrolling would clip its menu. */}
@@ -3560,6 +4729,7 @@ export default function FlashcardApp({ user, onSignOut }) {
             </button>
           )}
           </div>
+          {onCourse && <LanguageFlag course={course.id} onCourse={onCourse} />}
           <div style={S.settingsWrap} ref={settingsRef}>
             <button
               data-settings-toggle
@@ -3573,39 +4743,37 @@ export default function FlashcardApp({ user, onSignOut }) {
             </button>
             {/* Kept in the page when closed, only hidden, so its switches can
                 be reached the same way whether or not it is showing. */}
-            {(
-              <div style={showSettings ? S.settingsMenu : {...S.settingsMenu, display:"none"}} data-settings-menu role="dialog" aria-label="Settings" aria-hidden={!showSettings}>
-                <div style={S.settingsSec}>
-                  <div style={S.settingsSeg}>
-                    {[["fr", "French → English"], ["en", "English → French"], ["mix", "Mixed"]].map(([k, label]) => (
-                      <button key={k} data-dir-choice={k} style={dir === k ? {...S.dirBtn, ...S.dirBtnA, ...S.settingsSegBtn} : {...S.dirBtn, ...S.settingsSegBtn}} onClick={() => setDir(k)}>{label}</button>
-                    ))}
-                  </div>
-                </div>
-                {/* A change made once the card's answer has been seen waits for
-                    the next card (toggleTypeMode, the effect on dir); the
-                    switch shows where it is going. */}
-                <div style={{...S.settingsSec, ...S.settingsSecRule}}>
-                  <SettingsSwitch label="Type answer" on={pendingTypeMode ?? typeMode} onClick={toggleTypeMode} data-type-toggle />
-                  {TTS_AVAILABLE && (
-                    <SettingsSwitch label="Auto-speak" on={autoSpeak} onClick={() => setAutoSpeak((v) => !v)} data-auto-speak />
-                  )}
-                  {/* Everything (on) or only the student's own cards (off):
-                      lib/lessonChoice.js. Inside a lesson it means nothing. */}
-                  {lessonFilter === "all" && (
-                    <SettingsSwitch label="Include lessons" on={scope === "all"} onClick={() => setScope(scope === "all" ? "cahier" : "all")} data-scope />
-                  )}
-                </div>
-                <div style={{...S.settingsSec, ...S.settingsSecRule}}>
-                  <div style={S.settingsCap}>Cards in a set</div>
-                  <div style={S.settingsSeg}>
-                    {SET_SIZES.map((n) => (
-                      <button key={n} data-set-size={n} style={setSize === n ? {...S.dirBtn, ...S.dirBtnA, ...S.settingsSegBtn} : {...S.dirBtn, ...S.settingsSegBtn}} onClick={() => setSetSize(n)}>{n}</button>
-                    ))}
-                  </div>
+            <div style={showSettings ? S.settingsMenu : {...S.settingsMenu, display:"none"}} data-settings-menu role="dialog" aria-label="Settings" aria-hidden={!showSettings}>
+              <div style={S.settingsSec}>
+                <div style={S.settingsSeg}>
+                  {[["fr", `${course.language} → English`], ["en", `English → ${course.language}`], ["mix", "Mixed"]].map(([k, label]) => (
+                    <button key={k} data-dir-choice={k} style={dir === k ? {...S.dirBtn, ...S.dirBtnA, ...S.settingsSegBtn} : {...S.dirBtn, ...S.settingsSegBtn}} onClick={() => setDir(k)}>{label}</button>
+                  ))}
                 </div>
               </div>
-            )}
+              {/* A change made once the card's answer has been seen waits for
+                  the next card (toggleTypeMode, the effect on dir); the
+                  switch shows where it is going. */}
+              <div style={{...S.settingsSec, ...S.settingsSecRule}}>
+                <SettingsSwitch label="Type answer" on={pendingTypeMode ?? typeMode} onClick={toggleTypeMode} data-type-toggle />
+                {TTS_AVAILABLE && (
+                  <SettingsSwitch label="Auto-speak" on={autoSpeak} onClick={() => setAutoSpeak((v) => !v)} data-auto-speak />
+                )}
+                {/* Everything (on) or only the student's own cards (off):
+                    lib/lessonChoice.js. Inside a lesson it means nothing. */}
+                {lessonFilter === "all" && !spanish && (
+                  <SettingsSwitch label="Include lessons" on={scope === "all"} onClick={() => setScope(scope === "all" ? "cahier" : "all")} data-scope />
+                )}
+              </div>
+              <div style={{...S.settingsSec, ...S.settingsSecRule}}>
+                <div style={S.settingsCap}>Cards in a set</div>
+                <div style={S.settingsSeg}>
+                  {SET_SIZES.map((n) => (
+                    <button key={n} data-set-size={n} style={setSize === n ? {...S.dirBtn, ...S.dirBtnA, ...S.settingsSegBtn} : {...S.dirBtn, ...S.settingsSegBtn}} onClick={() => setSetSize(n)}>{n}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
           </div>
         </div>
@@ -3616,7 +4784,7 @@ export default function FlashcardApp({ user, onSignOut }) {
         {cahier.arrived && (
           <div style={S.cahierNotice} data-cahier-notice role="status">
             <span>
-              {cahierArrivalText(cahier.arrived)}
+              {cahierArrivalText(cahier.arrived, spanish)}
             </span>
             <button style={S.cahierDismiss} onClick={cahier.dismissArrived} aria-label="Dismiss">✕</button>
           </div>
@@ -3631,7 +4799,7 @@ export default function FlashcardApp({ user, onSignOut }) {
               // a retry says so beside the count.
               const retriesComing = deck.slice(idx + 1).filter((c) => c._retry).length;
               const hasBreakdown =
-                sessionCounts.lapse + sessionCounts.review + sessionCounts.new + sessionCounts.spot > 0;
+                sessionCounts.lapse + sessionCounts.review + sessionCounts.new > 0;
               return (
                 <>
                 <button
@@ -3646,18 +4814,23 @@ export default function FlashcardApp({ user, onSignOut }) {
                 <div style={S.subToolbarRight}>
                   {/* Where you are in the block. Gone at the checkpoint, where
                       the last card's position means nothing. */}
+                  {deckLoadFailed && (
+                    <span style={S.unsavedNotice} data-deck-unread role="status">
+                      Couldn't read your cards just now — trying again
+                    </span>
+                  )}
                   {unsavedCount > 0 && (
                     <span style={S.unsavedNotice} data-unsaved role="status">
                       {unsavedCount === 1 ? "1 answer not saved yet" : `${unsavedCount} answers not saved yet`} — retrying
                     </span>
                   )}
-                  {reviewMark && (
-                    <span style={S.reviewMarkNotice} data-review-mark role="status">{reviewMark}</span>
-                  )}
                   {!sessionDone && <span style={S.counter}>
                     {`Card ${idx+1} of ${deck.length}`}
                     {card._retry && (
                       <span style={S.counterBreakdown} data-retry>{" · retry"}</span>
+                    )}
+                    {!card._retry && card._bucket === "practice" && (
+                      <span style={S.counterBreakdown} data-practice>{" · practice"}</span>
                     )}
                     {!card._retry && hasBreakdown && (
                       <span style={S.counterBreakdown}>
@@ -3666,7 +4839,6 @@ export default function FlashcardApp({ user, onSignOut }) {
                           sessionCounts.lapse > 0 && `${sessionCounts.lapse} relearning`,
                           sessionCounts.review > 0 && `${sessionCounts.review} review`,
                           sessionCounts.new > 0 && `${sessionCounts.new} new`,
-                          sessionCounts.spot > 0 && `${sessionCounts.spot} spot check`,
                         ].filter(Boolean).join(" · ")}
                       </span>
                     )}
@@ -3688,6 +4860,10 @@ export default function FlashcardApp({ user, onSignOut }) {
             // Got It still live let you grade the same card over and over,
             // writing an FSRS review each time.
             <div style={S.cardArea}>
+              {/* The last card marked for review ends the set: said here too. */}
+              {reviewMark && (
+                <div style={S.reviewMarkNotice} data-review-mark role="status">{reviewMark}</div>
+              )}
               <div style={S.sessionDone} data-checkpoint>
                 <p style={S.checkpointHead}>{blockSummary}</p>
                 {checkpoint?.changes.length > 0 && (
@@ -3708,20 +4884,19 @@ export default function FlashcardApp({ user, onSignOut }) {
                     ))}
                   </div>
                 )}
-                {checkpoint && checkpoint.next.queue.length === 0 && (
+                {checkpoint && checkpoint.next.queue.length === 0 && !checkpoint.practiceLeft && (
                   <p style={S.checkpointNote}>
                     <strong>You're all caught up.</strong> Nothing is due, and there are no new cards
                     {lessonFilter !== "all" ? " left in this lesson" : scope === "cahier" ? " left in your cahier" : ""}.
                   </p>
                 )}
-                {checkpoint?.waiting > 0 && (
-                  <p style={S.checkpointNote}>
-                    {checkpoint.waiting.toLocaleString()} {checkpoint.waiting === 1 ? "card" : "cards"} from the rest of your deck {checkpoint.waiting === 1 ? "is" : "are"} due.
-                    They come first when you go back to all cards.
-                  </p>
-                )}
-                {checkpoint && checkpoint.next.queue.length > 0 && (
+                {checkpoint && (checkpoint.next.queue.length > 0 || checkpoint.practiceLeft) && (
                   <button style={S.resetSBtn} onClick={startNextBlock}>Continue</button>
+                )}
+                {/* Every card of the lesson once more, as practice that
+                    changes no schedule (practiceSession). */}
+                {checkpoint && checkpoint.next.queue.length === 0 && !checkpoint.practiceLeft && lessonFilter !== "all" && (
+                  <button style={S.resetSBtn} onClick={goThroughAgain} data-go-again>Go through the lesson again</button>
                 )}
               </div>
             </div>
@@ -3732,6 +4907,14 @@ export default function FlashcardApp({ user, onSignOut }) {
               <div style={S.blurBR} />
 
               <div style={S.cardTopSpacer} />
+              {/* "Mark for review" moves on to the next card, so what it did
+                  is said over the card, where the student is looking. In
+                  the top bar's small print it went unseen (feedback #62,
+                  the owner, 2026-11-18: "just moves to the next card without
+                  indicating anything was marked"). */}
+              {reviewMark && (
+                <div style={S.reviewMarkNotice} data-review-mark role="status">{reviewMark}</div>
+              )}
               <div style={S.cardWrap} onClick={onCardClick} data-tour="card">
                 <div style={{...S.card, transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)", transition: skipFlipAnim.current ? "none" : S.card.transition, cursor: "pointer"}}>
                   <div style={{...S.cardFront, pointerEvents: flipped ? "none" : "auto"}}>
@@ -3743,7 +4926,7 @@ export default function FlashcardApp({ user, onSignOut }) {
                         <button
                           style={S.cardAudioBtn}
                           onClick={(e) => { e.stopPropagation(); speakCard(); }}
-                          title="Play French pronunciation"
+                          title={`Play ${course.language} pronunciation`}
                         >
                           🔊
                         </button>
@@ -3758,8 +4941,8 @@ export default function FlashcardApp({ user, onSignOut }) {
                         )}
                       </div>
                     )}
-                    {!effectiveTypeMode && <div className="card-hint" style={S.cardHint}>Tap to reveal translation</div>}
-                    {effectiveTypeMode && !typeResult && <div className="card-hint" style={S.cardHint}>Tap to show answer</div>}
+                    {!effectiveTypeMode && <div className="card-hint" style={S.cardHint}>Tap to reveal the answer</div>}
+                    {effectiveTypeMode && !typeResult && <div className="card-hint" style={S.cardHint}>{typedAnswer.trim() ? "Tap to check your answer" : "Tap to show answer"}</div>}
                     {!effectiveTypeMode && <ShortcutsTooltip />}
                     {!showFeedback && <ReportCardButton onReport={reportCard} nextToInfo={!effectiveTypeMode} />}
                     {answerSeen && <TurnCardButton onTurn={flip} toAnswer />}
@@ -3772,12 +4955,14 @@ export default function FlashcardApp({ user, onSignOut }) {
                         <button
                           style={S.cardAudioBtn}
                           onClick={(e) => { e.stopPropagation(); speakCard(); }}
-                          title="Play French pronunciation"
+                          title={`Play ${course.language} pronunciation`}
                         >
                           🔊
                         </button>
                       </div>
                     )}
+                    {/* Spanish cards are edited in the Spanish deck, and the
+                        edit logged as Spanish (2026-10-22). */}
                     <div style={S.cardActionsFloat}>
                       <button
                         style={S.cardActionBtn}
@@ -3831,6 +5016,7 @@ export default function FlashcardApp({ user, onSignOut }) {
                           {typeResult==="correct" && "✓ Correct!"}
                           {typeResult==="close" && (typedAnswer.trim() ? `✓ Close enough — you wrote: ${typedAnswer.trim()}` : "✓ Close enough")}
                           {typeResult==="wrongArticle" && (typedAnswer.trim() ? `✗ Wrong article — you wrote: ${typedAnswer.trim()}` : `✗ Wrong article — answer: ${back}`)}
+                          {typeResult==="wrongAccent" && `✗ The accent changes the tense — you wrote: ${typedAnswer.trim()}`}
                           {typeResult==="wrong" && (typedAnswer.trim() ? `✗ You wrote: ${typedAnswer.trim()}` : `✗ Answer: ${back}`)}
                           {typeResult==="revealed" && `Answer: ${back}`}
                         </>
@@ -3838,7 +5024,7 @@ export default function FlashcardApp({ user, onSignOut }) {
                     </div>
                     {(() => {
                       const gotIt = typedRecalled;
-                      const missed = typeResult === "wrong" || typeResult === "close" || typeResult === "wrongArticle";
+                      const missed = typeResult === "wrong" || typeResult === "close" || typeResult === "wrongArticle" || typeResult === "wrongAccent";
                       return (
                         <>
                           {/* Beside the result, at its own size. Stacked under
@@ -3866,7 +5052,7 @@ export default function FlashcardApp({ user, onSignOut }) {
                                   <button
                                     style={{ ...S.typeLink, ...S.typeLinkMuted }}
                                     onClick={markForReview}
-                                    title="Record as incorrect and keep this card near the top of the queue"
+                                    title="Record as incorrect; it comes back later in this set or when it is next due"
                                   >
                                     Mark for review
                                   </button>
@@ -3883,7 +5069,7 @@ export default function FlashcardApp({ user, onSignOut }) {
                                       openChat(card)
                                     }
                                   >
-                                    Ask the tutor
+                                    Why?
                                   </button>
                                 )}
                               </div>
@@ -3892,7 +5078,7 @@ export default function FlashcardApp({ user, onSignOut }) {
                             <div style={S.feedbackRow}>
                               {feedbackState === "submitting" && <span style={S.feedbackPending}>Reviewing your answer…</span>}
                               {feedbackState === "submitted" && feedbackVerdict?.verdict === "accept" && (
-                                <div style={S.feedbackMsg}>This answer will be accepted from now on.</div>
+                                <div style={S.feedbackMsg}>{feedbackVerdict.kept === false ? "Accepted this time, but it couldn’t be saved. Try again later." : "This answer will be accepted from now on."}</div>
                               )}
                               {feedbackState === "submitted" && (feedbackVerdict?.verdict === "reject" || feedbackVerdict?.verdict === "uncertain") && (
                                 <div style={S.feedbackMsg}>
@@ -3929,6 +5115,10 @@ export default function FlashcardApp({ user, onSignOut }) {
                         }}
                         placeholder={`Type ${answerLang(card)}…`}
                         autoFocus
+                        // No help with the answer: Chrome's red underline and
+                        // spelling suggestions, its list of earlier entries,
+                        // and the phone keyboard turning French into English.
+                        autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
                       />
                       <button style={S.typeSubmit} onClick={submitTyped}>Check</button>
                     </div>
@@ -3988,7 +5178,6 @@ export default function FlashcardApp({ user, onSignOut }) {
   );
 }
 
-// ─── EDIT CARD MODAL ─────────────────────────────────────────────────────
 // ─── FEEDBACK ENTRY ────────────────────────────────────────────────────────
 // One entry in the feedback log, the same in the "View feedback" modal and on
 // the Feedback Review page. The entry itself is read-only; in View feedback,
@@ -4058,9 +5247,11 @@ function FeedbackEntry({ item, number, last, children }) {
           {ctx && (
             <div data-feedback-card style={S.fbEntryCard}>
               <div style={S.fbEntryCardLabel}>
+                {/* A Spanish card says so (sent from the Spanish module). */}
+                {ctx.course === "es" && <span>Spanish · </span>}
                 <span style={{ color: TYPE_COLOR[type] }}>{TYPE_LABEL[type]}</span>
                 {ctx.shown_dir && (
-                  <span> · shown {ctx.shown_dir === "fr" ? "French" : "English"} first</span>
+                  <span> · shown {ctx.shown_dir === "fr" ? (ctx.course === "es" ? "Spanish" : "French") : "English"} first</span>
                 )}
               </div>
               <div style={S.fbEntryCardText} title={ctx.back ? `${ctx.front} · ${ctx.back}` : ctx.front}>
@@ -4089,7 +5280,6 @@ function FeedbackEntry({ item, number, last, children }) {
   );
 }
 
-// ─── FEEDBACK REVIEW MODAL (admin only) ───────────────────────────────────
 // ─── OPEN FEEDBACK ─────────────────────────────────────────────────────────
 // Feedback that has been dealt with is marked resolved rather than deleted, and
 // leaves the list. Both admin views read through this, so they cannot disagree
@@ -4131,22 +5321,6 @@ const NEEDS_MIGRATION_009 =
 // Dismiss resolves any entry. Nothing changes until the owner presses a button
 // (owner, 2026-10-04).
 
-async function feedbackRequest(feedback) {
-  const { data: { session } } = await supabase.auth.getSession();
-  const res = await fetch("/api/review-answer", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token || ""}` },
-    body: JSON.stringify({ feedback }),
-  });
-  let body = null;
-  try { body = await res.json(); } catch {}
-  if (!res.ok) {
-    const err = new Error(body?.error || `The server answered ${res.status}.`);
-    err.code = body?.code;
-    throw err;
-  }
-  return body;
-}
 
 const REVIEW_LABEL = { card: "Card fix", remove: "Remove card", app: "App problem", none: "No change needed" };
 const REVIEW_COLOR = { card: T.color.secondary, remove: T.color.secondary, app: T.color.primary, none: T.color.onSurfaceVariant };
@@ -4294,6 +5468,7 @@ function FeedbackReview({ item, state, onApply, onDismiss, onReview, onRevert })
   );
 }
 
+// ─── FEEDBACK REVIEW MODAL (admin only) ───────────────────────────────────
 // Shows open beta_feedback entries in a portal overlay, the owner's own first
 // and other students' below. Triggered from the profile dropdown → "View
 // feedback". Entries keep the numbers the script uses (newest first across
@@ -4301,6 +5476,7 @@ function FeedbackReview({ item, state, onApply, onDismiss, onReview, onRevert })
 function FeedbackReviewModal({ user, onClose, onOwnCardChanged }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [resolvable, setResolvable] = useState(true);
   // A database without migration_014 has no review column, so nothing can be
   // reviewed or kept.
@@ -4316,10 +5492,14 @@ function FeedbackReviewModal({ user, onClose, onOwnCardChanged }) {
   // Development runs effects twice; each review is a paid call to Claude.
   const started = useRef(false);
 
-  const review = useCallback(async (item) => {
+  // asked: the owner pressed Ask Claude or Review again, which reviews even a
+  // sender who has had their reviews for the day (api/_lib/feedbackReview.js).
+  // Opening View feedback asks without it, so over the limit the entry keeps
+  // what it had and waits as "Not reviewed yet".
+  const review = useCallback(async (item, { asked = false } = {}) => {
     patch(item.id, { reviewing: true, error: null, errorCode: null });
     try {
-      const { review: r } = await feedbackRequest({ action: "review", id: item.id });
+      const { review: r } = await feedbackRequest({ action: "review", id: item.id, ...(asked ? { asked: true } : {}) });
       if (!mounted.current) return;
       setItems((list) => list.map((x) => (x.id === item.id ? { ...x, review: r } : x)));
       patch(item.id, { reviewing: false });
@@ -4333,7 +5513,13 @@ function FeedbackReviewModal({ user, onClose, onOwnCardChanged }) {
     started.current = true;
     (async () => {
       const { data, error, resolvable } = await loadOpenFeedback();
-      if (error) console.error("Failed to load feedback:", error);
+      if (error) {
+        console.error("Failed to load feedback:", error);
+        if (!mounted.current) return;
+        setLoadError(error.message || "unknown error");
+        setLoading(false);
+        return;
+      }
       const canReview = resolvable && (data.length === 0 || data.some((x) => "review" in x));
       setItems(data);
       setResolvable(resolvable);
@@ -4378,7 +5564,7 @@ function FeedbackReviewModal({ user, onClose, onOwnCardChanged }) {
       <div data-feedback-log style={S.feedbackModalBox} onClick={e => e.stopPropagation()}>
         <div style={S.fbLogHeader}>
           <h2 style={S.fbLogTitle}>Feedback</h2>
-          {!loading && <span style={S.fbLogCount}>{openCount} open</span>}
+          {!loading && !loadError && <span style={S.fbLogCount}>{openCount} open</span>}
           <span style={{ flex: 1 }} />
           <button aria-label="Close" style={S.fbLogClose} onClick={onClose}>×</button>
         </div>
@@ -4386,6 +5572,8 @@ function FeedbackReviewModal({ user, onClose, onOwnCardChanged }) {
         {resolvable && !reviewable && <div style={S.fbLogNote}>{NEEDS_MIGRATION_014}</div>}
         {loading ? (
           <div style={S.fbLogEmpty}>Loading…</div>
+        ) : loadError ? (
+          <div style={S.fbLogEmpty} data-feedback-load-error>Couldn't load the feedback: {loadError}</div>
         ) : items.length === 0 ? (
           <div style={S.fbLogEmpty}>No open feedback.</div>
         ) : (
@@ -4402,7 +5590,7 @@ function FeedbackReviewModal({ user, onClose, onOwnCardChanged }) {
                         state={states[item.id] || {}}
                         onApply={() => act(item, "apply")}
                         onDismiss={() => act(item, "dismiss")}
-                        onReview={() => review(item)}
+                        onReview={() => review(item, { asked: true })}
                         onRevert={() => act(item, "revert")}
                       />
                     )}
@@ -4446,6 +5634,9 @@ function UsersModal({ onClose }) {
     })();
   }, []);
 
+  // French figure first; the Spanish one beside it when there is any.
+  const es = (n) => (n ? <span style={{color:T.color.onSurfaceVariant, fontSize:12}}> + {n} Spanish</span> : null);
+
   const timeAgo = (iso) => {
     if (!iso) return "never";
     const diff = Date.now() - new Date(iso).getTime();
@@ -4486,9 +5677,9 @@ function UsersModal({ onClose }) {
                 {users.map(u => (
                   <tr key={u.id}>
                     <td style={S.usersTd}>{u.email}</td>
-                    <td style={S.usersTdNum}>{u.deck_size}</td>
-                    <td style={S.usersTdNum}>{u.studied}</td>
-                    <td style={S.usersTdNum}>{u.mastered}</td>
+                    <td style={S.usersTdNum}>{u.deck_size}{es(u.deck_size_es)}</td>
+                    <td style={S.usersTdNum}>{u.studied}{es(u.studied_es)}</td>
+                    <td style={S.usersTdNum}>{u.mastered}{es(u.mastered_es)}</td>
                     <td style={S.usersTd}>
                       {u.last_review
                         ? timeAgo(u.last_review)
@@ -4508,7 +5699,8 @@ function UsersModal({ onClose }) {
   );
 }
 
-function EditCardModal({ card, onClose, onSave, onDelete }) {
+// ─── EDIT CARD MODAL ─────────────────────────────────────────────────────
+function EditCardModal({ card, onClose, onSave, onDelete, language = "French" }) {
   const [front, setFront] = useState(card.f);
   const [back, setBack] = useState(card.b);
   const [saving, setSaving] = useState(false);
@@ -4517,7 +5709,7 @@ function EditCardModal({ card, onClose, onSave, onDelete }) {
   // the other, whichever way round it was asked. Any other card (a
   // conjugation drill, a lesson exercise) is a question and its answer, often
   // both in French, so "French / English" mislabelled it.
-  const [frontLabel, backLabel] = isTwoWay(card) ? ["French", "English"] : ["Question", "Answer"];
+  const [frontLabel, backLabel] = isTwoWay(card) ? [language, "English"] : ["Question", "Answer"];
 
   const handleSave = async () => {
     if (!front.trim() || !back.trim()) {
@@ -4527,8 +5719,8 @@ function EditCardModal({ card, onClose, onSave, onDelete }) {
     setSaving(true);
     setError("");
     const ok = await onSave(front, back);
-    if (!ok) {
-      setError("Save failed");
+    if (ok !== true) {
+      setError(ok?.error || "Save failed");
       setSaving(false);
     }
   };
@@ -4584,214 +5776,184 @@ const EM = {
   saveBtn: { padding: "12px 26px", background: T.gradient.ink, color: T.color.onPrimary, border: "none", borderRadius: T.radius.md, cursor: "pointer", fontSize: 14, fontWeight: 600, fontFamily: T.font.sans, boxShadow: T.shadow.button, letterSpacing: "0.01em" },
 };
 
-// ─── FEEDBACK ADMIN VIEW ─────────────────────────────────────────────────
-// Shows pending feedback submissions with the LLM's verdict. Admin can
-// approve (adds answer as a card alternate) or reject.
+// ─── THE SIDEBAR'S STAGES (Spanish) ──────────────────────────────────────
+// Spanish lessons are listed in the course's four stages, one open at a time,
+// on Flashcards and on Exercises alike (data/lessons/es/stages.js).
 //
-// This whole view was dead until 2026-09-12, and dead SILENTLY, which is the
-// part worth remembering. It queried `feedback_submissions` for a column named
-// `reviewed` and wrote `reviewed` and `action`; the table has `status` and
-// `reviewed_at` and never had the others. It also rendered `item.french`,
-// `item.english` and `item.expected_answer` against a table whose columns are
-// `card_front` and `card_back`.
-//
-// So: the list's own query errored, the error went to console.error, the catch
-// set items to [] — and an empty list is exactly what "no disputes waiting"
-// looks like. Approve and reject failed the same quiet way. The backlog the
-// doc describes as "nobody looking at it" was a backlog nobody COULD look at.
-//
-// Hence loadError below. A fetch that fails now says so on the page. Anything
-// that can silently render as "nothing to do" has to be able to say "I broke".
-function FeedbackAdminView({ user, setMode, resetSession }) {
-  const [items, setItems] = useState([]);
-  const [betaItems, setBetaItems] = useState([]);
-  const [betaResolvable, setBetaResolvable] = useState(true);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
-  const [acting, setActing] = useState(null); // id being acted on
+// Which are open is kept in the app rather than in SideStages, so it stays
+// put while the list is folded away. The open stage is the one holding the
+// lesson you're on, until you open another; going to a lesson opens its
+// stage; -1 is none open. A lesson in parts opens to them while you're in one
+// of them, and otherwise when pressed: `flipped` holds the ones pressed the
+// other way from that.
+function useStageFolds(stages, current) {
+  const [open, setOpen] = useState(() => Math.max(0, stageOf(stages, current)));
+  useEffect(() => {
+    const g = stageOf(stages, current);
+    if (g >= 0) setOpen(g);
+  }, [stages, current]);
+  const [flipped, setFlipped] = useState(() => new Set());
+  const flip = (key) => setFlipped((prev) => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+  useEffect(() => { setFlipped(new Set()); }, [current]);
+  return { open, setOpen, flipped, flip };
+}
 
-  const load = async () => {
-    setLoading(true);
-    // Load card answer disputes
-    setLoadError("");
-    const { data, error } = await supabase
-      .from("feedback_submissions")
-      .select("*")
-      .eq("status", "pending")
-      .order("created_at", { ascending: false });
-    if (error) {
-      console.error("Failed to load feedback:", error);
-      setItems([]);
-      setLoadError(error.message || "Could not load the disputes.");
-    } else {
-      setItems(data || []);
-    }
-    // Load general user feedback
-    const { data: betaData, error: betaErr, resolvable } = await loadOpenFeedback();
-    setBetaResolvable(resolvable);
-    if (betaErr) {
-      console.error("Failed to load beta feedback:", betaErr);
-      setBetaItems([]);
-    } else {
-      setBetaItems(betaData);
-    }
-    setLoading(false);
+// A closed stage still shows the lesson you're in, under its full title, and
+// `folded` (Exercises' fold) shows only that lesson. `data` names the test
+// hooks: data-ex-nav, data-lesson-nav and so on.
+function SideStages({ stages, folds, folded = false, current, titleOf, onPick, tooltip, data }) {
+  const hook = (what, value) => ({ [`data-${data}-${what}`]: value });
+  const lessonBtn = (id, title, style) => {
+    const on = current === id;
+    return (
+      <button
+        key={id}
+        {...hook("nav", id)}
+        className="side-btn"
+        aria-current={on ? "page" : undefined}
+        style={on ? { ...style, ...S.sideSubItemActive } : style}
+        onClick={() => onPick(id)}
+        title={tooltip?.(id)}
+      >
+        {title}
+      </button>
+    );
   };
+  if (folded) return titleOf(current) ? lessonBtn(current, titleOf(current), S.sideSubItem) : null;
+  const nested = { ...S.sideSubItem, ...S.sideSubItemNested };
+  return stages.map((stage, si) => {
+    const open = si === folds.open;
+    return (
+      <Fragment key={stage.title}>
+        <button
+          className="side-btn"
+          style={S.sideGroup}
+          onClick={() => folds.setOpen(open ? -1 : si)}
+          aria-expanded={open}
+          {...hook("group", si)}
+        >
+          {stage.title}
+          <span style={open ? { ...S.sideChevron, ...S.sideChevronOpen } : S.sideChevron} aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </span>
+        </button>
+        {stage.rows.map((row) => {
+          if (!row.parts) return open || current === row.id ? lessonBtn(row.id, row.title, nested) : null;
+          const here = row.parts.find((p) => p.id === current);
+          if (!open) return here ? lessonBtn(here.id, titleOf(here.id), nested) : null;
+          const partsOpen = !!here !== folds.flipped.has(row.key);
+          return (
+            <Fragment key={row.key}>
+              <button
+                className="side-btn"
+                style={{ ...nested, display: "flex", alignItems: "center" }}
+                onClick={() => folds.flip(row.key)}
+                aria-expanded={partsOpen}
+                {...hook("parts", row.key)}
+              >
+                {row.title}
+                <span style={partsOpen ? { ...S.sideChevron, ...S.sideChevronOpen } : S.sideChevron} aria-hidden="true">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </span>
+              </button>
+              {row.parts
+                .filter((p) => partsOpen || p === here)
+                .map((p) => lessonBtn(p.id, p.title, { ...nested, ...S.sideSubItemPart }))}
+            </Fragment>
+          );
+        })}
+      </Fragment>
+    );
+  });
+}
 
-  useEffect(() => { load(); }, []);
-
-  const approve = async (item) => {
-    setActing(item.id);
-    const { error: altErr } = await supabase.from("card_alternates").insert({
-      card_id: item.card_id,
-      direction: item.direction,
-      alternate_text: item.user_answer,
-      source_feedback_id: item.id,
-    });
-    if (altErr) { console.error("Alt insert failed:", altErr); setActing(null); return; }
-
-    // Resolve item.card_id (the lowercased-trimmed French front, per the
-    // card_progress join convention used in the admin stats page) back to
-    // the submitting user's user_cards row so the correction ledger can
-    // reference a real uuid + batch_id. Falls back to nulls on no match —
-    // never blocks the approval.
-    let resolvedCardId = null;
-    let resolvedBatchId = null;
-    try {
-      const key = String(item.card_id || "").toLowerCase().trim();
-      if (key && item.user_id) {
-        const { data: matches } = await supabase
-          .from("user_cards")
-          .select("id, front, batch_id")
-          .eq("user_id", item.user_id)
-          .ilike("front", key);
-        const hit = (matches || []).find(
-          (r) => String(r.front || "").toLowerCase().trim() === key
-        );
-        if (hit) {
-          resolvedCardId = hit.id;
-          resolvedBatchId = hit.batch_id || null;
-        }
-      }
-    } catch (e) {
-      console.warn("[approve] card_id resolve failed:", e?.message || e);
-    }
-
-    // Log the alternate approval so future cahier parses know this answer
-    // is acceptable. card_id / batch_id point at the originating card when
-    // we found it; otherwise null.
-    logCorrection({
-      category: CORRECTION_CATEGORIES.ALTERNATE_ANSWER,
-      action: CORRECTION_ACTIONS.APPROVE_ALTERNATE,
-      card_id: resolvedCardId,
-      batch_id: resolvedBatchId,
-      original_front: item.card_front || null,
-      original_back: item.card_back || null,
-      corrected_back: item.user_answer,
-      notes: `direction=${item.direction}`,
-    });
-
-    const { error: upErr } = await supabase
-      .from("feedback_submissions")
-      .update({ status: "approved", reviewed_at: new Date().toISOString() })
-      .eq("id", item.id);
-    if (upErr) console.error("Review mark failed:", upErr);
-    await load();
-    setActing(null);
-  };
-
-  const reject = async (item) => {
-    setActing(item.id);
-    const { error } = await supabase
-      .from("feedback_submissions")
-      .update({ status: "rejected", reviewed_at: new Date().toISOString() })
-      .eq("id", item.id);
-    if (error) console.error("Reject failed:", error);
-    await load();
-    setActing(null);
-  };
-
+// The French / Spanish switch (owner, 2026-10-22: option 2 of the mockup,
+// ".claude/mockups/language-switch.html", "and use the colombian flag"): a
+// round flag in the top-right corner of every page, as Duolingo and Babbel
+// have it; a press opens the two languages, and picking the other one opens
+// the app in it, where it was left. Drawn, not an emoji, so it looks the
+// same on every computer.
+const FLAGS = {
+  fr: { name: "French", stripes: "v", colours: ["#0055A4", "#FFFFFF", "#EF4135"] },
+  es: { name: "Spanish", stripes: "h", colours: ["#FCD116", "#FCD116", "#003893", "#CE1126"] },
+};
+function FlagIcon({ id, size = 22 }) {
+  const f = FLAGS[id];
+  const n = f.colours.length;
+  // Each drawn flag gets its own crop name: the same flag is on screen twice
+  // when the menu is open, and two crops sharing a name is not allowed.
+  const clipId = `flag-${id}-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
   return (
-    <>
-      <h1 style={S.statsHeading}>Feedback Review</h1>
-
-      {/* Card answer disputes */}
-      <h3 style={S.statsSectionTitle}>Answer disputes</h3>
-      {loading ? (
-        <div style={S.empty}>Loading…</div>
-      ) : loadError ? (
-        // Never collapse a failure into the empty state: "no disputes" and
-        // "the query broke" looked identical here for months.
-        <p style={S.statsSectionSub}>
-          Couldn't load the disputes — {loadError}
-        </p>
-      ) : items.length === 0 ? (
-        <p style={S.statsSectionSub}>No pending answer disputes.</p>
-      ) : (
-        <div style={S.feedbackList}>
-          {items.map(item => (
-            <div key={item.id} style={S.feedbackItem}>
-              <div style={S.feedbackCard}>
-                <div style={S.feedbackCardHeader}>
-                  <span style={S.feedbackDir}>{item.direction === "fr" ? "FR → EN" : "EN → FR"}</span>
-                  <span style={S.feedbackDate}>{new Date(item.created_at).toLocaleDateString()}</span>
-                </div>
-                <div style={S.feedbackPrompt}>{item.direction === "fr" ? item.card_front : item.card_back}</div>
-              </div>
-              <div style={S.feedbackAnswers}>
-                <div style={S.feedbackAnsRow}>
-                  <span style={S.feedbackAnsLabel}>Expected:</span>
-                  <span style={S.feedbackExpected}>{item.direction === "fr" ? item.card_back : item.card_front}</span>
-                </div>
-                <div style={S.feedbackAnsRow}>
-                  <span style={S.feedbackAnsLabel}>User typed:</span>
-                  <span style={S.feedbackUser}>{item.user_answer}</span>
-                </div>
-              </div>
-              {item.llm_verdict && (
-                <div style={S.llmBlock}>
-                  <div style={S.llmHead}>
-                    <span style={item.llm_verdict === "accept" ? S.llmAccept : item.llm_verdict === "reject" ? S.llmReject : S.llmUnclear}>
-                      Claude: {item.llm_verdict}
-                    </span>
-                  </div>
-                  {item.llm_reasoning && <div style={S.llmReasoning}>{item.llm_reasoning}</div>}
-                </div>
-              )}
-              <div style={S.feedbackActions}>
-                <button style={S.feedbackApprove} onClick={() => approve(item)} disabled={acting === item.id}>
-                  {acting === item.id ? "…" : "Approve (add alternate)"}
-                </button>
-                <button style={S.feedbackReject} onClick={() => reject(item)} disabled={acting === item.id}>
-                  {acting === item.id ? "…" : "Reject"}
-                </button>
-              </div>
-            </div>
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" style={{ display: "block", borderRadius: "50%", boxShadow: "0 0 0 1px rgba(3,22,50,0.12)" }}>
+      <defs><clipPath id={clipId}><circle cx="12" cy="12" r="12" /></clipPath></defs>
+      <g clipPath={`url(#${clipId})`}>
+        {f.colours.map((c, i) => f.stripes === "v"
+          ? <rect key={i} x={(24 / n) * i} y="0" width={24 / n + 0.2} height="24" fill={c} />
+          : <rect key={i} x="0" y={(24 / n) * i} width="24" height={24 / n + 0.2} fill={c} />)}
+      </g>
+    </svg>
+  );
+}
+// Closes a menu on an outside click or Escape. Mousedown rather than click so
+// the menu is gone before whatever was underneath reacts, and containment
+// rather than a target check so clicks on the menu's own items still run
+// their handlers.
+function useCloseOnOutside(open, ref, close) {
+  const closeRef = useRef(close);
+  closeRef.current = close;
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => { if (!ref.current?.contains(e.target)) closeRef.current(); };
+    const onKey = (e) => { if (e.key === "Escape") closeRef.current(); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open, ref]);
+}
+function LanguageFlag({ course, onCourse, style }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useCloseOnOutside(open, ref, () => setOpen(false));
+  return (
+    <div style={style ? { ...S.flagWrap, ...style } : S.flagWrap} ref={ref}>
+      <button
+        data-language-flag={course}
+        style={open ? { ...S.flagBtn, ...S.flagBtnA } : S.flagBtn}
+        onClick={() => setOpen((v) => !v)}
+        aria-label={`Learning ${FLAGS[course].name}`}
+        aria-expanded={open}
+        title={FLAGS[course].name}
+      >
+        <FlagIcon id={course} />
+      </button>
+      {open && (
+        <div style={S.flagMenu} data-language-menu role="menu">
+          {["fr", "es"].map((id) => (
+            <button
+              key={id}
+              data-language={id}
+              role="menuitem"
+              style={S.flagItem}
+              onClick={() => { setOpen(false); if (id !== course) onCourse(id); }}
+            >
+              <FlagIcon id={id} size={20} />
+              <span>{FLAGS[id].name}</span>
+              {id === course && <span style={S.flagTick} aria-hidden="true">✓</span>}
+            </button>
           ))}
         </div>
       )}
-
-      {/* General user feedback from beta_feedback */}
-      <h3 style={{...S.statsSectionTitle, marginTop:32}}>User feedback</h3>
-      {!betaResolvable && <p style={S.statsSectionSub}>{NEEDS_MIGRATION_009}</p>}
-      {betaItems.length === 0 ? (
-        <p style={S.statsSectionSub}>No open user feedback.</p>
-      ) : (
-        <div data-feedback-log style={S.fbLogPage}>
-          {betaItems.map((item, i) => (
-            <FeedbackEntry key={item.id} item={item} number={i + 1} last={i === betaItems.length - 1} />
-          ))}
-        </div>
-      )}
-    </>
+    </div>
   );
 }
 
-// ─── REPORT THIS CARD ────────────────────────────────────────────────────
-// A faint flag in the card's bottom-right corner, beside the ⓘ. Most feedback
-// is about a card, and the only way in used to be a 12px link at the foot of
-// the sidebar. Opens the feedback panel with this card attached. Stops the
-// click so it never flips, continues or grades the card underneath it.
 // One on/off row in the settings menu.
 function SettingsSwitch({ label, on, onClick, ...rest }) {
   return (
@@ -4804,6 +5966,11 @@ function SettingsSwitch({ label, on, onClick, ...rest }) {
   );
 }
 
+// ─── REPORT THIS CARD ────────────────────────────────────────────────────
+// A faint flag in the card's bottom-right corner, beside the ⓘ. Most feedback
+// is about a card, and the only way in used to be a 12px link at the foot of
+// the sidebar. Opens the feedback panel with this card attached. Stops the
+// click so it never flips, continues or grades the card underneath it.
 function ReportCardButton({ onReport, nextToInfo = false }) {
   const [hover, setHover] = useState(false);
   return (
@@ -4872,24 +6039,6 @@ function ShortcutsTooltip() {
           <div><b>←</b> again</div>
           <div><b>→</b> or <b>Enter</b> got it</div>
         </div>
-      )}
-    </div>
-  );
-}
-
-// ─── AUDIO TOOLBAR ───────────────────────────────────────────────────────
-function AudioToolbar({ onSpeak, onMic, recState, sttAvailable }) {
-  return (
-    <div style={S.audioToolbar}>
-      <button style={S.speakBtn} onClick={onSpeak} title="Play French pronunciation">🔊</button>
-      {sttAvailable && (
-        <button
-          style={recState === "recording" ? {...S.micBtn, ...S.micBtnActive} : S.micBtn}
-          onClick={onMic}
-          title={recState === "recording" ? "Stop recording" : "Record yourself speaking"}
-        >
-          {recState === "recording" ? "⏹" : "🎤"}
-        </button>
       )}
     </div>
   );
@@ -4990,7 +6139,6 @@ function ScoreCell({ label, value }) {
 }
 
 const S = {
-  container: { maxWidth:760, margin:"0 auto", padding:"24px 16px 64px", fontFamily:T.font.sans, color:T.color.onSurface },
   loading: { textAlign:"center", padding:60, color:T.color.onSurfaceVariant, fontFamily:T.font.sans },
 
   // ── App shell: sidebar + main ─────────────────────────────────────
@@ -4999,6 +6147,12 @@ const S = {
   // together. Anything that legitimately runs long (Stats) scrolls inside
   // main via mainInnerScroll rather than scrolling the whole page.
   shell: { display:"flex", height:"100vh", overflow:"hidden", boxSizing:"border-box", background:T.color.background },
+  // The height a phone can see: 100vh in Safari runs on under its toolbar.
+  shellPhone: { height:"100dvh" },
+  phoneBar: { position:"fixed", top:0, left:0, right:0, zIndex:40, display:"flex", alignItems:"center", gap:4, height:`calc(${PHONE_BAR_HEIGHT}px + env(safe-area-inset-top))`, paddingTop:"env(safe-area-inset-top)", paddingLeft:6, paddingRight:16, boxSizing:"border-box", background:T.color.background, borderBottom:"1px solid rgba(3,22,50,0.07)" },
+  phoneMenuBtn: { display:"flex", alignItems:"center", justifyContent:"center", width:44, height:44, padding:0, border:"none", background:"transparent", color:T.color.onSurface, cursor:"pointer", borderRadius:T.radius.md },
+  phoneBarTitle: { fontFamily:T.font.serif, fontSize:17, fontWeight:700, color:T.color.onSurface },
+  drawerScrim: { position:"fixed", top:0, right:0, bottom:0, left:0, zIndex:50, background:"rgba(3,22,50,0.32)", transition:`opacity ${PANEL_ANIM_MS}ms ${PANEL_EASING}` },
   // minHeight:0 is what lets the flex children actually shrink; without it a
   // flex item refuses to go below its content size and the card pushes the
   // buttons off the bottom instead of getting smaller.
@@ -5019,11 +6173,21 @@ const S = {
   // back from the rail's paddingTop:8 removed paddingTop without re-applying the
   // shorthand, the top padding fell to 0 and Cards slid up under the button.
   sideBarMin: { width:SIDEBAR_MIN_WIDTH, overflowY:"visible", paddingTop:8 },
+  // The phone's drawer: over the page, slid in from the left by `transform`.
+  sideBarPhone: { position:"fixed", top:0, left:0, bottom:0, zIndex:60, width:"min(300px, 86vw)", height:"100dvh", paddingTop:"calc(20px + env(safe-area-inset-top))", paddingBottom:"calc(16px + env(safe-area-inset-bottom))", boxShadow:"8px 0 32px rgba(3,22,50,0.16)", transition:`transform ${PANEL_ANIM_MS}ms ${PANEL_EASING}` },
   sideBar: { width:SIDEBAR_WIDTH, background:T.color.surfaceLow, borderRight:"1px solid rgba(3,22,50,0.07)", paddingTop:40, paddingRight:0, paddingBottom:24, paddingLeft:0, display:"flex", flexDirection:"column", flexShrink:0, position:"sticky", top:0, height:"100vh", overflowY:"auto", boxSizing:"border-box", transition:`width ${PANEL_ANIM_MS}ms ${PANEL_EASING}` },
   // Not flex:1 any more — the feedback dock below takes the free height, so the
   // panel can sit in it. The nav looks the same either way.
-  sideNav: { display:"flex", flexDirection:"column", gap:4, flex:"none" },
-  sideFeedbackDock: { flex:"1 1 auto", minHeight:0, display:"flex", flexDirection:"column", justifyContent:"flex-end", padding:"24px 16px 12px", boxSizing:"border-box" },
+  // The two navs set the same keys, so going from one to the other leaves
+  // nothing of the first behind (the 24b55b7 bug).
+  sideNav: { display:"flex", flexDirection:"column", gap:4, flexGrow:0, flexShrink:1, flexBasis:"auto", minHeight:0, overflowY:"auto", overflowX:"hidden" },
+  sideNavMin: { display:"flex", flexDirection:"column", gap:4, flexGrow:0, flexShrink:0, flexBasis:"auto", minHeight:"auto", overflowY:"visible", overflowX:"visible" },
+  sideFeedbackDock: { flexGrow:1, flexShrink:1, flexBasis:"auto", minHeight:0, display:"flex", flexDirection:"column", justifyContent:"flex-end", padding:"24px 16px 12px", boxSizing:"border-box" },
+  // All exercises and the arrow that folds the lessons under it. right:28
+  // puts the arrow's middle 42px in, in the column every other arrow uses
+  // (see sideChevron).
+  sideItemWrap: { position:"relative", display:"flex", flexDirection:"column" },
+  sideFoldBtn: { position:"absolute", top:"50%", right:28, transform:"translateY(-50%)", display:"flex", alignItems:"center", justifyContent:"center", width:28, height:28, padding:0, border:"none", background:"transparent", color:"rgba(3,22,50,0.6)", cursor:"pointer", borderRadius:T.radius.md },
   // Indented to sit under its parent nav item, and quieter than one: a lesson
   // is a place inside Lessons, not a peer of Cards and Stats.
   // Every nav style declares all FOUR border sides, even the three it does not
@@ -5052,7 +6216,11 @@ const S = {
   sideSubItem: { display:"block", width:"100%", padding:"7px 32px 7px 64px", border:"none", borderTopWidth:0, borderTopStyle:"solid", borderTopColor:"transparent", borderBottomWidth:0, borderBottomStyle:"solid", borderBottomColor:"transparent", borderLeftWidth:0, borderLeftStyle:"solid", borderLeftColor:"transparent", borderRightWidth:4, borderRightStyle:"solid", borderRightColor:"transparent", background:"transparent", cursor:"pointer", fontFamily:T.font.sans, fontSize:13, fontWeight:500, color:"rgba(3,22,50,0.55)", textAlign:"left", boxSizing:"border-box" },
   // A lesson under a heading (Basic Lessons) sits one step further in.
   sideSubItemNested: { paddingLeft:80 },
-  sideGroup: { display:"flex", alignItems:"center", width:"100%", padding:"9px 32px 5px 64px", border:"none", background:"transparent", cursor:"pointer", fontFamily:T.font.sans, fontSize:13, fontWeight:600, color:"rgba(3,22,50,0.7)", textAlign:"left", boxSizing:"border-box" },
+  // A part of a lesson, under that lesson's row (Exercises' Lesson 7, 8, 12).
+  sideSubItemPart: { paddingLeft:96 },
+  // 36px on the right, as a lesson row's 32px plus the 4px kept for its red
+  // bar, so the stage arrows sit in the same column as the lesson arrows.
+  sideGroup: { display:"flex", alignItems:"center", width:"100%", padding:"9px 36px 5px 64px", border:"none", background:"transparent", cursor:"pointer", fontFamily:T.font.sans, fontSize:13, fontWeight:600, color:"rgba(3,22,50,0.7)", textAlign:"left", boxSizing:"border-box" },
   sideSubItemActive: { color:T.color.secondary, fontWeight:700, borderRightColor:T.color.secondary, background:"rgba(255,255,255,0.5)" },
   sideItem: { display:"flex", alignItems:"center", gap:14, padding:"14px 32px", border:"none", borderTopWidth:0, borderTopStyle:"solid", borderTopColor:"transparent", borderBottomWidth:0, borderBottomStyle:"solid", borderBottomColor:"transparent", borderLeftWidth:0, borderLeftStyle:"solid", borderLeftColor:"transparent", borderRightWidth:4, borderRightStyle:"solid", borderRightColor:"transparent", background:"transparent", cursor:"pointer", fontFamily:T.font.sans, fontSize:13, fontWeight:600, color:"rgba(3,22,50,0.6)", textTransform:"uppercase", letterSpacing:"0.1em", textAlign:"left", transition:"all 0.2s" },
   // Minimized: the item is just its icon, centred in the rail. The right-edge
@@ -5061,8 +6229,37 @@ const S = {
   sideItemActive: { color:T.color.secondary, borderRightColor:T.color.secondary, background:"rgba(255,255,255,0.5)" },
   sideIcon: { display:"flex", alignItems:"center", flexShrink:0 },
   // The arrow on Lessons: down while its lessons are folded away, up while they show.
+  // Every sidebar arrow is 12px with its middle 42px in from the sidebar's
+  // right edge (owner, 2026-11-12: they sat in three columns, 34, 38 and 42px
+  // in, and the top one was 14px).
   sideChevron: { display:"flex", marginLeft:"auto", opacity:0.7, transition:"transform 0.2s" },
   sideChevronOpen: { transform:"rotate(180deg)" },
+  // ── The Flashcards / Podcasts switch (owner only, 2026-10-09) ────────
+  // A pill of buttons at the top of the nav, as in the approved mockup:
+  // the selected button white and lifted, the others plain. Full width it reads
+  // "Flashcards" / "Podcasts"; on the rail it stacks into icons.
+  //
+  // Every variant declares the SAME keys, all as longhands: React updates a
+  // style property by property, so a key only one variant sets is left behind
+  // when switching back (the 24b55b7 sidebar bug of 6 October: going from the
+  // rail's paddingTop:8 back to the wide sidebar, React removed paddingTop but
+  // did not re-apply the unchanged padding shorthand, so the top padding fell
+  // to 0 and Cards slid up under the button on expanding). Toggled both ways — the width, and the button that's selected.
+  //
+  // On the rail the right margin is 4px wider than the left. The nav items
+  // carry a 4px marker border on their right, which moves their icons 2px
+  // left of the rail's middle; this puts the switch's icons on that same line.
+  modSwitch: { display:"flex", flexDirection:"row", gap:2, flex:"none", marginTop:0, marginRight:20, marginBottom:18, marginLeft:20, paddingTop:3, paddingRight:3, paddingBottom:3, paddingLeft:3, background:T.color.surfaceHigh, borderRadius:T.radius.lg, boxSizing:"border-box" },
+  modSwitchMin: { display:"flex", flexDirection:"column", gap:2, flex:"none", marginTop:6, marginRight:14, marginBottom:12, marginLeft:10, paddingTop:3, paddingRight:3, paddingBottom:3, paddingLeft:3, background:T.color.surfaceHigh, borderRadius:T.radius.lg, boxSizing:"border-box" },
+  // A half. Its border is declared side by side and transparent, so nothing
+  // that reads the nav's right-hand marker counts it as a marked page.
+  modBtn: { display:"flex", alignItems:"center", justifyContent:"center", minWidth:0, marginTop:0, marginRight:0, marginBottom:0, marginLeft:0, borderTopWidth:0, borderTopStyle:"solid", borderTopColor:"transparent", borderRightWidth:0, borderRightStyle:"solid", borderRightColor:"transparent", borderBottomWidth:0, borderBottomStyle:"solid", borderBottomColor:"transparent", borderLeftWidth:0, borderLeftStyle:"solid", borderLeftColor:"transparent", borderRadius:T.radius.md, cursor:"pointer", fontFamily:T.font.sans, fontSize:12, fontWeight:600, lineHeight:"16px", whiteSpace:"nowrap", transition:"background 0.15s, color 0.15s, box-shadow 0.15s" },
+  // Side by side, sharing the width / stacked, each its own height.
+  modBtnWide: { flexGrow:1, flexShrink:1, flexBasis:0, paddingTop:7, paddingRight:0, paddingBottom:7, paddingLeft:0 },
+  modBtnRail: { flexGrow:0, flexShrink:0, flexBasis:"auto", paddingTop:8, paddingRight:0, paddingBottom:8, paddingLeft:0 },
+  // Selected / not.
+  modBtnOn: { background:T.color.surfaceLowest, boxShadow:T.shadow.focus, color:T.color.primary },
+  modBtnOff: { background:"transparent", boxShadow:"none", color:T.color.onSurfaceVariant },
   // ── Sidebar bottom: avatar + email + feedback in one row ────────────
   sideDivider: { marginTop:"auto", height:1, background:"rgba(3,22,50,0.07)", marginLeft:20, marginRight:20 },
   sideBottom: { padding:"14px 20px 4px" },
@@ -5076,25 +6273,10 @@ const S = {
   sideProfileRow: { position:"relative", flexShrink:0 },
   sideBottomEmail: { flex:1, fontSize:11, color:"rgba(3,22,50,0.45)", fontFamily:T.font.sans, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" },
   profileMenuBottom: { position:"absolute", bottom:"100%", left:0, minWidth:200, marginBottom:8, background:T.color.surfaceLowest, borderRadius:T.radius.lg, boxShadow:"0 -8px 32px rgba(3,22,50,0.12)", padding:"8px 0", zIndex:20, fontFamily:T.font.sans },
-  // Legacy styles kept for reference
-  sideProfile: { padding:"16px 20px 8px", position:"relative" },
-  sideFeedback: { padding:"12px 20px 20px", marginTop:"auto", borderTop:"1px solid rgba(3,22,50,0.06)", display:"flex", flexDirection:"column", gap:10 },
+  // The account button and its avatar.
   profileBtn: { position:"relative", display:"flex", alignItems:"center", justifyContent:"center", padding:0, background:"transparent", border:"none", borderRadius:"50%", cursor:"pointer" },
-  // The status check's alert: a dot on the avatar, and a mark on the menu's
-  // Status line, while a check has failed or couldn't run.
   profileAvatar: { width:32, height:32, borderRadius:"50%", background:T.color.primary, color:T.color.onPrimary, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:600, fontFamily:T.font.sans, flexShrink:0 },
-  profileChevron: { marginLeft:"auto", fontSize:12, color:T.color.onSurfaceVariant, opacity:0.5 },
-  profileMenu: { position:"absolute", top:"100%", left:16, right:16, background:T.color.surfaceLowest, borderRadius:T.radius.lg, boxShadow:"0 8px 32px rgba(3,22,50,0.12)", padding:"8px 0", zIndex:20, fontFamily:T.font.sans },
-  profileMenuEmail: { padding:"10px 16px 6px", fontSize:11, color:T.color.onSurfaceVariant, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", borderBottom:"1px solid rgba(3,22,50,0.06)", marginBottom:4 },
   profileMenuItem: { display:"block", width:"100%", padding:"10px 16px", background:"transparent", border:"none", borderRadius:0, cursor:"pointer", fontSize:12, fontFamily:T.font.sans, fontWeight:500, color:T.color.onSurface, textAlign:"left", transition:"background 0.1s" },
-  // ── Sidebar feedback (bottom) ─────────────────────────────────────
-  sideFeedback: { padding:"12px 20px 20px", marginTop:"auto", borderTop:"1px solid rgba(3,22,50,0.06)", display:"flex", flexDirection:"column", gap:10 },
-  endSessionBtn: { width:"100%", padding:"12px", border:"1px solid rgba(3,22,50,0.1)", borderRadius:T.radius.md, background:"transparent", color:T.color.secondary, fontSize:12, fontWeight:600, cursor:"pointer", fontFamily:T.font.sans, letterSpacing:"0.02em", transition:"background 0.15s" },
-  // Legacy sidebar footer styles — no longer rendered but kept so the
-  // BetaFeedback component (which may reference S.sideFoot) doesn't crash
-  sideFoot: { padding:"16px 24px 0", marginTop:"auto", borderTop:"1px solid rgba(3,22,50,0.06)", display:"flex", flexDirection:"column", gap:6, alignItems:"flex-start" },
-  sideUtilBtn: { padding:"8px 12px", background:"transparent", border:"none", borderRadius:T.radius.md, cursor:"pointer", fontSize:11, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, fontWeight:600, textAlign:"left", width:"100%", letterSpacing:"0.02em" },
-  sideEmail: { fontSize:10, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, padding:"4px 12px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:"100%", opacity:0.7 },
 
   // ── Sub-toolbar (category filter + counter, below sticky top bar) ─
   // flexWrap is gone; the row scrolls instead (className "chip-row"). Wrapping
@@ -5172,7 +6354,6 @@ const S = {
   blurBR: { position:"absolute", bottom:60, right:-60, width:360, height:360, background:"rgba(156,66,52,0.05)", borderRadius:"50%", filter:"blur(60px)", pointerEvents:"none", zIndex:0 },
 
   // ── Card content (eyebrow, hint, audio circles, hover actions) ────
-  cardEyebrow: { position:"absolute", top:22, left:"50%", transform:"translateX(-50%)", fontSize:10, fontFamily:T.font.sans, fontWeight:700, color:T.color.onSurfaceVariant, textTransform:"uppercase", letterSpacing:"0.18em", display:"flex", alignItems:"center", gap:8, whiteSpace:"nowrap" },
   cardHint: { position:"absolute", bottom:14, left:"50%", transform:"translateX(-50%)", fontSize:10, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, fontStyle:"italic", opacity:0.45 },
   cardAudio: { display:"flex", gap:14, marginTop:20, justifyContent:"center" },
   cardAudioBtn: { width:52, height:52, display:"flex", alignItems:"center", justifyContent:"center", border:"none", borderRadius:"50%", background:T.color.surfaceLow, cursor:"pointer", fontSize:20, color:T.color.primary, transition:"all 0.15s" },
@@ -5190,7 +6371,7 @@ const S = {
   // ── Rectangular action buttons: AGAIN / GOT IT ─────────────────────
   unsavedNotice: { fontSize:11, fontFamily:T.font.sans, fontWeight:600, color:T.color.secondary, whiteSpace:"nowrap", marginRight:12 },
   // In the error red: the answer was right but now counts as a miss.
-  reviewMarkNotice: { fontSize:11, fontFamily:T.font.sans, fontWeight:600, color:T.color.error, whiteSpace:"nowrap", marginRight:12 },
+  reviewMarkNotice: { position:"absolute", top:8, left:"50%", transform:"translateX(-50%)", zIndex:5, maxWidth:"calc(100% - 32px)", padding:"8px 16px", borderRadius:T.radius.lg, background:T.color.errorContainer, color:T.color.onErrorContainer, fontSize:14, fontFamily:T.font.sans, fontWeight:600, textAlign:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.12)" },
   flipHint: { fontSize:11.5, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, margin:"10px 0 0", textAlign:"center" },
   actionRow: { display:"flex", gap:12, justifyContent:"center", marginTop:0, marginBottom:0, width:"100%", maxWidth:420, alignSelf:"center", flexShrink:0 },
   actionAgainRect: { flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"13px 24px", border:"1px solid rgba(3,22,50,0.1)", borderRadius:T.radius.md, background:"transparent", color:T.color.onSurfaceVariant, fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:T.font.sans, letterSpacing:"-0.01em", transition:"all 0.15s" },
@@ -5202,15 +6383,7 @@ const S = {
   infoBtn: { width:30, height:30, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:12, color:T.color.onSurfaceVariant, opacity:0.25, transition:"opacity 0.15s", userSelect:"none" },
   infoTip: { position:"absolute", bottom:36, right:0, background:T.color.surfaceLow, color:T.color.onSurfaceVariant, padding:"12px 16px", borderRadius:T.radius.lg, fontSize:11, fontFamily:T.font.sans, lineHeight:1.8, whiteSpace:"nowrap", boxShadow:"0 4px 16px rgba(3,22,50,0.08)", zIndex:10 },
 
-  // Legacy action styles (kept for reference, no longer rendered)
-  actionBtn: { display:"flex", flexDirection:"column", alignItems:"center", gap:12, background:"transparent", border:"none", cursor:"pointer", padding:0, fontFamily:T.font.sans },
-  actionBoxAgain: { width:80, height:80, borderRadius:T.radius.lg, background:T.color.surfaceHigh, color:T.color.primary, display:"flex", alignItems:"center", justifyContent:"center", transition:"all 0.2s" },
-  actionBoxGot: { width:80, height:80, borderRadius:T.radius.lg, background:T.color.secondary, color:T.color.onSecondary, display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 8px 24px rgba(156,66,52,0.25)", transition:"all 0.2s" },
-  actionLabel: { fontSize:11, fontWeight:800, letterSpacing:"0.18em", color:T.color.onSurfaceVariant, textTransform:"uppercase" },
 
-  // Top utility bar — single horizontal row at the top of the page with
-  // upload, beta feedback, email and sign-out. Replaces the old vertically
-  // stacked header userInfo block.
   // Sticky glass-blur top app bar — direction toggle, type/auto-speak chips
   topBar: { position:"sticky", top:0, zIndex:20, padding:"0 40px", background:"rgba(253,248,246,0.92)", backdropFilter:"blur(20px)", WebkitBackdropFilter:"blur(20px)", flexShrink:0 },
   // Same as subToolbar: one line, always, scrolling if the chips outgrow the
@@ -5218,36 +6391,28 @@ const S = {
   // a single frame partway through every horizontal reflow.
   topBarInner: { display:"flex", alignItems:"center", gap:12, padding:"14px 0", maxWidth:1100, width:"100%", margin:"0 auto", borderBottom:"1px solid rgba(3,22,50,0.07)" },
   topBarLeft: { display:"flex", alignItems:"center", gap:12, flex:1, minWidth:0 },
-  topBarBtn: { padding:"6px 12px", background:"transparent", border:"none", borderRadius:T.radius.md, cursor:"pointer", fontSize:11, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, fontWeight:600, letterSpacing:"0.02em" },
-  topBarEmail: { fontSize:11, color:T.color.onSurfaceVariant, fontFamily:T.font.sans },
-  // Session ribbon — small uppercase metadata line beneath the navbar,
-  // replacing the old "8 cards · 0 seen · 0 ✓ · 0 ✗" subtitle.
-  sessionRibbon: { display:"flex", alignItems:"center", gap:8, fontSize:10, fontFamily:T.font.sans, fontWeight:600, color:T.color.onSurfaceVariant, textTransform:"uppercase", letterSpacing:"0.12em", margin:"4px 2px 18px" },
-  ribbonDot: { opacity:0.4 },
-  // Legacy header styles kept for screens that still reference them
-  // (onboarding, feedback admin view). Study view no longer uses these.
-  header: { display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:18, gap:12, flexWrap:"wrap" },
-  title: { fontSize:30, fontWeight:600, margin:"0 0 4px", color:T.color.primary, fontFamily:T.font.serif, letterSpacing:"-0.02em", lineHeight:1.1 },
-  sub: { fontSize:13, color:T.color.onSurfaceVariant, margin:"4px 0 0", fontFamily:T.font.sans },
-  userInfo: { display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6, fontFamily:T.font.sans },
-  userEmail: { fontSize:11, color:T.color.onSurfaceVariant },
-  signOutBtn: { padding:"5px 12px", background:"transparent", border:"none", borderRadius:T.radius.md, cursor:"pointer", fontSize:11, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, fontWeight:500 },
-  nav: { display:"flex", gap:6, marginBottom:18, padding:4, background:T.color.surfaceLow, borderRadius:T.radius.lg, width:"fit-content" },
-  navBtn: { padding:"9px 18px", border:"none", borderRadius:T.radius.md, background:"transparent", cursor:"pointer", fontSize:13, fontFamily:T.font.sans, color:T.color.onSurfaceVariant, fontWeight:500, transition:"all 0.15s" },
-  navActive: { background:T.color.surfaceLowest, color:T.color.primary, fontWeight:600, boxShadow:T.shadow.focus },
-  filters: { marginBottom:18 },
-  toggleRow: { display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" },
-  toggle: { display:"flex", gap:6, alignItems:"center", fontSize:12, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, cursor:"pointer" },
   // Chip-style toggle button — used in the study filter row in place of
   // raw checkboxes. Same pill shape as catBtn but with an active state.
-  chipToggle: { padding:"6px 13px", border:`1px solid ${T.color.outlineGhost || "rgba(3,22,50,0.08)"}`, borderRadius:T.radius.full, background:"transparent", cursor:"pointer", fontSize:11, fontFamily:T.font.sans, color:T.color.onSurfaceVariant, fontWeight:500, letterSpacing:"0.02em", transition:"all 0.15s" },
+  chipToggle: { padding:"6px 13px", borderWidth:1, borderStyle:"solid", borderColor:T.color.outlineGhost, borderRadius:T.radius.full, background:"transparent", cursor:"pointer", fontSize:11, fontFamily:T.font.sans, color:T.color.onSurfaceVariant, fontWeight:500, letterSpacing:"0.02em", transition:"all 0.15s" },
   chipToggleA: { background:T.color.primary, color:T.color.onPrimary, borderColor:T.color.primary, fontWeight:600 },
   // Sits inside the scrolling chip row, so it must not wrap on its own either.
   typeGroup: { display:"flex", gap:2, padding:3, background:T.color.surfaceLow, borderRadius:T.radius.md, flexShrink:0 },
   settingsWrap: { position:"relative", flexShrink:0 },
-  gearBtn: { width:34, height:34, display:"flex", alignItems:"center", justifyContent:"center", padding:0, border:"1px solid rgba(3,22,50,0.08)", borderRadius:T.radius.full, background:"transparent", color:T.color.onSurfaceVariant, cursor:"pointer", transition:"all 0.15s" },
+  // The French / Spanish flag (LanguageFlag): the gear's size and ring.
+  flagWrap: { position:"relative", flexShrink:0 },
+  flagBtn: { width:34, height:34, display:"flex", alignItems:"center", justifyContent:"center", padding:0, border:"1px solid rgba(3,22,50,0.08)", borderRadius:T.radius.full, background:T.color.surfaceLowest, cursor:"pointer", transition:"box-shadow 0.15s" },
+  flagBtnA: { boxShadow:"0 0 0 3px rgba(3,22,50,0.1)" },
+  flagMenu: { position:"absolute", top:"calc(100% + 8px)", right:0, minWidth:170, background:T.color.surfaceLowest, borderRadius:T.radius.lg, border:"1px solid rgba(3,22,50,0.08)", boxShadow:"0 12px 36px rgba(3,22,50,0.15)", padding:6, zIndex:45 },
+  flagItem: { display:"flex", alignItems:"center", gap:10, width:"100%", padding:"9px 10px", border:"none", borderRadius:T.radius.md, background:"transparent", cursor:"pointer", fontFamily:T.font.sans, fontSize:13, fontWeight:600, color:T.color.primary, textAlign:"left" },
+  flagTick: { marginLeft:"auto", color:T.color.secondary },
+  // Lessons and Stats: the heading, and the flag in the corner beside it.
+  pageHead: { display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:16 },
+  pageHeadFlag: { marginTop:12 },
+  // Podcasts: the flag in the page's top-right corner.
+  cornerFlag: { position:"absolute", top:14, right:24, zIndex:25 },
+  gearBtn: { width:34, height:34, display:"flex", alignItems:"center", justifyContent:"center", padding:0, borderWidth:1, borderStyle:"solid", borderColor:"rgba(3,22,50,0.08)", borderRadius:T.radius.full, background:"transparent", color:T.color.onSurfaceVariant, cursor:"pointer", transition:"all 0.15s" },
   gearBtnA: { background:T.color.surfaceLowest, color:T.color.primary, borderColor:"rgba(3,22,50,0.22)", boxShadow:T.shadow.focus },
-  settingsMenu: { position:"absolute", top:"calc(100% + 10px)", right:0, width:344, background:T.color.surfaceLowest, borderRadius:T.radius.xl, border:"1px solid rgba(3,22,50,0.08)", boxShadow:"0 20px 60px rgba(3,22,50,0.15)", padding:"6px 0", zIndex:40, fontFamily:T.font.sans },
+  settingsMenu: { position:"absolute", top:"calc(100% + 10px)", right:0, width:344, background:T.color.surfaceLowest, borderRadius:T.radius.xl, border:"1px solid rgba(3,22,50,0.08)", boxShadow:T.shadow.modal, padding:"6px 0", zIndex:40, fontFamily:T.font.sans },
   settingsSec: { padding:"14px 18px" },
   settingsSecRule: { borderTop:"1px solid rgba(3,22,50,0.07)" },
   settingsSeg: { display:"flex", gap:2, padding:3, background:T.color.surfaceLow, borderRadius:T.radius.md },
@@ -5255,21 +6420,14 @@ const S = {
   settingsCap: { fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(68,71,77,0.78)", marginBottom:8 },
   settingsRow: { display:"flex", alignItems:"center", justifyContent:"space-between", gap:16, width:"100%", padding:"7px 0", border:"none", background:"transparent", cursor:"pointer", fontFamily:T.font.sans, textAlign:"left" },
   settingsLabel: { fontSize:13, fontWeight:600, color:T.color.primary },
-  switchTrack: { position:"relative", display:"block", width:34, height:20, flexShrink:0, borderRadius:T.radius.full, background:T.color.surfaceHighest, transition:"background 0.15s" },
-  switchTrackOn: { background:T.color.primary },
-  switchKnob: { display:"block", position:"absolute", top:3, left:3, width:14, height:14, borderRadius:"50%", background:"#fff", boxShadow:"0 1px 3px rgba(3,22,50,0.25)", transition:"left 0.15s" },
-  switchKnobOn: { left:17 },
   dirBtn: { padding:"5px 12px", border:"none", borderRadius:T.radius.sm, background:"transparent", cursor:"pointer", fontSize:11, fontFamily:T.font.sans, color:T.color.onSurfaceVariant, fontWeight:500 },
   dirBtnA: { background:T.color.surfaceLowest, color:T.color.primary, fontWeight:600, boxShadow:T.shadow.focus },
-  counterRow: { display:"flex", alignItems:"center", gap:8, marginBottom:10 },
   counter: { textAlign:"center", fontSize:11, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, letterSpacing:"0.05em", textTransform:"uppercase", fontWeight:500 },
   counterBreakdown: { opacity:0.7 },
   // Unavailable keeps the shape and drops the fill, so the row never shifts
   // and the control still reads as a control rather than a ghost of one.
   backBtnOff: { background:"transparent", color:T.color.onSurfaceVariant, borderColor:"rgba(3,22,50,0.07)", boxShadow:"none", cursor:"default" },
   backBtn: { display:"flex", alignItems:"center", gap:6, padding:"6px 14px 6px 11px", background:T.color.surfaceLowest, borderWidth:1, borderStyle:"solid", borderColor:"rgba(3,22,50,0.22)", borderRadius:T.radius.full, cursor:"pointer", fontSize:11.5, color:T.color.onSurface, fontFamily:T.font.sans, fontWeight:700, letterSpacing:"0.01em", boxShadow:"0 1px 3px rgba(3,22,50,0.07)", transition:"all 0.15s" },
-  backBtnDisabled: { padding:"6px 14px", background:"transparent", border:"none", borderRadius:T.radius.md, cursor:"default", fontSize:11, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, fontWeight:500, opacity:0.3 },
-  backBtnSpacer: { width:60 },
   // flex:0 1 auto — the card shrinks on short windows but never grows to fill
   // the page. Letting it grow is what pushed the buttons down to the bottom
   // edge and left a gulf in the middle; cardArea now centres the card and its
@@ -5351,9 +6509,6 @@ const S = {
   card: { position:"relative", height:"100%", minHeight:170, maxHeight:"min(375px, 62.5cqw)", maxWidth:"100%", transformStyle:"preserve-3d", transition:"transform 0.55s cubic-bezier(0.4, 0, 0.2, 1)", aspectRatio:"1.6 / 1" },
   cardFront: { containerType:"size", backfaceVisibility:"hidden", position:"absolute", inset:0, background:T.color.surfaceLowest, border:"none", borderRadius:T.radius.xl, padding:"28px 30px", display:"flex", flexDirection:"column", justifyContent:"safe center", alignItems:"center", boxShadow:"0 8px 32px rgba(3,22,50,0.08)", overflow:"hidden" },
   cardBack: { containerType:"size", backfaceVisibility:"hidden", position:"absolute", inset:0, transform:"rotateY(180deg)", background:T.color.surfaceLowest, border:"none", borderRadius:T.radius.xl, padding:"28px 30px", display:"flex", flexDirection:"column", justifyContent:"center", alignItems:"center", boxShadow:"0 8px 32px rgba(3,22,50,0.08)", overflow:"hidden", borderTop:`3px solid ${T.color.secondary}` },
-  cardCat: { position:"absolute", top:14, left:18, display:"flex", alignItems:"center", gap:7, fontSize:10, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, textTransform:"uppercase", letterSpacing:"0.1em", fontWeight:600 },
-  langBadge: { position:"absolute", top:14, right:18, fontSize:9, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, background:T.color.surfaceHigh, padding:"3px 9px", borderRadius:T.radius.full, letterSpacing:"0.08em", fontWeight:600, textTransform:"uppercase" },
-  dot: { width:7, height:7, borderRadius:"50%" },
   // Names the lesson a card belongs to, so the prompt itself does not have to.
   // Absolute rather than in flow: cardFront centres its children, and a badge
   // in the column would shove the prompt off the middle of the card.
@@ -5370,16 +6525,10 @@ const S = {
   // and forcing caps on it both loses that and mangles the accented capital.
   // Sentence case needs a little more size and a lot less tracking than the
   // 9px micro-caps it replaces.
-  cardBadge: { position:"absolute", top:23, right:70, padding:"4px 10px", borderRadius:999, border:`1px solid ${T.color.outline || "rgba(3,22,50,0.18)"}`, fontSize:10.5, fontWeight:600, letterSpacing:"0.01em", color:T.color.onSurfaceVariant, fontFamily:T.font.sans, background:"transparent", pointerEvents:"none", maxWidth:"48%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" },
+  cardBadge: { position:"absolute", top:23, right:70, padding:"4px 10px", borderRadius:999, border:`1px solid ${T.color.outline}`, fontSize:10.5, fontWeight:600, letterSpacing:"0.01em", color:T.color.onSurfaceVariant, fontFamily:T.font.sans, background:"transparent", pointerEvents:"none", maxWidth:"48%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" },
   cardInstruction: { fontSize:"clamp(12px, 4.6cqh, 15px)", textAlign:"center", fontWeight:500, fontStyle:"italic", color:T.color.onSurfaceVariant, fontFamily:T.font.sans, lineHeight:1.35, maxWidth:"34em", margin:"0 auto 14px", padding:"0 12px" },
   cardText: { fontSize:"clamp(19px, 10.7cqh, 40px)", textAlign:"center", fontWeight:700, color:T.color.primary, lineHeight:1.15, padding:"0 12px", fontFamily:T.font.serif, letterSpacing:"-0.025em" },
   cardTextB: { fontSize:"clamp(16px, 8.3cqh, 31px)", textAlign:"center", fontWeight:600, color:T.color.primary, lineHeight:1.25, padding:"0 12px", fontFamily:T.font.serif, letterSpacing:"-0.015em" },
-  dateH: { position:"absolute", bottom:12, right:18, fontSize:10, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, opacity:0.7 },
-  hint: { position:"absolute", bottom:12, left:18, fontSize:10, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, fontStyle:"italic", opacity:0.7 },
-  btnRow: { display:"flex", gap:12, marginBottom:12 },
-  btnWrong: { flex:1, padding:"15px", border:"none", borderRadius:T.radius.md, background:T.color.secondary, color:T.color.onSecondary, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:T.font.sans, display:"flex", alignItems:"center", justifyContent:"center", gap:8, boxShadow:T.shadow.button, letterSpacing:"0.01em" },
-  btnRight: { flex:1, padding:"15px", border:"none", borderRadius:T.radius.md, background:T.gradient.ink, color:T.color.onPrimary, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:T.font.sans, display:"flex", alignItems:"center", justifyContent:"center", gap:8, boxShadow:T.shadow.button, letterSpacing:"0.01em" },
-  shortcuts: { textAlign:"center", fontSize:10, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, opacity:0.7, letterSpacing:"0.03em" },
   // The lesson you are in, set as a title rather than a pill: it names where
   // you are, and the only pill-shaped things in this row are controls.
   lessonName: { fontFamily:T.font.serif, fontSize:15, fontWeight:600, color:T.color.primary, whiteSpace:"nowrap", letterSpacing:"-0.01em", flexShrink:0 },
@@ -5391,7 +6540,6 @@ const S = {
   lessonTitle: { fontSize:18, fontFamily:T.font.serif, color:T.color.onSurface, marginBottom:4 },
   lessonSub: { fontSize:12, color:T.color.onSurfaceVariant, fontFamily:T.font.sans },
   lessonMeta: { fontSize:11, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, marginTop:14, textTransform:"uppercase", letterSpacing:"0.06em" },
-  lessonAddBtn: { padding:"9px 18px", border:"none", borderRadius:T.radius.md, background:T.color.primary, color:"#fff", fontSize:12, fontWeight:600, fontFamily:T.font.sans, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0 },
   lessonSwitchRow: { display:"flex", alignItems:"center", gap:12, marginTop:14, flexWrap:"wrap" },
   lessonSwitch: { display:"inline-flex", alignItems:"center", gap:8, padding:0, border:"none", background:"transparent", cursor:"pointer", fontSize:12, fontWeight:600, fontFamily:T.font.sans, color:T.color.onSurface, whiteSpace:"nowrap" },
   switchTrack: { position:"relative", width:30, height:18, borderRadius:T.radius.full, background:T.color.surfaceHighest, transition:"background 0.15s", flexShrink:0 },
@@ -5403,7 +6551,6 @@ const S = {
   lessonStudyBtn: { padding:"9px 18px", border:"none", borderRadius:T.radius.md, background:T.color.surfaceLow, color:T.color.primary, fontSize:12, fontWeight:600, fontFamily:T.font.sans, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0, boxShadow:T.shadow.focus },
   empty: { textAlign:"center", padding:60, color:T.color.onSurfaceVariant, fontFamily:T.font.sans },
   sessionDone: { textAlign:"center", padding:24, background:T.color.surfaceLow, borderRadius:T.radius.xl, marginTop:12 },
-  doneText: { fontSize:14, color:T.color.primary, fontFamily:T.font.sans, marginBottom:14, fontWeight:500 },
   lessonProgress: { fontSize:12, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, fontWeight:600, whiteSpace:"nowrap", fontVariantNumeric:"tabular-nums", flexShrink:0 },
   checkpointHead: { fontSize:22, color:T.color.primary, fontFamily:T.font.serif, fontWeight:600, margin:"0 0 16px" },
   checkpointAreas: { display:"flex", flexDirection:"column", gap:10, margin:"0 auto 16px", maxWidth:420, textAlign:"left" },
@@ -5416,24 +6563,18 @@ const S = {
   // Stats — bento dashboard
   statsHeading: { fontSize:36, fontWeight:600, color:T.color.primary, fontFamily:T.font.serif, letterSpacing:"-0.02em", margin:"8px 0 28px" },
   // ── Stats layout: metric cards, then the all-cards bar ─────────────
-  typeBarWrap: { height:4, borderRadius:2, background:"rgba(3,22,50,0.07)", marginTop:10, overflow:"hidden" },
-  typeBar: { height:"100%", borderRadius:2, transition:"width 300ms ease" },
   statsRow3: { display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12, marginBottom:12 },
-  statsRow2: { display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 },
   metricCard: { background:T.color.surfaceLow, borderRadius:T.radius.xl, padding:"22px 24px" },
   metricLabel: { fontSize:11, fontFamily:T.font.sans, fontWeight:600, color:T.color.onSurfaceVariant, textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:6 },
   metricVal: { fontSize:32, fontFamily:T.font.serif, fontWeight:600, color:T.color.primary, lineHeight:1.1 },
   metricUnit: { fontSize:18, fontFamily:T.font.serif, fontWeight:600, color:T.color.primary },
   metricSub: { fontSize:12, fontFamily:T.font.sans, color:T.color.onSurfaceVariant, marginTop:4 },
-  statsNote: { fontSize:11, fontFamily:T.font.sans, color:T.color.onSurfaceVariant, opacity:0.5, marginBottom:16, paddingLeft:2 },
-  streakCard: { background:"#1a2b48", borderRadius:T.radius.xl, padding:"22px 24px", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center" },
-  streakNum: { fontSize:32, fontFamily:T.font.serif, fontWeight:600, color:"#fdf8f6", lineHeight:1.1, margin:"4px 0 4px" },
+  streakCard: { background:T.color.primaryContainer, borderRadius:T.radius.xl, padding:"22px 24px", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center" },
+  streakNum: { fontSize:32, fontFamily:T.font.serif, fontWeight:600, color:T.color.background, lineHeight:1.1, margin:"4px 0 4px" },
   streakSub: { fontSize:10, fontFamily:T.font.sans, fontWeight:600, color:"rgba(253,248,246,0.5)", textTransform:"uppercase", letterSpacing:"0.1em" },
   // Pipeline
-  pipelineCard: { background:T.color.surfaceLowest, border:`0.5px solid ${T.color.outlineGhost || "rgba(3,22,50,0.08)"}`, borderRadius:T.radius.xl, padding:"22px 24px", marginBottom:12 },
+  pipelineCard: { background:T.color.surfaceLowest, border:`0.5px solid ${T.color.outlineGhost}`, borderRadius:T.radius.xl, padding:"22px 24px", marginBottom:12 },
   pipeTitle: { fontSize:14, fontFamily:T.font.sans, fontWeight:600, color:T.color.primary, marginBottom:14 },
-  pipeBarWrap: { display:"flex", height:28, borderRadius:6, overflow:"hidden", background:T.color.surfaceHigh, marginBottom:10 },
-  pipeSeg: { display:"flex", alignItems:"center", justifyContent:"center", fontFamily:T.font.sans },
   pipeLegend: { display:"flex", flexWrap:"wrap", gap:"6px 20px" },
   pipeLegItem: { display:"flex", alignItems:"center", gap:6, fontSize:12, fontFamily:T.font.sans, color:T.color.onSurfaceVariant, whiteSpace:"nowrap" },
   pipeDot: { width:8, height:8, borderRadius:"50%", flexShrink:0 },
@@ -5443,16 +6584,8 @@ const S = {
   cahierDismiss: { marginLeft:"auto", border:"none", background:"transparent", cursor:"pointer", color:T.color.onSurfaceVariant, fontSize:13, padding:4 },
   finishLine: { marginTop:14, paddingTop:14, borderTop:"1px solid rgba(3,22,50,0.06)", fontSize:14, fontFamily:T.font.sans, color:T.color.primary },
   statsFootnote: { fontSize:12, fontFamily:T.font.sans, color:T.color.onSurfaceVariant, margin:"12px 0 0", lineHeight:1.5 },
-  statsSectionTitle: { fontSize:18, fontFamily:T.font.serif, fontWeight:600, color:T.color.primary, margin:"0 0 4px" },
-  statsSectionSub: { fontSize:13, fontFamily:T.font.sans, color:T.color.onSurfaceVariant, margin:"0 0 14px" },
   resetBtn: { display:"block", width:"100%", padding:"13px", border:"none", borderRadius:T.radius.md, background:"transparent", color:T.color.secondary, fontSize:13, cursor:"pointer", fontFamily:T.font.sans, fontWeight:600, marginTop:24 },
   // Legacy stats styles (kept to avoid crashes if any references remain)
-  bento: { display:"grid", gridTemplateColumns:"repeat(12, minmax(0, 1fr))", gap:24, marginBottom:32 },
-  bentoCard: { background:T.color.surfaceLowest, borderRadius:T.radius.xl, padding:"28px 30px", boxShadow:T.shadow.card, border:"none" },
-  bentoTitle: { fontSize:20, fontWeight:600, color:T.color.primary, fontFamily:T.font.serif, letterSpacing:"-0.01em", margin:"0 0 4px" },
-  bentoSub: { fontSize:13, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, margin:"0 0 18px" },
-  bentoHead: { display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 },
-  bentoStreak: { background:"#1a2b48" },
   // ── Onboarding (empty deck state) ─────────────────────────────────
   // Full-bleed page (no sidebar) with hero on top and import method
   // bento below. Sign-out lives in a small top-right cluster.
@@ -5477,8 +6610,8 @@ const S = {
   onbSampleEn: { fontSize:12, fontFamily:T.font.sans, color:T.color.onSurfaceVariant, marginTop:8, fontStyle:"italic" },
 
   // ── Import methods bento (3 cards) ────────────────────────────────
-  onbBento: { display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:20, marginBottom:32 },
-  onbCard: { display:"flex", flexDirection:"column", gap:16, padding:"32px 28px", background:T.color.surfaceLowest, border:"none", borderRadius:T.radius.xl, boxShadow:"0 8px 32px rgba(3,22,50,0.06)", textAlign:"left", cursor:"pointer", fontFamily:T.font.sans, transition:"all 0.2s", color:T.color.onSurface, position:"relative" },
+  onbBento: { display:"grid", gridTemplateColumns:"repeat(2, 1fr)", gap:20, marginBottom:32 },
+  onbCard: { display:"flex", flexDirection:"column", gap:16, padding:"32px 28px", background:T.color.surfaceLowest, border:"none", borderRadius:T.radius.xl, boxShadow:T.shadow.card, textAlign:"left", cursor:"pointer", fontFamily:T.font.sans, transition:"all 0.2s", color:T.color.onSurface, position:"relative" },
   onbCardFeatured: { background:T.color.surfaceHigh },
   onbCardIcon: { width:48, height:48, borderRadius:T.radius.lg, background:T.color.surfaceHigh, display:"flex", alignItems:"center", justifyContent:"center", color:T.color.secondary },
   onbCardIconFeatured: { background:T.color.primary, color:T.color.onPrimary },
@@ -5492,18 +6625,10 @@ const S = {
 
   // Legacy onboarding styles kept as fallbacks
   onboarding: { maxWidth:520, margin:"60px auto", padding:"48px 36px", background:T.color.surfaceLowest, border:"none", borderRadius:T.radius.xl, textAlign:"center", boxShadow:T.shadow.card },
-  onbTitle: { margin:"0 0 14px", fontSize:32, color:T.color.primary, fontFamily:T.font.serif, fontWeight:600, letterSpacing:"-0.02em" },
-  onbPrimary: { padding:"15px 32px", background:T.gradient.ink, color:T.color.onPrimary, border:"none", borderRadius:T.radius.md, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:T.font.sans, boxShadow:T.shadow.button, letterSpacing:"0.02em" },
-  onbSecondary: { padding:"12px 24px", background:"transparent", color:T.color.onSurfaceVariant, border:"none", borderRadius:T.radius.md, fontSize:13, cursor:"pointer", fontFamily:T.font.sans, fontWeight:500 },
-  onbDivider: { fontSize:10, color:T.color.onSurfaceVariant, margin:"20px 0", textTransform:"uppercase", letterSpacing:"0.2em", fontWeight:600 },
   onbError: { marginTop:14, padding:12, background:T.color.errorContainer, color:T.color.onErrorContainer, borderRadius:T.radius.lg, fontSize:13 },
   // Header buttons (Upload + Feedback above email)
-  headerBtnRow: { display:"flex", gap:6, marginBottom:6, justifyContent:"flex-end" },
-  headerBtn: { padding:"6px 12px", background:T.color.surfaceHigh, border:"none", borderRadius:T.radius.md, cursor:"pointer", fontSize:12, color:T.color.primary, fontFamily:T.font.sans, fontWeight:500 },
   // Per-card action buttons (edit / flag)
-  cardActions: { display:"flex", gap:10, justifyContent:"center", marginTop:18 },
   cardActionBtn: { width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center", background:T.color.surfaceLow, border:"none", borderRadius:"50%", padding:0, fontSize:13, cursor:"pointer", color:T.color.onSurfaceVariant, fontFamily:T.font.sans, fontWeight:600, letterSpacing:"0.02em" },
-  cardActionBtnFlagged: { background:T.color.tertiaryFixed, color:T.color.onSecondaryContainer, cursor:"default", fontWeight:700 },
   // Type mode (study input)
   typeInputRow: { display:"flex", gap:10, justifyContent:"center", marginBottom:10 },
   giveUpRow: { display:"flex", justifyContent:"center", marginBottom:4, flexShrink:0 },
@@ -5511,10 +6636,6 @@ const S = {
   typeInput: { flex:1, maxWidth:280, padding:"11px 15px", border:"none", background:T.color.surfaceLowest, borderRadius:T.radius.lg, fontSize:16, fontFamily:T.font.serif, outline:"none", color:T.color.primary, boxShadow:T.shadow.focus },
   typeSubmit: { padding:"11px 22px", border:"none", borderRadius:T.radius.md, background:T.gradient.ink, color:T.color.onPrimary, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:T.font.sans, boxShadow:T.shadow.button, letterSpacing:"0.01em" },
   // Audio: speak/mic toolbar inside the card
-  audioToolbar: { marginTop:14, display:"flex", gap:10, justifyContent:"center" },
-  speakBtn: { background:T.color.surfaceHigh, border:"none", borderRadius:T.radius.full, padding:"8px 16px", fontSize:16, cursor:"pointer", lineHeight:1, color:T.color.primary },
-  micBtn: { background:T.color.surfaceHigh, border:"none", borderRadius:T.radius.full, padding:"8px 16px", fontSize:16, cursor:"pointer", lineHeight:1, color:T.color.primary, transition:"all 0.15s" },
-  micBtnActive: { background:T.color.secondary, color:T.color.onSecondary, animation:"pulse 1.2s infinite" },
   // Pronunciation result panel below the card
   pronPanel: { marginTop:16, marginBottom:16, padding:"20px 22px", background:T.color.surfaceLowest, border:"none", borderRadius:T.radius.xl, fontFamily:T.font.sans, boxShadow:T.shadow.card },
   pronRecordingRow: { display:"flex", alignItems:"center", gap:14, fontSize:14, color:T.color.secondary, fontWeight:500 },
@@ -5552,12 +6673,8 @@ const S = {
   typeLinksRow: { gridColumn:"1 / -1", display:"flex", alignItems:"center", justifyContent:"center", flexWrap:"wrap", columnGap:32, rowGap:4, minHeight:24, fontFamily:T.font.sans },
   typeLink: { padding:"4px 0", background:"transparent", border:"none", color:T.color.secondary, fontSize:12, cursor:"pointer", fontFamily:T.font.sans, fontWeight:600, textDecoration:"underline", textUnderlineOffset:3 },
   typeLinkMuted: { color:T.color.onSurfaceVariant, fontWeight:500, opacity:0.8 },
-  typeBtnRow: { display:"flex", gap:12, marginTop:8 },
   feedbackRow: { gridColumn:"1 / -1", textAlign:"center", fontFamily:T.font.sans, fontSize:12 },
   feedbackPending: { color:T.color.onSurfaceVariant },
-  feedbackOk: { color:T.color.primary, fontWeight:500 },
-  feedbackAccept: { color:"#1d9e75", fontWeight:600, fontSize:12, fontFamily:T.font.sans },
-  feedbackReject: { color:T.color.secondary, fontWeight:500, fontSize:12, fontFamily:T.font.sans },
   feedbackMsg: { textAlign:"center", fontSize:12, fontFamily:T.font.sans, color:T.color.onSurfaceVariant, lineHeight:1.5, maxWidth:480, margin:"0 auto" },
   feedbackReasoning: { padding:"10px 16px", background:T.color.surfaceLow, borderRadius:T.radius.lg, marginBottom:8, fontSize:12, lineHeight:1.5 },
   feedbackOverrideBtn: { padding:"6px 14px", background:"transparent", border:"1px solid rgba(3,22,50,0.15)", borderRadius:T.radius.md, cursor:"pointer", fontSize:11, fontWeight:600, fontFamily:T.font.sans, color:T.color.primary, letterSpacing:"0.02em" },
@@ -5567,28 +6684,6 @@ const S = {
   // "mark for review" override link when the matcher accepted the answer.
   continueBtn: { alignSelf:"center", display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"11px 26px", border:"none", borderRadius:T.radius.md, background:T.gradient.ink, color:T.color.onPrimary, fontSize:15, fontWeight:700, cursor:"pointer", fontFamily:T.font.sans, letterSpacing:"-0.01em", boxShadow:"0 6px 20px rgba(3,22,50,0.14)", transition:"all 0.15s" },
   // Feedback admin view
-  feedbackList: { display:"flex", flexDirection:"column", gap:18 },
-  feedbackItem: { padding:22, background:T.color.surfaceLowest, border:"none", borderRadius:T.radius.xl, fontFamily:T.font.sans, boxShadow:T.shadow.card },
-  feedbackCard: { marginBottom:14 },
-  feedbackCardHeader: { display:"flex", justifyContent:"space-between", fontSize:11, color:T.color.onSurfaceVariant, marginBottom:8 },
-  feedbackDir: { background:T.color.surfaceHigh, padding:"3px 10px", borderRadius:T.radius.full, fontWeight:600, letterSpacing:"0.05em" },
-  feedbackDate: {},
-  feedbackPrompt: { fontSize:22, fontFamily:T.font.serif, color:T.color.primary, fontStyle:"italic", letterSpacing:"-0.01em" },
-  feedbackAnswers: { display:"flex", flexDirection:"column", gap:8, marginBottom:14, padding:"14px 16px", background:T.color.surfaceLow, borderRadius:T.radius.lg },
-  feedbackAnsRow: { display:"flex", gap:12, fontSize:13 },
-  feedbackAnsLabel: { color:T.color.onSurfaceVariant, minWidth:80, fontWeight:600, textTransform:"uppercase", fontSize:10, letterSpacing:"0.05em", marginTop:3 },
-  feedbackExpected: { color:T.color.primary, fontWeight:600 },
-  feedbackUser: { color:T.color.onSurface },
-  llmBlock: { padding:"14px 16px", background:T.color.surfaceLow, borderRadius:T.radius.lg, marginBottom:14, fontSize:12 },
-  llmHead: { display:"flex", gap:12, alignItems:"center", marginBottom:8 },
-  llmAccept: { color:T.color.primary, fontWeight:700, textTransform:"uppercase", fontSize:10, letterSpacing:"0.1em" },
-  llmReject: { color:T.color.secondary, fontWeight:700, textTransform:"uppercase", fontSize:10, letterSpacing:"0.1em" },
-  llmUnclear: { color:T.color.onSurfaceVariant, fontWeight:700, textTransform:"uppercase", fontSize:10, letterSpacing:"0.1em" },
-  llmConf: { color:T.color.onSurfaceVariant, fontSize:11 },
-  llmReasoning: { color:T.color.onSurface, lineHeight:1.5 },
-  feedbackActions: { display:"flex", gap:10 },
-  feedbackApprove: { flex:1, padding:12, background:T.gradient.ink, color:T.color.onPrimary, border:"none", borderRadius:T.radius.md, cursor:"pointer", fontSize:13, fontWeight:600, fontFamily:T.font.sans, boxShadow:T.shadow.button },
-  feedbackReject: { flex:1, padding:12, background:T.color.surfaceHigh, border:"none", color:T.color.onSurfaceVariant, borderRadius:T.radius.md, cursor:"pointer", fontSize:13, fontFamily:T.font.sans, fontWeight:500 },
   // Beta feedback (general user feedback)
   // Feedback log (shared by the modal and the Feedback Review page)
   fbLogHeader: { display:"flex", alignItems:"center", gap:10, paddingBottom:14, borderBottom:"1px solid rgba(3,22,50,0.08)" },
@@ -5603,7 +6698,6 @@ const S = {
   // read as a stray white bar through the thumbnail. 4px of padding, cancelled
   // by the margin, gives the ring room without moving anything.
   fbLogList: { overflowY:"auto", minHeight:0, padding:"0 4px", margin:"0 -4px" },
-  fbLogPage: { background:T.color.surfaceLowest, borderRadius:T.radius.xl, padding:"4px 24px", boxShadow:T.shadow.card },
   fbLogSection: { margin:0, padding:"18px 0 2px", fontSize:13, fontWeight:600, fontFamily:T.font.sans, color:T.color.onSurfaceVariant, letterSpacing:"0.02em" },
   fbLogSectionEmpty: { fontSize:14, color:T.color.onSurfaceVariant, padding:"10px 0 14px", borderBottom:"1px solid rgba(3,22,50,0.08)" },
   fbReview: { marginTop:12, padding:"12px 14px", borderRadius:T.radius.md, border:"1px solid rgba(3,22,50,0.08)", fontFamily:T.font.sans },
@@ -5642,8 +6736,8 @@ const S = {
   feedbackModalBox: { background:T.color.surfaceLowest, borderRadius:T.radius.xl, maxWidth:600, width:"100%", padding:"24px 28px 8px", boxShadow:"0 32px 96px rgba(3,22,50,0.18)", fontFamily:T.font.sans, maxHeight:"80vh", overflow:"hidden", display:"flex", flexDirection:"column" },
   // Users table
   usersTable: { width:"100%", borderCollapse:"collapse", fontFamily:T.font.sans, fontSize:13 },
-  usersTh: { textAlign:"left", padding:"10px 12px", fontSize:10, fontWeight:700, color:T.color.onSurfaceVariant, textTransform:"uppercase", letterSpacing:"0.08em", borderBottom:`1px solid ${T.color.outlineGhost || "rgba(3,22,50,0.08)"}` },
-  usersTd: { padding:"10px 12px", borderBottom:`1px solid ${T.color.outlineGhost || "rgba(3,22,50,0.04)"}`, color:T.color.onSurface },
-  usersTdNum: { padding:"10px 12px", borderBottom:`1px solid ${T.color.outlineGhost || "rgba(3,22,50,0.04)"}`, color:T.color.primary, fontWeight:600, textAlign:"center" },
+  usersTh: { textAlign:"left", padding:"10px 12px", fontSize:10, fontWeight:700, color:T.color.onSurfaceVariant, textTransform:"uppercase", letterSpacing:"0.08em", borderBottom:`1px solid ${T.color.outlineGhost}` },
+  usersTd: { padding:"10px 12px", borderBottom:`1px solid ${T.color.outlineGhost}`, color:T.color.onSurface },
+  usersTdNum: { padding:"10px 12px", borderBottom:`1px solid ${T.color.outlineGhost}`, color:T.color.primary, fontWeight:600, textAlign:"center" },
 };
 

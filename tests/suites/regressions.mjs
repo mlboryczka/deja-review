@@ -1,7 +1,7 @@
 // Bugs found by driving the app, each with the check that would have caught
 // it. Written from the requirement — what the user should see — not from the
 // shape of the fix.
-import { openApp, checker, finish, settled, servedDeck, firstBlockItems, sessionCounter, cardBox } from "../harness.mjs";
+import { openApp, checker, finish, settled, servedDeck, firstBlockItems, sessionCounter, cardBox, tapCard } from "../harness.mjs";
 
 const ck = checker();
 
@@ -88,7 +88,11 @@ const ck = checker();
 // Retries used to be appended after the block. With blocks of 50, every miss
 // after card 30 landed past the end: a block with 21 misses ran to 71 cards
 // and read "Retry 1 of 21" before its checkpoint. The requirement is that the
-// block is its own length in answers, retries included.
+// block is its own length in answers, retries included — or, when it was
+// dealt shorter than the set size, that a retry is added on top and pushes no
+// card out (the owner's Lesson 8, 2026-10-27). This block is shorter than the
+// set size, so the one miss makes it one answer longer; the serving suite
+// checks a block never grows past the set size.
 {
   const { browser, page } = await openApp({ width: 1400, height: 900 });
   const counter = () =>
@@ -105,7 +109,7 @@ const ck = checker();
   await page.keyboard.press("ArrowLeft"); // miss card 1 — the only miss
   await settled(page);
   const afterMiss = await counter();
-  ck("a miss does not lengthen the block", afterMiss.total === total, `${start.text} → ${afterMiss.text}`);
+  ck("a miss in a block with room adds its retry: one answer longer", afterMiss.total === total + 1, `${start.text} → ${afterMiss.text}`);
   let answers = 1;
   while (!(await page.$("[data-checkpoint]")) && answers < total * 3) {
     await page.keyboard.press("ArrowRight");
@@ -114,9 +118,8 @@ const ck = checker();
     await page.waitForTimeout(60);
     answers++;
   }
-  ck("the checkpoint comes after exactly the block's length in answers", answers === total,
+  ck("the checkpoint comes after every card and the retry", answers === total + 1,
      `${answers} answers for a ${total}-card block`);
-  ck("and no counter ever read Retry", !/Retry \d+ of/i.test(await page.evaluate(() => document.body.innerText)));
   await browser.close();
 }
 
@@ -168,16 +171,24 @@ const ck = checker();
 // block was dealt from it, and when the up-to-date deck arrived a moment later
 // only the cards' details were updated, not which cards were in the block: on
 // 2026-09-23 a block dealt from a five-day-old copy asked 22 cards that weren't
-// due and left out 54 that were. Here the saved copy says every card is new,
-// and the deck, which arrives late, says most of them are due.
+// due and left out 54 that were. Here the saved copy says three cards are
+// known and not due and every other card is new, and the deck, which arrives
+// late, says most of them are due. (It used to say every card was new, which
+// dealt fewer questions than the deck's both ways round; since a word is asked
+// one way a day, 2026-10-14, the two counts came out the same.)
 {
   const deck = await servedDeck();
   const CAT = { V: "vocab", E: "expr", G: "gram", P: "pron" };
-  const stale = deck.map((r) => ({
+  const later = new Date(Date.now() + 30 * 86400000).toISOString();
+  const lately = new Date(Date.now() - 2 * 86400000).toISOString();
+  const known = { next_due_at: later, lapses: 0, stability: 30, difficulty: 5, fsrs_state: 2, reps: 3, last_review: lately, last_answer_correct: true,
+    en_next_due_at: later, en_lapses: 0, en_stability: 30, en_difficulty: 5, en_fsrs_state: 2, en_reps: 3, en_last_review: lately, en_last_answer_correct: true };
+  const stale = deck.map((r, i) => ({
     f: r.front, b: r.back, cat: CAT[r.category] || "vocab", dates: r.dates || [], freq: (r.dates || []).length,
     id: r.front.toLowerCase().trim(), row_id: r.id, flagged: false, batch_id: null, source: r.source || null, created_at: null,
     next_due_at: null, lapses: 0, stability: null, difficulty: null, fsrs_state: 0, reps: 0, last_review: null, last_answer_correct: null,
     en_next_due_at: null, en_lapses: 0, en_stability: null, en_difficulty: null, en_fsrs_state: 0, en_reps: 0, en_last_review: null, en_last_answer_correct: null,
+    ...(i < 3 ? known : {}),
   }));
   const { browser, page } = await openApp({
     route: async (p) => {
@@ -207,10 +218,7 @@ const ck = checker();
 // lesson). Each set is now kept in the browser for the day.
 {
   const { browser, page } = await openApp();
-  const tap = () => page.evaluate(() => {
-    const el = [...document.querySelectorAll("div")].find((d) => getComputedStyle(d).transformStyle === "preserve-3d");
-    el?.click();
-  });
+  const tap = () => tapCard(page);
   const grade = async (label) => {
     await tap();
     await page.waitForSelector(`button:has-text("${label}")`, { timeout: 5000 });

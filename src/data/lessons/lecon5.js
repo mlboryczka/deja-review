@@ -233,7 +233,7 @@ export const NOTES = [
     h: "1 · What vouloir and pouvoir are for",
     blocks: [
       { t: "lead", v: "**Vouloir** means \"to want\" and **pouvoir** means \"can\" or \"to be able to\"." },
-      { t: "note", v: "After vouloir or pouvoir, the next verb stays as you find it in the dictionary: *vous voulez aller*, \"you want to go\", not vous voulez allez." },
+      { t: "note", v: "After vouloir or pouvoir, the next verb stays in the infinitive: *vous voulez aller*, \"you want to go\", not vous voulez allez." },
       { t: "pairs", head: ["French", "English"], v: [
         ["Je veux aller à Notre-Dame", "I want to go to Notre-Dame"],
         ["Il peut demander à la vendeuse", "He can ask the saleswoman"],

@@ -27,9 +27,26 @@
 --
 -- Everything else has never been answered and belongs in state New.
 --
--- This migration is safe to run more than once: both statements are driven by
--- those three signals rather than by current FSRS state, so a second run
--- computes the same answer.
+-- RUN THIS ONCE ONLY, AT SETUP. Never run it again. The statements read the
+-- three signals above, not the card's current FSRS state, so a second run
+-- replaces the French-to-English schedule of every card answered since with a
+-- guess and puts them all due at once (as more than 1,000 cards were after its
+-- first run in September 2026). To stop that, the check below stops the file
+-- with a message, and changes nothing, once any answer is kept in card_reviews.
+
+do $$
+declare
+  answers bigint := 0;
+begin
+  -- card_reviews is created later (migration_010), so a fresh setup has none.
+  if to_regclass('public.card_reviews') is not null then
+    execute 'select count(*) from public.card_reviews' into answers;
+  end if;
+  if answers > 0 then
+    raise exception 'migration_007 must never be run again: the database already holds % answers, and this file would replace every answered card''s schedule with a guess. Nothing was changed.', answers;
+  end if;
+end;
+$$;
 
 -- ── Step 1: cards with no review history go back to New ───────────────
 --

@@ -15,27 +15,57 @@
 // Before migration_016 there is no archived_reason column: the card is
 // archived all the same, without the reason.
 
-import { archivedSource, isArchived } from "../../src/lib/archive.js";
+import { ARCHIVE_PREFIX, archivedSource, isArchived } from "../../src/lib/archive.js";
 import { missingColumn } from "../../src/lib/reviewLog.js";
 
 // Returns { status, json }, the reply the route sends.
-export async function removeCard({ admin, userId, rowId }) {
+// `table` is es_user_cards for a Spanish card (2026-10-22).
+export async function removeCard({ admin, userId, rowId, table = "user_cards" }) {
   if (rowId === null || rowId === undefined || rowId === "") {
     return { status: 400, json: { error: "Which card? row_id is missing." } };
   }
-  const { data: row, error } = await admin.from("user_cards").select("id, user_id, front, source").eq("id", rowId).maybeSingle();
+  const { data: row, error } = await admin.from(table).select("id, user_id, front, source").eq("id", rowId).maybeSingle();
   if (error) return { status: 500, json: { error: error.message } };
   if (!row) return { status: 404, json: { error: "Card not found." } };
   if (row.user_id !== userId) return { status: 403, json: { error: "Not your card" } };
   if (isArchived(row)) return { status: 200, json: { ok: true, removed: true, already: true } };
 
   const source = archivedSource(row.source);
-  let { error: updErr } = await admin.from("user_cards")
+  let { error: updErr } = await admin.from(table)
     .update({ source, archived_reason: "removed", archived_at: new Date().toISOString() })
     .eq("id", row.id).eq("user_id", userId);
   if (updErr && missingColumn(updErr)) {
-    ({ error: updErr } = await admin.from("user_cards").update({ source }).eq("id", row.id).eq("user_id", userId));
+    ({ error: updErr } = await admin.from(table).update({ source }).eq("id", row.id).eq("user_id", userId));
   }
   if (updErr) return { status: 500, json: { error: updErr.message } };
   return { status: 200, json: { ok: true, removed: true } };
+}
+
+// Undo on a card the tutor removed (2026-10-28): back in study as it was,
+// with its schedule, answers and class dates, which removing never touched.
+// Only a card the student removed comes back this way; one put away for
+// another reason (a repeat merged into its twin, say) stays out.
+// Returns { status, json }, with the card's row once it is back.
+export async function restoreCard({ admin, userId, rowId, table = "user_cards" }) {
+  if (rowId === null || rowId === undefined || rowId === "") {
+    return { status: 400, json: { error: "Which card? row_id is missing." } };
+  }
+  const { data: row, error } = await admin.from(table).select("*").eq("id", rowId).maybeSingle();
+  if (error) return { status: 500, json: { error: error.message } };
+  if (!row) return { status: 404, json: { error: "Card not found." } };
+  if (row.user_id !== userId) return { status: 403, json: { error: "Not your card" } };
+  if (!isArchived(row)) return { status: 200, json: { ok: true, restored: true, already: true, row } };
+  if (row.archived_reason && row.archived_reason !== "removed") {
+    return { status: 409, json: { error: "That card was taken out for another reason, so it stays out." } };
+  }
+
+  const source = row.source.slice(ARCHIVE_PREFIX.length) || null;
+  let { data, error: updErr } = await admin.from(table)
+    .update({ source, archived_reason: null, archived_at: null })
+    .eq("id", row.id).eq("user_id", userId).select();
+  if (updErr && missingColumn(updErr)) {
+    ({ data, error: updErr } = await admin.from(table).update({ source }).eq("id", row.id).eq("user_id", userId).select());
+  }
+  if (updErr) return { status: 500, json: { error: updErr.message } };
+  return { status: 200, json: { ok: true, restored: true, row: data?.[0] ?? null } };
 }

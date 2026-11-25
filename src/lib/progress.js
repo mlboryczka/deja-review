@@ -35,14 +35,13 @@
 
 import { scheduler, State } from "./spacedRepetition.js";
 import { sideOf, isTwoWay } from "./directions.js";
-import { classDaysOf } from "./sessionQueue.js";
+import { classDaysOf, RECENT_CLASS_DAYS } from "./sessionQueue.js";
 import { lessonIdOf } from "./lessonSource.js";
 import { localISODateDaysAgo } from "./studyDay.js";
 
-const RECENT_DAYS = 14;
 
 const isSeenSide = (side) => (side.fsrs_state ?? State.New) !== State.New;
-const isSeen = (card) =>
+export const isSeen = (card) =>
   isSeenSide(sideOf(card, "fr")) || (isTwoWay(card) && isSeenSide(sideOf(card, "en")));
 
 // The probability, 0 to 1, that the student would recall this now. Takes one
@@ -109,14 +108,14 @@ export function areaOf(card, now = Date.now()) {
   const days = classDaysOf(card);
   if (days.length === 0) return "earlier";
   const latest = [...days].sort()[days.length - 1];
-  return latest >= localISODateDaysAgo(RECENT_DAYS, new Date(now)) ? "recent" : "earlier";
+  return latest >= localISODateDaysAgo(RECENT_CLASS_DAYS, new Date(now)) ? "recent" : "earlier";
 }
 
 // Where the line between the two class groups falls today, and the earliest
 // class in the older group (null if it has none), both as YYYY-MM-DD. A card
 // is in the recent group when its latest class is on or after `since`.
 export function areaDates(cards, now = Date.now()) {
-  const since = localISODateDaysAgo(RECENT_DAYS, new Date(now));
+  const since = localISODateDaysAgo(RECENT_CLASS_DAYS, new Date(now));
   let earliestOlder = null;
   for (const c of cards) {
     if (areaOf(c, now) !== "earlier") continue;

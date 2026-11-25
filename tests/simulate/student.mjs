@@ -12,13 +12,14 @@
 //
 // Needs TZ set before any date is made (the runners set America/New_York).
 
-import { buildSession, placeRetry, applyAnswer, BLOCK_SIZE } from "../../src/lib/sessionQueue.js";
-import { RE_QUEUE_OFFSET, State, applySettings, settingsInUse, makeScheduler } from "../../src/lib/spacedRepetition.js";
+import { buildSession, placeRetry, applyAnswer, countsAnswer, leftDueCards, BLOCK_SIZE } from "../../src/lib/sessionQueue.js";
+import { RE_QUEUE_OFFSET, State, applySettings, settingsInUse } from "../../src/lib/spacedRepetition.js";
 import { sideOf, sideColumns, isTwoWay, otherDirection, directionsOf } from "../../src/lib/directions.js";
-import { reviewedToday, localISODate, startOfLocalDay } from "../../src/lib/studyDay.js";
+import { localISODate, startOfLocalDay } from "../../src/lib/studyDay.js";
 import { reviewRow } from "../../src/lib/reviewLog.js";
 import { dealRow } from "../../src/lib/dealLog.js";
-import { DEFAULT_TARGET, recordStudyDay, nextAutoTarget } from "../../src/lib/fsrsSettings.js";
+import { DEFAULT_TARGET, REFIT_DAYS, recordStudyDay, nextAutoTarget, fitDue } from "../../src/lib/fsrsSettings.js";
+import { buildHistories, fittingSequences } from "../../src/lib/fsrsHistory.js";
 import { RAW } from "../../src/data/cards.js";
 import { LESSONS, lessonRank } from "../../src/data/lessons/index.js";
 import { lessonSource, lessonCardKey, lessonIdOf } from "../../src/lib/lessonSource.js";
@@ -32,7 +33,7 @@ const DAY = 86400000;
 const HOUR = 3600000;
 
 // ── Seeded randomness ──────────────────────────────────────────────────
-export function mulberry32(a) {
+function mulberry32(a) {
   return function () {
     a |= 0; a = (a + 0x6d2b79f5) | 0;
     let t = Math.imul(a ^ (a >>> 15), 1 | a);
@@ -68,7 +69,7 @@ const BLANK = {
 // rule every card-writer uses (src/lib/sameCard.js), so the status check's
 // "No card is in your deck twice" passes on a simulated record for the reason
 // it passes on a real one.
-export function makeDeck({ start, cards: limit = Infinity } = {}) {
+function makeDeck({ start, cards: limit = Infinity } = {}) {
   const latest = RAW.flatMap((r) => r[3] || []).sort().pop();
   const shift = Math.round((start - DAY - Date.parse(`${latest}T12:00:00`)) / DAY);
   const move = (iso) => {
@@ -77,7 +78,6 @@ export function makeDeck({ start, cards: limit = Infinity } = {}) {
     return localISODate(d);
   };
   const created = new Date(start - 30 * DAY).toISOString();
-  const blank = BLANK;
   const seen = new Set();
   const cards = [];
   const own = cardIndex([]);
@@ -93,7 +93,7 @@ export function makeDeck({ start, cards: limit = Infinity } = {}) {
       continue;
     }
     seen.add(id);
-    const card = { f, b, cat, dates: ds, freq: ds.length, id, row_id: rowId++, source: "cahier-upload", created_at: created, ...blank };
+    const card = { f, b, cat, dates: ds, freq: ds.length, id, row_id: rowId++, source: "cahier-upload", created_at: created, ...BLANK };
     cards.push(card);
     own.add({ front: f, back: b, card });
   }
@@ -104,7 +104,7 @@ export function makeDeck({ start, cards: limit = Infinity } = {}) {
       seen.add(id);
       cards.push({
         f: front, b: back, cat: CAT_DB_TO_UI[cat] || "gram", dates: [], freq: 0, id, row_id: rowId++,
-        source: lessonSource(lesson.id, lessonCardKey(was ?? front)), created_at: created, ...blank,
+        source: lessonSource(lesson.id, lessonCardKey(was ?? front)), created_at: created, ...BLANK,
       });
     }
   }
@@ -125,7 +125,7 @@ export function standInVerdicts(cards, at = null) {
 // A shaped card back into a user_cards row, as the database would hold it:
 // stability and difficulty are single precision there.
 const f32 = (x) => (x == null ? x : Math.fround(x));
-export function userCardRow(c) {
+function userCardRow(c) {
   return {
     id: c.row_id, user_id: USER_ID, front: c.f, back: c.b, category: CAT_UI_TO_DB[c.cat] || "V",
     dates: c.dates, source: c.source, created_at: c.created_at, flagged_for_review: false,
@@ -216,7 +216,7 @@ class Student {
 }
 
 // Seconds an answer takes: a new card is read and typed, a miss is read again.
-export const SECONDS = { new: 20, right: 8, wrong: 16, retry: 10, checkpoint: 10 };
+const SECONDS = { new: 20, right: 8, wrong: 16, retry: 10, checkpoint: 10 };
 
 // ── A run ──────────────────────────────────────────────────────────────
 //
@@ -254,7 +254,7 @@ export function simulate({
     user_id: USER_ID, weights: null, fitted_at: null, target_mode: target === "auto" ? "auto" : "fixed",
     target: target === "auto" ? DEFAULT_TARGET : target, target_changed_at: null, days: [],
   };
-  const m = { seconds: 0, answers: 0, counted: 0, newMet: 0, reviews: 0, reviewsRight: 0, dueLeft: [], targets: [] };
+  const m = { seconds: 0, answers: 0, reviews: 0, reviewsRight: 0, targets: [] };
   // The messy habits draw on their own randomness, so a tidy run is the same
   // run it always was. `habits` counts each one as it happens.
   const mess = mulberry32(seed * 13 + 5);
@@ -273,23 +273,36 @@ export function simulate({
     const dayStart = new Date(start);
     dayStart.setDate(dayStart.getDate() + day);
     let now = new Date(dayStart.getFullYear(), dayStart.getMonth(), dayStart.getDate(), h, mi).getTime();
-    if (!studies) { m.dueLeft.push(dueCount(deck, now)); continue; }
+    if (!studies) continue;
 
     // Opening the app: the deck comes from the database, and once a study day
     // the automatic target has its say (useFsrsSettings).
     reload(deck);
     const today = localISODate(new Date(now));
-    const behind = deck.some((c) => directionsOf(c).some((d) => {
-      const x = sideOf(c, d);
-      return x.fsrs_state !== State.New && x.next_due_at && Date.parse(x.next_due_at) < startOfLocalDay(new Date(now));
-    }));
+    // The app's own rule (leftDueCards): a word's other way held back for
+    // the next day isn't left undone.
+    const behind = leftDueCards(deck, { now, direction });
     settings.days = recordStudyDay(settings.days, today, behind);
     if (settings.target_mode === "auto") {
-      const next = nextAutoTarget({ target: settings.target, days: settings.days, changedAt: settings.target_changed_at, today });
+      const next = nextAutoTarget({ target: settings.target, days: settings.days, changedAt: settings.target_changed_at ? localISODate(new Date(settings.target_changed_at)) : null, today });
       if (next !== settings.target) {
         settings.target = next;
         settings.target_changed_at = new Date(now).toISOString();
       }
+    }
+    // And the server's daily try of the student's own settings (api/fsrs-fit.js),
+    // made whenever one is due. The simulation doesn't run the optimizer, so a
+    // try keeps the starting settings, as one that doesn't predict better does;
+    // "Your own settings were tried when due" reads the record it leaves.
+    // fitDue refuses whatever the count while a try under REFIT_DAYS old is on
+    // record, so the count is made only when it can matter.
+    const mayFit = !settings.fit_checked_at || now - Date.parse(settings.fit_checked_at) >= REFIT_DAYS * 86400000;
+    const usable = mayFit ? fittingSequences(buildHistories(answers), TIME_ZONE).reduce((n, q) => n + q.length, 0) : 0;
+    if (fitDue({ answers: usable, checkedAt: settings.fit_checked_at ?? null, checkedAnswers: settings.fit_checked_answers ?? null, now })) {
+      Object.assign(settings, {
+        fit_checked_at: new Date(now).toISOString(), fit_checked_answers: usable,
+        fit_result: { adopted: false, kind: null, inUse: "start" },
+      });
     }
     applySettings({ weights: settings.weights, retention: settings.target });
     m.targets.push(settings.target);
@@ -316,16 +329,15 @@ export function simulate({
       const card = byRow.get(item.row_id);
       const dir = item.shownDir;
       const side = sideOf(card, dir);
-      const counted = !item._retry && !reviewedToday(side.last_review, new Date(now));
+      // As the app counts (countsAnswer): the day's first answer, and the retry after a counted miss.
+      const counted = countsAnswer(side, { retry: !!item._retry }, now);
       const res = s.answer(card, dir, now);
       let sr = null;
       const before = counted ? sideColumns(side, dir) : null;
       if (counted) {
         sr = applyAnswer(card, res.got, now, dir);
         Object.assign(card, sr);
-        m.counted++;
-        if (side.fsrs_state === State.New) m.newMet++;
-        else { m.reviews++; if (res.got) m.reviewsRight++; }
+        if (side.fsrs_state !== State.New && !item._retry) { m.reviews++; if (res.got) m.reviewsRight++; }
       }
       answers.push(stored(reviewRow({
         id: uuid(), userId: USER_ID, cardId: card.row_id, dir, got: res.got, before, after: sr, at: now,
@@ -334,7 +346,7 @@ export function simulate({
       m.answers++;
       const secs = item._retry ? SECONDS.retry : res.first ? SECONDS.new : res.got ? SECONDS.right : SECONDS.wrong;
       m.seconds += secs;
-      if (!res.got) block = placeRetry(block, idx, { ...item, ...card, _rid: String(m.answers) }, RE_QUEUE_OFFSET);
+      if (!res.got) block = placeRetry(block, idx, { ...item, ...card, _rid: String(m.answers) }, RE_QUEUE_OFFSET, BLOCK_SIZE);
       now += secs * 1000;
       return block;
     };
@@ -423,18 +435,19 @@ export function simulate({
       now += 60000;
     }
     if (opened) copy = opened;
-    m.dueLeft.push(dueCount(deck, now));
   }
 
   const end = new Date(start);
   end.setDate(end.getDate() + days);
   const endMs = end.getTime();
-  let known = 0, bothWays = 0, seen = 0;
+  // Counted as Stats counts (src/lib/progress.js): a card is met when either
+  // way has been answered, and "known" adds, over the cards, the chance of
+  // being right both ways round (one way for a card asked only one way).
+  let known = 0, seen = 0;
   for (const c of deck) {
     const ps = directionsOf(c).map((d) => s.recall(c, d, endMs));
-    known += ps.reduce((a, b) => a + b, 0);
-    bothWays += ps.length === 2 ? ps[0] * ps[1] : ps[0];
-    for (const d of directionsOf(c)) if (sideOf(c, d).fsrs_state !== State.New) seen++;
+    known += ps.length === 2 ? ps[0] * ps[1] : ps[0];
+    if (directionsOf(c).some((d) => sideOf(c, d).fsrs_state !== State.New)) seen++;
   }
   return {
     answers, deals, settings,
@@ -443,7 +456,7 @@ export function simulate({
       ...m,
       messy: habits,
       hours: m.seconds / 3600,
-      known, bothWays, seen,
+      known, seen,
       knownPerHour: known / Math.max(1e-9, m.seconds / 3600),
       reviewRetention: m.reviews ? m.reviewsRight / m.reviews : null,
     },
@@ -474,17 +487,4 @@ export function detourRepeats(run, report) {
   return { onlyThese, count: pairs.length };
 }
 
-function dueCount(deck, now) {
-  const end = new Date(now);
-  if (end.getHours() < 4) end.setDate(end.getDate() - 1);
-  end.setDate(end.getDate() + 1);
-  end.setHours(4, 0, 0, 0);
-  let n = 0;
-  for (const c of deck) for (const d of directionsOf(c)) {
-    const x = sideOf(c, d);
-    if (x.fsrs_state !== State.New && x.next_due_at && Date.parse(x.next_due_at) < end.getTime()) n++;
-  }
-  return n;
-}
-
-export { makeScheduler, lessonRank };
+export { lessonRank };

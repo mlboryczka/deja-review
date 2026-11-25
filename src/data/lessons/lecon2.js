@@ -308,14 +308,14 @@ export const NOTES = [
     h: "3 · The near future",
     blocks: [
       { t: "lead", v: "To say what someone is going to do, put aller in the present before a second verb: *je vais voir*, \"I'm going to see\"." },
-      { t: "note", v: "Only aller changes with the person. The second verb stays in the infinitive, the form the dictionary gives: *voir*, \"to see\"." },
+      { t: "note", v: "Only aller changes with the person. The second verb stays in the infinitive: *voir*, \"to see\"." },
       { t: "pairs", head: ["French", "English"], v: [
         ["Qu'est-ce que tu vas faire ?", "What are you going to do?"],
         ["Nous allons dîner au restaurant", "We're going to have dinner at the restaurant"],
         ["Ils vont apprendre le français", "They're going to learn French"],
       ]},
       { t: "sub", v: "Putting a sentence in the near future" },
-      { t: "note", v: "Swap the verb for aller in the same form, then add the verb in its dictionary form: *il est fatigué*, \"he is tired\", becomes *il va être fatigué*, \"he is going to be tired\"." },
+      { t: "note", v: "Swap the verb for aller in the same form, then add the verb in the infinitive: *il est fatigué*, \"he is tired\", becomes *il va être fatigué*, \"he is going to be tired\"." },
       { t: "note", v: "When the verb is aller, you get aller twice: *Damien va à la plage*, \"Damien goes to the beach\", becomes *Damien va aller à la plage*, \"Damien is going to go to the beach\"." },
     ],
   },

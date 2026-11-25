@@ -435,9 +435,29 @@ console.log("\n  the Claude request");
   }
 }
 
+// A new card the deck already holds by the app's own rule ("frais (adj)" beside
+// "frais", "un fils" beside "le fils") is not added a second time; one the deck
+// lacks is. Stand-in rows only; nothing is written anywhere.
+{
+  const rule = { id: 900, user_id: "u", front: "Rule card", back: "a rule", category: "G", source: null, dates: [] };
+  const deckRows = [
+    { id: 900, front: "Rule card", back: "a rule", source: null },
+    { id: 2, front: "frais", back: "fresh", source: null },
+    { id: 3, front: "le fils", back: "the son", source: null },
+  ];
+  const plan = sort.planWrites(
+    { user_id: "u", items: [{ id: 900, front: "Rule card", back: "a rule", decision: "convert", newCards: [
+      { front: "frais (adj)", back: "fresh", category: "V" },
+      { front: "un fils", back: "the son", category: "V" },
+      { front: "la voile", back: "the sail", category: "V" },
+    ] }] },
+    new Map([["900", rule]]), deckRows);
+  ck("a new card the deck holds by the app's own rule is not added again",
+     plan.inserts.length === 1 && plan.inserts[0].front === "la voile" && plan.skips.length === 2,
+     JSON.stringify({ inserts: plan.inserts.map((c) => c.front), skips: plan.skips }));
+}
+
 ck("no request left the machine", outside === 0, `${outside} outside request(s)`);
 fs.rmSync(tmp, { recursive: true, force: true });
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

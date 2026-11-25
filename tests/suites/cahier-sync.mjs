@@ -439,6 +439,4 @@ console.log("\n  the daily check runs for Vercel's cron and nobody else");
 }
 
 claude.close();
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

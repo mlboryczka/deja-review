@@ -4,10 +4,15 @@ import { createPortal } from "react-dom";
 import { supabase } from "./supabase";
 import { T } from "./theme";
 import { CAT_UI_TO_DB } from "./lib/cardCategories";
-import { keyHeaders, BYOK_REQUIRED, BAD_KEY } from "./lib/anthropicKey";
-import { cleanFrenchPrompt } from "./lib/cardText";
-import { buildTutorContext, cardPrompt, cardAnswer } from "./lib/deckContext";
+import { keyHeaders, BYOK_REQUIRED, BAD_KEY, BILLING } from "./lib/anthropicKey";
+import { cleanFrenchPrompt, firstAnswer } from "./lib/cardText";
+import { cardIndex } from "./lib/sameCard";
+import { isArchived } from "./lib/archive";
+import { buildTutorContext, cardPrompt, cardAnswer, podcastAbout, podcastLabel, questionNumber, exerciseAbout, exerciseFocus, exerciseLabel } from "./lib/deckContext";
 import { readThread, writeThread } from "./lib/tutorThreads";
+import { courseOf } from "./lib/course";
+import { filesFrom, isPicture, draggingFiles, pasteHasText, shrinkImage } from "./lib/pastedImage";
+import { logCorrection, CORRECTION_CATEGORIES, CORRECTION_ACTIONS } from "./lib/parseCorrections";
 
 // "Ask the tutor" slide-over. Look a word or phrase up, get an explanation,
 // and add the cards Claude proposes straight into the deck.
@@ -30,11 +35,31 @@ import { readThread, writeThread } from "./lib/tutorThreads";
 //     replace that card's English rather than adding. Add used to upsert on
 //     (user_id, front), which quietly overwrote the card you had — its gloss,
 //     its category and its source — and then said "Added".
+//   • Asked to change a card you already have, the tutor changes it, through
+//     the endpoint the card editor uses, and says what the card said before
+//     with an Undo beside it. It used to answer that it had no way to edit
+//     cards and send you to the editor (owner, 2026-10-18): asking was the
+//     decision, so it is not put to you again as a button.
+//   • Asked to remove a card, the tutor removes it as the card editor's
+//     Remove does — out of study, its answers kept — with an Undo beside it.
+//     It used to answer that it could only edit cards (owner, 2026-10-28:
+//     "the tutor should be able to remove cards").
+//   • The Spanish module has the same panel (owner, 2026-10-26: "tutor needs
+//     to be added to spanish module"), with course="es": it asks the Spanish
+//     tutor (api/chat.js), adds and changes cards in the Spanish deck, keeps
+//     a thread of its own, and on Exercises is told the exercise on screen.
+//   • Screenshots go with a question, up to three: pasted, added with the
+//     paperclip by the box, or dropped anywhere on the page while the panel
+//     is open. Pasting used to be the only way, and a Mac screenshot is a
+//     file on the desktop, not something on the clipboard (owner,
+//     2026-11-01: "screenshots need to be able to be added to the tutor").
 //
 // Usage:
 //   <ChatPanel open={showChat} onClose={...} user={user} cards={userCards}
-//              currentCard={...} thread={{ id, rowId }}
-//              onCardAdded={addDeckCard} onCardUpdated={patchDeckCard} />
+//              currentCard={...} podcast={...} exercise={...} course="fr"
+//              thread={{ id, rowId }}
+//              onCardAdded={addDeckCard} onCardUpdated={patchDeckCard}
+//              onCardRemoved={dropDeckCard} />
 
 // Panel width. Exported because FlashcardApp reflows the app by exactly this
 // much when the panel is open on a wide screen, so the two must agree.
@@ -59,6 +84,10 @@ const CATEGORY_LABEL = {
 
 // How far the composer may grow before it scrolls instead.
 const COMPOSER_MAX_HEIGHT = 132;
+// Pictures sent with the history, newest first; the server keeps the same
+// number (api/chat.js MAX_IMAGES). Also the most one question can take.
+const MAX_SENT_IMAGES = 3;
+const PICTURE_WORDS = ["", "one", "two", "three"];
 
 // Smoothing the stream out.
 //
@@ -77,16 +106,32 @@ const SUGGESTIONS = [
   "How do I say \"I'm looking forward to it\"?",
   "When do I use the subjunctive after bien que?",
 ];
+const SPANISH_SUGGESTIONS = [
+  "What's the difference between ser and estar?",
+  "How do I say \"I'm looking forward to it\"?",
+  "When do I use por and when para?",
+];
 
 // Opened on a card, the useful first questions are about THAT card, and which
 // ones depends on where the student is with it. None of these is sent on its
 // own: every question costs the student's own credit.
-function suggestionsFor(card) {
-  if (!card?.f) return SUGGESTIONS;
+//
+// On Podcasts (the owner, and anyone on the test app, since 2026-10-19) they are about the passage being
+// answered, and before it is answered none of them asks for its meaning: the
+// passage IS the question, and the tutor won't translate it until it has
+// been answered (api/chat.js, "A podcast episode").
+//
+// On the Spanish Exercises (2026-10-26) they are about the item answered last
+// and the one with the cursor, and an item not yet answered gets a hint, never
+// its answer (api/chat.js, "An exercise").
+function suggestionsFor(card, podcast, exercise, spanish) {
+  if (!card?.f && podcast) return podcastSuggestions(podcast);
+  if (!card?.f && exercise) return exerciseSuggestions(exercise);
+  if (!card?.f) return spanish ? SPANISH_SUGGESTIONS : SUGGESTIONS;
   if (!card.answered) {
     return ["Give me a hint without the answer", "What kind of word am I looking for?"];
   }
-  if (card.result === "wrong" || card.result === "wrongArticle" || card.result === "revealed") {
+  if (card.result === "wrong" || card.result === "wrongArticle" || card.result === "wrongAccent" || card.result === "revealed") {
     return [
       card.result === "revealed" ? "Help me remember this one" : "Why was my answer wrong?",
       "Use it in a sentence",
@@ -94,6 +139,31 @@ function suggestionsFor(card) {
     ];
   }
   return ["Use it in a sentence", "Any related words worth knowing?", "When would I use this?"];
+}
+
+function podcastSuggestions(podcast) {
+  const p = podcast?.passage;
+  if (!p?.fr) return ["Explain a word from this episode", "Which phrase in this episode is worth learning?"];
+  if (!p.answered) return ["Give me a hint without translating it", "Explain a word in this passage"];
+  const reuse = "Use a phrase from this passage in a new sentence";
+  if (p.verdict === "partly") return ["Why was my answer only partly right?", reuse];
+  if (p.verdict === "missed") return ["What did I miss in this passage?", reuse];
+  return [reuse, "Explain the grammar in this passage"];
+}
+
+function exerciseSuggestions(exercise) {
+  const items = Array.isArray(exercise?.items) ? exercise.items : [];
+  const missed = (it) => it?.answered && (it.verdict === "wrong" || it.verdict === "almost");
+  const wrongIn = (it) => (missed(it) ? [`What did I get wrong in number ${it.number}?`] : []);
+  const itemAt = (n) => items.find((it) => it.number === n);
+  const focus = exerciseFocus(exercise);
+  // Opened with "Ask the tutor" under a missed answer, that answer comes first.
+  return [...new Set([
+    ...wrongIn(itemAt(exercise.asked)),
+    ...wrongIn(itemAt(exercise.last)),
+    ...(focus && !focus.answered ? [`Give me a hint for number ${focus.number} without the answer`] : wrongIn(focus)),
+    exercise?.number ? "Explain the rule this exercise practises" : "Explain the grammar in this sentence",
+  ])];
 }
 
 // Bold and italics, rendered. The prompt asks for plain prose, but a model
@@ -129,7 +199,7 @@ const frontKey = (front) => String(front || "").toLowerCase().trim();
 // One proposed card. Its own component so each chip owns its edit state —
 // hoisting that into ChatPanel would mean a keystroke in one chip re-rendering
 // the whole thread.
-function ProposedCard({ card, added, deckByFront, onAdd, onReplace }) {
+function ProposedCard({ card, added, findExisting, onAdd, onReplace, language = "French" }) {
   // Cleaned the same way the study view cleans it, so the chip shows what the
   // card will actually look like when you meet it.
   const [front, setFront] = useState(() => cleanFrenchPrompt(card.front, card.back));
@@ -145,7 +215,9 @@ function ProposedCard({ card, added, deckByFront, onAdd, onReplace }) {
   const isAdded = !!done;
   // Checked against the deck in the browser, not left to the model: it only
   // sees the handful of cards that share a word with the question.
-  const existing = isAdded ? null : deckByFront.get(frontKey(front)) || null;
+  // A glossed card the student has, like "tout d'un coup (suddenly)", counts
+  // too: the same sure rule the Podcasts page uses decides, not the exact text.
+  const existing = isAdded ? null : findExisting(front, back, card.front) || null;
   const sameBack = existing && existing.b.trim() === back.trim();
 
   return (
@@ -157,7 +229,7 @@ function ProposedCard({ card, added, deckByFront, onAdd, onReplace }) {
               style={S.chipEditFront}
               value={front}
               onChange={(e) => setFront(e.target.value)}
-              aria-label="Card front (French)"
+              aria-label={`Card front (${language})`}
             />
             <input
               style={S.chipEditBack}
@@ -218,10 +290,92 @@ function ProposedCard({ card, added, deckByFront, onAdd, onReplace }) {
   );
 }
 
+// What a change did, for the line under it.
+function editOutcome(edit) {
+  if (edit.remove) {
+    switch (edit.status) {
+      case "pending": return "Removing the card…";
+      case "done":
+      case "undoing": return "Removed from your deck. Your answers on it are kept.";
+      case "undone": return "Undone. The card is back in your deck.";
+      default: return `Not removed: ${edit.error || "something went wrong."}`;
+    }
+  }
+  const was = edit.oldFront && edit.oldFront !== edit.front
+    ? `${edit.oldFront} — ${edit.oldBack}`
+    : edit.oldBack;
+  switch (edit.status) {
+    case "pending": return "Changing your card…";
+    case "done":
+    case "undoing": return `Changed on your card. It said “${was}”.`;
+    case "undone": return "Undone. Your card is back as it was.";
+    default: return `Not changed: ${edit.error || "something went wrong."}`;
+  }
+}
+
+// One change the tutor made to a card the student has. Its own component for
+// the same reason as ProposedCard; it holds no state, the message does, so the
+// thread remembers what was done after the panel remounts.
+function EditedCard({ edit, onUndo }) {
+  const front = edit.front || edit.newFront || edit.target;
+  const back = edit.front ? edit.back : edit.newBack;
+  const undoable = edit.status === "done" || edit.status === "undoing";
+  return (
+    <div style={S.cardChip} data-edited-card data-edit-status={edit.status} data-edit-kind={edit.remove ? "remove" : "change"}>
+      <div style={S.chipMain}>
+        <div style={S.chipFront}>{front}</div>
+        {back ? <div style={S.chipBack}>{back}</div> : null}
+        <div style={S.chipMeta}>{editOutcome(edit)}</div>
+      </div>
+      {undoable && (
+        <div style={S.chipActions}>
+          <button
+            style={S.chipReplace}
+            onClick={() => onUndo(edit)}
+            disabled={edit.status === "undoing"}
+            title={edit.remove ? "Put the card back in your deck" : "Put the card back as it was"}
+          >
+            Undo
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// An edit as it goes back to the server with the thread, so the tutor's next
+// turn knows what it changed and whether the change stuck.
+function editReport(e) {
+  const was = e.oldFront ? `${e.oldFront} — ${e.oldBack}` : e.target;
+  const status = e.status === "undone" ? "undone" : e.status === "failed" ? "failed" : "done";
+  if (e.remove) return { was, now: "", status, removed: true };
+  const now = e.front
+    ? `${e.front} — ${e.back}`
+    : [e.newFront || e.target, e.newBack].filter(Boolean).join(" — ");
+  return { was, now, status };
+}
+
+let editSeq = 0;
+let pictureSeq = 0;
+
+// A question's pictures as the request carries them: the first `keep` whole,
+// without the copy the page shows them by, and a count of the rest.
+function picturesSent(images, keep = 0) {
+  const sent = images.slice(0, keep).map(({ media_type, data }) => ({ media_type, data }));
+  const dropped = images.length - sent.length;
+  return {
+    ...(sent.length ? { images: sent } : null),
+    ...(dropped ? { imagesDropped: dropped } : null),
+  };
+}
+
 export default function ChatPanel({
   open,
   onClose,
   user,
+  // Only the owner's edits go to the corrections ledger; the route refuses
+  // everyone else (api/parse-corrections.js).
+  logsCorrections = false,
   // The whole shaped deck, not a list of fronts. deckContext reads backs and
   // review history off these rows to tell the tutor what you already have and
   // what you keep missing.
@@ -231,6 +385,19 @@ export default function ChatPanel({
   // and `result`. Whether it has been answered decides what the header may
   // show and what the tutor may say.
   currentCard = null,
+  // On Podcasts (the owner, and anyone on the test app, since 2026-10-19), in place of a card: the episode on
+  // screen and the passage being answered, as the podcasts page describes
+  // them ({ key, episode, passage, transcript }, see lib/deckContext.js).
+  // Sent as the request's `context.podcast`. Null everywhere else.
+  podcast = null,
+  // On the Spanish Exercises (2026-10-26), in place of a card: the exercise
+  // being worked on, as the exercises page describes it ({ key, number,
+  // title, instruction, items, focus, last, … }, see lib/deckContext.js).
+  // Sent as the request's `context.exercise`. Null everywhere else.
+  exercise = null,
+  // "fr", or "es" in the Spanish module (lib/course.js): which tutor answers,
+  // which deck its cards go to, and which thread is kept.
+  course = "fr",
   // Bumped when the tutor is opened from a card ("Ask the tutor" after a
   // miss). A thread about a different card is put away for a fresh one.
   thread = null,
@@ -239,6 +406,9 @@ export default function ChatPanel({
   onCardAdded,
   // An existing card's back was replaced: (rowId, fields).
   onCardUpdated,
+  // A card was taken out of the deck at the tutor's hand: (rowId). Undo puts
+  // it back through onCardAdded, with its row.
+  onCardRemoved,
   // Opens the "connect your Claude account" dialog. The tutor spends money
   // per question and the server refuses without a key, so the error needs a
   // way out of itself rather than just an explanation.
@@ -252,12 +422,26 @@ export default function ChatPanel({
   // covered, every press on it was lost, the nav toggle included.
   sidebarWidth = 0,
 }) {
-  const threadKey = user?.id || "";
+  const lang = courseOf(course);
+  const spanish = lang.id === "es";
+  // On a Spanish card only the first of its answers is shown (lib/cardText.js),
+  // and the header shows the card as the card does.
+  const oneAnswer = spanish ? firstAnswer : (text) => text;
+  const threadKey = lang.store(user?.id) || "";
   const [messages, setMessages] = useState(() => readThread(threadKey));
   useEffect(() => { writeThread(threadKey, messages); }, [threadKey, messages]);
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
   const [input, setInput] = useState("");
+  // Pictures waiting to go with the next question, pasted, dropped or added
+  // with the paperclip: each { media_type, data, url } (see
+  // lib/pastedImage.js) and an id to key it by.
+  const [images, setImages] = useState([]);
+  const imagesRef = useRef(images);
+  imagesRef.current = images;
+  // Files are being dragged over the page.
+  const [dragging, setDragging] = useState(false);
+  const fileInputRef = useRef(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   // "byok_required" when the server refused for want of a key, "bad_key" when
@@ -277,6 +461,33 @@ export default function ChatPanel({
     for (const c of cards) if (c?.f) m.set(frontKey(c.f), c);
     return m;
   }, [cards]);
+  // The card the student already has for a proposal, or null: the same French
+  // as written (also with the English in brackets cleaned off the stored one),
+  // else the sure rule of lib/sameCard.js.
+  const findExisting = useMemo(() => {
+    const byClean = new Map();
+    const rows = [];
+    for (const c of cards) {
+      if (!c?.f) continue;
+      byClean.set(frontKey(cleanFrenchPrompt(c.f, c.b)), c);
+      rows.push({ front: c.f, back: c.b || "", source: c.source, card: c });
+    }
+    let index = null;
+    return (front, back, rawFront) => {
+      const exact = deckByFront.get(frontKey(front)) || deckByFront.get(frontKey(rawFront)) || byClean.get(frontKey(front));
+      if (exact) return exact;
+      try {
+        index = index || cardIndex(rows, { language: lang.id === "es" ? "es" : "fr" });
+        return index.sure({ front, back: String(back || "") })?.card || null;
+      } catch {
+        return null;
+      }
+    };
+  }, [cards, deckByFront, lang.id]);
+  // The deck as it is when an edit lands, not as it was when the question
+  // was sent: a card added from this chat a moment ago is one to edit.
+  const cardsRef = useRef(cards);
+  cardsRef.current = cards;
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
   const panelRef = useRef(null);
@@ -336,9 +547,15 @@ export default function ChatPanel({
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, sending]);
 
+  // Opening the tutor: the panel is not in the page until `mounted` is set, so
+  // this waits for `mounted` too, then puts the cursor in the box and shows the
+  // newest message (the effects above ran while there was no panel to act on).
   useEffect(() => {
-    if (open) inputRef.current?.focus();
-  }, [open]);
+    if (!open || !mounted) return;
+    inputRef.current?.focus();
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [open, mounted]);
 
   // NOTHING ELSE CLOSES THIS PANEL. Only the ✕ and the TUTOR nav item.
   //
@@ -435,38 +652,210 @@ export default function ChatPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [thread?.id]);
 
+  // Rewrite one edit wherever it sits in the thread. An edit's save finishes
+  // after its answer, and the thread may have moved on by then; one that
+  // New chat has cleared is simply not found.
+  const patchEdit = useCallback((key, fields) => {
+    setMessages((prev) =>
+      prev.some((m) => m.edits?.some((e) => e.key === key))
+        ? prev.map((m) =>
+            m.edits?.some((e) => e.key === key)
+              ? { ...m, edits: m.edits.map((e) => (e.key === key ? { ...e, ...fields } : e)) }
+              : m
+          )
+        : prev
+    );
+  }, []);
+
+  // The card editor's own save (FlashcardApp's saveCardEdit): the same
+  // endpoint, which checks the card is the caller's, and the same entry in
+  // the corrections ledger. Only the French and English change; the card's
+  // answers and schedule are its own and stay. A Spanish card is changed in
+  // the Spanish deck, and logged in its ledger, as the card editor does.
+  // Removing a card, and putting it back, go to the same endpoint as an
+  // `action`.
+  const postCard = useCallback(async (body) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch("/api/admin-update-card", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session?.access_token || ""}`,
+      },
+      body: JSON.stringify({ ...body, ...(spanish ? { course: "es" } : null) }),
+    });
+    if (!res.ok) {
+      let msg = `HTTP ${res.status}`;
+      try { msg = (await res.json()).error || msg; } catch { /* not JSON */ }
+      throw new Error(msg);
+    }
+    return res.json().catch(() => ({}));
+  }, [spanish]);
+  const writeCard = useCallback(
+    (rowId, originalFront, front, back) => postCard({ row_id: rowId, original_front: originalFront, front, back }),
+    [postCard]
+  );
+
+  const applyEdit = useCallback(
+    async (edit) => {
+      const key = frontKey(edit.target);
+      const deck = cardsRef.current;
+      // By the stored French first; then by the French as the card face shows
+      // it, which is what the tutor sees of the card on screen when its gloss
+      // is stripped.
+      const card =
+        deck.find((c) => c?.f && frontKey(c.f) === key) ||
+        deck.find((c) => c?.f && frontKey(cleanFrenchPrompt(c.f, c.b)) === key) ||
+        null;
+      if (!card || card.row_id == null) {
+        return patchEdit(edit.key, { status: "failed", error: "that card isn't in your deck." });
+      }
+      // Removed as the card editor's Remove removes it (api/_lib/removeCard.js).
+      // Not logged in the corrections ledger, as a change is: the notes checks
+      // read every logged deletion as a class Claude misread, and a card taken
+      // out here may be a lesson's, or one from this chat, or not wanted yet.
+      // The card itself remembers that it was removed.
+      if (edit.remove) {
+        const was = { rowId: card.row_id, oldFront: card.f, oldBack: card.b, front: card.f, back: card.b };
+        try {
+          await postCard({ action: "remove", row_id: card.row_id });
+          onCardRemoved?.(card.row_id);
+          patchEdit(edit.key, { ...was, status: "done" });
+        } catch (e) {
+          console.error("Tutor removal failed:", e);
+          patchEdit(edit.key, { ...was, status: "failed", error: e.message || "something went wrong." });
+        }
+        return;
+      }
+      const front = edit.newFront || card.f;
+      const back = edit.newBack || card.b;
+      const was = { rowId: card.row_id, oldFront: card.f, oldBack: card.b, front, back };
+      if (front === card.f && back === card.b) {
+        return patchEdit(edit.key, { ...was, status: "failed", error: "your card already says this." });
+      }
+      try {
+        await writeCard(card.row_id, card.f, front, back);
+        onCardUpdated?.(card.row_id, { f: front, b: back, id: frontKey(front), flagged: false });
+        if (logsCorrections) logCorrection({
+          category: front !== card.f ? CORRECTION_CATEGORIES.FRONT_TEXT_EDIT : CORRECTION_CATEGORIES.BACK_TEXT_EDIT,
+          action: CORRECTION_ACTIONS.EDIT,
+          card_id: card.row_id,
+          batch_id: card.batch_id || null,
+          original_front: card.f,
+          original_back: card.b,
+          corrected_front: front,
+          corrected_back: back,
+          notes: "Changed by the tutor, at the student's request",
+          ...(spanish ? { course: "es" } : null),
+        });
+        patchEdit(edit.key, { ...was, status: "done" });
+      } catch (e) {
+        console.error("Tutor edit failed:", e);
+        patchEdit(edit.key, { ...was, status: "failed", error: e.message || "something went wrong." });
+      }
+    },
+    [patchEdit, postCard, writeCard, onCardUpdated, onCardRemoved, spanish]
+  );
+
+  const undoEdit = useCallback(
+    async (edit) => {
+      if (edit.rowId == null) return;
+      setError(""); setErrorCode("");
+      patchEdit(edit.key, { status: "undoing" });
+      if (edit.remove) {
+        try {
+          const { row } = await postCard({ action: "restore", row_id: edit.rowId });
+          onCardAdded?.(row || null);
+          patchEdit(edit.key, { status: "undone" });
+        } catch (e) {
+          console.error("Undoing tutor removal failed:", e);
+          patchEdit(edit.key, { status: "done" });
+          setError(`Couldn't put "${edit.front}" back: ${e.message || "unknown error"}`); setErrorCode("");
+        }
+        return;
+      }
+      try {
+        await writeCard(edit.rowId, edit.front, edit.oldFront, edit.oldBack);
+        onCardUpdated?.(edit.rowId, { f: edit.oldFront, b: edit.oldBack, id: frontKey(edit.oldFront) });
+        if (logsCorrections) logCorrection({
+          category: edit.oldFront !== edit.front ? CORRECTION_CATEGORIES.FRONT_TEXT_EDIT : CORRECTION_CATEGORIES.BACK_TEXT_EDIT,
+          action: CORRECTION_ACTIONS.EDIT,
+          card_id: edit.rowId,
+          original_front: edit.front,
+          original_back: edit.back,
+          corrected_front: edit.oldFront,
+          corrected_back: edit.oldBack,
+          notes: "The student undid the tutor's change",
+          ...(spanish ? { course: "es" } : null),
+        });
+        patchEdit(edit.key, { status: "undone" });
+      } catch (e) {
+        console.error("Undoing tutor edit failed:", e);
+        patchEdit(edit.key, { status: "done" });
+        setError(`Couldn't undo the change to "${edit.front}": ${e.message || "unknown error"}`); setErrorCode("");
+      }
+    },
+    [patchEdit, postCard, writeCard, onCardAdded, onCardUpdated, spanish]
+  );
+
   const send = useCallback(
-    async (text) => {
+    async (text, fromChip = false) => {
       const trimmed = (text ?? input).trim();
-      if (!trimmed || sending) return;
+      if ((!trimmed && !images.length) || sending) return;
+      const pictures = images;
 
       setError("");
       setErrorCode("");
       setInput("");
+      setImages([]);
       setAnnouncement("");
       // Sent with the button, focus went to it — and the button disables
       // while the answer streams, which drops focus to the page. The next
       // question belongs in the box.
       inputRef.current?.focus();
-      const previousQuestion = [...messages].reverse().find((m) => m.role === "user")?.content;
-      const nextMessages = [
-        ...messages,
-        {
+      // A suggestion button's own words never pick cards for the tutor
+      // ("Give me a hint without the answer" matched sans): they are left out
+      // here and below, and the card on screen carries those questions.
+      const previousQuestion = [...messages].reverse().find((m) => m.role === "user" && !m.chip)?.content;
+      // A tag on this question and its answer bubble, so a failure takes back
+      // only these two and leaves anything else that changed meanwhile.
+      const reqId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const userMsg = {
+          reqId,
           role: "user",
+          ...(fromChip ? { chip: true } : null),
           content: trimmed,
           // What the card showed when this was asked — its prompt, never its
           // answer. Sent back with every later turn so a follow-up still knows
-          // what "why?" was about.
-          about: currentCard?.f ? cardPrompt(currentCard) : "",
-          rowId: currentCard?.row_id ?? null,
-        },
-      ];
+          // what "why?" was about. On Podcasts, the episode and the start of
+          // the passage; its key (pod:<episode>:<passage>) does what a card's
+          // row id does, so opening the tutor on another passage starts a
+          // fresh thread rather than turn nine of this one. On Exercises, the
+          // exercise and the item with the cursor, keyed the same way
+          // (ex:<lesson>/<exercise>/<item>).
+          about: currentCard?.f ? oneAnswer(cardPrompt(currentCard))
+            : podcast ? podcastAbout(podcast)
+            : exercise ? exerciseAbout(exercise)
+            : "",
+          rowId: currentCard?.row_id ?? podcast?.key ?? exercise?.key ?? null,
+          ...(pictures.length ? { images: pictures } : null),
+      };
+      const nextMessages = [...messages, userMsg];
+      // Only the latest few pictures go back with the history; an older one
+      // goes as a count of what was there, so a long thread of screenshots
+      // stays under the 4.5 MB a request to Vercel may carry.
+      const keepPictures = new Map();
+      let room = MAX_SENT_IMAGES;
+      for (const m of [...nextMessages].reverse()) {
+        if (!m.images?.length) continue;
+        const keep = Math.min(room, m.images.length);
+        keepPictures.set(m, keep);
+        room -= keep;
+      }
       // The empty assistant bubble is what fills in as tokens arrive, so it
       // goes in before the request rather than after it.
-      setMessages([
-        ...nextMessages,
-        { role: "assistant", content: "", cards: [], streaming: true },
-      ]);
+      const bubble = { reqId, role: "assistant", content: "", cards: [], streaming: true };
+      setMessages([...nextMessages, bubble]);
       setSending(true);
 
       const controller = new AbortController();
@@ -494,6 +883,8 @@ export default function ChatPanel({
           },
           signal: controller.signal,
           body: JSON.stringify({
+            // The Spanish tutor, in the Spanish module.
+            ...(spanish ? { course: "es" } : null),
             // The prose, plus what grounded each turn: the card a question was
             // asked about, and the fronts and backs an answer proposed — so
             // "change the second card" can be answered. Notes stay client-side.
@@ -501,13 +892,15 @@ export default function ChatPanel({
               role: m.role,
               content: m.content,
               ...(m.about ? { about: m.about } : null),
+              ...(m.images?.length ? picturesSent(m.images, keepPictures.get(m)) : null),
               ...(m.cards?.length
                 ? { cards: m.cards.map((c) => ({ front: c.front, back: c.back })) }
                 : null),
+              ...(m.edits?.length ? { edits: m.edits.map(editReport) } : null),
             })),
             // Rebuilt from scratch every turn against the question just asked,
             // so it never accumulates in the thread.
-            context: buildTutorContext({ question: trimmed, previousQuestion, cards, currentCard }),
+            context: buildTutorContext({ question: fromChip ? "" : trimmed, previousQuestion, cards, currentCard, podcast, exercise, course: lang.id }),
           }),
         });
 
@@ -534,6 +927,7 @@ export default function ChatPanel({
         const decoder = new TextDecoder();
         let buffer = "";
         let streamError = null;
+        let edits = [];
 
         // SSE frames are separated by a blank line and can be split across
         // network chunks, so hold the tail back until its terminator arrives.
@@ -560,6 +954,8 @@ export default function ChatPanel({
               drain();
             } else if (event.type === "cards") {
               updateLast((m) => ({ ...m, cards: event.cards || [] }));
+            } else if (event.type === "edits") {
+              edits = Array.isArray(event.edits) ? event.edits : [];
             } else if (event.type === "error") {
               streamError = event;
             } else if (event.type === "done") {
@@ -569,6 +965,9 @@ export default function ChatPanel({
         }
 
         await drained();
+        // New chat came while the last of the answer was still appearing: that
+        // answer is dropped with its card changes, as in the catch below.
+        if (threadGenRef.current !== gen) return;
         updateLast((m) => ({ ...m, streaming: false }));
         if (streamError) {
           // A key Anthropic rejects can only surface once generation has
@@ -584,6 +983,20 @@ export default function ChatPanel({
         if (!gotDone) throw new Error("The answer was cut off before it finished. Try asking again.");
         if (!gotText) throw new Error("The tutor returned nothing. Try rephrasing.");
         setAnnouncement(plainText(full));
+        // Made only once the answer is whole, so a change never lands under
+        // an answer that broke off before saying what it was changing.
+        if (edits.length) {
+          const made = edits.map((e) => ({
+            key: `edit-${++editSeq}`,
+            target: String(e.front || ""),
+            newFront: String(e.newFront || ""),
+            newBack: String(e.newBack || ""),
+            ...(e.remove === true ? { remove: true } : null),
+            status: "pending",
+          }));
+          updateLast((m) => ({ ...m, edits: made }));
+          made.forEach(applyEdit);
+        }
       } catch (e) {
         // Superseded by New chat: that thread is gone, leave the new one alone.
         if (threadGenRef.current !== gen) return;
@@ -594,7 +1007,7 @@ export default function ChatPanel({
         if (e.name === "AbortError") {
           stopDrain();
           if (gotText) updateLast((m) => ({ ...m, streaming: false }));
-          else setMessages(messages);
+          else setMessages((prev) => prev.filter((m) => m.reqId !== reqId));
           return;
         }
         stopDrain();
@@ -607,22 +1020,129 @@ export default function ChatPanel({
         } else {
           // Nothing arrived: drop the empty bubble and put the question back
           // in the box so it isn't lost to a network blip.
-          setInput(trimmed);
-          setMessages(messages);
+          // Only what this request added is taken back; the box and pictures
+          // come back only if the student has not typed or added anything since.
+          setInput((cur) => cur || trimmed);
+          if (pictures.length) setImages((cur) => (cur.length ? cur : pictures));
+          setMessages((prev) => prev.filter((m) => m.reqId !== reqId));
         }
       } finally {
         setSending(false);
         abortRef.current = null;
       }
     },
-    [input, sending, messages, cards, currentCard, user, updateLast, drain, drained, stopDrain]
+    [input, images, sending, messages, cards, currentCard, podcast, exercise, spanish, lang.id, user, updateLast, drain, drained, stopDrain, applyEdit]
   );
+
+  // Pictures pasted, dropped or picked are shrunk and held above the box
+  // until the question goes, up to MAX_SENT_IMAGES; past that, a line says
+  // the rest were left out.
+  const addPictures = useCallback(async (files) => {
+    const pictures = files.filter(isPicture);
+    if (!pictures.length) {
+      if (files.length) setError("Only a picture can go with a question, such as a screenshot.");
+      return;
+    }
+    setError("");
+    setErrorCode("");
+    const room = MAX_SENT_IMAGES - imagesRef.current.length;
+    const most = `A question can take ${PICTURE_WORDS[MAX_SENT_IMAGES]} pictures at most`;
+    if (room <= 0) {
+      setError(`${most}.`);
+      return;
+    }
+    const shrunk = [];
+    for (const file of pictures.slice(0, room)) {
+      try {
+        shrunk.push({ ...(await shrinkImage(file)), id: ++pictureSeq });
+      } catch (err) {
+        setError(err?.message || "That picture couldn't be read.");
+      }
+    }
+    if (pictures.length > room) setError(`${most}, so the rest were left out.`);
+    if (shrunk.length) {
+      setImages((prev) => [...prev, ...shrunk].slice(0, MAX_SENT_IMAGES));
+      inputRef.current?.focus();
+    }
+  }, []);
+
+  // A picture pasted while the panel is open is for the tutor, wherever the
+  // cursor was, unless the feedback form, which takes screenshots of its
+  // own, took it. Text pasted with it still lands where it was pasted.
+  useEffect(() => {
+    if (!open) return;
+    const onPaste = (e) => {
+      if (e.defaultPrevented || e.target?.closest?.("[data-feedback-sheet]")) return;
+      const files = filesFrom(e.clipboardData);
+      if (!files.length) return;
+      if (!pasteHasText(e)) e.preventDefault();
+      addPictures(files);
+    };
+    document.addEventListener("paste", onPaste);
+    return () => document.removeEventListener("paste", onPaste);
+  }, [open, addPictures]);
+
+  // A screenshot dropped anywhere on the page goes with the question: a file
+  // from the desktop, or the thumbnail a Mac screenshot leaves in the corner
+  // of the screen. A dropped file used to open in the tab in place of the
+  // app. The feedback form's own drop still goes to it.
+  useEffect(() => {
+    if (!open) return;
+    // Every element the drag crosses gets an enter and a leave; at zero it
+    // has left the window. A drag also sends a move several times a second,
+    // even held still, so a second without one means it is over, however
+    // it ended: the outline never stays up over the thread.
+    let depth = 0;
+    let idle = 0;
+    const done = () => {
+      depth = 0;
+      clearTimeout(idle);
+      setDragging(false);
+    };
+    // The feedback form's drop, and the notes upload's, are their own.
+    const theirs = (e) => e.defaultPrevented || !!e.target?.closest?.("[data-feedback-sheet]");
+    const onEnter = (e) => {
+      if (!draggingFiles(e)) return;
+      depth += 1;
+      setDragging(!theirs(e));
+    };
+    const onLeave = (e) => {
+      if (!draggingFiles(e)) return;
+      depth = Math.max(0, depth - 1);
+      if (!depth) done();
+    };
+    const onOver = (e) => {
+      if (!draggingFiles(e)) return;
+      clearTimeout(idle);
+      idle = setTimeout(done, 1000);
+      if (theirs(e)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+    };
+    const onDrop = (e) => {
+      done();
+      if (!draggingFiles(e) || theirs(e)) return;
+      e.preventDefault();
+      addPictures(filesFrom(e.dataTransfer));
+    };
+    window.addEventListener("dragenter", onEnter);
+    window.addEventListener("dragleave", onLeave);
+    window.addEventListener("dragover", onOver);
+    window.addEventListener("drop", onDrop);
+    return () => {
+      window.removeEventListener("dragenter", onEnter);
+      window.removeEventListener("dragleave", onLeave);
+      window.removeEventListener("dragover", onOver);
+      window.removeEventListener("drop", onDrop);
+      done();
+    };
+  }, [open, addPictures]);
 
   const addCard = useCallback(
     async (card) => {
       if (!user) return;
       const key = frontKey(card.front);
-      setError("");
+      setError(""); setErrorCode("");
       const row = {
         user_id: user.id,
         front: card.front,
@@ -633,18 +1153,37 @@ export default function ChatPanel({
         // The column defaults to '[]'.
         source: "tutor-chat",
       };
+      // The Spanish module's deck is es_user_cards (migration_020).
+      const table = lang.table("user_cards");
       try {
         // An INSERT, not an upsert. The chip has already checked the deck for
         // this front, so a card that exists never gets here — it is offered
         // as Replace instead.
-        let { data, error: insErr } = await supabase.from("user_cards").insert(row).select();
+        let { data, error: insErr } = await supabase.from(table).insert(row).select();
         // The one card the deck in memory can't show: an archived one, whose
         // row still holds the (user_id, front) slot. Adding it again is how
         // an archived card comes back (see lib/archive.js), so that conflict
         // alone falls through to the upsert, which clears the archived source.
         if (insErr?.code === "23505") {
+          // Only a card that is put away may be written over. A live card the
+          // deck in memory did not show (a failed reload, a card added by
+          // the class notes since) is the student's own, with its schedule
+          // and history: leave it, reload the deck, and let the chip offer
+          // Replace.
+          const { data: held, error: readErr } = await supabase
+            .from(table)
+            .select("id, source")
+            .eq("user_id", user.id)
+            .eq("front", card.front)
+            .limit(1);
+          if (readErr) throw readErr;
+          if (held?.[0] && !isArchived(held[0])) {
+            onCardAdded?.(null);
+            setError(`You already have "${card.front}". Your deck is reloading; use Replace to change its English.`); setErrorCode("");
+            return;
+          }
           ({ data, error: insErr } = await supabase
-            .from("user_cards")
+            .from(table)
             .upsert(row, { onConflict: "user_id,front" })
             .select());
         }
@@ -653,10 +1192,10 @@ export default function ChatPanel({
         onCardAdded?.(Array.isArray(data) ? data[0] || null : null);
       } catch (e) {
         console.error("Add card failed:", e);
-        setError(`Couldn't add "${card.front}": ${e.message || "unknown error"}`);
+        setError(`Couldn't add "${card.front}": ${e.message || "unknown error"}`); setErrorCode("");
       }
     },
-    [user, onCardAdded]
+    [user, onCardAdded, lang]
   );
 
   // Replace the English on a card the student already has. Only the back
@@ -666,7 +1205,7 @@ export default function ChatPanel({
   const replaceBack = useCallback(
     async (existing, back) => {
       if (!user || existing?.row_id == null) return;
-      setError("");
+      setError(""); setErrorCode("");
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const res = await fetch("/api/admin-update-card", {
@@ -675,7 +1214,7 @@ export default function ChatPanel({
             "Content-Type": "application/json",
             Authorization: `Bearer ${session?.access_token || ""}`,
           },
-          body: JSON.stringify({ row_id: existing.row_id, front: existing.f, back }),
+          body: JSON.stringify({ row_id: existing.row_id, front: existing.f, back, ...(spanish ? { course: "es" } : null) }),
         });
         if (!res.ok) {
           let msg = `HTTP ${res.status}`;
@@ -686,10 +1225,10 @@ export default function ChatPanel({
         onCardUpdated?.(existing.row_id, { b: back });
       } catch (e) {
         console.error("Replace card failed:", e);
-        setError(`Couldn't update "${existing.f}": ${e.message || "unknown error"}`);
+        setError(`Couldn't update "${existing.f}": ${e.message || "unknown error"}`); setErrorCode("");
       }
     },
-    [user, onCardUpdated]
+    [user, onCardUpdated, spanish]
   );
 
   // The box starts at one line and grows with what you type, to a cap. It was
@@ -750,8 +1289,30 @@ export default function ChatPanel({
                 the card has shown it. */}
             {currentCard?.f && (
               <div style={S.contextChip} data-tutor-context>
-                {cardPrompt(currentCard)}
-                {currentCard.answered ? ` — ${cardAnswer(currentCard)}` : ""}
+                {oneAnswer(cardPrompt(currentCard))}
+                {currentCard.answered ? ` — ${oneAnswer(cardAnswer(currentCard))}` : ""}
+              </div>
+            )}
+            {/* On Podcasts: the passage being answered, in French as it is on
+                screen, or the episode when no passage is. Its own marker, so
+                nothing that reads the card's chip mistakes it for one. The
+                episode's name is on hover. */}
+            {!currentCard?.f && podcast && (podcast.passage?.fr || podcastLabel(podcast)) && (
+              <div
+                style={S.contextChip}
+                data-tutor-podcast={podcast.key || ""}
+                title={podcastLabel(podcast) || undefined}
+              >
+                {podcast.passage?.fr
+                  ? `${questionNumber(podcast.passage) ? `Question ${questionNumber(podcast.passage)}: ` : ""}« ${podcast.passage.fr} »`
+                  : podcastLabel(podcast)}
+              </div>
+            )}
+            {/* On the Spanish Exercises: the exercise, and the item with the
+                cursor as the page numbers it. The lesson is on hover. */}
+            {!currentCard?.f && !podcast && exercise?.items?.length > 0 && (
+              <div style={S.contextChip} data-tutor-exercise={exercise.key || ""} title={exercise.lesson || undefined}>
+                {exerciseLabel(exercise)}
               </div>
             )}
           </div>
@@ -775,8 +1336,8 @@ export default function ChatPanel({
           <div style={S.threadFoot}>
           {messages.length === 0 && (
             <div style={S.empty}>
-              {suggestionsFor(currentCard).map((s) => (
-                <button key={s} style={S.suggestion} onClick={() => send(s)}>
+              {suggestionsFor(currentCard, podcast, exercise, spanish).map((s) => (
+                <button key={s} style={S.suggestion} onClick={() => send(s, true)}>
                   {s}
                 </button>
               ))}
@@ -798,6 +1359,19 @@ export default function ChatPanel({
                   </span>
                 ) : (
                   <>
+                    {m.images?.length > 0 && (
+                      <div style={S.bubbleImages}>
+                        {m.images.map((img) => (
+                          <img
+                            key={img.id}
+                            src={img.url}
+                            alt="Your picture"
+                            style={m.images.length > 1 ? S.bubbleImageSmall : S.bubbleImage}
+                            data-tutor-image
+                          />
+                        ))}
+                      </div>
+                    )}
                     {m.role === "user" ? m.content : renderInline(m.content)}
                     {/* A caret while text is still arriving, so an answer
                         mid-generation doesn't read as one that has finished. */}
@@ -812,10 +1386,18 @@ export default function ChatPanel({
                       key={j}
                       card={c}
                       added={added}
-                      deckByFront={deckByFront}
+                      findExisting={findExisting}
                       onAdd={addCard}
                       onReplace={replaceBack}
+                      language={lang.language}
                     />
+                  ))}
+                </div>
+              )}
+              {m.edits?.length > 0 && (
+                <div style={S.cardList}>
+                  {m.edits.map((e) => (
+                    <EditedCard key={e.key} edit={e} onUndo={undoEdit} />
                   ))}
                 </div>
               )}
@@ -828,37 +1410,97 @@ export default function ChatPanel({
         {error && (
           <div style={S.error}>
             {error}
-            {(errorCode === BYOK_REQUIRED || errorCode === BAD_KEY) && onNeedKey && (
+            {(errorCode === BYOK_REQUIRED || errorCode === BAD_KEY || errorCode === BILLING) && onNeedKey && (
               <button style={S.errorAction} onClick={onNeedKey}>
-                {errorCode === BAD_KEY ? "Update your key" : "Connect Claude account"}
+                {errorCode === BAD_KEY ? "Update your key" : errorCode === BILLING ? "Check your key" : "Connect Claude account"}
               </button>
             )}
           </div>
         )}
 
-        <div style={S.composer}>
+        {images.length > 0 && (
+          <div style={S.pasted} data-tutor-pasted>
+            {images.map((img) => (
+              <div key={img.id} style={S.pastedItem}>
+                <img src={img.url} alt="A picture waiting to go with your question" style={S.pastedImage} />
+                <button
+                  style={S.pastedRemove}
+                  onClick={() => setImages((prev) => prev.filter((p) => p.id !== img.id))}
+                  aria-label="Remove this picture"
+                  title="Remove this picture"
+                  data-tutor-pasted-remove
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            <span style={S.pastedNote}>
+              {images.length === 1
+                ? "This picture goes with your question."
+                : `These ${PICTURE_WORDS[images.length]} pictures go with your question.`}
+            </span>
+          </div>
+        )}
+        <div style={images.length ? { ...S.composer, borderTop: "none", paddingTop: 10 } : S.composer}>
+          <button
+            type="button"
+            style={S.attach}
+            onClick={() => fileInputRef.current?.click()}
+            aria-label="Add a screenshot"
+            title="Add a screenshot. You can also paste one, or drop it on the page."
+            data-tutor-attach
+          >
+            <PaperclipIcon />
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={(e) => { addPictures(Array.from(e.target.files || [])); e.target.value = ""; }}
+            style={{ display: "none" }}
+            data-tutor-file
+          />
           <textarea
             ref={inputRef}
             style={S.input}
             value={input}
             onChange={(e) => { setInput(e.target.value); grow(e.target); }}
             onKeyDown={onKeyDown}
-            placeholder="Ask about a word or phrase…"
+            // On one line beside the paperclip; a phone's box has room for
+            // less (html.phone, set by FlashcardApp).
+            placeholder={document.documentElement.classList.contains("phone")
+              ? "Ask about a word…"
+              : "Ask about a word, or add a screenshot…"}
             rows={1}
           />
           <button
-            style={sending || !input.trim() ? S.sendDisabled : S.send}
+            style={sending || (!input.trim() && !images.length) ? S.sendDisabled : S.send}
             onClick={() => send()}
-            disabled={sending || !input.trim()}
+            disabled={sending || (!input.trim() && !images.length)}
           >
             Send
           </button>
         </div>
+        {dragging && (
+          <div style={S.dropZone} data-tutor-drop>
+            Drop the screenshot to add it to your question
+          </div>
+        )}
       </aside>
     </div>,
     document.body
   );
 }
+
+// The feedback form's paperclip (BetaFeedback.jsx), which adds a screenshot
+// there too.
+const PaperclipIcon = () => (
+  <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
+    strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none" }} aria-hidden="true">
+    <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+  </svg>
+);
 
 const S = {
   // pointerEvents none so that in reflow mode the app beside the panel stays
@@ -1122,6 +1764,91 @@ const S = {
     color: T.color.onErrorContainer,
     borderRadius: T.radius.md,
     fontSize: 12,
+  },
+  // The pictures waiting above the box, each with its ✕.
+  pasted: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "12px 20px 0",
+    borderTop: "1px solid rgba(3,22,50,0.06)",
+  },
+  pastedItem: { position: "relative", flexShrink: 0 },
+  pastedImage: {
+    display: "block",
+    width: 56,
+    height: 56,
+    objectFit: "cover",
+    borderRadius: T.radius.sm,
+    border: "1px solid rgba(3,22,50,0.1)",
+  },
+  pastedNote: { flex: 1, minWidth: 0, fontSize: 12.5, color: T.color.onSurfaceVariant, fontFamily: T.font.sans },
+  pastedRemove: {
+    position: "absolute",
+    top: -7,
+    right: -7,
+    width: 20,
+    height: 20,
+    padding: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: T.color.primary,
+    color: T.color.onPrimary,
+    border: `2px solid ${T.color.surface}`,
+    borderRadius: "50%",
+    fontSize: 13,
+    lineHeight: 1,
+    fontFamily: T.font.sans,
+    cursor: "pointer",
+  },
+  // The pictures in your own message, above what you typed with them.
+  bubbleImages: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 },
+  bubbleImage: {
+    display: "block",
+    maxWidth: "100%",
+    maxHeight: 220,
+    borderRadius: T.radius.sm,
+  },
+  bubbleImageSmall: {
+    display: "block",
+    height: 96,
+    maxWidth: "100%",
+    objectFit: "cover",
+    borderRadius: T.radius.sm,
+  },
+  // The paperclip, the box's height and ground so the three read as one row.
+  attach: {
+    width: 40,
+    flexShrink: 0,
+    padding: 0,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: T.color.surfaceHigh,
+    color: T.color.onSurfaceVariant,
+    border: "1px solid rgba(3,22,50,0.08)",
+    borderRadius: T.radius.md,
+    cursor: "pointer",
+  },
+  // Over the panel while a screenshot is dragged across the page.
+  dropZone: {
+    position: "absolute",
+    inset: 12,
+    zIndex: 2,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+    textAlign: "center",
+    background: "rgba(255,255,255,0.92)",
+    border: `2px dashed ${T.color.secondary}`,
+    borderRadius: T.radius.lg,
+    color: T.color.primary,
+    fontSize: 15,
+    fontWeight: 600,
+    fontFamily: T.font.sans,
+    pointerEvents: "none",
   },
   composer: {
     display: "flex",

@@ -278,13 +278,16 @@ const ENDINGS = [
   ["t", "tte"], ["n", "nne"], ["s", "sse"], ["c", "che"], ["c", "que"], ["c", "cque"], ["x", "se"], ["x", "sse"],
   ["x", "ce"], ["g", "gue"], ["eau", "elle"], ["ou", "olle"], ["al", "aux"], ["ail", "aux"], ["is", "iche"],
 ];
-export function formsOfOneWord(a, b) {
-  const x = looseKey(a);
-  const y = looseKey(b);
+// Spanish gender and number pairs: "caro" and "cara", "invitados" and
+// "invitadas", "profesor" and "profesora".
+const ENDINGS_ES = [["o", "a"], ["os", "as"], ["or", "ora"], ["ores", "oras"], ["", "s"], ["", "es"]];
+export function formsOfOneWord(a, b, language = "fr") {
+  const x = looseKeyFor(language)(a);
+  const y = looseKeyFor(language)(b);
   if (!x || !y) return false;
   // The same, or a number in digits beside its word ("15 = quinze").
   if (x === y || /^\d+$/.test(x) || /^\d+$/.test(y)) return true;
-  const ends = (m, f) => ENDINGS.some(([from, to]) => {
+  const ends = (m, f) => (language === "es" ? ENDINGS_ES : ENDINGS).some(([from, to]) => {
     const stem = m.length - from.length;
     return m.endsWith(from) && stem >= (from ? 1 : 2) && `${m.slice(0, stem)}${to}` === f;
   });
@@ -295,11 +298,15 @@ export function formsOfOneWord(a, b) {
 // accents, articles and brackets set aside, is one of the list's items.
 // "après" (after) and "ensuite / après" (then / afterwards), which the sure
 // rule leaves to Claude. Whether it is the same card is Claude's to say.
-export function isNearListPart(card, list) {
+// `language` "es" compares the Spanish way, with the Spanish articles set
+// aside (spanishLooseKey): "una niña" is an item of "la niña / la chica" as
+// "une voiture" is of "la voiture / la bagnole" (2026-11-13).
+export function isNearListPart(card, list, language = "fr") {
   if (!card?.front || !list?.front || isDrillFront(card.front) || isDrillFront(list.front)) return false;
   if (partsOf(card.front).length >= 2) return false;
-  const k = looseKey(card.front);
-  return !!k && partsOf(list.front).some((p) => looseKey(p) === k);
+  const loose = looseKeyFor(language);
+  const k = loose(card.front);
+  return !!k && partsOf(list.front).some((p) => loose(p) === k);
 }
 
 // ── The near search ─────────────────────────────────────────────────────────
@@ -324,6 +331,20 @@ export function looseKey(front) {
 }
 
 const looseKeepBrackets = (front) => looseKey(String(front ?? "").replace(/[()]/g, " "));
+
+// The Spanish caderno's own near search (2026-11-02): the Spanish with
+// accents, brackets, ¿ ¡ and punctuation set aside, and the Spanish articles
+// (el, la, los, las, un, una, unos, unas). looseKey sets aside only the
+// French ones, so "la niña" from a class and "una niña" from a lesson were no
+// look-alikes. Used only when the index is told the cards are Spanish, so
+// French is read exactly as before.
+export function spanishLooseKey(front) {
+  const s = stripAccents(String(front ?? "").normalize("NFC").toLowerCase()).replace(/\([^)]*\)/g, " ");
+  return s.replace(/[^a-z0-9ñ ]+/g, " ").replace(/\b(?:el|la|los|las|un|una|unos|unas)\b/g, " ").replace(/\s+/g, " ").trim();
+}
+
+// The near key for a course: the Spanish one for "es", the French otherwise.
+export const looseKeyFor = (language = "fr") => (language === "es" ? spanishLooseKey : looseKey);
 
 // The parts of a list card: "manquer / rater", "japonais, japonaise".
 export function partsOf(front) {
@@ -398,7 +419,13 @@ const push = (map, key, card) => {
 // least front and back (and source, to tell what is in study). Cards added
 // later with add() are found too, which is how two spellings in one reading
 // end up as one card.
-export function cardIndex(cards = []) {
+export function cardIndex(cards = [], { language = "fr" } = {}) {
+  const spanish = language === "es";
+  const bySpanish = new Map();
+  const spanishKeys = (card) => {
+    const whole = spanishLooseKey(card.front);
+    return [...new Set([whole, ...partsOf(card.front).map(spanishLooseKey)].filter(Boolean))];
+  };
   const bySure = new Map();
   const byItem = new Map();
   const byLoose = new Map();
@@ -420,6 +447,7 @@ export function cardIndex(cards = []) {
     for (const d of new Set(k.drop)) push(byDrop, d, card);
     push(byAnswer, k.answer, card);
     if (k.typo) push(byLen, k.typo.length, card);
+    if (spanish) for (const key of spanishKeys(card)) push(bySpanish, key, card);
   };
 
   // Every card `card` surely is: the same French by the rule, a list card it
@@ -472,6 +500,7 @@ export function cardIndex(cards = []) {
       take(byAnswer.get(k.answer), (c) => !(isDrillFront(c.front) && isDrillFront(card.front)));
     }
     take(byAnswer.get(k.loose));
+    if (spanish) for (const key of spanishKeys(card)) take(bySpanish.get(key));
     if (k.typo) {
       for (let len = k.typo.length - 2; len <= k.typo.length + 2; len++) {
         take(byLen.get(len), (c) => {

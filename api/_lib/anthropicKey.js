@@ -2,7 +2,11 @@
 //
 // The rule: you bring your own key, or you don't get to spend. The one
 // exception is the deploy owner, whose requests fall back to the server's
-// ANTHROPIC_API_KEY so their own use of the app is unchanged.
+// ANTHROPIC_API_KEY so their own use of the app is unchanged, and on the
+// owner's test app the few accounts they named (src/lib/testApp.js; owner,
+// 2026-10-19). Two things outside this file also spend the server's key for
+// other people: the linked cahier's parsing (api/cahier-sync.js) and Claude's
+// review of feedback, held to a few a day per sender (api/_lib/feedbackReview.js).
 //
 // Before this, /api/chat and /api/split-senses accepted any signed-in caller
 // and /api/review-answer accepted anyone at all — all three billing the
@@ -14,18 +18,14 @@
 // the call to Anthropic. The client keeps it in the user's own browser.
 
 import { isAdmin } from "./auth.js";
-
-export const KEY_HEADER = "x-anthropic-key";
+import { usesOwnersKeyOnTestApp } from "../../src/lib/testApp.js";
+import { KEY_HEADER, looksLikeAnthropicKey } from "../../src/lib/anthropicKey.js";
 
 // Anthropic keys are `sk-ant-` followed by an opaque token. Checking the
-// shape here means an obviously-wrong value fails fast with a message that
-// says so, instead of becoming a 401 from Anthropic that reads like the
-// tutor being broken.
-const KEY_SHAPE = /^sk-ant-[A-Za-z0-9_-]{20,250}$/;
-
-export function looksLikeAnthropicKey(value) {
-  return typeof value === "string" && KEY_SHAPE.test(value.trim());
-}
+// shape (kept in src/lib/anthropicKey.js, the app's copy too) means an
+// obviously-wrong value fails fast with a message that says so, instead of
+// becoming a 401 from Anthropic that reads like the tutor being broken.
+export { KEY_HEADER, looksLikeAnthropicKey };
 
 // Returns { key, payer } or { error, code, status }.
 export function resolveAnthropicKey(req, user) {
@@ -43,7 +43,10 @@ export function resolveAnthropicKey(req, user) {
     return { key: supplied, payer: "user" };
   }
 
-  if (isAdmin(user) && process.env.ANTHROPIC_API_KEY) {
+  // The host is the address Vercel routed this request by, so the students'
+  // app's code only ever sees its own.
+  const named = usesOwnersKeyOnTestApp({ userId: user?.id, host: req.headers?.host });
+  if ((isAdmin(user) || named) && process.env.ANTHROPIC_API_KEY) {
     return { key: process.env.ANTHROPIC_API_KEY, payer: "server" };
   }
 

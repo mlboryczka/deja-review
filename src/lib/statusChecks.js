@@ -1,6 +1,7 @@
 // The status check: were the student's cards shown the way FSRS and the app's
-// own rules say? Pure — no React, no Supabase — so the app (the Status line in
-// the profile menu) and the simulations (tests/simulate) run the same checks.
+// own rules say? Pure — no React, no Supabase — so the daily run on the server
+// (api/_lib/statusDaily.js, read by scripts/status-check.mjs, the Status page
+// and the morning check) and the simulations (tests/simulate) run the same checks.
 //
 // It works everything out again from the record and compares:
 //
@@ -13,7 +14,11 @@
 //
 //   1. Did the app do exactly what FSRS says? Every answer is scheduled again
 //      from its before-state and compared; one answer per card, each way, each
-//      day; every card's schedule is its last answer's result.
+//      day (a repeat after a miss is counted too, since 2026-10-14);
+//      every card's schedule is its last answer's result. Since 2026-10-14
+//      also: a word is asked one way a day (checkOneWayADay), its first gaps
+//      suit the student (checkFirstGaps), and the settings in use are their
+//      own (checkOwnSettings).
 //   2. Were the app's own decisions logical? Nothing asked before it was due,
 //      due cards before new ones, missed cards first, new cards in the agreed
 //      order, a word's two first meetings on different days, every card asked
@@ -29,6 +34,8 @@
 //
 //   card_pairs        Claude's verdicts on look-alike cards (migration_016)
 //   parse_corrections the owner's corrections of cards (migration_002)
+//   fsrs_settings     the settings each student is scheduled with
+//   the es_ tables    the Spanish copies of all of the above, checked on their own
 //
 // Answers before CHECKS_START were scheduled under older rules (UTC days, a
 // three-day minimum, other starting weights) and are read only as history.
@@ -36,16 +43,16 @@
 // given in.
 
 import { State, Rating, makeScheduler, toFsrsTime } from "./spacedRepetition.js";
-import { buildHistories, replayHistory } from "./fsrsHistory.js";
-import { STARTING_WEIGHTS, targetOf, usableWeights } from "./fsrsSettings.js";
+import { buildHistories, replayHistory, fittingSequences, studyDayNumber } from "./fsrsHistory.js";
+import { STARTING_WEIGHTS, targetOf, usableWeights, settingsKind, fitDue, FIRST_FIT, REFIT_ANSWERS, REFIT_DAYS } from "./fsrsSettings.js";
 import { sideOf, isTwoWay, directionsOf, otherDirection } from "./directions.js";
-import { classDaysOf } from "./sessionQueue.js";
+import { classDaysOf, addedByStudent } from "./sessionQueue.js";
 import { lessonIdOf } from "./lessonSource.js";
 import { classifyCard } from "./cardTypes.js";
 import { isArchived } from "./archive.js";
 import { CAT_DB_TO_UI } from "./cardCategories.js";
 import { cardIndex, isSureMatch, isListPart, sureKey } from "./sameCard.js";
-import { forgetting_curve, get_fuzz_range } from "ts-fsrs";
+import { fsrs, forgetting_curve, get_fuzz_range, createEmptyCard } from "ts-fsrs";
 
 // The first study day checked: the day the current rules and the check
 // started (2026-09-27).
@@ -59,7 +66,7 @@ const MAX_INTERVAL = 3650;
 // ── Days ───────────────────────────────────────────────────────────────
 // A study day as a whole number, and as a date. FSRS counts the days between
 // two answers as the difference of these.
-const dayNo = (ms, tz) => Math.floor(toFsrsTime(ms, tz || undefined) / DAY);
+const dayNo = (ms, tz) => studyDayNumber(ms, tz || undefined);
 const dayIso = (n) => new Date(n * DAY).toISOString().slice(0, 10);
 // How a day reads in a sentence: "Sep 27".
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -71,7 +78,7 @@ const labelNo = (iso) => Math.floor(Date.parse(`${iso}T00:00:00Z`) / DAY);
 const ms = (iso) => (iso ? Date.parse(iso) : NaN);
 
 // A card as the app's rules read it: the shape useUserDeck gives the app.
-export function deckCard(row) {
+function deckCard(row) {
   return {
     f: row.front,
     b: row.back,
@@ -97,6 +104,10 @@ export function deckCard(row) {
     en_reps: row.en_reps ?? 0,
     en_last_review: row.en_last_review || null,
     en_last_answer_correct: row.en_last_answer_correct ?? null,
+    // How often its French is said, per million words, and when it was
+    // counted (migration_019).
+    said: Number.isFinite(row.said_per_million) ? row.said_per_million : null,
+    said_at: row.said_counted_at ? ms(row.said_counted_at) : null,
   };
 }
 
@@ -257,7 +268,15 @@ function reschedule(row, { weights, target }, tz) {
     state: row.state_before ?? State.New,
     last_review: Number.isFinite(lastReview) ? t(lastReview) : undefined,
   };
-  const { card: next } = sched.next(card, t(at), row.correct ? Rating.Good : Rating.Again);
+  const rating = row.correct ? Rating.Good : Rating.Again;
+  let { card: next } = sched.next(card, t(at), rating);
+  // The repeat after a miss, counted since 2026-10-14: FSRS's own rule for a
+  // second answer on the same study day, worked out here with ts-fsrs itself.
+  if ((row.state_before ?? State.New) !== State.New && Number.isFinite(lastReview) && dayNo(at, tz) === dayNo(lastReview, tz)) {
+    const sameDay = fsrs({ w: [...weights], request_retention: target, enable_fuzz: false, enable_short_term: true });
+    const m = sameDay.next_state({ difficulty: row.difficulty_before, stability: row.stability_before }, 0, rating);
+    next = { ...next, stability: m.stability, difficulty: m.difficulty };
+  }
   const elapsed = next.elapsed_days ?? 0;
   const days = sched.next_interval(next.stability, elapsed);
   const plain = Math.min(Math.max(1, Math.round(next.stability * sched.interval_modifier)), MAX_INTERVAL);
@@ -295,7 +314,17 @@ function checkScheduling(idx, ctx) {
     const inSpread = gotDays >= want.spread.min_ivl && gotDays <= want.spread.max_ivl;
     if (gotDays === want.days) exact++;
     if (!sOk || !dOk) {
-      bad.push(`${nameOf(idx, r.card_id, r.direction)} on ${when(ms(r.answered_at), tz)}: its memory estimate came out as ${r.stability_after?.toFixed(1)} days, where FSRS gives ${want.stability.toFixed(1)}.`);
+      // Name the figure that is off, with enough decimals to tell them apart.
+      const who = `${nameOf(idx, r.card_id, r.direction)} on ${when(ms(r.answered_at), tz)}`;
+      if (!sOk) {
+        const a = Number(r.stability_after), b = want.stability;
+        const digits = a.toFixed(1) === b.toFixed(1) ? 3 : 1;
+        bad.push(`${who}: its memory estimate came out as ${a.toFixed(digits)} days, where FSRS gives ${b.toFixed(digits)}.`);
+      } else {
+        const a = Number(r.difficulty_after), b = want.difficulty;
+        const digits = a.toFixed(1) === b.toFixed(1) ? 3 : 1;
+        bad.push(`${who}: its difficulty came out as ${a.toFixed(digits)}, where FSRS gives ${b.toFixed(digits)}.`);
+      }
     } else if (gotDays !== want.days && !inSpread) {
       bad.push(`${nameOf(idx, r.card_id, r.direction)} on ${when(ms(r.answered_at), tz)}: comes back in ${plural(gotDays, "day")}, where FSRS says ${plural(want.days, "day")}.`);
     }
@@ -306,8 +335,17 @@ function checkScheduling(idx, ctx) {
     : { ...out, status: "pass", summary: `All ${checked} answers match${exact < checked ? ` (${exact} to the day; the rest within FSRS's spread)` : ""}.`, details: [] };
 }
 
+// FSRS counts a way's first answer each day and, since the repeat after a
+// miss began to count (2026-10-14, the owner; lib/sessionQueue.js
+// countsAnswer), each repeat that follows a counted miss. Judged from
+// REPEATS_COUNT_FROM, the first full day the test app counts them; when this
+// reaches the students' app, move it to the day it does. Before it, the
+// first answer alone counted.
+export const REPEATS_COUNT_FROM = "2026-10-15";
+
 function checkOnePerDay(idx, ctx) {
-  const out = { id: "one-a-day", title: "FSRS counted one answer per card, each way, each day" };
+  const out = { id: "one-a-day", title: "FSRS counted each way's first answer of the day, and the repeat after a miss" };
+  const repeatsFrom = labelNo(ctx.rulesFrom.repeatsCount);
   const bad = [];
   let days = 0;
   for (const [key, list] of idx.byItem) {
@@ -323,9 +361,22 @@ function checkOnePerDay(idx, ctx) {
       const counted = rs.filter((r) => r.counted);
       const [cardId, dir] = key.split(":");
       const name = nameOf(idx, Number(cardId), dir);
+      if (d >= repeatsFrom) {
+        // The record doesn't say which later answer was the retry: a card asked
+        // again after a detour into a lesson isn't one, and isn't counted. So
+        // a later answer left uncounted passes; one counted must come after a
+        // counted miss, the last answer counted before it that day.
+        let lastCounted = null;
+        rs.forEach((r, i) => {
+          if (!i && !r.counted && !earlierToday(idx, list, r) && !inPractice(idx, r)) bad.push(`${name}: its first answer on ${dayLabel(d)} wasn't counted.`);
+          if (i && r.counted && lastCounted?.correct !== false) bad.push(`${name}: on ${dayLabel(d)} a later answer was counted, though the last one counted before it was right.`);
+          if (r.counted) lastCounted = r;
+        });
+        continue;
+      }
       if (counted.length > 1) bad.push(`${name} had ${counted.length} answers counted on ${dayLabel(d)}.`);
       else if (counted.length === 1 && rs[0] !== counted[0]) bad.push(`${name}: on ${dayLabel(d)} a later answer was counted instead of the first.`);
-      else if (counted.length === 0 && !rs[0].counted && !earlierToday(idx, list, rs[0])) {
+      else if (counted.length === 0 && !rs[0].counted && !earlierToday(idx, list, rs[0]) && !inPractice(idx, rs[0])) {
         bad.push(`${name}: its first answer on ${dayLabel(d)} wasn't counted.`);
       }
     }
@@ -333,7 +384,20 @@ function checkOnePerDay(idx, ctx) {
   if (!days) return { ...out, status: "wait", summary: "No answers to check yet.", details: [] };
   return bad.length
     ? { ...out, status: "fail", summary: `${plural(bad.length, "problem")} found.`, details: bad }
-    : { ...out, status: "pass", summary: "One counted answer per card, each way, each day.", details: [] };
+    : { ...out, status: "pass", summary: "Each way's first answer of the day counted, and the repeat after a miss.", details: [] };
+}
+
+// An answer to a card dealt that day for practice, in a lesson gone through
+// again once nothing in it was left (2026-10-27, the owner; lib/sessionQueue.js
+// practiceSession): such answers are never counted, and the set's record says
+// which cards it dealt for practice.
+function inPractice(idx, row) {
+  const at = ms(row.answered_at);
+  const tz = idx.tzOf(row);
+  const day = dayNo(at, tz);
+  const k = keyOf(row.card_id, row.direction);
+  return idx.sets.some((s) => ms(s.dealt_at) <= at + 1000 && dayNo(ms(s.dealt_at), idx.tzOf(s)) === day &&
+    [...(s.items || []), ...(s.kept || [])].some((x) => x.b === "practice" && keyOf(x.c, x.d) === k));
 }
 
 // A counted answer earlier the same study day, before the window: the first
@@ -411,7 +475,11 @@ function checkNotEarly(idx, ctx) {
     let prev = null;
     for (const r of list) {
       if (!r.counted) continue;
-      if (prev && ctx.inWindow(r) && r.state_before !== State.New) {
+      // The repeat after a miss, counted since 2026-10-14, comes the same day
+      // as the miss: not a card asked before it was due.
+      const repeat = prev && prev.correct === false &&
+        dayNo(ms(prev.answered_at), idx.tzOf(r)) === dayNo(ms(r.answered_at), idx.tzOf(r));
+      if (prev && ctx.inWindow(r) && r.state_before !== State.New && !repeat) {
         answersChecked++;
         const tz = idx.tzOf(r);
         const dueDay = dayNo(ms(prev.due_after), tz);
@@ -430,6 +498,8 @@ function checkNotEarly(idx, ctx) {
     const at = ms(d.dealt_at);
     const tz = idx.tzOf(d);
     for (const it of d.items || []) {
+      // Dealt for practice, whatever its due date (practiceSession).
+      if (it.b === "practice") continue;
       const s = stateAt(idx, it.c, it.d, at);
       if (!s.known) continue;
       dealtChecked++;
@@ -446,7 +516,7 @@ function checkNotEarly(idx, ctx) {
   if (!answersChecked && !dealtChecked) return { ...out, status: "wait", summary: "No reviews to check yet.", details: [] };
   if (bad.length) return { ...out, status: "fail", summary: `${plural(cards.size, "card was", "cards were")} asked or dealt before ${cards.size === 1 ? "it was" : "they were"} due.`, details: bad };
   const dealt = dealtChecked ? `, and every card dealt as due or new was` : "";
-  return { ...out, status: "pass", summary: `All ${answersChecked} reviews were due${dealt}.`, details: [] };
+  return { ...out, status: "pass", summary: `${answersChecked === 1 ? "The one review was" : `All ${answersChecked} reviews were`} due${dealt}.`, details: [] };
 }
 
 // The cards a set could be dealt from, as the app narrows them: the type
@@ -454,14 +524,14 @@ function checkNotEarly(idx, ctx) {
 // 2026-10-04 a set on Cards also says what it left out (lib/lessonChoice.js):
 // "|cahier" for the student's own cards only, "|off=a,b" for lessons
 // switched off.
-function candidateItems(idx, deal, at) {
+function candidateItems(idx, deal, at, course = "fr") {
   const [typeFilter = "all", lessonFilter = "all", narrowed = ""] = String(deal.scope || "all|all").split("|");
   const ownOnly = narrowed === "cahier";
   const off = new Set(narrowed.startsWith("off=") ? narrowed.slice(4).split(",") : []);
   const items = [];
   for (const [id, c] of idx.deck) {
     if (c.created_at && ms(c.created_at) > at) continue;
-    if (typeFilter !== "all" && classifyCard(c) !== typeFilter) continue;
+    if (typeFilter !== "all" && classifyCard(c, course) !== typeFilter) continue;
     if (lessonFilter !== "all" && lessonIdOf(c) !== lessonFilter) continue;
     if (lessonFilter === "all" && lessonIdOf(c) && (ownOnly || off.has(lessonIdOf(c)))) continue;
     const dirs = directionsOf(c);
@@ -479,16 +549,22 @@ function checkDueFirst(idx, ctx) {
   let checked = 0;
   for (const d of idx.sets) {
     if (!ctx.dealJudged(d)) continue;
+    // A lesson gone through again is dealt once nothing in it is due.
+    if ((d.items || []).length && d.items.every((x) => x.b === "practice")) continue;
     const at = ms(d.dealt_at);
     const tz = idx.tzOf(d);
     const today = dayNo(at, tz);
     const inSet = new Set([...(d.items || []), ...(d.kept || [])].map((x) => keyOf(x.c, x.d)));
+    const cardsInSet = new Set([...(d.items || []), ...(d.kept || [])].map((x) => x.c));
     const dealtNew = (d.items || []).filter((x) => x.b === "new");
     const dealtReviews = (d.items || []).filter((x) => x.b === "review");
-    const { items } = candidateItems(idx, d, at);
+    const { items } = candidateItems(idx, d, at, ctx.course);
     const leftDue = [];
     for (const it of items) {
       if (inSet.has(keyOf(it.id, it.dir))) continue;
+      // A word is asked one way a day (2026-10-14): with its other way in this
+      // set, or answered earlier that day, this way waits for tomorrow.
+      if (cardsInSet.has(it.id) || answeredOtherWayOn(idx, it.card, it.dir, at, tz)) continue;
       const s = stateAt(idx, it.id, it.dir, at);
       if (!s.known || s.isNew || !Number.isFinite(s.due)) continue;
       if (dayNo(s.due, tz) <= today) leftDue.push({ ...it, due: s.due, missed: s.missed });
@@ -497,7 +573,7 @@ function checkDueFirst(idx, ctx) {
     if (dealtNew.length && leftDue.length) {
       const names = leftDue.slice(0, 3).map((x) => nameOf(idx, x.id, x.dir)).join(", ");
       badSets.add(d.id);
-      bad.push(`The set dealt ${when(at, tz)} took ${plural(dealtNew.length, "new card")} while ${plural(leftDue.length, "due card")} were left out: ${names}${leftDue.length > 3 ? "…" : ""}.`);
+      bad.push(`The set dealt ${when(at, tz)} took ${plural(dealtNew.length, "new card")} while ${leftDue.length === 1 ? "1 due card was" : plural(leftDue.length, "due card") + " were"} left out: ${names}${leftDue.length > 3 ? "…" : ""}.`);
     }
     if (dealtReviews.length) {
       const missedOut = leftDue.filter((x) => x.missed);
@@ -527,17 +603,23 @@ function checkDueFirst(idx, ctx) {
 // Where a new card comes in the agreed order (sessionQueue's orderNewCards),
 // as a sort key: lower comes first. Cards with equal keys are shuffled.
 // `has` says which of its class dates count: those the app knew of then.
-function newCardKey(card, { lessonMode, cutoff, lessonRank }, has = () => true) {
+function newCardKey(card, { lessonMode, cutoff, lessonRank, dayOf }, has = () => true) {
   const rank = lessonRank ? lessonRank(card) : null;
   const r = Number.isFinite(rank) ? rank : Infinity;
   if (lessonMode) return [r];
   if (lessonIdOf(card)) return [3, r];
-  const days = classDaysOf(card).filter((d) => card.source === "tutor-chat" || has(d)).sort();
+  // A card the student added (the tutor, a podcast passage) is dated by the
+  // day it was added, which the app always knew: not a class whose notes may
+  // not have arrived yet.
+  const days = classDaysOf(card, dayOf).filter((d) => addedByStudent(card) || has(d)).sort();
   if (!days.length) return [2];
   const latest = days[days.length - 1];
   if (latest >= cutoff) return [0, -labelNo(latest), -days.length];
   return [1, -days.length, labelNo(days[0])];
 }
+// How often a card is said, per million words, if it was counted (written out
+// again here, as the order's other rules are).
+const saidHere = (n) => (Number.isFinite(n) && n > 0 ? n : 0);
 const before = (a, b) => {
   for (let i = 0; i < Math.max(a.length, b.length); i++) {
     const x = a[i] ?? -Infinity, y = b[i] ?? -Infinity;
@@ -558,19 +640,12 @@ function checkNewOrder(idx, ctx) {
     const at = ms(d.dealt_at);
     const tz = idx.tzOf(d);
     const today = dayNo(at, tz);
-    const { items: allItems, lessonMode } = candidateItems(idx, d, at);
-    // Only the owner's test app records how often a new card is said (the
-    // `said` it writes on each, 2026-10-14). It asks a word one way a day, so
-    // in its sets a card with a way in the set, or answered today, has no
-    // other way to give (2026-11-07: Laura's "a note; a grade" waited rightly
-    // while "une note" was due, and was reported as passed over).
-    const oneWayADay = dealtNew.some((x) => "said" in x);
-    const hasWayInSet = new Set([...(d.items || []), ...(d.kept || [])].map((x) => x.c));
-    const answeredOtherWayToday = (it) => (idx.byItem.get(keyOf(it.id, otherDirection(it.dir))) || [])
-      .some((r) => r.counted && ms(r.answered_at) < at && dayNo(ms(r.answered_at), tz) === today);
-    const items = oneWayADay ? allItems.filter((it) => !hasWayInSet.has(it.id) && !answeredOtherWayToday(it)) : allItems;
+    const { items, lessonMode } = candidateItems(idx, d, at, ctx.course);
     const cutoff = dayIso(today - RECENT_DAYS);
-    const opts = { lessonMode, cutoff, lessonRank: ctx.lessonRank };
+    // A card the student added is dated by the set's own time zone, as the
+    // student's app dates it, not the zone this script happens to run in.
+    const dayOf = (t) => dayIso(dayNo(t.getTime(), tz));
+    const opts = { lessonMode, cutoff, lessonRank: ctx.lessonRank, dayOf };
     // The class dates the app knew of when it dealt the set. A date after
     // the set's day it can't have (notes come after the class); one whose
     // notes had arrived it had; any other is uncertain, and an order that
@@ -581,43 +656,73 @@ function checkNewOrder(idx, ctx) {
     // A card whose class dates may have changed since the set was dealt (a
     // repeat put away into it, datesMoved) can't be placed as it stood then.
     const changed = (card) => (idx.datesMoved.get(card.row_id) || []).some((m) => m.at > at && card.dates.some((d) => m.dates.has(d)));
-    const keyed = (card) => ({
+    // A lesson card the lessons no longer have had its place in the lesson
+    // when the set was dealt, but that place can't be read now (2026-10-25:
+    // two of the owner's sets were faulted for giving Spanish Lesson 1 drills,
+    // taken out that day, ahead of Lesson 2 cards). An order between it and
+    // another lesson card isn't judged; a notes card still comes before it,
+    // as before any lesson card.
+    const unplaced = (card) => !!ctx.lessonRank && !!lessonIdOf(card) && !Number.isFinite(ctx.lessonRank(card));
+    // How often each card is said, as the app knew it (2026-10-14). A set
+    // dealt before the app ordered by it records no count, and is judged by
+    // the old order alone. Otherwise a card dealt has its count in the
+    // record, and one waiting has the count in the database if it was made
+    // before the set was dealt.
+    const bySaid = !lessonMode && dealtNew.some((x) => "said" in x);
+    const saidThen = (card, x) => (!bySaid ? 0 : x ? saidHere(x.said) : card.said_at != null && card.said_at <= at ? saidHere(card.said) : 0);
+    const keyed = (card, x) => ({
       card,
+      said: saidThen(card, x),
       changed: changed(card),
-      unsure: card.source === "tutor-chat" ? [] : classDaysOf(card).filter((iso) => known(iso) === "maybe"),
+      unplaced: unplaced(card),
+      unsure: addedByStudent(card) ? [] : classDaysOf(card, dayOf).filter((iso) => known(iso) === "maybe"),
       key: newCardKey(card, opts, sure),
     });
+    // Among earlier notes, two counted cards come most said first; two
+    // uncounted ones in the old order. A counted card and an uncounted one
+    // take places in the old order the counted cards share, so which comes
+    // first between them isn't judged.
+    const comesBefore = (w, x, has) => {
+      const kw = newCardKey(w.card, opts, has), kx = newCardKey(x.card, opts, has);
+      if (kw[0] === 1 && kx[0] === 1) {
+        if (w.said > 0 && x.said > 0) return w.said > x.said;
+        if (w.said > 0 || x.said > 0) return false;
+      }
+      return before(kw, kx);
+    };
     // `w` comes before `x` however the uncertain dates stood.
     const surelyBefore = (w, x) => {
       if (w.changed || x.changed) return false;
-      if (!w.unsure.length && !x.unsure.length) return before(w.key, x.key);
+      if ((w.unplaced || x.unplaced) && lessonIdOf(w.card) && lessonIdOf(x.card)) return false;
+      if (!w.unsure.length && !x.unsure.length) return comesBefore(w, x, sure);
       const unsure = [...new Set([...w.unsure, ...x.unsure])];
       if (unsure.length > 4) return false;
       for (let m = 0; m < 1 << unsure.length; m++) {
         const has = (iso) => sure(iso) || unsure.some((u, i) => u === iso && m & (1 << i));
-        if (!before(newCardKey(w.card, opts, has), newCardKey(x.card, opts, has))) return false;
+        if (!comesBefore(w, x, has)) return false;
       }
       return true;
     };
-    // A card with a new item in the set has no second one to give.
-    const taken = new Set([...(d.items || []), ...(d.kept || [])].filter((x) => x.b === "new").map((x) => x.c));
+    // A card with a way in the set has no other way to give (2026-10-14: one
+    // way a day; before then, one new way a set).
+    const taken = new Set([...(d.items || []), ...(d.kept || [])].map((x) => x.c));
     const inSet = new Set([...(d.items || []), ...(d.kept || [])].map((x) => keyOf(x.c, x.d)));
     const waiting = [];
     for (const it of items) {
       if (taken.has(it.id) || inSet.has(keyOf(it.id, it.dir))) continue;
       const s = stateAt(idx, it.id, it.dir, at);
       if (!s.known || !s.isNew) continue;
-      if (metOtherWayOn(idx, it.card, it.dir, at, tz)) continue;
+      if (answeredOtherWayOn(idx, it.card, it.dir, at, tz)) continue;
       waiting.push({ ...it, ...keyed(it.card) });
     }
     checked++;
     for (const x of dealtNew) {
       const card = idx.deck.get(x.c);
       if (!card) continue;
-      const dealt = keyed(card);
+      const dealt = keyed(card, x);
       const ahead = waiting.find((w) => surelyBefore(w, dealt));
       if (ahead) {
-        bad.push(`The set dealt ${when(at, tz)} took ${nameOf(idx, x.c, x.d)} ahead of ${nameOf(idx, ahead.id, ahead.dir)}, which comes first${lessonMode ? " in the lesson" : " (a more recent class, or one that came up more often)"}.`);
+        bad.push(`The set dealt ${when(at, tz)} took ${nameOf(idx, x.c, x.d)} ahead of ${nameOf(idx, ahead.id, ahead.dir)}, which comes first${lessonMode ? " in the lesson" : " (a more recent class, a word said more often, or one that came up in more classes)"}.`);
         break;
       }
     }
@@ -628,13 +733,14 @@ function checkNewOrder(idx, ctx) {
     : { ...out, status: "pass", summary: `All ${plural(checked, "set")} with new cards took them in order.`, details: [] };
 }
 
-// The card was met for the very first time the other way round earlier on
-// the same study day: this way waits for tomorrow.
-function metOtherWayOn(idx, card, dir, at, tz) {
+// The card was answered the other way round earlier on the same study day:
+// this way waits for tomorrow (2026-10-14; before then, only after the other
+// way's very first answer, which this includes).
+function answeredOtherWayOn(idx, card, dir, at, tz) {
   if (!isTwoWay(card)) return false;
   const other = idx.byItem.get(keyOf(card.row_id, otherDirection(dir))) || [];
   const today = dayNo(at, tz);
-  return other.some((r) => r.counted && r.state_before === State.New && ms(r.answered_at) < at && dayNo(ms(r.answered_at), tz) === today);
+  return other.some((r) => r.counted && ms(r.answered_at) < at && dayNo(ms(r.answered_at), tz) === today);
 }
 
 function checkFirstMeetings(idx, ctx) {
@@ -668,17 +774,66 @@ function checkFirstMeetings(idx, ctx) {
     : { ...out, status: "pass", summary: "Each new word's second way waited for another day.", details: [] };
 }
 
+// A word asked one way a day (2026-10-14, the owner; lib/sessionQueue.js):
+// no card answered both ways round on one study day, and no set dealing it
+// both ways. Judged from ONE_WAY_A_DAY_FROM, the first full day the test app
+// keeps a word's two ways apart; when this reaches the students' app, move it
+// to the day it does.
+export const ONE_WAY_A_DAY_FROM = "2026-10-15";
+
+function checkOneWayADay(idx, ctx) {
+  const out = { id: "one-way-a-day", title: "A word was asked one way a day" };
+  const from = labelNo(ctx.rulesFrom.oneWayADay);
+  const bad = [];
+  let checked = 0;
+  const ways = new Map(); // card id -> study day -> the ways answered
+  for (const r of idx.rows) {
+    if (!r.counted) continue;
+    const day = dayNo(ms(r.answered_at), idx.tzOf(r));
+    if (day < from) continue;
+    if (!ways.has(r.card_id)) ways.set(r.card_id, new Map());
+    const byDay = ways.get(r.card_id);
+    if (!byDay.has(day)) byDay.set(day, new Set());
+    byDay.get(day).add(r.direction === "en" ? "en" : "fr");
+  }
+  for (const [cardId, byDay] of ways) {
+    for (const [day, dirs] of byDay) {
+      checked++;
+      if (dirs.size > 1) bad.push(`${nameOf(idx, cardId, "fr")} was asked both ways round on ${dayLabel(day)}.`);
+    }
+  }
+  for (const d of idx.sets) {
+    if (!ctx.dealJudged(d)) continue;
+    const at = ms(d.dealt_at);
+    if (dayNo(at, idx.tzOf(d)) < from) continue;
+    const seen = new Map();
+    for (const x of d.items || []) {
+      checked++;
+      if (seen.has(x.c) && seen.get(x.c) !== x.d) bad.push(`The set dealt ${when(at, idx.tzOf(d))} took ${nameOf(idx, x.c, "fr")} both ways round.`);
+      seen.set(x.c, x.d);
+    }
+  }
+  if (!checked) return { ...out, status: "wait", summary: `Judged from ${dayLabel(from)}, the first day a word's two ways were kept apart.`, details: [] };
+  return bad.length
+    ? { ...out, status: "fail", summary: `${plural(bad.length, "word")} asked both ways round on one day.`, details: bad }
+    : { ...out, status: "pass", summary: "Each word was asked one way a day.", details: [] };
+}
+
 function checkDealt(idx, ctx) {
   const out = { id: "dealt", title: "Every card asked came from a set, never straight back" };
   const bad = [];
   let checked = 0;
   let prev = null;
   const setsByDay = new Map();
+  const allSets = [];
   for (const d of idx.sets) {
     const day = dayNo(ms(d.dealt_at), idx.tzOf(d));
     if (!setsByDay.has(day)) setsByDay.set(day, []);
-    setsByDay.get(day).push({ t: ms(d.dealt_at), keys: new Set([...(d.items || []), ...(d.kept || [])].map((x) => keyOf(x.c, x.d))) });
+    const entry = { t: ms(d.dealt_at), day, keys: new Set([...(d.items || []), ...(d.kept || [])].map((x) => keyOf(x.c, x.d))) };
+    setsByDay.get(day).push(entry);
+    allSets.push(entry);
   }
+  allSets.sort((a, b) => a.t - b.t);
   for (const r of idx.rows) {
     if (!ctx.inWindow(r)) { prev = r; continue; }
     const at = ms(r.answered_at);
@@ -688,11 +843,22 @@ function checkDealt(idx, ctx) {
       bad.push(`${nameOf(idx, r.card_id, r.direction)} was asked twice in a row on ${when(at, tz)}.`);
     }
     prev = r;
-    if (!ctx.dealsOnDay(dayNo(at, tz), tz)) continue;
+    if (!ctx.dealsOnDay(dayNo(at, tz))) continue;
     checked++;
     const today = dayNo(at, tz);
     const k = keyOf(r.card_id, r.direction);
-    const inASet = (setsByDay.get(today) || []).some((d) => d.t <= at + 1000 && d.keys.has(k));
+    // A set dealt before 4am is still on screen after it until that window
+    // deals the next one, so the last set of an earlier day counts too, even
+    // when a set was dealt since: another window or device may have dealt it
+    // (2026-10-30: the owner answered the set a window left open had dealt at
+    // 9:19pm the night before, after a set dealt at 7:13am elsewhere).
+    const sameDay = setsByDay.get(today) || [];
+    let inASet = sameDay.some((d) => d.t <= at + 1000 && d.keys.has(k));
+    if (!inASet) {
+      const earlier = allSets.filter((d) => d.day < today && d.t <= at + 1000);
+      const still = earlier[earlier.length - 1];
+      inASet = !!still && still.keys.has(k);
+    }
     if (!inASet) bad.push(`${nameOf(idx, r.card_id, r.direction)} was asked on ${when(at, tz)} without being in any set dealt that day.`);
   }
   if (!checked && !bad.length) return { ...out, status: "wait", summary: ctx.dealsOn ? "No answers to check yet." : ctx.dealsWaiting, details: [] };
@@ -708,7 +874,7 @@ export const PREDICTION_BANDS = [[0, 0.7], [0.7, 0.8], [0.8, 0.85], [0.85, 0.9],
 const BAND_MIN = 100;
 const OVERALL_MIN = 300;
 
-export function predictions(idx, ctx) {
+function predictions(idx, ctx) {
   const since = ctx.now - 30 * DAY;
   const out = [];
   for (const r of idx.rows) {
@@ -725,6 +891,19 @@ export function predictions(idx, ctx) {
   return out;
 }
 
+// A failing statistical check (2026-11-13). `details` are only the groups
+// that fail; the groups that pass or are too few to judge are `notes`, shown
+// beneath them but never raised as problems. `raise` is what the morning
+// check raises: each failing group by its name, which stays the same from day
+// to day, with its sentence and figures beneath. Until then every line was
+// raised, passing ones too, keyed by its counts, so a problem that kept
+// failing came back as new every morning.
+const failingGroups = (bad, notes) => ({
+  details: bad.map((b) => b.line),
+  notes,
+  raise: bad.map((b) => ({ key: b.group, detail: b.line })),
+});
+
 function checkPredictions(idx, ctx) {
   const out = { id: "predictions", title: "FSRS's predictions match your results" };
   const ps = predictions(idx, ctx);
@@ -738,17 +917,139 @@ function checkPredictions(idx, ctx) {
     const g = ps.filter((x) => x.p >= lo && x.p < hi);
     if (!g.length) continue;
     const e = mean(g.map((x) => x.p)), a = mean(g.map((x) => (x.got ? 1 : 0)));
-    const line = `Cards FSRS gave ${pct(lo)}–${pct(Math.min(hi, 1))}: expected ${pct(e)}, you got ${pct(a)} right (${plural(g.length, "answer")}).`;
-    if (g.length >= BAND_MIN && Math.abs(a - e) > 0.1) bad.push(line);
+    const group = `Cards FSRS gave ${pct(lo)}–${pct(Math.min(hi, 1))}`;
+    const line = `${group}: expected ${pct(e)}, you got ${pct(a)} right (${plural(g.length, "answer")}).`;
+    if (g.length >= BAND_MIN && Math.abs(a - e) > 0.1) bad.push({ group, line });
     else lines.push(line);
   }
   if (ps.length >= OVERALL_MIN && Math.abs(actual - expected) > 0.05) {
-    bad.unshift(`Overall FSRS expected ${pct(expected)} right and you got ${pct(actual)}, over ${plural(ps.length, "review")}.`);
+    bad.unshift({ group: "Overall", line: `Overall FSRS expected ${pct(expected)} right and you got ${pct(actual)}, over ${plural(ps.length, "review")}.` });
   }
   const summary = `Expected ${pct(expected)} right, you got ${pct(actual)} (${plural(ps.length, "review")}, last 30 days).`;
-  if (bad.length) return { ...out, status: "fail", summary, details: [...bad, ...lines] };
+  if (bad.length) return { ...out, status: "fail", summary, ...failingGroups(bad, lines) };
   if (ps.length < OVERALL_MIN) return { ...out, status: "wait", summary: `${summary} Too few to judge yet: needs ${OVERALL_MIN}.`, details: lines };
   return { ...out, status: "pass", summary, details: lines };
+}
+
+// ── A word's first gap, and the student's own settings (2026-10-14) ────
+//
+// How long a word lasts after its first answer, right or wrong, is two of
+// FSRS's numbers, and the ones a student's answers show first. On the owner's
+// record of 2026-10-14 the starting settings were wrong about both, in
+// opposite directions: words right the first time came back right 112 of 119
+// times where 88% was expected, and words missed first 60 of 103 times where
+// 71% was. Over all answers the two cancelled out, so "FSRS's predictions
+// match your results" passed. Here each is judged on its own, with the
+// settings in use now: what do they expect of a word's second answer, after
+// the gap it actually had, and what did the student get?
+export const FIRST_GAP_MIN = 100;
+const FIRST_GAP_OFF = 0.1;
+
+const settingsName = (settings, tz) => {
+  const kind = settingsKind(settings);
+  const since = settings?.fitted_at ? ` since ${dayLabel(dayNo(ms(settings.fitted_at), tz))}` : "";
+  return kind === "own" ? `your own settings${since}`
+    : kind === "first-gaps" ? `the starting settings with your own first gaps${since}`
+    : "the starting settings";
+};
+
+function firstGaps(idx, ctx) {
+  const w = usableWeights(ctx.settings?.weights) || [...STARTING_WEIGHTS];
+  const sched = makeScheduler({ weights: w });
+  const sameDay = fsrs({ w: [...w], enable_fuzz: false, enable_short_term: true });
+  const t0 = new Date(0);
+  const rating = (got) => (got ? Rating.Good : Rating.Again);
+  const since = ctx.now - 30 * DAY;
+  const groups = { right: [], missed: [] };
+  for (const [, list] of idx.byItem) {
+    let first = null, memory = null;
+    for (const r of list) {
+      if (!r.counted) continue;
+      if (r.state_before === State.New) {
+        first = r;
+        memory = sched.next(createEmptyCard(t0), t0, rating(r.correct)).card;
+        continue;
+      }
+      if (!first) continue;
+      const at = ms(r.answered_at);
+      const tz = idx.tzOf(r);
+      const elapsed = dayNo(at, tz) - dayNo(ms(first.answered_at), tz);
+      // The repeat after a missed first answer, counted since 2026-10-14:
+      // the word's memory is then the one it leaves, by FSRS's same-day rule.
+      if (elapsed === 0) { memory = sameDay.next_state(memory, 0, rating(r.correct)); continue; }
+      if (at >= since && ctx.inWindow(r) && elapsed >= 1) {
+        groups[first.correct ? "right" : "missed"].push({ p: forgetting_curve(w, elapsed, memory.stability), got: !!r.correct });
+      }
+      first = null;
+    }
+  }
+  return groups;
+}
+
+function checkFirstGaps(idx, ctx) {
+  const out = { id: "first-gaps", title: "A new word's first gap suits how you remember" };
+  const groups = firstGaps(idx, ctx);
+  const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
+  const using = `Judged with ${settingsName(ctx.settings, ctx.timeZone)}.`;
+  if (!groups.right.length && !groups.missed.length) {
+    return { ...out, status: "wait", summary: `No word has had its second answer in the last 30 days. ${using}`, details: [] };
+  }
+  const bad = [], lines = [];
+  let judged = 0;
+  for (const [kind, words] of [["right", "Words you got right the first time"], ["missed", "Words you missed the first time"]]) {
+    const g = groups[kind];
+    if (!g.length) continue;
+    const e = mean(g.map((x) => x.p)), a = mean(g.map((x) => (x.got ? 1 : 0)));
+    const line = `${words}: expected ${pct(e)} right when they came back, you got ${pct(a)} (${plural(g.length, "word")}).`;
+    if (g.length < FIRST_GAP_MIN) { lines.push(`${line} Too few to judge yet: needs ${FIRST_GAP_MIN}.`); continue; }
+    judged++;
+    if (Math.abs(a - e) > FIRST_GAP_OFF) {
+      bad.push({ group: words, line: `${line} ${a > e ? "They come back sooner than they need to." : "They wait longer than they should."}` });
+    } else lines.push(line);
+  }
+  if (bad.length) return { ...out, status: "fail", summary: `${bad.length === 2 ? "Both first gaps are" : "A first gap is"} off by more than ${pct(FIRST_GAP_OFF)}. ${using}`, ...failingGroups(bad, lines) };
+  if (!judged) return { ...out, status: "wait", summary: `Too few second answers in the last 30 days to judge yet. ${using}`, details: lines };
+  return { ...out, status: "pass", summary: `Second answers match what's expected. ${using}`, details: lines };
+}
+
+// The app asks the server to try the student's own settings once a day, when
+// it opens (api/fsrs-fit.js): from FIRST_FIT answers, then again once there
+// are REFIT_ANSWERS more and REFIT_DAYS have passed (fitDue). Only the last
+// try is on record, so this judges the student's last study day: if a try was
+// due when they started, one should have happened that day.
+function checkOwnSettings(idx, ctx) {
+  const out = { id: "own-settings", title: "Your own settings were tried when due" };
+  const s = ctx.settings;
+  // The Spanish deck never asks for a try: settings are fitted from French
+  // answers only (api/fsrs-fit.js), so Spanish answers can't be judged here.
+  if (ctx.course === "es") return { ...out, status: "wait", summary: "The Spanish deck uses the French deck's settings, which are tried from French answers and judged in the French report.", details: [] };
+  const counted = idx.rows.filter((r) => r.counted);
+  if (!s) return { ...out, status: "wait", summary: "No settings on record yet.", details: [] };
+  if (!counted.length) return { ...out, status: "wait", summary: "No answers yet.", details: [] };
+  const last = counted[counted.length - 1];
+  const tz = idx.tzOf(last) || ctx.timeZone;
+  const lastDay = dayNo(ms(last.answered_at), tz);
+  const opened = counted.find((r) => dayNo(ms(r.answered_at), idx.tzOf(r) || tz) === lastDay);
+  const openedAt = ms(opened.answered_at);
+  const usable = (rows) => fittingSequences(buildHistories(rows), tz).reduce((n, q) => n + q.length, 0);
+  const before = usable(counted.filter((r) => ms(r.answered_at) < openedAt));
+  const now = usable(counted);
+  const using = `Now on ${settingsName(s, tz)}.`;
+  const checked = ms(s.fit_checked_at);
+  const lastTry = Number.isFinite(checked) ? ` Last tried ${dayLabel(dayNo(checked, tz))}, on ${plural(s.fit_checked_answers ?? 0, "answer")}${s.fit_result?.adopted ? `, and switched to ${s.fit_result.kind === "first-gaps" ? "your own first gaps" : "your own settings"}` : ", and kept what was in use"}.` : "";
+  if (Number.isFinite(checked) && dayNo(checked, tz) >= lastDay) {
+    return { ...out, status: "pass", summary: `Tried on your last study day, ${dayLabel(lastDay)}. ${using}${lastTry}`, details: [] };
+  }
+  const due = fitDue({ answers: before, checkedAt: s.fit_checked_at || null, checkedAnswers: s.fit_checked_answers ?? null, now: openedAt });
+  if (due) {
+    // Raised by the check alone: the summary names the day, which moves.
+    const summary = `Your own settings were due a try when you studied on ${dayLabel(lastDay)}, but none happened. ${using}${lastTry}`;
+    return { ...out, status: "fail", summary, details: [], raise: [{ key: "", detail: summary }] };
+  }
+  if (now < FIRST_FIT) {
+    return { ...out, status: "wait", summary: `Your own settings are first tried at ${FIRST_FIT} answers that count; you have ${now}. ${using}`, details: [] };
+  }
+  return { ...out, status: "pass", summary: `Not due on your last study day, ${dayLabel(lastDay)}: tried every ${REFIT_DAYS} days once there are ${REFIT_ANSWERS} more answers. ${using}${lastTry}`, details: [] };
 }
 
 // ── The deck: no card twice, nothing back ─────────────────────────────
@@ -769,7 +1070,7 @@ const pairKey = (x, y) => {
   const [a, b] = [String(x), String(y)].sort((p, q) => (Number(p) - Number(q)) || (p < q ? -1 : p > q ? 1 : 0));
   return `${a}|${b}`;
 };
-const isLesson = (row) => typeof row?.source === "string" && row.source.startsWith("lesson:");
+const isLesson = (row) => !!lessonIdOf(row);
 const quoted = (row) => `“${row.front}”${isLesson(row) ? " (from a lesson)" : ""}`;
 const listed = (names) => (names.length <= 2 ? names.join(" and ") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`);
 const TIMES = ["", "once", "twice", "three times", "four times", "five times"];
@@ -851,7 +1152,7 @@ function checkNoRepeats(cards, ctx) {
   const bad = [];
   for (const g of rep.groups) {
     const list = g.some((x) => g.some((y) => x !== y && isListPart(x, y)));
-    const why = list ? `a list card and ${g.length === 2 ? "an item" : "items"} on it, with English that agrees` : "the same French, and English that agrees";
+    const why = list ? `a list card and ${g.length === 2 ? "an item" : "items"} on it, with English that agrees` : `the same ${ctx.course === "es" ? "Spanish" : "French"}, and English that agrees`;
     bad.push(`${listed(g.map(quoted))} are one card ${TIMES[g.length] || `${g.length} times`}: ${why}.`);
   }
   for (const p of rep.same) {
@@ -864,6 +1165,9 @@ function checkNoRepeats(cards, ctx) {
   }
   const n = rep.inStudy.length;
   const sure = `No two of your ${plural(n, "card")} in study are surely the same card`;
+  // Spanish look-alikes aren't put to Claude (card_pairs holds French
+  // cards), so the sure rule is the whole check there.
+  if (ctx.course === "es") return { ...out, status: "pass", summary: `${sure}.`, details: [] };
   if (!ctx.pairsTable) {
     return { ...out, status: "wait", summary: `${sure}. Look-alikes wait for the database update (migration_016), which keeps Claude's verdicts on them.`, details: [] };
   }
@@ -991,10 +1295,12 @@ function checkNothingBack(cards, ctx) {
 //   pairsTable  false when the database hasn't migration_016 yet: no
 //             card_pairs, and no record of why a card was taken out
 //   corrections  parse_corrections rows for this student; null when unread
+//   course    "es" for the Spanish module's deck (2026-10-22): its wording
+//             says Spanish, and look-alikes aren't put to Claude
 export function runStatusChecks({
   answers = [], deals = [], cards = [], settings = null, timeZone = null,
   now = Date.now(), dealsTable = true, lessonRank = null, from = CHECKS_START, examples = EXAMPLES,
-  pairs = null, pairsTable = true, corrections = null,
+  pairs = null, pairsTable = true, corrections = null, rulesFrom = null, course = "fr",
 } = {}) {
   const idx = indexRecord({ answers, cards, deals, timeZone });
   const startDay = labelNo(from);
@@ -1005,14 +1311,18 @@ export function runStatusChecks({
   const firstDealDay = idx.sets.length ? dayNo(ms(idx.sets[0].dealt_at), idx.tzOf(idx.sets[0])) : null;
   const dealsFromDay = firstDealDay == null ? null : Math.max(startDay, firstDealDay + 1);
   const dealsOn = dealsTable && dealsFromDay != null && idx.rows.some((r) => dayNo(ms(r.answered_at), idx.tzOf(r)) >= dealsFromDay);
+  // The days the app's newer rules began (2026-10-14): each is held only to
+  // answers and sets from its day. Simulated students follow today's rules
+  // from their first day, so their tests pass that day instead.
+  const rules = { repeatsCount: REPEATS_COUNT_FROM, oneWayADay: ONE_WAY_A_DAY_FROM, ...(rulesFrom || {}) };
   const ctx = {
-    now, settings, lessonRank, inWindow, dealsOn, timeZone, pairs, pairsTable, corrections,
+    now, settings, lessonRank, inWindow, dealsOn, timeZone, pairs, pairsTable, corrections, rulesFrom: rules, course,
     dealsWaiting: !dealsTable
       ? "Waiting for the database update."
       : "Starts the day after the first set is recorded.",
     dealInWindow: (d) => dealsFromDay != null && dayNo(ms(d.dealt_at), idx.tzOf(d)) >= dealsFromDay,
     // A set judged: in the window, and not replaced before it was answered.
-    dealJudged: (d) => dealsFromDay != null && dayNo(ms(d.dealt_at), idx.tzOf(d)) >= dealsFromDay && !idx.replaced.has(d),
+    dealJudged: (d) => ctx.dealInWindow(d) && !idx.replaced.has(d),
     dealsOnDay: (day) => dealsFromDay != null && day >= dealsFromDay,
   };
   const results = [
@@ -1023,8 +1333,11 @@ export function runStatusChecks({
     checkDueFirst(idx, ctx),
     checkNewOrder(idx, ctx),
     checkFirstMeetings(idx, ctx),
+    checkOneWayADay(idx, ctx),
     checkDealt(idx, ctx),
     checkPredictions(idx, ctx),
+    checkFirstGaps(idx, ctx),
+    checkOwnSettings(idx, ctx),
     checkNoRepeats(cards, ctx),
     checkNothingBack(cards, ctx),
   ].map((r) => ({ ...r, details: r.details.slice(0, examples), more: Math.max(0, r.details.length - examples) }));
@@ -1041,6 +1354,20 @@ export function runStatusChecks({
   };
 }
 
+// The problems the morning check (scripts/status-check.mjs) raises for a
+// failing check, each a line that is also its key in the raised list, and
+// what goes beneath it. A check that says what to raise (the FSRS
+// predictions, first gaps and own settings, 2026-11-13) is raised by the
+// group that fails, or by the check alone, with its changing figures beneath,
+// so the next morning it is "raised before" rather than new. Any other is
+// raised line by line, as before.
+export function raisedProblems(prefix, check) {
+  if (check.raise) {
+    return check.raise.map(({ key, detail }) => ({ line: `${prefix}: ${check.title}${key ? `: ${key}` : ""}`, detail }));
+  }
+  return (check.details.length ? check.details : [check.summary]).map((d) => ({ line: `${prefix}: ${check.title}: ${d}` }));
+}
+
 // The results as plain text, to paste to Claude.
 export function statusText(report) {
   const lines = [`Status check, ${report.checkedAt.slice(0, 16).replace("T", " ")} UTC — answers from ${report.from} on.`];
@@ -1048,6 +1375,7 @@ export function statusText(report) {
     lines.push(`\n[${r.status.toUpperCase()}] ${r.title}: ${r.summary}`);
     for (const d of r.details) lines.push(`  - ${d}`);
     if (r.more) lines.push(`  - and ${r.more} more`);
+    for (const n of r.notes || []) lines.push(`  - ${n}`);
   }
   if (report.judging) lines.push(`\n${judgingText(report.judging)}`);
   return lines.join("\n");

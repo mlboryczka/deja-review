@@ -1,7 +1,7 @@
 // scripts/status-check.mjs, the status check from the command line, run
 // against a stand-in Supabase (the auth admin list and every table it reads)
 // holding a simulated student's record. Checks that it finds the admin's
-// account, reads every page of answers, runs the eleven checks, says so
+// account, reads every page of answers, runs the fourteen checks, says so
 // plainly when migration_013 or migration_016 hasn't been run, lists every
 // detail with --all, and never sends anything that could change the
 // database, each request judged by what its kind does. And what it reads
@@ -10,15 +10,20 @@
 // the deck twice and a deleted card back each failing their check. And the
 // morning check, --everyone: every student, what the server's daily run last
 // asked Claude about look-alikes, and the three tests of Claude's work with
-// any slip named. No browser; the stand-in's address replaces SUPABASE_URL,
-// so nothing leaves the machine.
+// any slip named. Also: --email names another account or none; --record keeps
+// what was raised, so the next morning it says "Nothing new"; a daily run that
+// couldn't ask Claude is kept as a line of its own with the error beneath it;
+// open feedback counts as a problem until it is resolved; the free plans'
+// figures are read, and warned about past 80% and 95%; --test-app judges the
+// admin's record alone and keeps its own list. No browser; the stand-in's
+// address replaces SUPABASE_URL, so nothing leaves the machine.
 process.env.TZ = "America/New_York";
 
 import http from "node:http";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { mkdtempSync, readFileSync, existsSync } from "node:fs";
+import { mkdtempSync, readFileSync, existsSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { checker } from "../check.mjs";
 import { READ_ONLY, whatItDoes, writes } from "../requestKinds.mjs";
@@ -39,18 +44,19 @@ const pairsOf = (cards) => standInVerdicts(cards, new Date(end).toISOString()).m
 
 // The stand-in. `state.migrated` false answers dealt_sets as a missing table
 // (before migration_013), `state.m16` false card_pairs (before migration_016).
-// Filters and order as PostgREST reads them: col=eq.x, col=in.(a,b),
-// order=col.asc|desc, offset and limit.
+// Filters and order as PostgREST reads them: col=eq.x, col=is.null,
+// order=col.asc|desc, offset and limit. `state.plan` ({code, body}) replaces
+// plan_usage's answer of 50 MB of database and 12 MB of files.
 const state = {
   migrated: true, m16: true, requests: [], answers: rec.answers, cards: rec.cards,
   pairs: pairsOf(rec.cards), corrections: [CORRECTION], reports: [], runs: [], feedback: [],
 };
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, "http://x");
-  state.requests.push({ method: req.method, path: url.pathname, auth: req.headers.authorization, apikey: req.headers.apikey });
+  state.requests.push({ method: req.method, path: url.pathname });
   const send = (code, body) => { res.writeHead(code, { "content-type": "application/json" }); res.end(JSON.stringify(body)); };
   if (req.method === "POST" && url.pathname === "/rest/v1/rpc/plan_usage") {
-    return send(200, { database_bytes: 50e6, storage_bytes: 12e6 });
+    return state.plan ? send(state.plan.code, state.plan.body) : send(200, { database_bytes: 50e6, storage_bytes: 12e6 });
   }
   if (req.method !== "GET") return send(405, { message: "the stand-in only answers reads" });
   if (req.headers.apikey !== KEY || req.headers.authorization !== `Bearer ${KEY}`) return send(401, { message: "no key" });
@@ -59,7 +65,8 @@ const server = http.createServer((req, res) => {
   }
   const m = url.pathname.match(/^\/rest\/v1\/(\w+)$/);
   const tables = {
-    card_reviews: state.answers, user_cards: state.cards, dealt_sets: rec.deals, fsrs_settings: [rec.settings],
+    card_reviews: state.answers, user_cards: state.cards, dealt_sets: [...rec.deals, ...(state.otherDeals || [])], fsrs_settings: [rec.settings, ...(state.otherSettings || [])],
+    ...(state.es ? { es_card_reviews: state.es.answers, es_user_cards: state.es.cards, es_dealt_sets: state.es.deals } : {}),
     card_pairs: state.pairs, parse_corrections: state.corrections, status_reports: state.reports, eval_runs: state.runs,
     beta_feedback: state.feedback,
   };
@@ -71,7 +78,6 @@ const server = http.createServer((req, res) => {
   for (const [k, v] of url.searchParams) {
     if (["select", "order", "offset", "limit"].includes(k)) continue;
     if (v.startsWith("eq.")) rows = rows.filter((r) => String(r[k]) === v.slice(3));
-    else if (v.startsWith("in.(")) { const set = v.slice(4, -1).split(","); rows = rows.filter((r) => set.includes(String(r[k]))); }
     else if (v === "is.null") rows = rows.filter((r) => r[k] == null);
   }
   const order = url.searchParams.get("order");
@@ -83,18 +89,30 @@ const server = http.createServer((req, res) => {
   const limit = Number(url.searchParams.get("limit") || rows.length);
   return send(200, rows.slice(offset, offset + limit));
 });
+// The stand-in keeps an idle connection open (Node closes one after 5
+// seconds). The script works out every check in one stretch with no pause
+// for anything else; on a slow machine that stretch outlasts 5 seconds, and
+// its next request goes out on the connection the stand-in has just closed:
+// "fetch failed". On GitHub, 2026-11-19, the daily run's kept reports
+// couldn't be read after --everyone's checks (seen again on the Mac with
+// every core kept busy), and --test-app --record stopped before it kept its
+// list of problems: 12 checks failed on unchanged code that passed when
+// run again.
+server.keepAliveTimeout = 0;
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const BASE = `http://127.0.0.1:${server.address().port}`;
 
 // Runs the script. ADMIN_EMAIL is a space: set, so a .env.local can't fill it
-// in, and blank, so the script falls back to VITE_ADMIN_EMAIL. HOME is a
+// in, and blank, so the script falls back to VITE_ADMIN_EMAIL (which a test
+// that wants no address blanks the same way, with a space). HOME is a
 // fresh folder, so the morning check's list of problems already raised
 // (kept under the home folder) is this run's own, never the owner's.
 const HOME = mkdtempSync(join(tmpdir(), "status-script-home-"));
 const RAISED = join(HOME, ".claude", "scheduled-tasks", "morning-check", "raised.json");
 function run(args = [], env = {}) {
   return new Promise((resolve) => {
-    const c = spawn(process.execPath, [SCRIPT, ...args], {
+    // The simulated student follows today's rules from its first day.
+    const c = spawn(process.execPath, [SCRIPT, ...args, "--rules-from", "2026-09-27"], {
       env: {
         PATH: process.env.PATH, HOME,
         SUPABASE_URL: BASE, SUPABASE_SERVICE_ROLE_KEY: KEY,
@@ -131,7 +149,7 @@ console.log("\n  the admin's own record, found without being named");
   ck("and how many carry their settings", /\(\d+ saved with their settings\)/.test(r.out) && !/\(0 saved/.test(r.out));
   ck("it read the sets and the settings", r.out.includes(`${rec.deals.length} sets recorded`) && /Settings: automatic, now \d+%/.test(r.out), r.out.split("\n").slice(0, 2).join(" | "));
   const marks = r.out.split("\n").filter((l) => /^\[(PASS|FAIL|WAIT)\]/.test(l));
-  ck("all eleven checks reported", marks.length === 11, `${marks.length}`);
+  ck("all fourteen checks reported", marks.length === 14, `${marks.length}`);
   ck("it read Claude's verdicts, why cards were taken out, and the corrections",
      r.out.includes(`${state.pairs.length} verdicts of Claude's on look-alike cards, 0 cards removed, 1 correction.`) &&
      ["card_pairs", "parse_corrections"].every((t) => state.requests.some((q) => q.path === `/rest/v1/${t}`)), r.out.split("\n")[1]);
@@ -143,7 +161,9 @@ console.log("\n  the admin's own record, found without being named");
   // on which 30 days count as recent, so it isn't this suite's business; the
   // checks of what the app did are, and the exit code must say if any failed.
   const failed = marks.filter((l) => l.startsWith("[FAIL]"));
-  ck("the simulated record passes every check of what the app did", failed.every((l) => l.includes("predictions")), failed.join(" | "));
+  // The two checks of FSRS against results are the luck of the simulated
+  // student's memory (tests/suites/status.mjs says why).
+  ck("the simulated record passes every check of what the app did", failed.every((l) => l.includes("predictions") || l.includes("first gap")), failed.join(" | "));
   ck("and the exit code says whether any check failed", r.code === (failed.length ? 1 : 0), `exit ${r.code}, ${failed.length} failed`);
   ck("it only ever read: each request judged by what its kind does", state.requests.length > 0 && writes(state.requests).length === 0, writes(state.requests).join(", "));
   ck("and asked for answers more than once, a page at a time", state.requests.filter((q) => q.path === "/rest/v1/card_reviews").length >= 3);
@@ -155,8 +175,36 @@ console.log("\n  named with --email");
   ck("another account is checked when named, whatever the case of the address", r.out.startsWith("other@example.com: 0 answers on record"), r.out.split("\n")[0]);
   const nobody = await run(["--email", "nobody@example.com"]);
   ck("an address with no account says so and fails", /No account for nobody@example.com/.test(nobody.out) && nobody.code === 1, nobody.out.trim());
-  const none = await run([], { VITE_ADMIN_EMAIL: "" });
+  const none = await run([], { VITE_ADMIN_EMAIL: " " });
   ck("with no address anywhere it asks whose record", /Whose record\?/.test(none.out) && none.code === 1, none.out.trim());
+}
+
+console.log("\n  a card the student removed");
+{
+  // The count of cards removed would be 0 whatever the script did if no card
+  // in the record had been taken out.
+  const removedCard = { id: 990010, user_id: USER_ID, front: "le test", back: "the test", category: "V", dates: [], source: "archived:cahier-upload", archived_reason: "removed", created_at: new Date(end - 20 * 86400000).toISOString(), fsrs_state: 0, en_fsrs_state: 0 };
+  state.cards = [...rec.cards, removedCard];
+  const r = await run();
+  state.cards = rec.cards;
+  ck("one card the student removed is counted: 1 card removed", r.out.includes(`${state.pairs.length} verdicts of Claude's on look-alike cards, 1 card removed, 1 correction.`), r.out.split("\n")[1]);
+}
+
+console.log("\n  the free plans' warnings");
+{
+  // 420 MB of 500 MB is past 80%; 960 MB of 1 GB is past 80% and 95%.
+  state.plan = { code: 200, body: { database_bytes: 420e6, storage_bytes: 960e6 } };
+  const big = await run(["--everyone"]);
+  ck("a database past 80% is warned of, with its figure beneath",
+     /- Supabase: the database is over 80% of the free plan's 500 MB\n {6}420 MB used/.test(big.out) && !/the database is over 95%/.test(big.out), big.out.match(/Supabase, database[^\n]*/)?.[0]);
+  ck("stored files past 95% get both warnings",
+     /- Supabase: the stored files are over 80% of the free plan's 1 GB/.test(big.out) && /- Supabase: the stored files are over 95% of the free plan's 1 GB\n {6}960 MB used/.test(big.out), big.out.match(/Supabase, stored files[^\n]*/)?.[0]);
+  ck("and the exit code says something new needs looking at", big.code === 1);
+  state.plan = { code: 404, body: { code: "PGRST202", message: "Could not find the function public.plan_usage" } };
+  const noFn = await run(["--everyone"]);
+  ck("with migration_018 not run it says so, and the check fails rather than reads 0",
+     /- Supabase: the size of the database can't be read until migration_018 is run/.test(noFn.out) && noFn.code === 1, noFn.out.match(/Supabase: the size[^\n]*/)?.[0]);
+  state.plan = null;
 }
 
 console.log("\n  before migration_013");
@@ -204,12 +252,12 @@ console.log("\n  the morning check: --everyone");
   const okCase = { id: "apart:ou", says: "different", a: { front: "ou", back: "or" }, b: { front: "où", back: "where" }, got: ["different", "different", "different"] };
   const slip = { ...okCase, got: ["same", "same", "different"] };
   state.runs = [run1("aaaaaaa", [okCase], "2026-10-07T15:00:00Z"), run1("bbbbbbb", [slip], "2026-10-14T15:00:00Z")];
-  state.reports = [{ id: "k1", user_id: USER_ID, user_email: STUDENT, checked_at: "2026-10-14T14:00:30Z", ok: true, failing: 0, answers: 10,
+  state.reports = [{ id: "k1", user_id: USER_ID, user_email: STUDENT, checked_at: new Date(Date.now() - 3600000).toISOString(), ok: true, failing: 0, answers: 10,
     report: { results: [], judging: { asked: 200, answered: 200, same: 1, left: 675, error: null } } }];
   const r = await run(["--everyone"]);
   ck("it checks every student who has answered, now", /Every student who has answered \(1\), checked now:/.test(r.out) && r.out.includes(STUDENT), r.out.split("\n")[0]);
   ck("it reads what the daily run last asked Claude about look-alikes, and what is left for tomorrow",
-     /Look-alike cards put to Claude by the daily run:\n {2}student@example\.com, 2026-10-14: 200 pairs put to Claude this morning\. Claude judged 1 pair the same card and 199 different\. 675 pairs left for tomorrow\./.test(r.out),
+     /Look-alike cards put to Claude by the daily run:\n {2}student@example\.com, \d{4}-\d{2}-\d{2}: 200 pairs put to Claude this morning\. Claude judged 1 pair the same card and 199 different\. 675 pairs left for tomorrow\./.test(r.out),
      r.out.match(/Look-alike cards put to Claude[^\n]*\n[^\n]*/)?.[0]);
   ck("it reports the test of Claude's same-or-different question like the other two",
      /Claude's marking of typed answers: not tested yet\./.test(r.out) && /Claude reading class notes into cards: not tested yet\./.test(r.out) &&
@@ -256,6 +304,20 @@ console.log("\n  the morning check: --everyone");
        !/New since the last morning check/.test(nextDay.out) && nextDay.code === 0,
      nextDay.out.split("\n").slice(-6).join(" / "));
 
+  // A daily run that didn't happen (code check 96): an old kept report was
+  // printed as "this morning's" and nothing was raised.
+  {
+    const keep = state.reports[0].checked_at;
+    state.reports[0].checked_at = "2026-10-14T14:00:30Z";
+    state.reports[0].report.judging = { asked: 200, answered: 200, same: 1, left: 675, error: null };
+    const missed = await run(["--everyone"]);
+    ck("a kept report from days ago is raised, with its date, and exits 1",
+       (missed.out.split("New since the last morning check")[1] || "").includes(`- ${STUDENT}: the daily run hasn't checked them since its last kept report\n      The last kept report is from 2026-10-14.`) && missed.code === 1,
+       missed.out.split("\n").slice(-6).join(" / "));
+    ck("  and is worded 'on <date>', not 'this morning'", /student@example\.com, 2026-10-14: 200 pairs put to Claude on 2026-10-14\./.test(missed.out), missed.out.match(/student@example\.com, 2026[^\n]*/)?.[0]);
+    state.reports[0].checked_at = keep;
+  }
+
   // Feedback nobody has dealt with (the owner, 2026-10-12: "you should be
   // resolving it daily"): new until raised, with Claude's review beneath.
   state.feedback = [
@@ -293,10 +355,75 @@ console.log("\n  a fault in the record");
   const at = lines.findIndex((l) => l.startsWith("[FAIL] Every answer was scheduled"));
   const details = lines.slice(at + 1).filter((l, i, a) => a.slice(0, i + 1).every((x) => x.startsWith("  - "))).length;
   ck("--all lists all ten", details === 10 && !/and \d+ more/.test(all.out.split("[FAIL] Every answer")[1].split("\n[")[0]), `${details} listed`);
+
+  // The morning check of the owner's test app (2026-10-14): the admin's record
+  // only, with this version's checks, its problems kept apart.
+  state.requests = [];
+  // The other account, listed first by the stand-in, gets a record of its own
+  // with one answer scheduled nine days off, so it WOULD be reported if the
+  // test app's run judged it. Taken out again straight after.
+  const OTHER_ID = "someone-else";
+  const asOther = (rows) => rows.map((r) => ({ ...r, user_id: OTHER_ID }));
+  const otherAnswers = asOther(rec.answers);
+  const off = otherAnswers.find((r) => r.counted && r.state_before === 2 && r.correct);
+  off.due_after = new Date(Date.parse(off.due_after) + 9 * 86400000).toISOString();
+  const savedState = { answers: state.answers, cards: state.cards };
+  state.answers = [...state.answers, ...otherAnswers];
+  state.cards = [...state.cards, ...asOther(rec.cards)];
+  state.otherDeals = asOther(rec.deals);
+  state.otherSettings = [{ ...rec.settings, user_id: OTHER_ID }];
+  const t = await run(["--test-app"]);
+  Object.assign(state, savedState);
+  state.otherDeals = []; state.otherSettings = [];
+  const problems = (t.out.split("New since the last morning check")[1] || "").split("\n").map((l) => l.trim()).filter((l) => l.startsWith("- Test app:"));
+  ck("--test-app judges the admin's record, as the test app's, and not other accounts'",
+     /^The test app \(dejareview-mlb\.vercel\.app\), judged by its own version of the checks:\n\n {2}student@example\.com:/.test(t.out) && !t.out.includes("other@example.com") && !t.out.includes(OTHER_ID),
+     t.out.split("\n")[0]);
+  ck("  every problem it raises names the admin, though another account's record has a fault too",
+     problems.length > 0 && problems.every((l) => l.startsWith("- Test app: student@example.com:")), problems.slice(0, 2).join(" | "));
+  ck("  every check, and each failure named as the test app's, exiting 1",
+     /\[FAIL\] Every answer was scheduled the way FSRS says/.test(t.out) &&
+       (t.out.split("New since the last morning check")[1] || "").includes("- Test app: student@example.com: Every answer was scheduled the way FSRS says: ") && t.code === 1,
+     (t.out.split("New since the last morning check")[1] || "").split("\n")[1]);
+  ck("  and nothing the --everyone run already says: Claude's tests, feedback, free plans",
+     !/Claude's marking of typed answers|Open feedback|Free plans/.test(t.out));
+  ck("  only ever reading", state.requests.length > 0 && writes(state.requests).length === 0, writes(state.requests).join(", "));
+  const RAISED_TEST = join(HOME, ".claude", "scheduled-tasks", "morning-check", "raised-test-app.json");
+  const before = existsSync(RAISED) ? readFileSync(RAISED, "utf8") : null;
+  await run(["--test-app", "--record"]);
+  const kept = JSON.parse(readFileSync(RAISED_TEST, "utf8"));
+  const scheduling = (keys) => keys.filter((k) => k.includes("Every answer was scheduled the way FSRS says")).length;
+  ck("--record keeps the test app's problems in a list of their own",
+     scheduling(Object.keys(kept)) === 10 && Object.keys(kept).every((k) => k.startsWith("Test app: ")) && (existsSync(RAISED) ? readFileSync(RAISED, "utf8") : null) === before,
+     Object.keys(kept)[0]);
+  const t2 = await run(["--test-app"]);
+  ck("  so the next morning they are not new, and it exits 0", /Nothing new: everything still failing was raised before\./.test(t2.out) && t2.code === 0, t2.out.split("\n").slice(-2).join(" "));
   state.answers = rec.answers;
+  await run(["--test-app", "--record"]);
+  ck("  and once fixed, they drop off it", scheduling(Object.keys(JSON.parse(readFileSync(RAISED_TEST, "utf8")))) === 0);
+}
+
+console.log("\n  the test app's Spanish deck");
+{
+  // A Spanish record with ten answers scheduled ten days off, like the French
+  // fault above, served from the es_ tables.
+  const bad = rec.answers.filter((a) => a.counted && a.state_before === 2).slice(0, 10);
+  state.es = {
+    answers: rec.answers.map((a) => (bad.includes(a) ? { ...a, due_after: new Date(Date.parse(a.due_after) + 10 * 86400000).toISOString() } : a)),
+    cards: rec.cards, deals: rec.deals,
+  };
+  const RAISED_TEST = join(HOME, ".claude", "scheduled-tasks", "morning-check", "raised-test-app.json");
+  const before = existsSync(RAISED_TEST) ? readFileSync(RAISED_TEST, "utf8") : null;
+  const t = await run(["--test-app", "--record"]);
+  state.es = null;
+  const kept = Object.keys(JSON.parse(readFileSync(RAISED_TEST, "utf8")));
+  const spanish = (t.out.split("The same, on the Spanish deck:")[1] || "");
+  ck("it checks the admin's Spanish deck and prints its checks", /student@example\.com:\n/.test(spanish) && /\[FAIL\] Every answer was scheduled the way FSRS says/.test(spanish), spanish.split("\n").slice(0, 3).join(" | "));
+  ck("  and a fault in it is kept as 'Test app (Spanish): …'", kept.some((k) => k.startsWith("Test app (Spanish): student@example.com: Every answer was scheduled")), kept.join(" | "));
+  ck("  and every kept problem's name starts 'Test app: ' or 'Test app (Spanish): '", kept.length > 0 && kept.every((k) => /^Test app( \(Spanish\))?: /.test(k)));
+  if (before === null) rmSync(RAISED_TEST, { force: true }); else writeFileSync(RAISED_TEST, before);
 }
 
 server.close();
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+rmSync(HOME, { recursive: true, force: true });
+ck.done();

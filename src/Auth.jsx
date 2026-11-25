@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
+import { SERVER, IN_IPHONE_APP } from "./lib/nativeApp";
 
 // A sign-in link works once. Opened again (a second click, an older email
 // after a newer one, or a work email system that opens links to scan them)
@@ -10,19 +11,28 @@ const linkFailed = () => {
   return !!(params.get("error") || params.get("error_code"));
 };
 
+// Read once when the app loads, and the address bar cleared at once, whether
+// or not anyone is signed in: a signed-in student who opens a used link would
+// otherwise keep the error in the address bar, and the sign-in page would show
+// it at their next sign-out. Only the first sign-in page shown after that load
+// says the link failed.
+const FAILED_AT_LOAD = linkFailed();
+let failedShown = false;
+if (FAILED_AT_LOAD) {
+  try { window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search); } catch { /* address bar stays */ }
+}
+
 export default function Auth() {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(() =>
-    linkFailed() ? "That sign-in link has expired or was already used. Send yourself a new one." : ""
+    FAILED_AT_LOAD && !failedShown ? "That sign-in link has expired or was already used. Send yourself a new one." : ""
   );
 
-  // Cleared once read, so a reload or a later sign-out doesn't show it again.
-  useEffect(() => {
-    if (linkFailed()) window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
-  }, []);
+  // The address was cleared at load; this page now owns the message once.
+  useEffect(() => { failedShown = true; }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -30,7 +40,14 @@ export default function Auth() {
     setError("");
     const { error: authError } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: window.location.origin },
+      // With the slash: Supabase's list of addresses it may send people back
+      // to has the test app as dejareview-mlb.vercel.app/**, which the bare
+      // origin doesn't match, so its link opened the students' app instead
+      // (2026-10-19).
+      // In the iPhone app the page's own address is the app's, which no
+      // email link can open: the link goes to the site, and the code is
+      // typed into the app.
+      options: { emailRedirectTo: `${SERVER || window.location.origin}/` },
     });
     setLoading(false);
     if (authError) setError(authError.message);
@@ -83,7 +100,9 @@ export default function Auth() {
               {error && <div style={styles.error}>{error}</div>}
             </form>
             <p style={styles.sentNote}>
-              The link in the email works too, but it opens the app in a new tab.
+              {IN_IPHONE_APP
+                ? "The link in the email signs you in on the website, not in this app."
+                : "The link in the email works too, but it opens the app in a new tab."}
             </p>
             <button
               style={styles.linkBtn}
@@ -108,7 +127,7 @@ export default function Auth() {
               autoFocus
             />
             <button type="submit" disabled={loading || !email} style={styles.btn}>
-              {loading ? "Sending…" : "Send login link"}
+              {loading ? "Sending…" : IN_IPHONE_APP ? "Email me a sign-in code" : "Send login link"}
             </button>
             {error && <div style={styles.error}>{error}</div>}
           </form>

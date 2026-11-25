@@ -30,6 +30,11 @@ off.due_after = new Date(Date.parse(off.due_after) + 9 * DAY).toISOString();
 
 const state = { migrated: true, kept: [], methods: new Set() };
 const server = http.createServer((req, res) => {
+  // A fresh connection for every request. On GitHub's runs of Nov 11 the save
+  // failed with "fetch failed" before reaching here, after seconds of checking
+  // with the stand-in's connections idle: by every sign a connection the
+  // stand-in had already closed, reused for the save.
+  res.setHeader("connection", "close");
   const url = new URL(req.url, "http://x");
   state.methods.add(`${req.method} ${url.pathname}`);
   let body = "";
@@ -48,7 +53,9 @@ const server = http.createServer((req, res) => {
     if (m?.[1] === "status_reports") {
       if (!state.migrated) return send(404, { code: "PGRST205", message: "Could not find the table 'public.status_reports' in the schema cache" });
       if (req.method === "POST") { state.kept.push(...[].concat(JSON.parse(body))); res.writeHead(201); return res.end(); }
-      return send(200, [...state.kept].sort((a, b) => (a.checked_at < b.checked_at ? 1 : -1)));
+      // Newest first only when the request asks for it, as the database would.
+      const ordered = url.searchParams.get("order") === "checked_at.desc";
+      return send(200, ordered ? [...state.kept].sort((a, b) => (a.checked_at < b.checked_at ? 1 : -1)) : [...state.kept]);
     }
     if (req.method !== "GET") return send(405, { message: "only status_reports is written" });
     const tables = {
@@ -67,19 +74,30 @@ const server = http.createServer((req, res) => {
   });
 });
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
-const db = createClient(`http://127.0.0.1:${server.address().port}`, KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+// A request that never reaches the stand-in says why, which "fetch failed" alone doesn't.
+const traced = (...a) => fetch(...a).catch((e) => {
+  console.log(`  (a request to the stand-in failed: ${[e.cause?.code, e.cause?.message].filter(Boolean).join(" ") || e.message})`);
+  throw e;
+});
+const db = createClient(`http://127.0.0.1:${server.address().port}`, KEY, { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: traced } });
 
 const { checkEveryone, saveReports, latestReports, STATUS_SCHEDULE } = await import("../../api/_lib/statusDaily.js");
 
 console.log("\n  every student, each on their own record");
-const reports = await checkEveryone(db, { now });
+// The simulated students follow today's rules from their first day.
+const reports = await checkEveryone(db, { now, rulesFrom: { repeatsCount: "2026-09-27", oneWayADay: "2026-09-27" } });
 const byEmail = Object.fromEntries(reports.map((r) => [r.user_email, r]));
 ck("the two students who have answered are checked; the one who hasn't is left out",
    reports.length === 2 && byEmail["typical@example.com"] && byEmail["faulty@example.com"] && !byEmail["new@example.com"],
    reports.map((r) => r.user_email).join(", "));
 const good = byEmail["typical@example.com"];
-ck("the student studying by the app's rules passes every check", good?.ok === true && good.failing === 0,
-   JSON.stringify(good?.report?.results?.filter((r) => r.status === "fail").map((r) => r.summary)));
+// Every check but the two of FSRS against results: the simulated student's
+// memory is deliberately not FSRS's, so they pass or fail on the seed's luck
+// (tests/suites/status.mjs says more, and tests them on their own).
+const LUCK = new Set(["predictions", "first-gaps"]);
+const goodFails = (good?.report?.results || []).filter((r) => r.status === "fail" && !LUCK.has(r.id));
+ck("the student studying by the app's rules passes every check", !!good && !good.error && goodFails.length === 0,
+   JSON.stringify(goodFails.map((r) => r.summary)));
 ck("and it says how many of their answers were judged", good?.answers > 0 && good.answers === good.report.answers, String(good?.answers));
 const bad = byEmail["faulty@example.com"];
 const fsrs = bad?.report?.results?.find((r) => r.id === "fsrs");
@@ -89,12 +107,16 @@ ck("and the report names the card", (fsrs?.details || []).some((d) => /comes bac
 
 console.log("\n  kept for the Status window");
 const saved = await saveReports(db, reports);
-ck("the reports are kept, one row a student", saved.ok && state.kept.length === 2);
+// What the save said, and what reached the stand-in: on Nov 11 GitHub's run
+// (43094579586) kept nothing, where every run here keeps both rows.
+ck("the reports are kept, one row a student", saved.ok && state.kept.length === 2,
+   JSON.stringify({ saved, kept: state.kept.length, methods: [...state.methods].filter((m) => m.includes("status_reports")) }));
 const row = state.kept.find((r) => r.user_email === "faulty@example.com");
 ck("each with whether it passed, how many checks failed, how many answers were judged and the report",
    row && row.ok === false && row.failing >= 1 && row.answers > 0 && Array.isArray(row.report?.results) && row.user_id === OTHER,
    JSON.stringify({ ok: row?.ok, failing: row?.failing, answers: row?.answers }));
-state.kept.push({ ...row, ok: true, failing: 0, checked_at: new Date(Date.parse(row.checked_at) - DAY).toISOString() });
+// Added before the newer row, so a query that loses its newest-first order reads this one first.
+state.kept.unshift({ ...row, ok: true, failing: 0, checked_at: new Date(Date.parse(row.checked_at) - DAY).toISOString() });
 const latest = await latestReports(db);
 ck("the window reads the latest for each student, not an older one", latest.reports.length === 2 &&
    latest.reports.find((r) => r.user_email === "faulty@example.com").ok === false);
@@ -111,6 +133,4 @@ ck("and the window is told it's waiting", none.missing === true && none.reports.
 ck("the daily run's schedule is the one in vercel.json", (await import("node:fs")).readFileSync(new URL("../../vercel.json", import.meta.url), "utf8").includes(`"schedule": "${STATUS_SCHEDULE}"`));
 
 server.close();
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

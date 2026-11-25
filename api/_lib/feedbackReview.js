@@ -14,10 +14,14 @@
 //              for every open entry that has no review yet.
 //              Without one: the sender's own browser, straight after sending.
 //              It gets the newest unreviewed entry the sender wrote in the
-//              last few minutes, so a student can cause one review per piece
-//              of feedback they send, and no more.
+//              last few minutes.
 //            The server's key pays either way: the reviews are for the owner
-//            (owner, 2026-10-04).
+//            (owner, 2026-10-04). So that a stranger can't run up the bill,
+//            each sender other than the owner gets SENDER_DAILY_REVIEWS a day,
+//            by either way; over it the entry waits as "Not reviewed yet"
+//            until the owner presses Ask Claude ({ asked: true }), which always
+//            reviews. Each entry is claimed before Claude is asked, so it is
+//            reviewed once even when asked for several times at once.
 //   apply    Admin only. Writes Claude's corrected card over the card, in
 //            place, so it keeps its schedule, its answer history and its place
 //            in any set; or, for "remove", archives the card, which takes it
@@ -43,6 +47,25 @@ export const FEEDBACK_MODEL = "claude-opus-5-5";
 
 // How long after sending the sender's browser may ask for the review.
 export const SENDER_WINDOW_MS = 10 * 60 * 1000;
+
+// Reviews a day on the server's key for each sender other than the owner
+// (code check of 2026-11-07, problem 10). Over it, the entry waits in View
+// feedback as "Not reviewed yet", where the owner's Ask Claude still reviews it.
+export const SENDER_DAILY_REVIEWS = 5;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// While a review is under way, reviewed_at holds when it was claimed and the
+// entry has no review from that moment. A claim older than this is taken to
+// have failed (the server stops any request after 60 seconds, maxDuration in
+// api/review-answer.js), and the entry can be claimed again.
+export const CLAIM_MS = 10 * 60 * 1000;
+
+export function reviewInFlight(row, now = Date.now()) {
+  const claimed = row?.reviewed_at ? Date.parse(row.reviewed_at) : NaN;
+  if (!(claimed > now - CLAIM_MS)) return false;
+  const saved = row.review?.at ? Date.parse(row.review.at) : NaN;
+  return saved !== claimed;
+}
 
 // Anthropic refuses images over 5MB. A bigger screenshot is left out and the
 // review goes ahead on the words and the card.
@@ -85,16 +108,35 @@ export function screenshotBlock(dataUrl) {
 
 const quoted = (front, back) => `front "${front}", back "${back}"`;
 
+// Which deck a feedback's card is in: the Spanish module's (es_user_cards)
+// when the card it was sent from says so (src/BetaFeedback.jsx, 2026-10-22),
+// otherwise the French deck, as every entry before Spanish was. Spanish cards
+// are numbered apart, so a Spanish row id looked up among French cards could
+// find a French card.
+// Feedback with no card carries no course, so a page that starts with "Spanish "
+// (every Spanish page of the app does, src/FlashcardApp.jsx) counts as Spanish
+// too: Exercises, Dialogues, Lessons and Stats are all sent with no card.
+export const courseOfFeedback = (row) =>
+  row?.card_context?.course === "es" || /^Spanish\b/.test(row?.page || "") ? "es" : "fr";
+const cardsTable = (course) => (course === "es" ? "es_user_cards" : "user_cards");
+
+// Read before the feedback when it is about the Spanish module, so the review
+// judges Spanish as Spanish. Said here rather than in SYSTEM_PROMPT, whose
+// wording is the French review's and stays as it is.
+const SPANISH_NOTE = "This feedback is from the Spanish part of the app. Its cards have Latin American Spanish on the front and English on the back, and come from the lessons, from the student's own class notes (the caderno) and from the tutor. Everything said above about French applies to Spanish instead, except how answers are marked. On a card, small slips are forgiven, but irregular verb forms, numbers and months must be typed exactly, both ways ('sesenta', not 'sesneta'). Gender is checked only on word cards, when the student types Spanish. Only the accents that change a verb's tense or person count ('hablo' is wrong for 'habló'); no other accent does ('esta' is right for the verb 'está'). Only one answer is shown on a card. On Exercises and Dialogues an answer is marked right, almost or wrong, and an almost counts as right. Check every claim about Spanish yourself.";
+
 // What Claude is told about one entry.
 export function describeFeedback(row, card, { screenshot = false } = {}) {
   const ctx = row.card_context;
+  const spanish = courseOfFeedback(row) === "es";
   const lines = [
+    ...(spanish ? [SPANISH_NOTE, ""] : []),
     `Feedback sent ${String(row.created_at || "").slice(0, 10)}${row.page ? `, from the ${row.page} page` : ""}:`,
     `<feedback>${row.message || "(no text)"}</feedback>`,
     "",
   ];
   if (ctx) {
-    const shown = ctx.shown_dir === "en" ? "English" : ctx.shown_dir === "fr" ? "French" : null;
+    const shown = ctx.shown_dir === "en" ? "English" : ctx.shown_dir === "fr" ? (spanish ? "Spanish" : "French") : null;
     lines.push(
       `The card on screen when it was sent: ${quoted(ctx.front, ctx.back)}` +
         `${ctx.category === "gram" ? ", a grammar drill" : ""}${shown ? `, shown ${shown} side first` : ""}.`
@@ -185,14 +227,43 @@ export async function handleFeedbackRequest({ body, user, isAdmin, store, apiKey
       row = await store.newestUnreviewed(user.id, new Date(now - SENDER_WINDOW_MS).toISOString());
       if (!row) return reply(200, { ok: true, review: null });
     }
+    // Nothing reviewed: what the entry had stays as it was.
+    const unchanged = (why) => reply(200, { ok: true, id: row.id, review: row.review ?? null, [why]: true });
+    if (reviewInFlight(row, now)) return unchanged("pending");
     if (!apiKey) {
       return reply(503, { error: "The server has no Anthropic key, so Claude can't review feedback." });
     }
-    const ctx = row.card_context;
-    const card = ctx && row.user_id
-      ? await store.card({ userId: row.user_id, rowId: ctx.row_id ?? null, front: ctx.front })
-      : null;
-    const review = shapeReview(await askClaude({ apiKey, row, card }), card);
+    // The entry is claimed before Claude is asked, so when several requests
+    // ask at once only one of them pays for a review.
+    const seen = row.reviewed_at ?? null;
+    const claimedAt = new Date(now).toISOString();
+    if (!(await store.claim(row.id, { seen, at: claimedAt }))) return unchanged("pending");
+    const release = () => store.release(row.id, { claimed: claimedAt, back: seen });
+    // A sender other than the owner gets SENDER_DAILY_REVIEWS a day on the
+    // server's key, counting this one, whether their browser asks or View
+    // feedback does. The owner pressing Ask Claude or Review again always goes
+    // ahead.
+    const ownersOwn = isAdmin && row.user_id === user.id;
+    const askedByOwner = isAdmin && body?.asked === true;
+    if (!ownersOwn && !askedByOwner) {
+      const used = await store.reviewsSince(row.user_id ?? null, new Date(now - DAY_MS).toISOString());
+      if (used > SENDER_DAILY_REVIEWS) {
+        await release();
+        return unchanged("limited");
+      }
+    }
+    let review;
+    try {
+      const ctx = row.card_context;
+      const card = ctx && row.user_id
+        ? await store.card({ userId: row.user_id, rowId: ctx.row_id ?? null, front: ctx.front, course: courseOfFeedback(row) })
+        : null;
+      review = shapeReview(await askClaude({ apiKey, row, card }), card);
+    } catch (e) {
+      // Let go of the claim, so the entry can be asked for again at once.
+      await release().catch(() => {});
+      throw e;
+    }
     await store.saveReview(row.id, review);
     return reply(200, { ok: true, id: row.id, review });
   }
@@ -218,7 +289,8 @@ export async function handleFeedbackRequest({ body, user, isAdmin, store, apiKey
     return reply(409, { error: "Claude didn't suggest a change to the card for this feedback." });
   }
   const { fix } = review;
-  const card = await store.card({ userId: row.user_id, rowId: review.card.row_id });
+  const course = courseOfFeedback(row);
+  const card = await store.card({ userId: row.user_id, rowId: review.card.row_id, course });
   if (!card) return reply(404, { error: "That card is no longer in the deck." });
   const before = review.card;
   const alreadyFixed = card.front === fix.front && card.back === fix.back;
@@ -229,7 +301,7 @@ export async function handleFeedbackRequest({ body, user, isAdmin, store, apiKey
         code: "card_changed",
       });
     }
-    const { error } = await store.updateCard(card.row_id, row.user_id, fix);
+    const { error } = await store.updateCard(card.row_id, row.user_id, fix, course);
     if (error?.code === "23505") {
       return reply(409, { error: `That deck already has a card "${fix.front}", so this one can't be changed to it.` });
     }
@@ -250,7 +322,8 @@ export async function handleFeedbackRequest({ body, user, isAdmin, store, apiKey
 // every answer recorded against it.
 async function remove(row, user, store) {
   const before = row.review.card;
-  const card = await store.card({ userId: row.user_id, rowId: before.row_id });
+  const course = courseOfFeedback(row);
+  const card = await store.card({ userId: row.user_id, rowId: before.row_id, course });
   if (!card) return reply(404, { error: "That card is no longer in the deck." });
   if (card.front !== before.front || card.back !== before.back) {
     return reply(409, {
@@ -258,7 +331,7 @@ async function remove(row, user, store) {
       code: "card_changed",
     });
   }
-  const { error } = await store.setSource(card.row_id, row.user_id, archivedSource(card.source ?? null));
+  const { error } = await store.setSource(card.row_id, row.user_id, archivedSource(card.source ?? null), course);
   if (error) throw new Error(error.message || "The card couldn't be taken out.");
   await store.resolve(row.id, `${REMOVED_NOTE} "${before.front} · ${before.back}". ${row.review.reasoning}`.trim());
   return reply(200, { ok: true, removed: true, card: { row_id: card.row_id, front: before.front, back: before.back }, own: row.user_id === user.id });
@@ -269,12 +342,13 @@ async function remove(row, user, store) {
 async function revert(row, user, store) {
   const review = row.review;
   const note = String(row.resolution || "");
+  const course = courseOfFeedback(row);
   if (row.resolved_at && review?.kind === "remove" && review.card && note.startsWith(REMOVED_NOTE)) {
-    const card = await store.card({ userId: row.user_id, rowId: review.card.row_id, includeArchived: true });
+    const card = await store.card({ userId: row.user_id, rowId: review.card.row_id, includeArchived: true, course });
     if (!card) return reply(404, { error: "That card is no longer in the deck." });
     if (isArchived(card)) {
       const source = card.source.slice(ARCHIVE_PREFIX.length) || review.card.source || null;
-      const { error } = await store.setSource(card.row_id, row.user_id, source);
+      const { error } = await store.setSource(card.row_id, row.user_id, source, course);
       if (error) throw new Error(error.message || "The card couldn't be put back.");
     }
     await store.reopen(row.id);
@@ -285,13 +359,13 @@ async function revert(row, user, store) {
     return reply(409, { error: "Only a fix that was applied can be reverted." });
   }
   const before = review.card;
-  const card = await store.card({ userId: row.user_id, rowId: before.row_id });
+  const card = await store.card({ userId: row.user_id, rowId: before.row_id, course });
   if (!card) return reply(404, { error: "That card is no longer in the deck." });
   if (card.front !== before.front || card.back !== before.back) {
     if (card.front !== review.fix.front || card.back !== review.fix.back) {
       return reply(409, { error: "The card has been edited since the fix was applied, so it can't be reverted." });
     }
-    const { error } = await store.updateCard(card.row_id, row.user_id, { front: before.front, back: before.back });
+    const { error } = await store.updateCard(card.row_id, row.user_id, { front: before.front, back: before.back }, course);
     if (error?.code === "23505") {
       return reply(409, { error: `That deck now has another card "${before.front}", so this one can't be changed back.` });
     }
@@ -307,8 +381,9 @@ async function revert(row, user, store) {
 
 // The store, on Supabase with the service role. The service role ignores RLS,
 // so every card read and write is held to the feedback sender's user_id here.
-const FEEDBACK_COLUMNS =
-  "id,user_id,user_email,message,page,screenshot,card_context,created_at,resolved_at,review";
+// resolution is read by Revert, which looks for the note an applied fix left.
+export const FEEDBACK_COLUMNS =
+  "id,user_id,user_email,message,page,screenshot,card_context,created_at,resolved_at,resolution,review,reviewed_at";
 
 export function supabaseFeedbackStore(db) {
   const shapeCard = (row, includeArchived = false) =>
@@ -340,18 +415,44 @@ export function supabaseFeedbackStore(db) {
     // By row id when the feedback has one (sent since 2026-10-04), otherwise by
     // the front, which is unique in a deck.
     // Archived cards count as gone, unless asked for (Revert of a removal).
-    async card({ userId, rowId, front, includeArchived = false }) {
+    async card({ userId, rowId, front, includeArchived = false, course = "fr" }) {
       const columns = "id,user_id,front,back,source";
+      const table = cardsTable(course);
       if (rowId != null) {
-        const { data, error } = await db.from("user_cards").select(columns).eq("id", rowId).maybeSingle();
+        const { data, error } = await db.from(table).select(columns).eq("id", rowId).maybeSingle();
         if (error) throw new Error(error.message);
         if (data) return data.user_id === userId ? shapeCard(data, includeArchived) : null;
       }
       const key = String(front || "").trim();
       if (!key) return null;
-      const { data, error } = await db.from("user_cards").select(columns).eq("user_id", userId).ilike("front", key).limit(10);
+      const { data, error } = await db.from(table).select(columns).eq("user_id", userId).ilike("front", key).limit(10);
       if (error) throw new Error(error.message);
       return shapeCard((data || []).find((r) => String(r.front || "").trim().toLowerCase() === key.toLowerCase()));
+    },
+
+    // Takes the entry for one review: only if reviewed_at is still what was
+    // read, so of several requests at once exactly one gets it.
+    async claim(id, { seen, at }) {
+      let q = db.from("beta_feedback").update({ reviewed_at: at }).eq("id", id);
+      q = seen == null ? q.is("reviewed_at", null) : q.eq("reviewed_at", seen);
+      const { data, error } = await q.select("id");
+      if (error) throw new Error(error.message);
+      return (data || []).length === 1;
+    },
+
+    // Gives a claim back, unless something else has claimed the entry since.
+    async release(id, { claimed, back }) {
+      const { error } = await db.from("beta_feedback").update({ reviewed_at: back }).eq("id", id).eq("reviewed_at", claimed);
+      if (error) throw new Error(error.message);
+    },
+
+    // The sender's entries reviewed, or being reviewed, since then.
+    async reviewsSince(userId, sinceIso) {
+      let q = db.from("beta_feedback").select("id", { count: "exact", head: true }).gte("reviewed_at", sinceIso);
+      q = userId == null ? q.is("user_id", null) : q.eq("user_id", userId);
+      const { count, error } = await q;
+      if (error) throw new Error(error.message);
+      return count ?? 0;
     },
 
     async saveReview(id, review) {
@@ -359,23 +460,23 @@ export function supabaseFeedbackStore(db) {
       if (error) throw new Error(error.message);
     },
 
-    async updateCard(rowId, userId, { front, back }) {
-      const { error } = await db.from("user_cards").update({ front, back }).eq("id", rowId).eq("user_id", userId);
+    async updateCard(rowId, userId, { front, back }, course = "fr") {
+      const { error } = await db.from(cardsTable(course)).update({ front, back }).eq("id", rowId).eq("user_id", userId);
       return { error };
     },
 
-    async setSource(rowId, userId, source) {
+    async setSource(rowId, userId, source, course = "fr") {
       // A card taken out of study says why, as a student's Remove does
       // (api/_lib/removeCard.js), so nothing brings it back. Before
       // migration_016 there is no column for the reason, and the card is
       // archived without it. Coming back, the database clears the reason.
       if (isArchived({ source })) {
-        const { error } = await db.from("user_cards")
+        const { error } = await db.from(cardsTable(course))
           .update({ source, archived_reason: "removed", archived_at: new Date().toISOString() })
           .eq("id", rowId).eq("user_id", userId);
         if (!missingColumn(error)) return { error };
       }
-      const { error } = await db.from("user_cards").update({ source }).eq("id", rowId).eq("user_id", userId);
+      const { error } = await db.from(cardsTable(course)).update({ source }).eq("id", rowId).eq("user_id", userId);
       return { error };
     },
 

@@ -6,7 +6,7 @@
 process.env.TZ = "America/New_York";
 
 import { checker } from "../check.mjs";
-import { localISODate, reviewedToday, endOfLocalDay, startOfLocalDay } from "../../src/lib/studyDay.js";
+import { localISODate, localISODateDaysAgo, reviewedToday, endOfLocalDay, startOfLocalDay } from "../../src/lib/studyDay.js";
 import { scheduleAnswer } from "../../src/lib/spacedRepetition.js";
 
 const ck = checker();
@@ -83,6 +83,11 @@ ck("answered at 3am, again at 9am: a new day, records",
 ck("the day ends at 3:59:59.999 the next morning",
    endOfLocalDay(at(2026, 10, 1, 10)) === at(2026, 10, 2, 4).getTime() - 1,
    new Date(endOfLocalDay(at(2026, 10, 1, 10))).toString());
+ck("at 1am the day still ends at 4am this morning",
+   endOfLocalDay(at(2026, 10, 2, 1)) === at(2026, 10, 2, 4).getTime() - 1,
+   new Date(endOfLocalDay(at(2026, 10, 2, 1))).toString());
+ck("at 1am on 2 October, one day ago is 30 September, since the study day is still 1 October",
+   localISODateDaysAgo(1, at(2026, 10, 2, 1)) === "2026-09-30", localISODateDaysAgo(1, at(2026, 10, 2, 1)));
 ck("at 1am the day still began at 4am yesterday",
    startOfLocalDay(at(2026, 10, 2, 1)) === at(2026, 10, 1, 4).getTime(),
    new Date(startOfLocalDay(at(2026, 10, 2, 1))).toString());
@@ -127,8 +132,17 @@ console.log("\n  FSRS counts the days between answers the way the student lives 
   const afterMidnight = scheduleAnswer({ fsrs_state: 0 }, false, at(2026, 10, 2, 0, 20).getTime());
   ck("and so is a miss at 12:20am, which belongs to the day before",
      localISODate(new Date(afterMidnight.next_due_at)) === "2026-10-02", afterMidnight.next_due_at);
+
+  // The first misses above come out the same whether the study day starts at
+  // 4am or at midnight. A known card tells them apart: missed at 11:50pm, then
+  // right at 12:20am, which is still the same study day as 11:55pm, and later
+  // than 4:20am, which is the next one.
+  const known = scheduleAnswer(scheduleAnswer({ fsrs_state: 0 }, true, at(2026, 9, 20, 21).getTime()), true, at(2026, 9, 25, 21).getTime());
+  const missedLate = scheduleAnswer(known, false, at(2026, 10, 1, 23, 50).getTime());
+  const rightAt = (h, m, day = 1) => scheduleAnswer(missedLate, true, at(2026, 10, day, h, m).getTime()).stability;
+  const pastMidnight = rightAt(0, 20, 2), sameNight = rightAt(23, 55), nextDay = rightAt(4, 20, 2);
+  ck("a known card missed at 11:50pm, then right at 12:20am: the same credit as right at 11:55pm, and less than at 4:20am",
+     pastMidnight === sameNight && pastMidnight < nextDay, `12:20am ${pastMidnight} / 11:55pm ${sameNight} / 4:20am ${nextDay}`);
 }
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

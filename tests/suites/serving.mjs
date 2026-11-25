@@ -9,7 +9,8 @@
 // wave through a UTC bug.
 process.env.TZ = "America/New_York";
 
-import { buildSession, orderNewCards, classDaysOf, placeRetry, withdrawRetry, applyAnswer } from "../../src/lib/sessionQueue.js";
+import { buildSession, practiceSession, orderNewCards, classDaysOf, addedByStudent, placeRetry, withdrawRetry, applyAnswer, countsAnswer } from "../../src/lib/sessionQueue.js";
+import { scheduleAnswer } from "../../src/lib/spacedRepetition.js";
 import { packSet, unpackEntries } from "../../src/lib/studyPlace.js";
 import { SIDE_FIELDS, sideOf, itemKey, withLocalAnswers } from "../../src/lib/directions.js";
 import { localISODate, localISODateDaysAgo } from "../../src/lib/studyDay.js";
@@ -112,7 +113,7 @@ console.log("\n  a card that isn't due is never dealt, however well known");
   const known = many(10, () => knownCard());
   const { queue, counts } = build([...many(10, () => reviewCard(-DAY)), ...known]);
   ck("well-known cards not yet due stay out of the block", !known.some((c) => ids(queue).has(c.id)), JSON.stringify(counts));
-  ck("and the block is only the due work", queue.length === 10 && counts.spot === 0, JSON.stringify(counts));
+  ck("and the block is only the due work", queue.length === 10 && counts.lapse + counts.review + counts.new === 10, JSON.stringify(counts));
   const caughtUp = build(known);
   ck("with nothing due and nothing new, there is no block", caughtUp.queue.length === 0, `${caughtUp.queue.length}`);
 }
@@ -167,6 +168,31 @@ console.log("\n  tutor chat cards are dated by the day they were added");
   ck("added yesterday: it is a recent card and comes first", order[0] === addedYesterday.id, order.join(" "));
   ck("added a month ago: a word seen once, after the two-class word",
      order.indexOf(twoClassesOld.id) < order.indexOf(addedLastMonth.id), order.join(" "));
+}
+
+// "Add to my cards" under a podcast passage (2026-10-09) makes a card with no
+// class, like the tutor's: it is dated by the day it was added, the same way.
+console.log("\n  cards added from a podcast passage are dated the same way");
+{
+  const source = "podcast:3f2a9c4e-0000-4000-8000-000000000001";
+  const podcastYesterday = newCard({ source, dates: [], created_at: new Date(NOW - DAY).toISOString() });
+  const tutorYesterday = newCard({ source: "tutor-chat", dates: [], created_at: new Date(NOW - DAY).toISOString() });
+  const podcastLastMonth = newCard({ source, dates: [], created_at: new Date(NOW - 30 * DAY).toISOString() });
+  ck("a podcast card counts as added by the student, as a tutor card does, and a notes card doesn't",
+     addedByStudent(podcastYesterday) && addedByStudent(tutorYesterday) && !addedByStudent(newCard({ source: "cahier-upload" })) &&
+     !addedByStudent(newCard({ source: "lesson:imperatif#k" })) && !addedByStudent(newCard({ source: "archived:podcast:x" })) &&
+     !addedByStudent(null));
+  ck("its class day is the local day it was added, the same as a tutor card's",
+     classDaysOf(podcastYesterday)[0] === localISODate(new Date(NOW - DAY)) &&
+     JSON.stringify(classDaysOf(podcastYesterday)) === JSON.stringify(classDaysOf(tutorYesterday)),
+     JSON.stringify(classDaysOf(podcastYesterday)));
+  const twoClassesOld = newCard({ dates: ["2026-02-01", "2026-03-01"] });
+  const undated = newCard({ dates: [] });
+  const order = orderNewCards([undated, twoClassesOld, podcastLastMonth, podcastYesterday], { now: NOW, rng: rng() }).map((c) => c.id);
+  ck("added yesterday: a recent card, first", order[0] === podcastYesterday.id, order.join(" "));
+  ck("added a month ago: a word seen once, after the two-class word and before a card with no date",
+     order.indexOf(twoClassesOld.id) < order.indexOf(podcastLastMonth.id) && order.indexOf(podcastLastMonth.id) < order.indexOf(undated.id),
+     order.join(" "));
 }
 
 // ── Lessons ─────────────────────────────────────────────────────────────
@@ -227,7 +253,9 @@ console.log("\n  the basic lessons are met from Leçon 1");
 //
 // Agreed with the owner, 2026-09-14: a word or phrase card is asked both ways,
 // "la pomme → ?" and "apple → ?", each scheduled by FSRS from its own answers.
-// Neither way waits for the other. Grammar and pronunciation cards are only
+// Since 2026-10-14 (the owner) a word is asked one way a day: once one way has
+// been answered today, the other waits for tomorrow, and a block never deals
+// both ways of one card. Grammar and pronunciation cards are only
 // ever asked as written. The direction setting chooses which ways of words and
 // phrases are dealt; grammar comes up in every setting.
 const en = (side) => Object.fromEntries(Object.entries(side).map(([k, v]) => [`en_${k}`, v]));
@@ -245,7 +273,7 @@ console.log("\n  a word is asked both ways, each on its own schedule");
 {
   const both = word(DUE, DUE);
   const { queue } = build([both]);
-  ck("due both ways: both ways are in the block", ways(queue, both) === "en+fr", ways(queue, both));
+  ck("due both ways: one way today, not both", ways(queue, both) === "fr" || ways(queue, both) === "en", ways(queue, both));
   const frOnly = word(DUE, LATER);
   const enOnly = word(LATER, DUE);
   const q2 = build([frOnly, enOnly]).queue;
@@ -260,14 +288,23 @@ console.log("\n  a word is asked both ways, each on its own schedule");
      JSON.stringify(q3.queue.filter((e) => e.row_id === missedEn.row_id).map((e) => [e.shownDir, e._bucket])));
 }
 
-console.log("\n  neither way waits for the other");
+console.log("\n  a word is asked one way a day");
 {
   const seenInFrench = word(DUE);
   const { queue } = build([seenInFrench]);
-  ck("a word due in French and never asked in English gets both: a review and a new card",
-     ways(queue, seenInFrench) === "en+fr", ways(queue, seenInFrench));
+  ck("a word due in French and never asked in English: the review today, the new way another day",
+     ways(queue, seenInFrench) === "fr", ways(queue, seenInFrench));
   const seenInEnglish = word({}, DUE);
-  ck("and the same the other way round", ways(build([seenInEnglish]).queue, seenInEnglish) === "en+fr");
+  ck("and the same the other way round", ways(build([seenInEnglish]).queue, seenInEnglish) === "en");
+  const frOlder = word({ ...DUE, next_due_at: new Date(NOW - 3 * DAY).toISOString() }, DUE);
+  ck("due both ways: the more overdue way is dealt", ways(build([frOlder]).queue, frOlder) === "fr");
+  const enMissed = word(DUE, { ...DUE, last_answer_correct: false });
+  ck("due both ways, one missed last time: the missed way is dealt", ways(build([enMissed]).queue, enMissed) === "en");
+  const frToday = word({ ...LATER, last_review: new Date(NOW - 3600000).toISOString() }, DUE);
+  ck("answered in French this morning: English, though due, waits for tomorrow", ways(build([frToday]).queue, frToday) === "");
+  ck("  and comes tomorrow", ways(build([frToday], { now: NOW + DAY }).queue, frToday) === "en", ways(build([frToday], { now: NOW + DAY }).queue, frToday));
+  const both = build([word(DUE, DUE), word(DUE, DUE), word(DUE, DUE)]);
+  ck("the other way, waiting for tomorrow, isn't counted as work left today", both.dueRemaining === 0, `${both.dueRemaining}`);
   const brandNew = many(40, () => word({}));
   const firsts = build(brandNew).queue;
   const dirs = new Set(firsts.map((e) => e.shownDir));
@@ -285,12 +322,12 @@ console.log("\n  a word's two first meetings are kept apart");
   const metYesterday = word({ ...LATER, reps: 1, last_review: new Date(NOW - DAY).toISOString() });
   ck("met for the first time yesterday: asked in English today", ways(build([metYesterday]).queue, metYesterday) === "en");
   const knownAnsweredToday = word({ ...LATER, reps: 4, last_review: new Date(NOW - 3600000).toISOString() });
-  ck("a word known for a while, answered in French today, can still be met in English today",
-     ways(build([knownAnsweredToday]).queue, knownAnsweredToday) === "en");
+  ck("a word known for a while, answered in French today, is met in English another day too",
+     ways(build([knownAnsweredToday]).queue, knownAnsweredToday) === "");
   const enToday = word({}, { ...LATER, reps: 1, last_review: new Date(NOW - 3600000).toISOString() });
   ck("and met first in English this morning: French waits too", ways(build([enToday]).queue, enToday) === "");
   const twoDue = word({ ...DUE, reps: 1 }, { ...DUE, reps: 1 });
-  ck("the rule is only about first meetings: two due reviews share a block", ways(build([twoDue]).queue, twoDue) === "en+fr");
+  ck("two due reviews of one word don't share a block either", ways(build([twoDue]).queue, twoDue).split("+").length === 1, ways(build([twoDue]).queue, twoDue));
 }
 
 console.log("\n  the direction setting");
@@ -300,7 +337,7 @@ console.log("\n  the direction setting");
   const inSetting = (direction) => build([w, g], { direction }).queue;
   ck("FR→EN: words are asked in French", ways(inSetting("fr"), w) === "fr");
   ck("EN→FR: words are asked in English", ways(inSetting("en"), w) === "en");
-  ck("Mixed: both", ways(inSetting("mix"), w) === "en+fr");
+  ck("Mixed: one way a day", ["en", "fr"].includes(ways(inSetting("mix"), w)), ways(inSetting("mix"), w));
   ck("grammar is asked in every setting, as written",
      ["fr", "en", "mix"].every((d) => ways(inSetting(d), g) === "fr"),
      ["fr", "en", "mix"].map((d) => ways(inSetting(d), g)).join(" | "));
@@ -317,6 +354,44 @@ console.log("\n  one answer a day, per way round");
      !queue.some((e) => e.row_id === knownBoth.row_id), queue.filter((e) => e.row_id === knownBoth.row_id).map((e) => e.shownDir).join(","));
 }
 
+console.log("\n  older notes come most said first (2026-10-14)");
+{
+  // Today's order for older notes: most classes first, the older class first
+  // on a tie: a, c, b, d, e. Counted: a, c and e; b isn't, d is said too rarely.
+  const old = (f, dates, said) => word({}, null, { f, dates, said });
+  const a = old("a", ["2026-01-05", "2026-01-06", "2026-01-07"], 5);
+  const c = old("c", ["2026-01-04", "2026-01-06"], 900);
+  const b = old("b", ["2026-01-05", "2026-01-06"], null);
+  const d = old("d", ["2026-01-05"], 0);
+  const e = old("e", ["2026-01-08"], 300);
+  const recent = old("r", ["2026-09-10"], 1);
+  const lesson = { ...old("l", [], 2000), source: "lesson:imperatif#x" };
+  const order = orderNewCards([a, b, c, d, e, recent, lesson], { now: NOW, rng: rng() }).map((x) => x.f);
+  ck("this week's class still first, the lesson's cards still last", order[0] === "r" && order.at(-1) === "l", order.join(" "));
+  ck("the counted cards take the counted places, most said first: c, e, then a", order.slice(1, 6).join(" ") === "c e b d a", order.join(" "));
+  ck("and a card that couldn't be counted keeps its place: b third, d fourth, as before", order[3] === "b" && order[4] === "d", order.join(" "));
+  const none = orderNewCards([a, b, c, d, e].map((x) => ({ ...x, said: null })), { now: NOW, rng: rng() }).map((x) => x.f);
+  ck("with nothing counted, the order is today's", none.join(" ") === "a c b d e", none.join(" "));
+}
+
+console.log("\n  the repeat after a miss counts (2026-10-14)");
+{
+  const morning = new Date(NOW - 3600000).toISOString();
+  ck("a way's first answer of the day counts", countsAnswer({ ...DUE }, {}, NOW));
+  ck("the retry after a miss this morning counts", countsAnswer({ ...DUE, last_review: morning, last_answer_correct: false }, { retry: true }, NOW));
+  ck("a card answered right this morning, shown again, is practice", !countsAnswer({ ...DUE, last_review: morning, last_answer_correct: true }, { retry: true }, NOW));
+  ck("and so is one shown again that isn't the retry", !countsAnswer({ ...DUE, last_review: morning, last_answer_correct: false }, {}, NOW));
+  // A word known for ten days, missed this morning, and its repeat.
+  const known = { fsrs_state: 2, stability: 10, difficulty: 5, reps: 4, lapses: 0, last_review: new Date(NOW - 10 * DAY).toISOString(), next_due_at: new Date(NOW).toISOString() };
+  const miss = scheduleAnswer(known, false, NOW - 3600000);
+  const right = scheduleAnswer(miss, true, NOW);
+  const wrong = scheduleAnswer(miss, false, NOW);
+  ck("the repeat is scheduled by FSRS's same-day rule: right keeps or raises the estimate", right.stability >= miss.stability, `${miss.stability} -> ${right.stability}`);
+  ck("  missed lowers it, and makes the word harder", wrong.stability < miss.stability && wrong.difficulty > miss.difficulty, `${miss.stability} -> ${wrong.stability}`);
+  ck("  either way the word comes back tomorrow at the earliest", [right, wrong].every((x) => Date.parse(x.next_due_at) >= NOW + 12 * 3600000));
+  ck("  and a word missed twice comes back no later than one missed once and then got right", Date.parse(wrong.next_due_at) <= Date.parse(right.next_due_at));
+}
+
 console.log("\n  re-dealing the rest of a block keeps what is already in it");
 {
   const a = word(DUE, DUE);
@@ -326,7 +401,7 @@ console.log("\n  re-dealing the rest of a block keeps what is already in it");
   const keys = queue.map(itemKey);
   ck("an entry already in the block is not dealt again", !keys.includes(itemKey(staying[0])), keys.join(" "));
   ck("a word whose first meeting is in the block gets no second one", !queue.some((e) => e.row_id === b.row_id), keys.join(" "));
-  ck("the other way of a due word still comes", keys.includes(`${a.row_id}:en`), keys.join(" "));
+  ck("the other way of a word already in the block waits for tomorrow", !keys.includes(`${a.row_id}:en`), keys.join(" "));
 }
 
 // ── The write: an answer lands on the way round it was asked ────────────
@@ -410,6 +485,24 @@ console.log("\n  a missed card is retried inside the block, never after it");
   const allRetries = [...block(10), { id: "x", _retry: true }, { id: "y", _retry: true }];
   ck("a retry never displaces another retry",
      placeRetry(allRetries, 9, { id: "b9" }, 20) === allRetries);
+
+  // A block shorter than the set size: the owner's Lesson 8 had 52 cards to
+  // give in a set of 100, and every miss pushed one of them out (2026-10-27).
+  const r1 = placeRetry(block(52), 5, { id: "b5" }, 20, 100);
+  ck("with room, the retry is added and the block grows by one", r1.length === 53 && at(r1, "b5") === 26, `${r1.length} long, retry at ${at(r1, "b5")}`);
+  ck("and no card makes way for it", block(52).every((c) => r1.some((x) => x.id === c.id && !x._retry)));
+  let g = block(52), added = 0;
+  for (let i = 0; i < g.length && added < 60; i++) {
+    const before = g;
+    g = placeRetry(g, i, g[i], 20, 100);
+    if (g !== before) added++;
+  }
+  ck("it grows only to the set size, then retries push cards out as before", g.length === 100 && added > 48, `${g.length} long, ${added} retries`);
+  ck("a miss on the last card still gets no retry", placeRetry(block(52), 51, { id: "b51" }, 20, 100).length === 52);
+  ck("a miss on the second-to-last comes back after the last card",
+     at(placeRetry(block(52), 50, { id: "b50" }, 20, 100), "b50") === 52);
+  ck("changing that miss to right takes the retry out, and the block is as it was",
+     JSON.stringify(withdrawRetry(r1, 5, itemKey({ id: "b5" }))) === JSON.stringify(block(52)));
 }
 
 // ── A miss changed to right takes its retry back out ──────────────────────
@@ -447,6 +540,57 @@ console.log("\n  a miss changed to right takes its retry back out");
      withdrawRetry(entries, 0, itemKey(entries[0])).at(-1)?.row_id === 6);
   const older = { ...kept, entries: kept.entries.map(({ x, ...e }) => e) };
   ck("a set kept before this still loads, whole", unpackEntries(older, rows).entries.length === 6);
+  const grown = JSON.parse(JSON.stringify(packSet({
+    deck: placeRetry(dealt, 0, { ...dealt[0], _rid: "r2" }, 20, 50), idx: 1, stats: {}, done: false,
+    answers: new Map(), face: null, day: "2026-10-27", dir: "mix",
+  })));
+  const back2 = unpackEntries(grown, rows).entries;
+  ck("a retry added to a set with room is kept as added, across a reload",
+     back2.length === 7 && back2.find((c) => c._retry)?._added === true);
+  ck("so changing the miss after a reload takes it out, and nothing else",
+     withdrawRetry(back2, 0, itemKey(back2[0])).length === 6);
+}
+
+// ── A lesson with nothing left in it can be gone through again ──────────
+// The owner, 2026-10-27: "should be able to reset after getting through all
+// cards". Every card of the lesson, one way each, whatever its due date, as
+// practice; a lesson bigger than the set a set at a time.
+console.log("\n  going through a lesson again");
+{
+  const iso = (ms) => new Date(ms).toISOString();
+  // Answered today one way or the other, and not due again for days.
+  const studied = Array.from({ length: 30 }, (_, i) => reviewCard(4 * DAY, {
+    row_id: 900 + i, id: `p${i}`, cat: "vocab",
+    last_review: iso(NOW - (i % 2 ? 0 : DAY)),
+    en_fsrs_state: 2, en_stability: 3, en_next_due_at: iso(NOW + 3 * DAY),
+    en_last_review: iso(NOW - (i % 2 ? DAY : 0)),
+  }));
+  ck("nothing in the lesson is dealt the usual way", build(studied).queue.length === 0);
+  const again = practiceSession(studied, { target: 50, rng: rng() });
+  ck("every card of it is dealt", again.queue.length === 30 && new Set(again.queue.map((c) => c.row_id)).size === 30, `${again.queue.length}`);
+  ck("all of them as practice", again.queue.every((c) => c._bucket === "practice"));
+  ck("each the way round it was answered last, under Mixed",
+     again.queue.every((c) => c.shownDir === (Number(c.id.slice(1)) % 2 ? "fr" : "en")));
+  ck("the direction setting is kept to", practiceSession(studied, { target: 50, direction: "en", rng: rng() }).queue.every((c) => c.shownDir === "en"));
+  const first = practiceSession(studied, { target: 20, rng: rng() });
+  ck("a set takes no more than its size", first.queue.length === 20);
+  const done = new Set(first.queue.map((c) => c.row_id));
+  const rest = practiceSession(studied, { target: 20, done, rng: rng() });
+  ck("the next set takes the cards not yet gone through", rest.queue.length === 10 && rest.queue.every((c) => !done.has(c.row_id)), `${rest.queue.length}`);
+  const last = again.queue[0].row_id;
+  ck("the card answered last never starts the set", practiceSession(studied, { target: 50, avoid: last, rng: rng() }).queue[0].row_id !== last);
+  const grammar = rule(LATER);
+  ck("a card asked one way only is asked that way", practiceSession([grammar], { direction: "en", rng: rng() }).queue[0]?.shownDir === "fr");
+
+  // A miss there comes back later in the set, still as practice, and stays
+  // practice across a reload.
+  const missed = placeRetry(again.queue, 0, { ...again.queue[0], _rid: "p1" }, 20, 50);
+  const retry = missed.find((c) => c._retry);
+  ck("its retry is practice too", retry?._bucket === "practice" && missed.length === 31);
+  const kept = JSON.parse(JSON.stringify(packSet({ deck: missed, idx: 1, stats: {}, done: false, answers: new Map(), face: null, day: "2026-10-27", dir: "mix" })));
+  const { entries } = unpackEntries(kept, studied);
+  ck("a kept set comes back as practice, its retry with it",
+     entries.length === 31 && entries.every((c) => c._bucket === "practice") && entries.some((c) => c._retry));
 }
 
 // ── A fetch never undoes an answer this page has given ─────────────────────
@@ -475,6 +619,4 @@ console.log("\n  a miss changed to right takes its retry back out");
   ck("no answers given: the fetch as it is", withLocalAnswers(untouched, new Map()) === untouched);
 }
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

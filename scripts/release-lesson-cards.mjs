@@ -17,7 +17,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { LESSONS } from "../src/data/lessons/index.js";
+import { LESSONS as FRENCH_LESSONS } from "../src/data/lessons/index.js";
+import { SPANISH } from "../src/data/lessons/es/index.js";
 import { lessonCardKey } from "../src/lib/lessonSource.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -25,6 +26,9 @@ const FILE = path.join(ROOT, "tests", "released-lesson-cards.json");
 
 const list = fs.existsSync(FILE) ? JSON.parse(fs.readFileSync(FILE, "utf8")) : { released: {}, retired: {} };
 let added = 0;
+// The Spanish module's lessons too (2026-10-22): their ids never meet the
+// French ones, so they share the list.
+const LESSONS = [...FRENCH_LESSONS, ...SPANISH.LESSONS];
 for (const lesson of LESSONS) {
   const have = new Set((list.released[lesson.id] || []).map((c) => c.key));
   for (const [front, , , , was] of lesson.cards) {

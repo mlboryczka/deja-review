@@ -1,6 +1,7 @@
 // Vercel cron: GET /api/cahier-daily (see vercel.json)
 //
-// Reads every linked cahier once a day, so a class Laura adds after a lesson
+// Reads every linked French cahier and Spanish caderno once a day (the caderno
+// was read only when Spanish was opened until 2026-11-25), so a class Laura adds after a lesson
 // is already cards the next morning — whether or not the student opened the
 // app. Opening the app checks too (useCahierSync); this is what covers the
 // student who doesn't.
@@ -170,21 +171,39 @@ export default async function handler(req, res) {
     }
   }
 
+  // The Spanish caderno first (2026-11-25, the owner: "make sure the caderno is
+  // updated into the app every day"): there are few of them, and the French
+  // loop below stops when its time is up, so Spanish must not be what is left.
+  const started = Date.now();
+  const spanish = await readLinked(admin, { course: "es", table: "es_cahier_links", apiKey: ANTHROPIC_API_KEY, started });
+  const french = await readLinked(admin, { course: "fr", table: "cahier_links", apiKey: ANTHROPIC_API_KEY, started });
+  if (french.error) return res.status(500).json({ error: french.error });
+
+  return res.status(200).json({
+    ok: true, checked: french.results.length, classes: french.classes, cards: french.cards, results: french.results,
+    caderno: { checked: spanish.results.length, classes: spanish.classes, cards: spanish.cards, results: spanish.results, error: spanish.error || null },
+  });
+}
+
+// Every linked doc of one language, oldest-checked first, read by the same
+// sync the app calls. One student's failure doesn't stop the rest.
+export async function readLinked(admin, { course, table, apiKey, started }) {
+  const label = course === "es" ? "caderno-daily" : "cahier-daily";
   const { data: links, error } = await admin
-    .from("cahier_links")
+    .from(table)
     .select("user_id")
     .order("last_checked_at", { ascending: true, nullsFirst: true })
     .limit(STUDENTS_PER_RUN);
   if (error) {
-    console.error("[cahier-daily] couldn't list linked cahiers:", error);
-    return res.status(500).json({ error: error.message });
+    // The caderno's table comes with migration_023: before it, nothing to read.
+    console.error(`[${label}] couldn't list linked docs:`, error);
+    return { results: [], classes: 0, cards: 0, error: error.message };
   }
 
   const results = [];
-  const started = Date.now();
   for (const { user_id: userId } of links || []) {
     if (Date.now() - started > SYNC_START_UNTIL_MS) {
-      console.log(`[cahier-daily] out of time; ${(links?.length || 0) - results.length} cahiers left for the next run`);
+      console.log(`[${label}] out of time; ${(links?.length || 0) - results.length} docs left for the next run`);
       break;
     }
     try {
@@ -192,18 +211,18 @@ export default async function handler(req, res) {
       // must not stop the rest. The reason is stored on their own row for the
       // app to show them.
       const r = await syncUser({
-        admin, apiKey: ANTHROPIC_API_KEY, userId,
+        admin, apiKey, userId, course,
         limit: CLASSES_PER_STUDENT, force: true, deadline: started + SYNC_QUESTIONS_UNTIL_MS,
       });
       results.push({ userId, ok: r.ok, classes: r.newClasses?.length || 0, cards: r.cardsAdded || 0, remaining: r.remaining ?? null, error: r.error || null });
     } catch (e) {
-      console.error(`[cahier-daily] ${userId} failed:`, e);
+      console.error(`[${label}] ${userId} failed:`, e);
       results.push({ userId, ok: false, error: e.message });
     }
   }
 
   const classes = results.reduce((n, r) => n + (r.classes || 0), 0);
   const cards = results.reduce((n, r) => n + (r.cards || 0), 0);
-  console.log(`[cahier-daily] ${results.length} cahiers read, ${classes} new classes, ${cards} cards, ${results.filter((r) => !r.ok).length} failed`);
-  return res.status(200).json({ ok: true, checked: results.length, classes, cards, results });
+  console.log(`[${label}] ${results.length} docs read, ${classes} new classes, ${cards} cards, ${results.filter((r) => !r.ok).length} failed`);
+  return { results, classes, cards };
 }

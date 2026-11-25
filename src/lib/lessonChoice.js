@@ -46,7 +46,13 @@ export function startedLessons(cards) {
 }
 
 // The lessons on Cards for a student who hasn't chosen: the basic lessons.
-export const ON_BY_DEFAULT = new Set(["lecon1", "lecon2", "lecon3", "lecon4", "lecon5"]);
+// In the Spanish module, Lessons 1 to 6, the ones the owner has covered with
+// Laura (2026-10-22). The Spanish choices sit beside the French ones in the
+// same account setting: the lesson ids never meet.
+export const ON_BY_DEFAULT = new Set([
+  "lecon1", "lecon2", "lecon3", "lecon4", "lecon5",
+  "leccion1", "leccion2", "leccion3", "leccion4", "leccion5", "leccion6",
+]);
 
 // The lessons whose cards come up on Cards: the student's choice, or without
 // one, whether it is a basic lesson or one they have started.

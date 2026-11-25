@@ -31,6 +31,7 @@
 // wrote identically. On 4 September that rewrote the English of 1,429 of the
 // owner's cards and added 44 they already had. It does neither now.
 
+import { docIdFrom } from "../src/lib/docId.js";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 
@@ -48,16 +49,18 @@ import { isConjugationDrill } from "../src/lib/cardInstruction.js";
 import { isGrammarCard } from "../src/lib/cardTypes.js";
 import { cardIndex, isListPart } from "../src/lib/sameCard.js";
 import { planReading, datesCovered } from "../src/lib/notesLines.js";
+import { cleanFrenchPrompt as cleanFrenchFront } from "../src/lib/cardText.js";
 import { claimReading, releaseReading, readDeck, saveRun, seedingFrom } from "./_lib/notesReading.js";
 import { askSameCard } from "./_lib/sameCardQuestion.js";
+import { allowIphoneApp } from "./_lib/cors.js";
 export const config = {
   api: {
     bodyParser: { sizeLimit: "10mb" },
   },
-  // Opt into the longest timeout the plan allows. Hobby caps this at 60s,
-  // Pro at 300s. Without this set, Vercel uses the default (10s on Hobby
-  // for some functions). Also lets us hit the maximum on Pro without
-  // additional config in vercel.json.
+  // Opt into the longest timeout the plan allows: this file relies on five
+  // minutes (the commit's question about look-alikes stops at
+  // QUESTION_TIME_MS so the run can save inside them). Without this set,
+  // Vercel uses its much shorter default.
   maxDuration: 300,
 };
 
@@ -83,6 +86,7 @@ const SUBJECT_PRONOUNS = ["je", "tu", "il/elle", "nous", "vous", "ils/elles"];
 // ═══════════════════════════════════════════════════════════════════════════
 
 export default async function handler(req, res) {
+  if (allowIphoneApp(req, res)) return;
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -93,8 +97,8 @@ export default async function handler(req, res) {
   }
 
   // ANTHROPIC_API_KEY is deliberately NOT required here any more: the key
-  // that pays is the caller's own unless they are the deploy owner, and
-  // only the "extract" action spends anything at all.
+  // that pays is the caller's own unless they are the deploy owner. The
+  // "extract" action and the commit's question about look-alikes spend it.
   const user = await requireUser(req, res);
   if (!user) return;
   const userId = user.id;
@@ -183,7 +187,7 @@ export async function handleSlice(req, res) {
   if (blocks.length === 0) {
     return res.status(400).json({
       error:
-        "No lesson dates found. Expected headers like 'Le 10 avril 2026'. " +
+        "No class dates found. Expected headers like 'Le 10 avril 2026'. " +
         "Check that your cahier has dated entries in French format.",
     });
   }
@@ -272,7 +276,14 @@ export async function handlePlan(req, res, adminClient, userId) {
   if (blocks.length === 0) {
     return res.status(400).json({ error: "Missing or empty blocks array" });
   }
-  const reading = await claimReading(adminClient, { userId, kind: "upload" });
+  let reading;
+  try {
+    reading = await claimReading(adminClient, { userId, kind: "upload" });
+  } catch (e) {
+    // No turn was taken, so there is nothing to give back.
+    console.error("[parse-cahier] taking the reading turn failed:", e);
+    return res.status(500).json({ error: e.message || String(e) });
+  }
   if (reading.busy) return res.status(409).json({ ok: false, busy: true, error: BUSY_MESSAGE });
   try {
     const deck = await readDeck(adminClient, userId);
@@ -326,7 +337,13 @@ export async function handleCommit(req, res, adminClient, user) {
     return res.status(400).json({ error: "Missing or empty cards array" });
   }
 
-  const reading = await claimReading(adminClient, { userId, kind: "upload", runId });
+  let reading;
+  try {
+    reading = await claimReading(adminClient, { userId, kind: "upload", runId });
+  } catch (e) {
+    console.error("[parse-cahier] taking the reading turn failed:", e);
+    return res.status(500).json({ error: e.message || String(e) });
+  }
   if (reading.busy) {
     return res.status(409).json({ ok: false, busy: true, error: runId ? LOST_TURN_MESSAGE : BUSY_MESSAGE });
   }
@@ -426,13 +443,13 @@ export async function handleCommit(req, res, adminClient, user) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 export async function fetchGoogleDoc(url) {
-  const match = url.match(/\/document\/d\/([a-zA-Z0-9_-]+)/);
-  if (!match) {
+  const docId0 = docIdFrom(url);
+  if (!docId0) {
     throw new Error(
       "Not a recognized Google Doc URL. Expected format: https://docs.google.com/document/d/..."
     );
   }
-  const docId = match[1];
+  const docId = docId0;
   const exportUrl = `https://docs.google.com/document/d/${docId}/export?format=txt`;
   const res = await fetch(exportUrl);
   if (!res.ok) {
@@ -490,9 +507,9 @@ function stripHomework(text) {
 
 // What may become a card, how each kind of item under "Prononciation
 // Grammaire" is treated, the conjugation-table special case, and the reply
-// format. Shared by this file's prompt and cahier-parse.js's (the upload
-// dialog's extract step), so the two upload paths can't drift into different
-// ideas of what a card is. The owner's rule behind it, 2026-09-24: a card must
+// format. It is part of EXTRACTION_PROMPT below, which cahier-parse.js
+// reaches through extractCardsFromBlock, so the upload dialog and the linked
+// doc share one idea of what a card is. The owner's rule behind it, 2026-09-24: a card must
 // be answerable by typing something the app can check. A grammar rule has no
 // one answer to type, and the app has no microphone for a pronunciation note.
 //
@@ -532,7 +549,7 @@ If you see a full conjugation listed inline across multiple forms, like:
 ...extract it as a single card with the full table as the front, set category to "G", AND add these additional fields:
   "conjugation": true
   "infinitive": the verb infinitive (e.g. "vivre", "aller", "être")
-  "tense": one of "présent", "subjonctif", "imparfait", "conditionnel", "passé composé", "futur", or "unknown"
+  "tense": one of "présent", "subjonctif", "imparfait", "conditionnel", "passé composé", "plus-que-parfait", "futur", "impératif", or "unknown"
   "forms": array of six strings in order [je, tu, il/elle, nous, vous, ils/elles]. Use null for any slot that isn't present in the source.
 
 Example conjugation card:
@@ -767,8 +784,11 @@ function conjugationDrills(card) {
   if (!card.infinitive) return [];
   if (!Array.isArray(card.forms) || card.forms.length === 0) return [];
 
-  const tenseLabel =
-    card.tense && card.tense !== "unknown" ? ` (${card.tense})` : "";
+  // A table in a tense the app can't name makes no drills: they would be
+  // taken for the present and marked against it.
+  const TABLE_TENSES = ["présent", "subjonctif", "imparfait", "conditionnel", "passé composé", "plus-que-parfait", "futur", "impératif"];
+  if (!TABLE_TENSES.includes(card.tense)) return [];
+  const tenseLabel = ` (${card.tense})`;
 
   const drills = [];
   for (let i = 0; i < Math.min(6, card.forms.length); i++) {
@@ -940,88 +960,9 @@ export function dedupeWithPolysemy(cards) {
   return { deduped: mergeRepeats(cards), splits: 0 };
 }
 
-// ── French-side gloss stripping ─────────────────────────────────────
-// Mirror of src/lib/cardText.js, which applies the same rule at display time
-// to decks parsed before this existed.
-// The French side of a card should be French.
-//
-// Cahier lines often carry an inline English gloss — "je suis allé (I went
-// (passé composé))" — and the parser has sometimes kept that gloss on the
-// front. When it does, the card hands you the answer before you've answered
-// it, which is worse than useless: FSRS records a recall you never made.
-//
-// Rather than migrate thousands of existing rows (and risk mangling the ones
-// that are fine), we strip the gloss at the moment the French side is used as
-// a *prompt*. The stored row is untouched, and the answer side still shows
-// everything.
-//
-// The test for "this is a gloss, not French" is overlap: if a parenthetical on
-// the French side repeats a content word from the English side, it is giving
-// the answer away. Grammar tags — (adj), (f), (pl), (passé composé) — are
-// exempt, because they are legitimate disambiguators even when the English
-// side happens to mention them too.
-
-const GRAMMAR_TAG =
-  /^(adj|adv|adje?ctif|n|nom|v|verbe?|f|m|fem|femin(in)?|masc(ulin)?|pl|plur(iel|al)?|sg|sing(ulier)?|nf|nm|inf|infinitif|pp|p\.p\.|part(icipe)?( passé)?|passé( composé)?|imparfait|futur|présent|conditionnel|subjonctif|impératif|fam|familier|litt|litteraire|littéraire)\.?$/i;
-
-function glossWords(s) {
-  return (s || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .split(/[^a-z0-9']+/)
-    .filter((w) => w.length >= 3);
-}
-
-// Top-level "(...)" spans, tolerant of the unbalanced parentheses these
-// malformed cards tend to have ("je suis allé (I went (passé)" never closes
-// its outer group). An unclosed group runs to the end of the string.
-function parentheticals(text) {
-  const spans = [];
-  let depth = 0;
-  let start = -1;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (ch === "(") {
-      if (depth === 0) start = i;
-      depth++;
-    } else if (ch === ")") {
-      if (depth > 0) {
-        depth--;
-        if (depth === 0) {
-          spans.push([start, i + 1]);
-          start = -1;
-        }
-      }
-    }
-  }
-  if (depth > 0 && start !== -1) spans.push([start, text.length]);
-  return spans;
-}
-
-export function cleanFrenchFront(fr, en) {
-  if (!fr || !en || !fr.includes("(")) return fr;
-
-  const answerWords = new Set(glossWords(en));
-  if (answerWords.size === 0) return fr;
-
-  const spans = parentheticals(fr);
-  let out = fr;
-  let changed = false;
-
-  // Right to left, so earlier spans keep their indices.
-  for (let i = spans.length - 1; i >= 0; i--) {
-    const [s, e] = spans[i];
-    const inner = fr.slice(s + 1, e).replace(/[()]/g, "").trim();
-    if (!inner || GRAMMAR_TAG.test(inner)) continue;
-    if (!glossWords(inner).some((w) => answerWords.has(w))) continue;
-    out = out.slice(0, s) + out.slice(e);
-    changed = true;
-  }
-
-  if (!changed) return fr;
-  // Tidy up the hole we just left, and any parenthesis orphaned by it.
-  const tidied = out.replace(/\s{2,}/g, " ").replace(/\s+([,;.!?])/g, "$1").trim();
-  return tidied || fr;
-}
+// The rule that takes English off the French side of a card lives in
+// src/lib/cardText.js (cleanFrenchPrompt), one copy for this file, the
+// podcasts and the display. It is imported at the top as cleanFrenchFront
+// and re-exported for cahier-parse.js and api/_lib/podcasts.js.
+export { cleanFrenchFront };
 

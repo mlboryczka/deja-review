@@ -4,6 +4,7 @@ import { supabase } from "./supabase";
 import { T } from "./theme";
 import { cleanFrenchPrompt } from "./lib/cardText";
 import { PANEL_EASING } from "./lib/motion";
+import { feedbackRequest } from "./lib/feedbackApi";
 
 // "Send feedback" trigger + the panel it opens. Posts to beta_feedback table.
 //
@@ -40,8 +41,7 @@ import { PANEL_EASING } from "./lib/motion";
 //     with this switched on (`attachRequest`).
 //
 // Stored in beta_feedback.card_context (supabase/schema.sql). The column
-// and `screenshot` are nullable, and the client retries without them if a
-// database predates them.
+// and `screenshot` are nullable.
 
 const TOAST_MS = 5000;
 // Short: the panel moves nothing but itself, so it has no page movement to
@@ -53,6 +53,9 @@ export function BetaFeedback({
   user,
   currentPage,
   currentCard,
+  // "es" when it is sent from the Spanish module: the card it attaches is in
+  // the Spanish deck, and Claude's review and Apply look for it there.
+  course = "fr",
   // Controlled by FlashcardApp so this and the tutor panel can never be open
   // together.
   open,
@@ -115,6 +118,22 @@ export function BetaFeedback({
   const trimmed = message.trim();
   const hasDraft = trimmed.length > 0 || !!screenshot;
 
+  // The card a note is about is the one on screen when the note starts (first
+  // word, a screenshot, or the card's own flag), and it stays with the draft
+  // until Send, whichever card the student moves on to meanwhile. Reading the
+  // card at Send attached the next card to a note about the last one.
+  const [draftCard, setDraftCard] = useState(null);
+  useEffect(() => {
+    if (!hasDraft) { if (!open) setDraftCard(null); return; }
+    setDraftCard((d) => d || currentCard || null);
+  }, [hasDraft, open, currentCard]);
+  // The card's own flag starts the note on that card, even before a word.
+  useEffect(() => {
+    if (attachRequest && currentCard) setDraftCard(currentCard);
+  }, [attachRequest]); // eslint-disable-line react-hooks/exhaustive-deps
+  const card = draftCard || currentCard;
+  const cardMoved = !!(draftCard && currentCard && (draftCard.row_id ?? draftCard.id) !== (currentCard.row_id ?? currentCard.id));
+
   // A send can outlive the panel (you can close it mid-send), so the result
   // handler reads whether it is still open from here, not from a stale closure.
   const openRef = useRef(open);
@@ -152,8 +171,8 @@ export function BetaFeedback({
   // back to on — but only if the user hasn't explicitly unchecked it.
   const userTouchedAttach = useRef(false);
   useEffect(() => {
-    if (!userTouchedAttach.current) setAttachCard(!!currentCard);
-  }, [currentCard]);
+    if (!userTouchedAttach.current) setAttachCard(!!card);
+  }, [card]);
   // Opened from the card's own flag: that card is what this is about.
   useEffect(() => {
     if (!attachRequest) return;
@@ -254,11 +273,7 @@ export function BetaFeedback({
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) return;
-      fetch("/api/review-answer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ feedback: { action: "review" } }),
-      }).catch(() => {});
+      feedbackRequest({ action: "review" }).catch(() => {});
     } catch {}
   }
 
@@ -284,34 +299,24 @@ export function BetaFeedback({
     };
 
     // Build card_context snapshot if toggle is on and card is available
-    const cardContext = (attachCard && currentCard) ? {
-      card_id: currentCard.id || null,
+    const cardContext = (attachCard && card) ? {
+      card_id: card.id || null,
       // user_cards.id, so Claude's review finds the card even after an edit.
-      row_id: currentCard.row_id ?? null,
-      front: currentCard.f,
-      back: currentCard.b,
-      category: currentCard.cat,
-      shown_dir: currentCard.shownDir,
+      row_id: card.row_id ?? null,
+      front: card.f,
+      back: card.b,
+      category: card.cat,
+      shown_dir: card.shownDir,
+      ...(course === "es" ? { course: "es" } : {}),
     } : null;
 
     const full = { ...base };
     if (screenshot) full.screenshot = screenshot;
     if (cardContext) full.card_context = cardContext;
 
-    // Try full row; if schema is missing the optional columns, drop them
-    // and retry. This matches the original resilience pattern.
     let err = null;
     try {
       ({ error: err } = await supabase.from("beta_feedback").insert(full));
-      if (err && /card_context|screenshot|column/i.test(err.message)) {
-        // Retry without optional columns
-        const fallback = { ...base };
-        if (screenshot && !/card_context/i.test(err.message)) {
-          fallback.screenshot = screenshot;
-        }
-        const retry = await supabase.from("beta_feedback").insert(fallback);
-        err = retry.error;
-      }
     } catch (e) {
       err = e;
     }
@@ -335,6 +340,7 @@ export function BetaFeedback({
     setStatus("idle");
     setError("");
     userTouchedAttach.current = false;
+    setDraftCard(null);
     setAttachCard(!!currentCard);
     if (openRef.current) close({ returnFocus: true });
     setToast({ kind: "sent", id: Date.now() });
@@ -467,10 +473,10 @@ export function BetaFeedback({
                 width. The tooltip names the card, as the prompt appears on it
                 — not the raw stored front, which can carry a gloss the card
                 hides. */}
-            {currentCard && (
+            {card && (
               <label
                 style={BF.check}
-                title={`Attach the current card: ${cleanFrenchPrompt(currentCard.f, currentCard.b)} · ${currentCard.b}`}
+                title={`Attach ${cardMoved ? "the card this note was started on" : "the current card"}: ${cleanFrenchPrompt(card.f, card.b)} · ${card.b}`}
               >
                 <input
                   type="checkbox"
@@ -481,6 +487,17 @@ export function BetaFeedback({
                 />
                 Attach card
               </label>
+            )}
+            {cardMoved && (
+              <button
+                type="button"
+                data-use-screen-card
+                style={{ ...BF.check, background: "none", border: "none", padding: 0, textDecoration: "underline" }}
+                title="This note was started on another card. Attach the card on screen instead."
+                onClick={() => setDraftCard(currentCard)}
+              >
+                Use this card
+              </button>
             )}
             {/* The paperclip sits against Send, the way message composers do
                 it: no label, a tooltip, and paste and drop working anywhere on

@@ -79,7 +79,9 @@
 -- Nothing existing is changed or deleted: new columns are empty, new tables
 -- are empty. The app works before this is run (it then knows classes by date
 -- only, as before), and after. Read and written only by the server: row level
--- security is on and no policy lets a student's browser in. Re-runnable.
+-- security is on and no policy lets a student's browser in. Re-runnable, except
+-- that running it again after migration_025 puts back the older notes-saving
+-- function: run 025 again afterwards.
 
 -- 1. The record of lines read ---------------------------------------------
 

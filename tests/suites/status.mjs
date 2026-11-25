@@ -11,10 +11,11 @@ process.env.TZ = "America/New_York";
 
 import { checker } from "../check.mjs";
 import { simulate, TIME_ZONE, lessonRank, detourRepeats, standInVerdicts } from "../simulate/student.mjs";
-import { runStatusChecks, statusText, CHECKS_START, lookalikes, judgingText } from "../../src/lib/statusChecks.js";
+import { runStatusChecks, statusText, raisedProblems, CHECKS_START, lookalikes, judgingText } from "../../src/lib/statusChecks.js";
 import { reviewRow, withoutExtras, REVIEW_EXTRAS, missingColumn } from "../../src/lib/reviewLog.js";
 import { dealRow, missingTable } from "../../src/lib/dealLog.js";
 import { buildSession } from "../../src/lib/sessionQueue.js";
+import { studyDayNumber } from "../../src/lib/fsrsHistory.js";
 import { settingsInUse, makeScheduler, State } from "../../src/lib/spacedRepetition.js";
 import { STARTING_WEIGHTS } from "../../src/lib/fsrsSettings.js";
 
@@ -37,7 +38,9 @@ const CORRECTIONS = [
 const check = (rec, extra = {}) => runStatusChecks({
   answers: rec.answers, deals: rec.deals, cards: rec.cards, settings: rec.settings,
   pairs: rec.pairs ?? standInVerdicts(rec.cards), corrections: rec.corrections ?? CORRECTIONS,
-  timeZone: TIME_ZONE, lessonRank, now: endOf(rec), ...extra,
+  timeZone: TIME_ZONE, lessonRank, now: endOf(rec),
+  // The simulated student follows today's rules from its first day.
+  rulesFrom: { repeatsCount: CHECKS_START, oneWayADay: CHECKS_START }, ...extra,
 });
 const result = (report, id) => report.results.find((r) => r.id === id);
 const failsOnly = (report, id, label) => {
@@ -55,7 +58,9 @@ const failsOnly = (report, id, label) => {
 // own (FSRS's predictions against results, below), so here it is left out,
 // and a change to how the simulated deck is built can't turn the suite red
 // by reshuffling the luck.
-const LUCK = new Set(["predictions"]);
+// "A new word's first gap suits how you remember" is the same question asked
+// of a word's second answer only, so it is luck here too, with tests below.
+const LUCK = new Set(["predictions", "first-gaps"]);
 console.log("\n  a simulated student studying by the app's rules");
 {
   const report = check(base);
@@ -131,7 +136,8 @@ console.log("\n  following FSRS");
 }
 {
   const rec = clone(base);
-  const row = rec.answers.find((r) => r.counted && Date.parse(r.answered_at) > Date.parse(`${CHECKS_START}T12:00:00`) + 5 * DAY);
+  // A right answer: a second one after a miss is the repeat, which counts.
+  const row = rec.answers.find((r) => r.counted && r.correct && Date.parse(r.answered_at) > Date.parse(`${CHECKS_START}T12:00:00`) + 5 * DAY);
   rec.answers.push({ ...row, id: "dup-1", answered_at: new Date(Date.parse(row.answered_at) + 60000).toISOString() });
   failsOnly(check(rec), "one-a-day", "a second answer counted on the same day fails");
 }
@@ -323,76 +329,98 @@ console.log("\n  following the app's rules");
   set.items[i] = { ...set.items[i], c: lessonCard.id, d: "fr" };
   const r = failsOnly(check(rec), "new-order", "a set taking a lesson card ahead of the student's own notes fails");
   ck("  and says which card it passed over", /ahead of/.test(r.details[0] || ""), r.details[0]);
+  // The lessons no longer having that card changes nothing here: a notes
+  // card comes before any lesson card.
+  const dropped = (card) => (card.row_id === lessonCard.id ? null : lessonRank(card));
+  failsOnly(check(rec, { lessonRank: dropped }), "new-order", "  and still does once the lessons no longer have that card");
 }
 {
-  // A set made on the owner's test app (2026-11-07, Laura's "a note; a grade"):
-  // it asks a word one way a day, so a word due one way, or answered one way
-  // today, has no other way to give. A set from this app has no such rule.
-  // Only this set is judged; the first set on record only starts the checks.
+  // A lesson card the lessons have since taken out (2026-10-25: two of the
+  // owner's sets were faulted for giving Spanish Lesson 1 drills, taken out
+  // that day, ahead of Lesson 2 cards). Where it stood when the set was
+  // dealt can't be read now. Inside a lesson, a set that took the lesson's
+  // last card ahead of earlier ones fails; it passes once the lessons no
+  // longer have the card it took, and once the deck has put that card away
+  // with its answers, or deleted it unanswered.
+  const rankOf = (row) => lessonRank({ f: row.front, source: row.source });
+  let found = null;
+  for (const set of base.deals.filter((d) => d.scope !== "all|all" && d.items.some((x) => x.b === "new"))) {
+    const lesson = set.scope.split("|")[1];
+    const at = Date.parse(set.dealt_at);
+    const met = new Set(base.answers.filter((r) => Date.parse(r.answered_at) < at).map((r) => r.card_id));
+    const inSet = new Set([...set.items, ...(set.kept || [])].map((x) => x.c));
+    const unmet = base.cards.filter((c) => String(c.source).startsWith(`lesson:${lesson}#`) && !met.has(c.id) && !inSet.has(c.id));
+    if (!unmet.length) continue;
+    const latest = unmet.reduce((a, b) => (rankOf(b) > rankOf(a) ? b : a));
+    // The latest of the new cards it took gives way to the lesson's last.
+    const dealtNew = set.items.filter((x) => x.b === "new");
+    const top = dealtNew.reduce((a, b) => (rankOf(base.cards.find((c) => c.id === b.c)) > rankOf(base.cards.find((c) => c.id === a.c)) ? b : a));
+    if (!(rankOf(latest) > rankOf(base.cards.find((c) => c.id === top.c)))) continue;
+    const rec = clone(base);
+    const into = rec.deals.find((d) => d.id === set.id);
+    const i = into.items.findIndex((x) => x.b === "new" && x.c === top.c && x.d === top.d);
+    into.items[i] = { ...into.items[i], c: latest.id, d: "fr" };
+    found = { rec, card: latest };
+    break;
+  }
+  ck("(a set inside a lesson took new cards while later ones of the lesson waited)", !!found);
+  if (found) {
+    failsOnly(check(found.rec), "new-order", "a set inside a lesson taking its last card ahead of earlier ones fails");
+    const dropped = (card) => (card.row_id === found.card.id ? null : lessonRank(card));
+    const r = result(check(found.rec, { lessonRank: dropped }), "new-order");
+    ck("  but not once the lessons no longer have the card it took", r.status === "pass", `${r.status}: ${r.summary} ${r.details[0] || ""}`);
+    const away = clone(found.rec);
+    const row = away.cards.find((c) => c.id === found.card.id);
+    row.source = `archived:${row.source}`;
+    const gone = clone(found.rec);
+    gone.cards = gone.cards.filter((c) => c.id !== found.card.id);
+    const ra = result(check(away, { lessonRank: dropped }), "new-order");
+    const rg = result(check(gone, { lessonRank: dropped }), "new-order");
+    ck("  nor once the deck has put that card away, or deleted it unanswered", ra.status === "pass" && rg.status === "pass",
+       `${ra.status}/${rg.status}: ${ra.details[0] || rg.details[0] || ""}`);
+  }
+}
+{
+  // A card the student added themselves is dated by the day they added it,
+  // and that day is never an uncertain class date: the tutor's cards, and
+  // since 2026-10-09 "Add to my cards" under a podcast passage. One added an
+  // hour before a set and never met is that day's word, so a set that took
+  // a notes card from an older class instead broke the agreed order, and a
+  // podcast card is judged exactly as a tutor card is.
   const dayOf = (t) => {
     const d = new Date(t - 4 * 3600000);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   };
-  // A set, and a word in it as a review whose other way is still new, which
-  // gets a class of the set's own day so that other way comes before any new card.
-  const setUp = () => {
+  const withAdded = (source) => {
     const rec = clone(base);
-    for (const set of rec.deals.slice(1).filter((d) => d.scope === "all|all" && d.items.some((x) => x.b === "new"))) {
+    for (const set of rec.deals.filter((d) => d.scope === "all|all" && d.items.some((x) => x.b === "new"))) {
       const at = Date.parse(set.dealt_at);
-      if (dayOf(at) === dayOf(Date.parse(rec.deals[0].dealt_at))) continue;
-      const item = set.items.find((x) => {
-        const card = rec.cards.find((c) => c.id === x.c);
-        const other = x.d === "en" ? "fr" : "en";
-        return x.b === "review" && card && ["V", "E"].includes(card.category)
-          && !set.items.some((y) => y.c === x.c && y.d === other)
-          && !rec.answers.some((r) => r.card_id === x.c && r.direction === other && Date.parse(r.answered_at) < at);
+      const twoDaysBefore = dayOf(at - 2 * DAY);
+      const older = set.items.find((x) => {
+        const c = x.b === "new" && rec.cards.find((card) => card.id === x.c);
+        return c && c.source === "cahier-upload" && c.dates.length && c.dates.every((d) => d <= twoDaysBefore);
       });
-      if (!item) continue;
-      const card = rec.cards.find((c) => c.id === item.c);
-      const day = dayOf(at);
-      card.dates = [...card.dates, day];
-      rec.cards.push({ ...clone(card), id: -1, front: "une nouvelle", source: "archived:cahier-upload", dates: [day], created_at: new Date(at - 60000).toISOString() });
-      rec.deals = [rec.deals[0], set];
-      return { rec, set, item, at };
+      if (!older) continue;
+      rec.cards.push({
+        ...clone(rec.cards.find((c) => c.id === older.c)), id: -3, front: "un cortège", back: "a protest march", dates: [], source,
+        created_at: new Date(at - 3600000).toISOString(), next_due_at: null, en_next_due_at: null, stability: null, en_stability: null,
+        difficulty: null, en_difficulty: null, fsrs_state: 0, en_fsrs_state: 0, reps: 0, en_reps: 0, lapses: 0, en_lapses: 0,
+        last_review: null, en_last_review: null, last_answer_correct: null, en_last_answer_correct: null,
+      });
+      return rec;
     }
     return null;
   };
-  const onTestApp = (set) => { for (const x of set.items) if (x.b === "new") x.said = null; };
-  const order = (rec) => result(check(rec), "new-order");
-
-  const here = setUp();
-  ck("(a set holds a word one way as a review, its other way new)", !!here);
-  if (here) {
-    const there = setUp();
-    onTestApp(there.set);
-    const b = order(there.rec);
-    ck("from the test app, that way waits and the set passes", b.status === "pass", `${b.status}: ${b.details[0] || b.summary}`);
-
-    // The same word answered that way earlier today, not in the set.
-    const answeredToday = (mark) => {
-      const s = setUp();
-      s.set.items = s.set.items.filter((x) => x !== s.item);
-      s.rec.answers.push({ ...s.rec.answers.find((r) => r.card_id === s.item.c && r.direction === s.item.d), id: "today-1", counted: true, state_before: State.Review, answered_at: new Date(s.at - 1000).toISOString() });
-      if (mark) onTestApp(s.set);
-      return order(s.rec);
-    };
-    // Until the one-way rule reaches this app too: then every set has it.
-    const thisAppToo = base.deals.some((d) => d.items.some((x) => x.b === "new" && "said" in x));
-    if (!thisAppToo) {
-      const a = order(here.rec);
-      ck("from this app, passing over that word's other way fails", a.status === "fail", `${a.status}: ${a.summary}`);
-      const c = answeredToday(false);
-      ck("from this app, a word answered one way today still has its other way to give", c.status === "fail", `${c.status}: ${c.summary}`);
-    }
-    const e = answeredToday(true);
-    ck("from the test app, it waits for tomorrow", e.status === "pass", `${e.status}: ${e.details[0] || e.summary}`);
-
-    // Anything else waiting still comes first on a test app set.
-    const f = setUp();
-    onTestApp(f.set);
-    f.set.items = f.set.items.filter((x) => x.c !== f.item.c);
-    const g = order(f.rec);
-    ck("a test app set passing over a word with no way in it still fails", g.status === "fail", `${g.status}: ${g.summary}`);
+  const tutor = withAdded("tutor-chat");
+  const podcast = withAdded("podcast:3f2a9c4e-0000-4000-8000-000000000001");
+  ck("(a set took a new notes card from a class at least two days old)", !!tutor && !!podcast);
+  if (tutor && podcast) {
+    const rt = result(check(tutor), "new-order");
+    const rp = result(check(podcast), "new-order");
+    ck("a set passing over a tutor card added that day fails", rt.status === "fail", `${rt.status}: ${rt.summary}`);
+    ck("  and one passing over a card added from a podcast passage that day fails the same way",
+       rp.status === "fail" && /cortège/.test(rp.details[0] || "") && rp.summary === rt.summary && rp.details.length === rt.details.length,
+       `${rp.status}: ${rp.summary} ${rp.details[0] || ""}`);
   }
 }
 {
@@ -415,6 +443,33 @@ console.log("\n  following the app's rules");
   const never = rec2.cards.find((c) => !dealt.has(c.id));
   rec2.answers.push({ ...last, id: "stray-1", card_id: never.id, direction: "fr", counted: false, rating: null, answered_at: new Date(Date.parse(last.answered_at) + 9000).toISOString() });
   failsOnly(check(rec2), "dealt", "a card asked that no set dealt fails");
+
+  // A window left open overnight (2026-10-30, the owner): its set from the
+  // night before is still on screen after another window or device has dealt
+  // that morning's set, so a card from the last set of the day before passes.
+  // One from an older set still fails.
+  const studyDay = (iso) => studyDayNumber(Date.parse(iso), TIME_ZONE);
+  const lastDay = studyDay(last.answered_at);
+  const todays = rec2.deals.filter((d) => studyDay(d.dealt_at) === lastDay);
+  const keysOf = (sets) => new Set(sets.flatMap((d) => [...d.items, ...(d.kept || [])].map((x) => `${x.c}:${x.d}`)));
+  const today = keysOf(todays);
+  const before = rec2.deals.filter((d) => studyDay(d.dealt_at) < lastDay);
+  const lastNight = before.at(-1);
+  const older = keysOf(before.slice(0, -1));
+  const notToday = (x) => !today.has(`${x.c}:${x.d}`) && `${x.c}:${x.d}` !== `${last.card_id}:${last.direction}`;
+  ck("(the last day has sets of its own, dealt before its first answer)", todays.length > 0);
+  const fromLastNight = lastNight.items.find(notToday);
+  const lastNightKeys = keysOf([lastNight]);
+  const fromOlder = before.slice(0, -1).flatMap((d) => d.items).find((x) => notToday(x) && !lastNightKeys.has(`${x.c}:${x.d}`));
+  ck("(a card from last night's set and one from an older set, in no set of the day)", !!fromLastNight && !!fromOlder && older.size > 0);
+  const strayAt = (x, id) => ({ ...last, id, card_id: x.c, direction: x.d, counted: false, rating: null, answered_at: new Date(Date.parse(last.answered_at) + 9000).toISOString() });
+  const open = clone(base);
+  open.answers.push(strayAt(fromLastNight, "open-window-1"));
+  const r3 = result(check(open), "dealt");
+  ck("a card from the last set of the day before, after the day's own sets, passes", r3.status === "pass", `${r3.status}: ${r3.summary} ${r3.details[0] || ""}`);
+  const old = clone(base);
+  old.answers.push(strayAt(fromOlder, "old-set-1"));
+  failsOnly(check(old), "dealt", "a card from an older set than that fails");
 }
 {
   const r = check(base, { dealsTable: false, deals: [] });
@@ -422,6 +477,37 @@ console.log("\n  following the app's rules");
     ck(`before the database update, "${result(r, id).title}" waits rather than fails`, result(r, id).status === "wait" && /database update/.test(result(r, id).summary), result(r, id).summary);
   }
   ck("  and nothing is failed for it", r.results.every((x) => LUCK.has(x.id) || x.status !== "fail"), r.results.filter((x) => x.status === "fail").map((x) => x.id).join(", "));
+}
+{
+  // A lesson gone through again once nothing in it was left (2026-10-27, the
+  // owner; lib/sessionQueue.js practiceSession): cards dealt whatever their due
+  // date, each answer recorded and never counted. The set's record says they
+  // were dealt for practice, and no check faults them.
+  const rec = clone(base);
+  const last = rec.answers.at(-1);
+  const at = Date.parse(last.answered_at) + 10 * 60000;
+  const dayOf = (t) => new Date(t).toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
+  const answeredThatDay = new Set(rec.answers.filter((r) => dayOf(Date.parse(r.answered_at)) === dayOf(at)).map((r) => r.card_id));
+  const lastCounted = new Map();
+  for (const r of rec.answers) if (r.counted) lastCounted.set(`${r.card_id}:${r.direction}`, r);
+  const picks = [];
+  for (const r of lastCounted.values()) {
+    if (picks.length === 5) break;
+    if (answeredThatDay.has(r.card_id) || picks.some((p) => p.card_id === r.card_id) || Date.parse(r.due_after) < at + 2 * DAY) continue;
+    picks.push(r);
+  }
+  ck("(cards not due, and not answered that day)", picks.length === 5, `${picks.length}`);
+  const queue = picks.map((r) => ({ ...rec.cards.find((c) => c.id === r.card_id), shownDir: r.direction === "en" ? "en" : "fr", _bucket: "practice" }));
+  rec.deals.push(dealRow({ id: "practice-1", userId: "u", kind: "new", scope: last.scope || "all|all", direction: "mix", slots: 50, dealt: { queue, dueRemaining: 0, newAvailable: 0 }, at, timeZone: TIME_ZONE }));
+  rec.answers.push(...picks.map((r, i) => reviewRow({ id: `practice-a${i}`, userId: "u", cardId: r.card_id, dir: r.direction, got: i % 2 === 0, before: null, after: null, at: at + (i + 1) * 60000 })));
+  const report = check(rec);
+  for (const r of report.results) {
+    if (LUCK.has(r.id)) continue;
+    ck(`gone through again: "${r.title}" passes`, r.status === "pass", `${r.status}: ${r.summary}${r.details.length ? " — " + r.details[0] : ""}`);
+  }
+  const bare = clone(rec);
+  bare.deals = bare.deals.filter((d) => d.id !== "practice-1");
+  failsOnly(check(bare), "one-a-day", "the same answers with no set on record dealing them for practice fail, as before");
 }
 
 // ── How well it's working ──────────────────────────────────────────────
@@ -441,9 +527,179 @@ console.log("\n  FSRS's predictions against results");
   ck("  naming the overall gap", /expected 9\d% right and you got 50%/.test(p.details[0]), p.details[0]);
   const few = runStatusChecks({ answers: answers.slice(0, 60), cards: [], timeZone: TIME_ZONE, now: t0 + DAY });
   ck("but 60 such reviews are too few to judge, and wait", result(few, "predictions").status === "wait", result(few, "predictions").summary);
+
+  // Only the group that fails is a problem, known by its name, not its
+  // counts (2026-11-13). Before, every line was raised, passing ones too,
+  // each keyed with its counts, so a group that kept failing was new daily.
+  // 180 reviews FSRS was sure of (half missed) and 100 it gave about 73%
+  // (75% right), so the high band fails and the 70%–80% one doesn't. Under
+  // 300 in all, so there is no overall line.
+  const mixed = (n) => [
+    ...answers.slice(0, n),
+    ...Array.from({ length: 100 }, (_, i) => ({ ...answers[0], id: `m${i}`, card_id: 1000 + i,
+      answered_at: new Date(t0 + (500 + i) * 60000).toISOString(), correct: i % 4 < 3, stability_before: 0.3,
+      last_review_before: new Date(t0 - 2 * DAY).toISOString() })),
+  ];
+  const day1 = result(runStatusChecks({ answers: mixed(180), cards: [], timeZone: TIME_ZONE, now: t0 + DAY }), "predictions");
+  const day2 = result(runStatusChecks({ answers: mixed(196), cards: [], timeZone: TIME_ZONE, now: t0 + DAY }), "predictions");
+  const lines1 = raisedProblems("me@example.com", day1).map((x) => x.line);
+  const lines2 = raisedProblems("me@example.com", day2).map((x) => x.line);
+  ck("a failing band is the only problem raised; the band that matches is a note beneath",
+     day1.status === "fail" && day1.details.length === 1 && /^Cards FSRS gave 9/.test(day1.details[0]) &&
+       day1.notes.some((n) => /^Cards FSRS gave 70%–80%: expected 7\d%/.test(n)) && lines1.length === 1,
+     JSON.stringify({ details: day1.details, notes: day1.notes, lines1 }));
+  ck("  known by its check and band, without counts, so the next day it is the same problem",
+     lines1.length === 1 && lines1[0] === lines2[0] && !/\d+ answers/.test(lines1[0]) &&
+       /^me@example\.com: FSRS's predictions match your results: Cards FSRS gave 9\d%–100%$/.test(lines1[0]),
+     JSON.stringify([lines1, lines2]));
+  ck("  with its figures beneath", /you got 50% right \(180 answers\)/.test(raisedProblems("x", day1)[0].detail), raisedProblems("x", day1)[0].detail);
+  ck("  and the Status text still shows the matching band", /Cards FSRS gave 70%–80%: expected 7\d%/.test(statusText({ checkedAt: new Date(t0).toISOString(), from: CHECKS_START, results: [day1] })));
+}
+
+// ── A word's first gap, and the student's own settings (2026-10-14) ────
+console.log("\n  a new word's first gap");
+{
+  // n words met on day 0, answered again `gap` days later; `right` of the
+  // second answers right. The first answer right or wrong as `first`.
+  const t0 = Date.parse(`${CHECKS_START}T10:00:00`) + 3 * DAY;
+  const words = ({ n, first, gap, right, from = 0 }) => Array.from({ length: n }, (_, i) => [
+    { id: `f${from + i}`, card_id: from + i + 1, direction: "fr", answered_at: new Date(t0 + i * 60000).toISOString(),
+      correct: first, counted: true, state_before: State.New, due_after: new Date(t0 + gap * DAY + i * 60000).toISOString() },
+    { id: `s${from + i}`, card_id: from + i + 1, direction: "fr", answered_at: new Date(t0 + gap * DAY + i * 60000).toISOString(),
+      correct: i < right, counted: true, state_before: State.Review },
+  ]).flat();
+  const judge = (answers, settings = null) => result(runStatusChecks({ answers, cards: [], settings, timeZone: TIME_ZONE, now: t0 + 12 * DAY }), "first-gaps");
+
+  // As on the owner's record: right the first time and every one right ten
+  // days on, where the starting settings expect about 82%.
+  const knew = words({ n: 120, first: true, gap: 10, right: 120 });
+  const r1 = judge(knew);
+  ck("words right first time, all right again where 82% was expected: fails", r1.status === "fail", `${r1.status}: ${r1.summary}`);
+  ck("  saying they come back sooner than they need to", /got right the first time: expected 8\d% .* you got 100% \(120 words\)\. They come back sooner than they need to\./.test(r1.details[0]), r1.details[0]);
+  ck("  and which settings judged it", /Judged with the starting settings\./.test(r1.summary), r1.summary);
+  const missed = words({ n: 120, first: false, gap: 1, right: 36, from: 500 });
+  const r2 = judge(missed);
+  ck("words missed first, 30% right the next day where 78% was expected: fails, waiting too long", r2.status === "fail" && /They wait longer than they should\./.test(r2.details[0]), r2.details[0]);
+  const both = judge([...knew, ...words({ n: 30, first: false, gap: 1, right: 20, from: 900 })]);
+  ck("  only the failing group is raised, by its name; the one too few to judge is a note",
+     JSON.stringify(raisedProblems("me", both).map((x) => x.line)) === JSON.stringify(["me: A new word's first gap suits how you remember: Words you got right the first time"]) &&
+       both.details.length === 1 && both.notes.length === 1 && /Too few/.test(both.notes[0]),
+     JSON.stringify({ raised: raisedProblems("me", both), notes: both.notes }));
+  const fitted = { weights: STARTING_WEIGHTS.map((x, i) => (i === 2 ? 40 : x)), fitted_at: new Date(t0).toISOString(), fit_result: { inUse: "first-gaps" } };
+  const r3 = judge(knew, fitted);
+  ck("with first gaps fitted to that student, the same answers pass", r3.status === "pass", `${r3.status}: ${r3.summary} ${r3.details[0]}`);
+  ck("  judged with the starting settings and their own first gaps", /Judged with the starting settings with your own first gaps since /.test(r3.summary), r3.summary);
+  const r4 = judge(knew.slice(0, 120));
+  ck("60 words are too few to judge, and wait", r4.status === "wait" && /Too few/.test(r4.details[0]), `${r4.status}: ${r4.details[0]}`);
+  ck("a second answer counted on the day of the first isn't one", judge(words({ n: 120, first: true, gap: 0, right: 0 })).status === "wait");
+}
+
+console.log("\n  your own settings, tried when due");
+{
+  // 200 words answered twice: 400 answers that count, then a study day.
+  const t0 = Date.parse(`${CHECKS_START}T10:00:00`) + 3 * DAY;
+  const rows = [];
+  for (let i = 0; i < 200; i++) {
+    rows.push({ id: `a${i}`, card_id: i + 1, direction: "fr", answered_at: new Date(t0 + i * 60000).toISOString(), correct: true, counted: true, state_before: State.New, due_after: new Date(t0 + 4 * DAY).toISOString() });
+    rows.push({ id: `b${i}`, card_id: i + 1, direction: "fr", answered_at: new Date(t0 + 4 * DAY + i * 60000).toISOString(), correct: true, counted: true, state_before: State.Review, due_after: new Date(t0 + 9 * DAY).toISOString() });
+  }
+  const lastDay = t0 + 9 * DAY;
+  rows.push({ id: "c", card_id: 1, direction: "fr", answered_at: new Date(lastDay).toISOString(), correct: true, counted: true, state_before: State.Review });
+  const judge = (settings) => result(runStatusChecks({ answers: rows, cards: [], settings, timeZone: TIME_ZONE, now: lastDay + 3600000 }), "own-settings");
+  const never = judge({ weights: null, target: 0.9 });
+  ck("400 answers that count and never tried: fails, naming the day", never.status === "fail" && /due a try when you studied on \w{3} \d+/.test(never.summary), never.summary);
+  const [p] = raisedProblems("me", never);
+  ck("  raised by the check alone, the day beneath, so it stays one problem from day to day",
+     p.line === "me: Your own settings were tried when due" && p.detail === never.summary, JSON.stringify(p));
+  const today = judge({ weights: null, target: 0.9, fit_checked_at: new Date(lastDay - 600000).toISOString(), fit_checked_answers: 400, fit_result: { adopted: false, inUse: "start" } });
+  ck("tried that day: passes, saying it kept what was in use", today.status === "pass" && /kept what was in use/.test(today.summary), today.summary);
+  const recent = judge({ weights: null, target: 0.9, fit_checked_at: new Date(lastDay - 3 * DAY).toISOString(), fit_checked_answers: 380 });
+  ck("tried three days before: not due yet, passes", recent.status === "pass" && /Not due/.test(recent.summary), recent.summary);
+  const old = judge({ weights: null, target: 0.9, fit_checked_at: new Date(lastDay - 8 * DAY).toISOString(), fit_checked_answers: 100 });
+  ck("tried eight days before on 100 answers: due again, and missed, fails", old.status === "fail", old.summary);
+  const switched = judge({ weights: STARTING_WEIGHTS.map((x, i) => (i === 2 ? 8 : x)), fitted_at: new Date(lastDay - 600000).toISOString(), target: 0.9,
+    fit_checked_at: new Date(lastDay - 600000).toISOString(), fit_checked_answers: 400, fit_result: { adopted: true, kind: "first-gaps", inUse: "first-gaps" } });
+  ck("a try that switched says to what", switched.status === "pass" && /switched to your own first gaps/.test(switched.summary) && /Now on the starting settings with your own first gaps/.test(switched.summary), switched.summary);
+  const few = result(runStatusChecks({ answers: rows.slice(0, 100), cards: [], settings: { weights: null }, timeZone: TIME_ZONE, now: lastDay }), "own-settings");
+  ck("50 words answered twice are too few: waits, saying how many count", few.status === "wait" && /first tried at 350 answers that count; you have 100/.test(few.summary), few.summary);
+  ck("no settings on record: waits", judge(null).status === "wait");
 }
 
 // ── The records the app writes ─────────────────────────────────────────
+console.log("\n  the repeat after a miss counts, from the day it began to");
+{
+  const t = Date.parse("2026-10-16T10:00:00");
+  const ans = (id, minutes, correct, counted, card = 1, direction = "fr") => ({
+    id, card_id: card, direction, answered_at: new Date(t + minutes * 60000).toISOString(), correct, counted,
+    state_before: 2, stability_before: 5, difficulty_before: 5, last_review_before: new Date(t - 5 * DAY).toISOString(),
+    due_after: new Date(t + 2 * DAY).toISOString(),
+  });
+  const judge = (answers, id = "one-a-day") => result(runStatusChecks({ answers, cards: [], timeZone: TIME_ZONE, now: t + DAY }), id);
+  const ok = judge([ans("a", 0, false, true), ans("b", 20, true, true)]);
+  ck("a miss and its repeat, both counted: passes", ok.status === "pass", `${ok.status}: ${ok.details[0] || ok.summary}`);
+  const reAsked = judge([ans("a", 0, false, true), ans("b", 10, false, false), ans("c", 20, true, true)]);
+  ck("a miss, the card asked again after a detour (not counted), then its retry counted: passes",
+     reAsked.status === "pass", `${reAsked.status}: ${reAsked.details[0] || reAsked.summary}`);
+  const afterRight = judge([ans("a", 0, true, true), ans("b", 20, true, true)]);
+  ck("a later answer counted after a right one: fails", afterRight.status === "fail" && /the last one counted before it was right/.test(afterRight.details[0]), afterRight.details[0]);
+  const firstNot = judge([ans("a", 0, false, false), ans("b", 20, true, true)]);
+  ck("a day's first answer not counted: fails", firstNot.status === "fail" && /its first answer on Oct 16 wasn't counted/.test(firstNot.details.join(" ")), firstNot.details.join(" | "));
+  const early = judge([ans("a", 0, false, true), ans("b", 20, true, true)], "not-early");
+  ck("and the repeat, the same day as the miss, isn't a card asked before it was due", early.status !== "fail", `${early.status}: ${early.details[0] || early.summary}`);
+  const before = result(runStatusChecks({ answers: [ans("a", -3 * 1440, false, true), ans("b", -3 * 1440 + 20, true, false)], cards: [], timeZone: TIME_ZONE, now: t + DAY }), "one-a-day");
+  ck("before Oct 15 the repeat wasn't counted yet, and that passes", before.status === "pass", `${before.status}: ${before.details[0] || before.summary}`);
+}
+
+console.log("\n  a word asked one way a day");
+{
+  const t = Date.parse("2026-10-16T10:00:00");
+  const ans = (id, day, minutes, direction, card = 1) => ({
+    id, card_id: card, direction, answered_at: new Date(t + day * DAY + minutes * 60000).toISOString(), correct: true, counted: true,
+    state_before: 2, stability_before: 5, difficulty_before: 5, last_review_before: new Date(t - 5 * DAY).toISOString(),
+    due_after: new Date(t + 9 * DAY).toISOString(),
+  });
+  const judge = (answers) => result(runStatusChecks({ answers, cards: [], timeZone: TIME_ZONE, now: t + 3 * DAY }), "one-way-a-day");
+  const apart = judge([ans("a", 0, 0, "fr"), ans("b", 1, 0, "en")]);
+  ck("a word's two ways on different days: passes", apart.status === "pass", `${apart.status}: ${apart.summary}`);
+  const both = judge([ans("a", 0, 0, "fr"), ans("b", 0, 30, "en")]);
+  ck("both ways the same day: fails, naming the day", both.status === "fail" && /both ways round on Oct 16/.test(both.details[0]), both.details[0]);
+  const old = judge([ans("a", -3, 0, "fr"), ans("b", -3, 30, "en")]);
+  ck("before Oct 15, when both ways could share a day, nothing is judged", old.status === "wait", `${old.status}: ${old.summary}`);
+}
+
+console.log("\n  older notes, most said first (2026-10-14)");
+{
+  // Two cards from a class in September, both unseen; a set on Oct 20 takes
+  // x. The set records x's count as the app read it.
+  const COUNTED = "2026-10-15T09:00:00Z";
+  const card = (id, front, said, countedAt = COUNTED) => ({
+    id, front, back: front, category: "V", dates: ["2026-09-01"], source: "cahier-upload", created_at: "2026-09-01T12:00:00Z",
+    fsrs_state: 0, en_fsrs_state: 0, said_per_million: said, said_counted_at: said == null ? null : countedAt,
+  });
+  const set = (id, iso, items) => ({ id, dealt_at: new Date(iso).toISOString(), scope: "all|all", direction: "fr", kind: "block", items, kept: [], time_zone: TIME_ZONE });
+  const answer = (id, cardId, iso) => ({ id, card_id: cardId, direction: "fr", answered_at: new Date(iso).toISOString(), correct: true, counted: true, state_before: 0, time_zone: TIME_ZONE });
+  // `dealtX` is x's entry in the Oct 20 set; `wCountedAt` when w was counted.
+  const judge = (xSaid, wSaid, { dealtX = { c: 1, d: "fr", b: "new", said: xSaid }, wCountedAt = COUNTED } = {}) => result(runStatusChecks({
+    cards: [card(1, "x", xSaid), card(2, "w", wSaid, wCountedAt), card(3, "q", null)],
+    deals: [set("s1", "2026-10-19T10:00:00", [{ c: 3, d: "fr", b: "new", said: null }]), set("s2", "2026-10-20T10:00:00", [dealtX])],
+    answers: [answer("a1", 3, "2026-10-19T10:01:00"), answer("a2", 1, "2026-10-20T10:01:00")],
+    timeZone: TIME_ZONE, now: Date.parse("2026-10-21T10:00:00"),
+  }), "new-order");
+  const show = (r) => `${r.status}: ${r.details[0] || r.summary}`;
+  const lessSaid = judge(1, 500);
+  ck("a set taking a card said less often while one said more often waits: fails", lessSaid.status === "fail" && /took “x” ahead of “w”/.test(lessSaid.details[0]), show(lessSaid));
+  const moreSaid = judge(900, 500);
+  ck("the card said more often first: passes", moreSaid.status === "pass", show(moreSaid));
+  const uncounted = judge(1, null);
+  ck("a counted card against one that couldn't be counted isn't judged", uncounted.status === "pass", show(uncounted));
+  const oldSet = judge(1, 500, { dealtX: { c: 1, d: "fr", b: "new" } });
+  ck("a set dealt before the order went by counts is judged by the old order, and passes", oldSet.status === "pass", show(oldSet));
+  const olderDeck = judge(1, 500, { dealtX: { c: 1, d: "fr", b: "new", said: null } });
+  ck("a set dealt from a deck loaded before the count isn't judged by it", olderDeck.status === "pass", show(olderDeck));
+  const countedLater = judge(1, 500, { wCountedAt: "2026-10-21T01:00:00Z" });
+  ck("a card counted after the set was dealt isn't judged by its count", countedLater.status === "pass", show(countedLater));
+}
+
 console.log("\n  what the app records");
 {
   const card = { row_id: 5, f: "la pomme", b: "apple", cat: "vocab", fsrs_state: 2, stability: 4.2, difficulty: 5.1, reps: 3, lapses: 1, last_review: "2026-09-20T15:00:00.000Z", next_due_at: "2026-09-24T15:00:00.000Z" };
@@ -473,11 +729,16 @@ console.log("\n  what the app records");
      row.items.length === dealt.queue.length && row.items.every((x) => x.c && (x.d === "fr" || x.d === "en") && x.b === "new"),
      JSON.stringify(row.items[0]));
   ck("the cards kept in the set once each, retries left out", row.kept.length === 1 && row.kept[0].c === deck[0].row_id && row.kept[0].b === "review", JSON.stringify(row.kept));
+  // How often a new card is said, as the app read it (2026-10-14).
+  const counted = dealRow({ id: "d2", userId: "u", kind: "new", scope: "all|all", direction: "fr", slots: 2, at: "2026-10-20T15:00:00Z", timeZone: TIME_ZONE,
+    dealt: { queue: [{ ...deck[1], said: 412.5, shownDir: "fr", _bucket: "new" }, { ...deck[2], shownDir: "fr", _bucket: "new" }, { ...deck[3], said: 9, shownDir: "fr", _bucket: "review" }] } });
+  ck("a new card's entry says how often it's said as the app read it, null when not counted; a due card's says nothing",
+     counted.items[0].said === 412.5 && counted.items[1].said === null && !("said" in counted.items[2]), JSON.stringify(counted.items));
   ck("and what was left over", row.due_left === dealt.dueRemaining && row.new_available === dealt.newAvailable && row.slots === 12);
 }
 {
   const text = statusText(check(base));
-  ck("the details to paste to Claude name every check", text.split("\n").filter((l) => /^\[(PASS|FAIL|WAIT)\]/.test(l)).length === 11, text.slice(0, 200));
+  ck("the details to paste to Claude name every check", text.split("\n").filter((l) => /^\[(PASS|FAIL|WAIT)\]/.test(l)).length === 14, text.slice(0, 200));
 }
 
 // ── The deck: no card twice, nothing back ──────────────────────────────
@@ -519,10 +780,12 @@ const lessonCard = base.cards.find((c) => String(c.source).startsWith("lesson:")
   // What a list only seems to hold is never failed by the rule: it waits for
   // Claude, like any look-alike.
   const rec2 = clone(base);
-  addCard(rec2, { front: "se lever, acheter, amener", back: "to get up, to buy, to bring", created_at: later(9) });
-  addCard(rec2, { front: "amener", back: "to bring (someone)", created_at: later(2) });
-  addCard(rec2, { front: "La semaine prochaine, il va faire froid", back: "Next week, it's going to be cold", created_at: later(9) });
-  addCard(rec2, { front: "la semaine prochaine", back: "next week", created_at: later(2) });
+  // Housework and demain matin: none of them is a lesson card. Amener, la
+  // semaine prochaine, se lever and acheter are (Leçons 10, 6 and 11).
+  addCard(rec2, { front: "repasser, plier, balayer", back: "to iron, to fold, to sweep", created_at: later(9) });
+  addCard(rec2, { front: "balayer", back: "to sweep (the floor)", created_at: later(2) });
+  addCard(rec2, { front: "Demain matin, il va faire froid", back: "Tomorrow morning, it's going to be cold", created_at: later(9) });
+  addCard(rec2, { front: "demain matin", back: "tomorrow morning", created_at: later(2) });
   const w = result(check(rec2, { pairs: standInVerdicts(base.cards) }), "repeats");
   ck("  but different words grouped on one card, or a word inside a sentence, only wait for Claude", w.status === "wait" && /2 look-alike pairs are still to be put to Claude/.test(w.summary), w.summary);
 }
@@ -654,6 +917,24 @@ console.log("\n  nothing deleted, removed or corrected back");
   ck("  and when there was nothing to ask, says why", /none put to Claude this morning \(waiting for the database update/.test(judgingText({ asked: 0, left: 0, skipped: "waiting for the database update (migration_016)" })));
 }
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+console.log("\n  code check 81, 82, 87, 91");
+{
+  const { classDaysOf } = await import("../../src/lib/sessionQueue.js");
+  const card = { source: "tutor-chat", created_at: "2026-11-06T07:00:00Z", dates: [] };
+  const paris = (t) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(t);
+  const la = (t) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles" }).format(t);
+  ck("a tutor card is dated by the zone it is given, not the process's",
+     classDaysOf(card, paris)[0] === "2026-11-06" && classDaysOf(card, la)[0] === "2026-11-05");
+  const rec = simulate({ days: 40, seed: 7, cards: 260, student: "typical" });
+  const bad = rec.answers.map((a, i) => (a.counted && a.state_before === 2 && i % 40 === 0 ? { ...a, difficulty_after: (a.difficulty_after ?? 5) + 2 } : a));
+  const r = check({ ...rec, answers: bad }).results.find((x) => x.id === "scheduling" || /scheduled the way FSRS/.test(x.title));
+  ck("an FSRS mismatch in difficulty names the difficulty, not the same stability twice",
+     r.status === "fail" && r.details.some((d) => /its difficulty came out as/.test(d)) && !r.details.some((d) => /memory estimate came out as ([\d.]+) days, where FSRS gives \1 days/.test(d)), r.details?.[0]);
+  const es = check(rec, { course: "es" }).results.find((x) => x.id === "own-settings");
+  ck("on the Spanish deck, own settings aren't judged, and it says why", es.status === "wait" && /French/.test(es.summary), es.summary);
+  const { latestZoneOf } = await import("../../api/_lib/statusDaily.js");
+  ck("the latest zone is that of the answer answered last, whatever the id order",
+     latestZoneOf([{ answered_at: "2026-11-02T10:00:00Z", time_zone: "Europe/Paris" }, { answered_at: "2026-11-01T10:00:00Z", time_zone: "America/Los_Angeles" }, { answered_at: "2026-11-03T10:00:00Z", time_zone: null }]) === "Europe/Paris");
+}
+
+ck.done();

@@ -43,7 +43,7 @@ await new Promise((r) => anthropic.listen(0, "127.0.0.1", r));
 process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${anthropic.address().port}`;
 
 const {
-  handleAnswerChecks, readVerdict, verdictRow, summarize, agrees, answerPrompt, ownerCall, runAnswerTest, answerPasses, answerJudge,
+  handleAnswerChecks, readVerdict, verdictRow, summarize, agrees, answerPrompt, ownerCall, runAnswerTest, answerPasses, answerJudge, isDrillCard,
   ANSWER_MODEL, ANSWER_PROMPT_VERSION, ASKS_PER_CASE,
 } = await import("../../api/_lib/answerChecks.js");
 const { isDue, regressions, pooled } = await import("../../api/_lib/evalRuns.js");
@@ -93,6 +93,25 @@ console.log("\n  what is saved for each verdict");
   ck("the English side asked becomes direction en", verdictRow({ user: STUDENT, direction: "en", typed: "x", verdict: "accept" }).direction === "en");
   ck("the question names the typed and the expected answer",
      answerPrompt({ direction: "fr", french: "une grenouille", expected: "a frog", typed: "a toad" }).includes('The user typed: "a toad"'));
+  // Until 2026-11-13 an English-first card quoted the French as "the English
+  // side", and a drill's French answer was called English.
+  const enFirst = answerPrompt({ direction: "en", french: "¿De dónde eres?", english: "Where are you from?",
+    expected: "¿De dónde eres?", typed: "de donde eres", language: "Spanish" });
+  ck("an English-first card shows Claude the English the student saw",
+     enFirst.includes('The card showed the English side: "Where are you from?"') &&
+     enFirst.includes('The expected Spanish answer was: "¿De dónde eres?"'), enFirst.split("\n").slice(2, 4).join(" | "));
+  const frFirst = answerPrompt({ direction: "fr", french: "une grenouille", english: "a frog", expected: "a frog", typed: "a toad" });
+  ck("a French-first card still shows the French and expects English",
+     frFirst.includes('The card showed the French side: "une grenouille"') && frFirst.includes('The expected English answer was: "a frog"'));
+  const drill = answerPrompt({ direction: "fr", french: "être → je", english: "je suis", expected: "je suis", typed: "je suis",
+    drill: isDrillCard({ direction: "fr", french: "être → je", said: true }) });
+  ck("a drill's expected answer is called French, not English",
+     drill.includes('The expected French answer was: "je suis"') && !drill.includes("expected English"));
+  ck("the app's word decides a drill; a saved answer goes by the arrow",
+     isDrillCard({ direction: "fr", french: "si + imparfait → conditionnel", said: false }) === false &&
+     isDrillCard({ direction: "fr", french: "relatif → adverbe" }) === true &&
+     isDrillCard({ direction: "en", french: "relatif → adverbe", said: true }) === false &&
+     isDrillCard({ direction: "fr", french: "une grenouille" }) === false);
 }
 
 console.log("\n  agreeing with the owner");
@@ -190,6 +209,17 @@ console.log("\n  the test, as the server runs it on its own");
      one.length === 1 && one[0].id === "r1" && one[0].says === "accept" && one[0].from === "accept-anyway" && calls.length === ASKS_PER_CASE,
      JSON.stringify(one));
 
+  const english = memoryStore();
+  await english.save(verdictRow({ user: OWNER, card_id: "une grenouille", direction: "en", french: "une grenouille", english: "a frog", expected: "une grenouille", typed: "un grenouille", verdict: "reject", reasoning: "" }));
+  await english.save(verdictRow({ user: OWNER, card_id: "être → je", direction: "fr", french: "être → je", english: "je suis", expected: "je suis", typed: "j'suis", verdict: "reject", reasoning: "" }));
+  calls = [];
+  verdicts = { "un grenouille": ["reject"], "j'suis": ["reject"] };
+  await runAnswerTest({ store: english, apiKey: KEY, adminEmail: OWNER.email });
+  ck("the test shows an English-first card's English, as the app does",
+     calls.some((c) => c.messages[0].content.includes('The card showed the English side: "a frog"')) &&
+     !calls.some((c) => c.messages[0].content.includes('English side: "une grenouille"')));
+  ck("and calls a drill's answer French", calls.some((c) => c.messages[0].content.includes('The expected French answer was: "je suis"')));
+
   refuse = true;
   calls = [];
   const refused = await runAnswerTest({ store, apiKey: KEY, adminEmail: OWNER.email });
@@ -273,6 +303,25 @@ console.log("\n  what the Status window is told");
      st.notes.regressions.length === 1 && /“une propositiond” again, which you corrected to “une proposition”/.test(st.notes.regressions[0]), JSON.stringify(st.notes.regressions));
   ck("one it has always made isn't", !st.notes.regressions.some((t) => /Naza/.test(t)));
   ck("a test with one run has nothing to compare, so nothing is named", st.answers.regressions.length === 0 && st.answers.latest.passed === 1);
+
+  // Code check 90 and 92: a Spanish case is found in es_answer_reviews, and a
+  // failed lookup is said, not reported as nothing wrong.
+  const spanish = {
+    ...tables,
+    eval_runs: [
+      { id: "a2", kind: "answers", ran_at: "2026-10-13T15:00:00Z", version: "v2", cases: 1, passed: 0, results: [{ id: "es1", says: "accept", got: ["reject", "reject", "reject"] }] },
+      { id: "a1", kind: "answers", ran_at: "2026-10-06T15:00:00Z", version: "v1", cases: 1, passed: 1, results: [{ id: "es1", says: "accept", got: ["accept", "accept", "accept"] }] },
+    ],
+    answer_reviews: [],
+    es_answer_reviews: [{ id: "es1", typed: "estoy", expected: "I am" }],
+  };
+  const es = await evalStatus({ from: (t) => query(spanish[t]) });
+  ck("a Spanish answer Claude now marks wrong is named, not dropped", es.answers.regressions.length === 1 && /“estoy” for “I am”/.test(es.answers.regressions[0]), JSON.stringify(es.answers));
+  const broken = { ...spanish, answer_reviews: undefined };
+  const bad = await evalStatus({ from: (t) => (t === "answer_reviews" ? { select: () => ({ in: async () => ({ data: null, error: { message: "down" } }) }) } : query(spanish[t])) });
+  ck("a failed lookup is passed on as an error", /couldn't read the cases/.test(bad.answers.error || ""), JSON.stringify(bad.answers));
+  const { ANSWER_PROMPT_VERSION } = await import("../../api/_lib/answerChecks.js");
+  ck("the answer test's version hashes the Spanish question too", /^[0-9a-f]{7}$/.test(ANSWER_PROMPT_VERSION) && ANSWER_PROMPT_VERSION !== "a691631", ANSWER_PROMPT_VERSION);
 }
 
 console.log("\n  before the database update");
@@ -285,6 +334,4 @@ console.log("\n  before the database update");
 }
 
 anthropic.close();
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

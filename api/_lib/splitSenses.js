@@ -10,14 +10,16 @@
 // backed by "the costs; the expenses; fresh". That card is unstudiable: there
 // is no single right answer, so FSRS has nothing to schedule on.
 //
-// The client shortlists candidates with lib/multiSense (cheap, local, over-
-// selects) and sends them here in batches. This endpoint asks Claude to make
+// scripts/fix-multi-sense.mjs shortlists candidates with lib/multiSense (cheap,
+// local, over-selects) and sends them here in batches (the prompt and tool
+// only: the handler below has no caller since the profile-menu window was
+// removed, 2026-09-08). Claude is asked to make
 // the actual call — split or keep — because getting the FRONT right for each
 // sense is the part that needs judgement: the noun keeps its article ("les
 // frais"), the adjective doesn't ("frais"), a verb goes to the infinitive.
 //
-// Nothing is written here. Proposals go back to the client, the user approves
-// them, and applySplits.js performs the writes.
+// Nothing is written here. The script performs the writes
+// (scripts/lib/multiSenseWrites.mjs).
 //
 // Request body (JSON):
 //   { cards: [{ row_id, front, back, category }, ...] }   // max 25

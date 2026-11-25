@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { T } from "./theme";
-import { FIRST_FIT } from "./lib/fsrsSettings";
+import { FIRST_FIT, DEFAULT_TARGET } from "./lib/fsrsSettings";
 
 // "How much to remember": the one FSRS setting a student chooses. The memory
 // settings themselves are fitted to their answers by the server and are never
@@ -25,7 +25,7 @@ export default function FsrsSettingsModal({ open, onClose, settings }) {
   }, [open, onClose]);
 
   if (!open) return null;
-  const { setUp, choice, target, fittedAt, answers, setChoice } = settings;
+  const { setUp, choice, target, fittedAt, fittedKind, answers, setChoice } = settings;
 
   return createPortal(
     <div style={S.scrim} onClick={onClose}>
@@ -56,7 +56,7 @@ export default function FsrsSettingsModal({ open, onClose, settings }) {
                     <span style={S.choiceLabel}>{label}</span>
                     <span style={S.choiceText}>
                       {text}
-                      {key === "auto" && on && target < 0.9 ? ` Now aiming for ${pct(target)}.` : ""}
+                      {key === "auto" && on && target < DEFAULT_TARGET ? ` Now aiming for ${pct(target)}.` : ""}
                     </span>
                   </span>
                 </button>
@@ -66,9 +66,13 @@ export default function FsrsSettingsModal({ open, onClose, settings }) {
         )}
 
         <p style={S.fine}>
-          {fittedAt
-            ? `The app has fitted these settings to how you remember, from your own answers (${day(fittedAt)}). It checks again every month.`
-            : `Once you've given about ${FIRST_FIT.toLocaleString()} answers${answers ? ` (${answers.toLocaleString()} so far)` : ""}, the app fits these settings to how you remember, and switches only if that predicts your answers better.`}
+          {fittedAt && fittedKind === "first-gaps"
+            ? `Since ${day(fittedAt)}, how long a new word lasts after you first answer it comes from your own answers. The rest of the settings are the usual ones until fitting them to you predicts your answers better. The app checks every week.`
+            : fittedAt
+            ? `The app has fitted these settings to how you remember, from your own answers (${day(fittedAt)}). It checks again every week.`
+            : answers >= FIRST_FIT
+            ? `Every week the app tries fitting these settings to how you remember, from your answers (${answers.toLocaleString()} so far), and switches only if that predicts your answers better. For now the usual settings are in use.`
+            : `Once you've given about ${FIRST_FIT.toLocaleString()} answers${answers ? ` (${answers.toLocaleString()} so far)` : ""}, the app tries fitting these settings to how you remember, and switches only if that predicts your answers better. After that it tries every week.`}
         </p>
 
         <div style={S.actions}>

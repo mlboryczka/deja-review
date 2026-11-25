@@ -51,6 +51,9 @@ import { isConjugationDrill } from "../src/lib/cardInstruction.js";
 import { isGrammarCard } from "../src/lib/cardTypes.js";
 import { archivedSource, isArchived } from "../src/lib/archive.js";
 import { LESSON_SOURCE_PREFIX } from "../src/lib/lessonSource.js";
+import { cardIndex } from "../src/lib/sameCard.js";
+import { holderOf } from "./lib/multiSenseWrites.mjs";
+import { loadEnv } from "./lib/loadEnv.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -325,12 +328,18 @@ export function planWrites(deck, current, deckRows) {
       map.get(k).push(r);
     }
   };
+  // The same test the lesson sync and the notes reading use for "is this
+  // card already here?", so "frais (adj)" is found beside "frais" and "un
+  // fils" beside "le fils" (shared with scripts/fix-multi-sense.mjs).
+  const index = cardIndex(deckRows.map((r) => ({ ...r, front: String(r.front ?? ""), back: String(r.back ?? "") })));
   for (const r of deckRows) hold(r);
-  // The row holding this front, exactly or in another spelling — other than
-  // the row itself, when a row is being respelled.
-  const heldBy = (front, selfId) => {
+  // The row holding this front, exactly or in another spelling, or the same
+  // card by the app's own rule when the back is known — other than the row
+  // itself, when a row is being respelled.
+  const heldBy = (front, selfId, back) => {
     const other = (r) => String(r.id) !== String(selfId);
-    return (exact.get(front) || []).find(other) || (loose.get(normFront(front)) || []).find(other) || null;
+    return (exact.get(front) || []).find(other) || (loose.get(normFront(front)) || []).find(other) ||
+      (back != null ? holderOf(index, { id: selfId }, { front: String(front), back: String(back) }) : null);
   };
   const describe = (r) => (isArchived(r) ? `an archived card "${r.front}" holds it` : `already in the deck as "${r.front}"`);
 
@@ -348,11 +357,12 @@ export function planWrites(deck, current, deckRows) {
     if (row.front === e.newFront && row.back === e.newBack) { done(e.front, "edit already made"); continue; }
     if (row.front !== e.front || row.back !== e.back) { skip(e.front, "changed since the proposal"); continue; }
     if (e.newFront !== row.front) {
-      const holder = heldBy(e.newFront, row.id);
+      const holder = heldBy(e.newFront, row.id, e.newBack);
       if (holder) { skip(e.front, `new front ${describe(holder)}`); continue; }
     }
     writes.edits.push({ id: row.id, front: row.front, set: { front: e.newFront, back: e.newBack } });
     hold({ id: row.id, front: e.newFront, source: row.source });
+    index.add({ id: row.id, front: e.newFront, back: e.newBack });
   }
 
   for (const it of deck.items || []) {
@@ -387,7 +397,7 @@ export function planWrites(deck, current, deckRows) {
     // in the deck already, so the rule card is archived like any other.
     let refile = null;
     if (self) {
-      const holder = self.front !== row.front ? heldBy(self.front, row.id) : null;
+      const holder = self.front !== row.front ? heldBy(self.front, row.id, self.back) : null;
       if (holder) skip(self.front, describe(holder));
       else refile = { id: row.id, front: row.front, set: { ...(self.front !== row.front ? { front: self.front } : {}), back: self.back, category: self.category } };
     }
@@ -396,7 +406,7 @@ export function planWrites(deck, current, deckRows) {
     // leaves it. A run that stops in between leaves both, never neither.
     for (const c of cards) {
       if (c === self) continue;
-      const holder = heldBy(c.front, null);
+      const holder = heldBy(c.front, null, c.back);
       if (holder) { skip(c.front, describe(holder)); continue; }
       writes.inserts.push({
         user_id: deck.user_id,
@@ -407,11 +417,15 @@ export function planWrites(deck, current, deckRows) {
         source: row.source ?? null,
       });
       hold({ id: `new:${c.front}`, front: c.front, source: row.source });
+      index.add({ id: `new:${c.front}`, front: c.front, back: c.back });
     }
 
     if (refile) {
       writes.retags.push(refile);
-      if (refile.set.front) hold({ id: row.id, front: refile.set.front, source: row.source });
+      if (refile.set.front) {
+        hold({ id: row.id, front: refile.set.front, source: row.source });
+        index.add({ id: row.id, front: refile.set.front, back: refile.set.back });
+      }
     } else {
       writes.archives.push({ id: row.id, front: row.front, set: { source: archivedSource(row.source) } });
     }
@@ -445,7 +459,7 @@ export async function loadEditRows(db, edits) {
 }
 
 export const loadDeckFronts = (db, userId) =>
-  allPages(db, `user_cards?select=id,front,source&user_id=eq.${encodeURIComponent(userId)}&order=id.asc`);
+  allPages(db, `user_cards?select=id,front,back,source&user_id=eq.${encodeURIComponent(userId)}&order=id.asc`);
 
 export async function loadRowsById(db, ids) {
   const out = new Map();
@@ -526,8 +540,16 @@ export function summarize(proposal) {
       if (it.decision === "keep" && it.from !== "claude") continue;
       const tag = it.from === "claude" ? " [claude]" : "";
       if (it.decision === "convert") {
-        const parts = it.newCards.map(
-          (c) => cardText(c) + (normFront(c.front) === normFront(it.front) ? " [re-filed in place, keeps its history]" : "") + note(c.front)
+        // The card --apply re-files in place is found the same way as there,
+        // and the tag is shown only when the planned writes really re-file it
+        // (not when the French is already held by another row).
+        const cards = it.newCards;
+        const self = cards.find((c) => normFront(c.front) === normFront(it.front)) ||
+          cards.find((c) => sameFrench(c.front, it.front)) ||
+          (cards.length === 1 && overlap(cards[0].front, it.front) >= 0.6 ? cards[0] : null);
+        const refiled = d.preview ? d.preview.retags.some((r) => r.front === it.front) : !!self;
+        const parts = cards.map(
+          (c) => cardText(c) + (refiled && c === self ? " [re-filed in place, keeps its history]" : "") + note(c.front)
         );
         lines.push(`  convert${tag}  ${q(it.front)}  →  ${parts.join("  +  ")}`);
       } else if (it.decision === "keep") {
@@ -724,17 +746,6 @@ export function claudeClassifier({ apiKey, file }) {
 
 // ── run ─────────────────────────────────────────────────────────────────────
 
-function loadEnv() {
-  for (const file of [".env.local", ".env"]) {
-    const p = path.join(ROOT, file);
-    if (!fs.existsSync(p)) continue;
-    for (const line of fs.readFileSync(p, "utf8").split("\n")) {
-      const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
-      if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
-    }
-  }
-}
-
 function restHelper({ url, key }) {
   return async (p, init = {}) => {
     const res = await fetch(`${url.replace(/\/$/, "")}/rest/v1/${p}`, {
@@ -754,7 +765,7 @@ function restHelper({ url, key }) {
 }
 
 async function main(argv) {
-  loadEnv();
+  loadEnv(ROOT);
   const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ANTHROPIC_API_KEY } = process.env;
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.\nPut them in .env.local or the environment.");

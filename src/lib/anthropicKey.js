@@ -1,11 +1,13 @@
 // The user's own Anthropic API key, kept in their browser.
 //
-// Anything in this app that calls Claude — the tutor, the answer reviewer,
-// the cahier parser — spends real money. It used to spend the deploy
+// Anything in this app that asks Claude for a student — the tutor, answer
+// reviews, marking in Exercises, Dialogues and Podcasts, reading class
+// notes — spends real money. It used to spend the deploy
 // owner's: /api/chat and /api/split-senses took any signed-in caller, and
 // /api/review-answer took anyone at all. Now the key that pays is the
-// caller's own, and the server refuses (402) without one. The deploy owner
-// is the single exception and falls back to the server's key.
+// caller's own, and the server refuses (402) without one. The exceptions are
+// the deploy owner and, on the test app, the accounts named in
+// src/lib/testApp.js: they fall back to the server's key.
 //
 // Why localStorage and not the database: storing other people's API keys
 // makes you their custodian. Here the key never leaves the user's machine
@@ -18,8 +20,9 @@
 
 const PREFIX = "anthropic-key:";
 
-// Matches the server's check in api/_lib/anthropicKey.js. Validating here
-// too means an obvious typo is caught before it costs a round trip.
+// The one rule for what a key looks like: the server (api/_lib/anthropicKey.js)
+// imports it from here. Checking in the app too means an obvious typo is
+// caught before it costs a round trip.
 const KEY_SHAPE = /^sk-ant-[A-Za-z0-9_-]{20,250}$/;
 
 export const KEY_HEADER = "x-anthropic-key";
@@ -79,3 +82,5 @@ export function maskKey(key) {
 // The server sends this code with a 402 when there is nothing to pay with.
 export const BYOK_REQUIRED = "byok_required";
 export const BAD_KEY = "bad_key";
+// The key works but the Anthropic account has no credit or a billing problem.
+export const BILLING = "billing";

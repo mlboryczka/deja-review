@@ -138,10 +138,11 @@ await page.waitForSelector('input[placeholder^="Type"]');
   await page.waitForTimeout(800);
   const after = await cardBox(page);
   ck("type mode: the card does not move when graded", after.top === before.top, `${before.top} → ${after.top}`);
-  const controlsMoved = await page.evaluate(() =>
-    !!document.querySelector("button")
+  // The answer was marked: the typed text is shown back and Continue is offered.
+  const graded = await page.evaluate(() =>
+    /You wrote: zzzqqq/.test(document.body.innerText) || [...document.querySelectorAll("button")].some((b) => /Continue/.test(b.innerText))
   );
-  ck("but the controls below it did change", controlsMoved);
+  ck("but the controls below it did change: the answer was marked", graded);
   const cont = await page.$('button:has-text("Continue")');
   if (cont) await cont.click();
   await page.waitForTimeout(700);
@@ -167,7 +168,12 @@ for (const height of [900, 800, 700, 640, 560]) {
     const el = [...document.querySelectorAll("div")].find(
       (d) => getComputedStyle(d).transformStyle === "preserve-3d"
     );
-    return parseFloat(getComputedStyle(el.children[0].querySelector("div")).fontSize);
+    // The prompt itself: the face's own div that is neither the lesson badge nor
+    // the small instruction line a drill card puts above it ("Present tense, with nous").
+    const prompt = [...el.children[0].children].find(
+      (d) => d.tagName === "DIV" && !d.classList.contains("card-badge") && !d.hasAttribute("data-card-instruction")
+    );
+    return parseFloat(getComputedStyle(prompt).fontSize);
   });
   ck(
     `${height}px + panel: the card is still usable`,
@@ -214,10 +220,11 @@ console.log("\n  nothing scrolls sideways, at any width");
 // horizontally to. The decorative blur circles in the card area sit
 // deliberately outside their container (left:-60 / right:-60), and a shell
 // that didn't clip them made the page wider than the window. Measured against
-// documentElement.clientWidth rather than a remembered number. There is no
-// phone layout (the owner, 2026-09-29), so only computer-window widths.
-for (const width of [800, 1100, 1400]) {
-  await page.setViewportSize({ width, height: 860 });
+// documentElement.clientWidth rather than a remembered number. The test app
+// has had a phone layout below 600px since 2026-10-27 (and the iPhone app
+// always uses it), so 390 wide, an iPhone, is checked too.
+for (const [width, height] of [[390, 844], [800, 860], [1100, 860], [1400, 860]]) {
+  await page.setViewportSize({ width, height });
   await page.waitForTimeout(350);
   const { scrollW, clientW, culprit } = await page.evaluate(() => {
     const clientW = document.documentElement.clientWidth;
@@ -262,14 +269,17 @@ await page.evaluate(() => {
 });
 await settled(page);
 await page.waitForTimeout(400);
-// The requirement is that opening a panel does not damage what you were
-// looking at. Reflow used to fire at 900px wide and leave
-// 900 - 256 of sidebar - 460 of panel = 184px of column: the
-// top-bar chips stacked one per line, the card turned portrait, and the answer
-// row ran off the edge. Below the floor the panel is an overlay instead.
+// The requirement is that a panel makes room rather than covering the page
+// (owner, 2026-11-01: "REFLOW THE PAGE WHEN THE SIDE PANE IS OPEN!"), and that
+// the page it makes room in still works. Reflow once fired at 900px wide and
+// left 900 - 256 of sidebar - 460 of panel = 184px of column: the top-bar
+// chips stacked one per line and the answer row ran off the edge. Below the
+// floor (a 360px column) the panel is an overlay instead, and the card keeps
+// its shape under it. Above it the card may narrow, but stays whole inside
+// the column.
 //
-// Measured as a comparison against the same window with nothing open, so it
-// stays true whatever the card's natural size is at that width.
+// The overlay case is measured as a comparison against the same window with
+// nothing open, so it stays true whatever the card's natural size is there.
 for (const width of [1600, 1400, 1200, 1000, 900, 800]) {
   await page.setViewportSize({ width, height: 900 });
   await page.waitForTimeout(350);
@@ -278,21 +288,28 @@ for (const width of [1600, 1400, 1200, 1000, 900, 800]) {
   await settled(page);
   await page.waitForTimeout(150);
   const open = await cardBox(page);
-  const reflowed = await page.evaluate(
-    () => Math.round(parseFloat(getComputedStyle(document.querySelector("main")).paddingRight) || 0)
-  );
-  ck(
-    `${width}px: the tutor leaves the card its shape`,
-    open.width === shut.width && open.height === shut.height,
-    `${shut.width}x${shut.height} shut, ${open.width}x${open.height} open, ${reflowed ? "reflowed" : "overlay"}`
-  );
-  // And when it does reflow, the column left behind is actually usable.
+  const m = await page.evaluate(() => {
+    const main = document.querySelector("main");
+    const r = main.getBoundingClientRect();
+    const pad = parseFloat(getComputedStyle(main).paddingRight) || 0;
+    return { pad: Math.round(pad), left: Math.round(r.left), right: Math.round(r.right - pad), overflow: main.scrollWidth - main.clientWidth };
+  });
+  const reflowed = m.pad > 0;
+  // 1200 is about the owner's window (2026-11-01): the tutor must sit beside the card there.
+  if (width >= 1200) ck(`${width}px: the tutor makes room rather than covering the card`, reflowed, `padding ${m.pad}`);
   if (reflowed) {
-    const column = await page.evaluate(() => {
-      const m = document.querySelector("main");
-      return Math.round(m.getBoundingClientRect().width - (parseFloat(getComputedStyle(m).paddingRight) || 0));
-    });
-    ck(`${width}px: and the column it reflows to is usable`, column >= 680, `${column}px`);
+    ck(`${width}px: and the column it reflows to is usable`, m.right - m.left >= 360, `${m.right - m.left}px`);
+    ck(
+      `${width}px: and the card sits whole inside it, nothing running off the edge`,
+      open.centreX - open.width / 2 >= m.left - 1 && open.centreX + open.width / 2 <= m.right + 1 && m.overflow <= 1,
+      `card ${open.width}x${open.height} centred at ${open.centreX}, column ${m.left}-${m.right}, ${m.overflow}px over`
+    );
+  } else {
+    ck(
+      `${width}px: the tutor over the page leaves the card its shape`,
+      open.width === shut.width && open.height === shut.height,
+      `${shut.width}x${shut.height} shut, ${open.width}x${open.height} open`
+    );
   }
   await page.evaluate(() => document.querySelector("aside button[data-tutor-toggle]").click());
   await settled(page);

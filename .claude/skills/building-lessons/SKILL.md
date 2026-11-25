@@ -69,11 +69,24 @@ model for structure.
 5. **Every French-answered grammar front has an arrow (→).** The app reads it
    to ask for French and to mark exactly, accents aside. Typo tolerance would
    pass the very mistakes a lesson tests (*chères* for *cher*, *évidamment*).
-6. **Accents are never checked**, so don't build cards whose point is an
-   accent. That's why the adverb lesson has only three -ément cards.
-7. **Exact marking ignores case, accents, brackets and the punctuation
-   . , ! ? ; : and quotes, but not hyphens, apostrophes or spaces**: *dix sept*
-   is wrong for *dix-sept*, and *je ai* for *j'ai*.
+6. **Accents are never checked in French**, so don't build French cards
+   whose point is an accent. That's why the adverb lesson has only three
+   -ément cards. **In Spanish an accent counts only where it changes a
+   verb's tense** (owner, 2026-10-26: "the accents shouldn't be a criteria
+   for marking something incorrect, unless the word NEEDS the accent (for
+   instance to determine the proper tense)"). "hablo" for "habló" is a miss
+   (the app says "The accent changes the tense"), but "tu" for "tú", "ano"
+   for "año" and "esta" for "está" are right, and a missing ñ is forgiven.
+   So never build a Spanish card whose point is any other accent. Still write
+   every accent in the card's own answer. The verb forms whose accent counts
+   are listed in `src/lib/spanishAccents.js` (made by
+   `scripts/tense-accents.mjs`).
+7. **Exact marking ignores case, accents, brackets, apostrophes and the
+   punctuation . , ! ? ; : and quotes, but not hyphens or spaces**: *dix sept*
+   is wrong for *dix-sept*. A missing apostrophe is accepted (*jai* for
+   *j'ai*, *lhomme* for *l'homme*), but a space in its place is not (*je ai*).
+   So elision can only be tested where the apostrophe's absence would leave a
+   space.
 8. **A drill names its mood in the front**: `finir (impératif) → tu`. A
    lesson badge alone wasn't enough: *finis* is also the présent, and students
    reported the card as wrong (2026-09-12).
@@ -90,18 +103,36 @@ model for structure.
 12. **Pin down English that several French answers fit**, with a hint in
     brackets on the English side: `"How are you? (tu, with aller)"`. Brackets
     show on the prompt and are ignored by the marker.
-13. **On word and phrase cards, commas split answers too.** When every
-    comma-separated piece is short (under four words and 20 characters), each
-    piece is accepted on its own, so "Salut, ça va ?" would accept "Salut".
-    Avoid short comma pieces on either side of a `V` or `E` card.
+13. **On word and phrase cards, commas split answers too.** For English typed
+    to a French word or phrase with no comma (four words or fewer), every
+    comma-separated piece of the English is accepted on its own, however long
+    ("that serves no purpose, that's useless" accepts "that's useless"). On a
+    sentence, which has a comma or more than four words, a piece is accepted
+    on its own only when every piece is short (under four words and 20
+    characters), so "Salut, ça va ?" would accept "Salut". Avoid short comma
+    pieces on either side of a `V` or `E` card, and an English comma where the
+    shown side has none (`lessoncheck.mjs` warns of it).
 14. **Typo tolerance on phrase cards lets a one-letter verb swap through**:
     "Je suis bien" passes for "Je vais bien", the être / aller mistake Leçon 2
-    is about. Put a contrast like that on exact (arrow) cards.
+    is about. Put a contrast like that on exact (arrow) cards. In Spanish,
+    the words in `src/data/lessons/es/exactWords.js` are exact instead
+    (2026-10-25): every irregular verb form (`irregularForms.js`), the
+    numbers, first to tenth and the months, and in English the numbers and
+    months, so "Soy aquí" fails for "Estoy aquí" and "julio" for junio.
 15. **A front belongs to one lesson only.** The sync writes cards by student
     and front, so two lessons with the same front overwrite each other's row.
     Check every lesson file before adding; a word in two of Laura's lists goes
     to the earlier lesson.
 16. **No full stop at the end of a card face** (2026-09-12).
+17. **Spanish lessons are words and phrases only** (owner, 2026-10-25: "the
+    flashcards module for the spanish section should be all words and
+    phrases, no grammar"). No `G` card: the grammar is on the Exercises page.
+    Numbers, dates, the time and prices are word or phrase cards. An
+    irregular verb form worth practising goes in a short phrase in its
+    lesson's "verbforms" section, with one or two of the lesson's words that
+    no phrase uses yet, and English that leaves only one right Spanish form
+    ("Yesterday I put…"). Add the form to `irregularForms.js` if it isn't
+    there.
 
 ## Instruction lines
 
@@ -238,7 +269,8 @@ Each of these drew "unclear" and was rewritten:
   drink").
 - **No grammar jargon an example can replace**: "agrees", "aspirate h", "mute
   h", "with no -ment on the feminine". Show the form: "*évident →
-  évidemment*, not évidentement".
+  évidemment*, not évidentement". "Infinitive" is not jargon (owner,
+  2026-11-03): write "in the infinitive", never "dictionary form".
 - **Give the English for every French example**, including the one in a
   tab's opening sentence.
 - **Plain column headings**: "Without -ment / With -ment", not "Plain word /
@@ -300,8 +332,10 @@ and confirm no `*` survives; `notescheck.mjs` (below) does this.
 
 - **New lessons go at the end of `LESSONS`** and start switched off on Cards
   for every student, so nobody's daily cards change until they switch it on
-  (owner, 2026-10-04). Inserting one earlier would change the order of every
-  later lesson's new cards.
+  (owner, 2026-10-04). The order new cards come in is `meetingOrder` (in
+  `src/data/lessons/index.js`), not the order of `LESSONS`: changing
+  `meetingOrder` reorders new cards and changes how past sets are judged, and
+  a lesson it doesn't name comes after, in `LESSONS` order.
 - **Where a lesson shows is `LESSON_GROUPS`, not `LESSONS`** (both in
   `src/data/lessons/index.js`). The Lessons page, the sidebar and Stats list
   Laura's numbered beginner lessons first, under "Basic Lessons", in number
@@ -317,13 +351,28 @@ and confirm no `*` survives; `notescheck.mjs` (below) does this.
   records every card in `LESSONS`, and the `logic` suite then holds those
   cards to their wording.
 - **Commit only your own changes.** Other sessions edit this working copy at
-  the same time. If `french flashcards context.md` has their uncommitted
+  the same time. If `dejareview design and decisions.md` has their uncommitted
   edits, stage your edit applied to HEAD's version (`git hash-object -w`,
   then `git update-index --cacheinfo`) and make the same edit in the working
   file.
 - **Run the browser suites on a clean copy**: `git worktree add` at HEAD, plus
   your lesson files, `index.js` and the release list, so another session's
   unfinished work doesn't affect the result.
+
+## Spanish lessons
+
+Spanish lessons are separate files, `src/data/lessons/es/leccion<N>.js`, with
+Spanish fronts (the French rules about fronts and arrows don't apply).
+Releasing one differs from a French lesson in these steps:
+
+- Add its id to `ORDER` in `scripts/es-lessons-index.mjs` and run the script,
+  which writes `es/index.js`; an id not named in `ORDER` is left out.
+- Group it by stage in `src/data/lessons/es/stages.js`, not in `LESSON_GROUPS`.
+- The order a student meets new cards in is `MEETING_ORDER`, built from
+  `meetingOrder` in `src/data/lessons/index.js` (`catalogue.js` ranks lessons by
+  it). It names every French and Spanish lesson, so add a new lesson, French or
+  Spanish, to `meetingOrder` where the owner wants it met; one it doesn't name
+  comes last.
 
 ## Previewing for the owner
 
@@ -371,7 +420,7 @@ private copy:
 - `logic` (released cards) and `instructions` (instruction lines) suites.
 - Run browser suites without moving `.env.local`: start the stand-in and Vite
   yourself with env vars on a free port, and pass `APP_URL` and `MOCK_URL`.
-- Update the lesson's section of `french flashcards context.md`.
+- Update the lesson's section of `dejareview design and decisions.md`.
 
 ## Where these decisions come from
 

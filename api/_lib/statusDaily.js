@@ -1,7 +1,8 @@
 // The status check on every student (2026-10-06).
 //
 // The checks (src/lib/statusChecks.js; nine then, eleven since the two of the
-// deck) used to run only on the admin's own record, in the admin's browser,
+// deck, fourteen since the first gaps, own settings and one way a day of 2026-10-14) used to
+// run only on the admin's own record, in the admin's browser,
 // while the app was open. Here they run on
 // the server on every student who has answered anything, with the service
 // role:
@@ -9,8 +10,8 @@
 //   once a day, from /api/cahier-daily's second schedule (vercel.json), and
 //   the results kept in status_reports (migration_015);
 //
-//   when the owner presses "Check everyone now" in the Status window, through
-//   /api/admin-users?view=status&run=1.
+//   by the daily run, and by the morning check (scripts/status-check.mjs
+//   --everyone --record).
 //
 // The morning check on the owner's Mac (scripts/status-check.mjs --everyone)
 // runs the same checks, read-only, and reads the kept reports.
@@ -33,10 +34,23 @@
 
 import { runStatusChecks, lookalikes, LOOKALIKES_PER_DAY } from "../../src/lib/statusChecks.js";
 import { lessonRank } from "../../src/data/lessons/index.js";
+import { SPANISH } from "../../src/data/lessons/es/index.js";
+
+// The Spanish module's deck (migration_020, 2026-10-22): the same checks on
+// es_card_reviews, es_user_cards and es_dealt_sets, so Spanish is checked as
+// French is (owner: "logged in the spanish module just as they are for the
+// french module"). Claude's verdicts on look-alikes (card_pairs) are French
+// cards' only; the owner's corrections are each language's own
+// (es_parse_corrections, migration_021).
+const TABLES = {
+  fr: { answers: "card_reviews", cards: "user_cards", deals: "dealt_sets", corrections: "parse_corrections" },
+  es: { answers: "es_card_reviews", cards: "es_user_cards", deals: "es_dealt_sets", corrections: "es_parse_corrections" },
+};
 import { missingTable } from "../../src/lib/dealLog.js";
 import { archivedSource, isArchived } from "../../src/lib/archive.js";
 import { DIRECTIONS, sideOf } from "../../src/lib/directions.js";
 import { listParts } from "../../src/lib/sameCard.js";
+import { lessonIdOf } from "../../src/lib/lessonSource.js";
 import { askSameCard, SAME_CARD_VERSION, SAME_CARD_MODEL } from "./sameCardQuestion.js";
 
 // The daily run's schedule in vercel.json. Vercel sends it with the request
@@ -75,14 +89,15 @@ export async function listStudents(db) {
 // owner's corrections are read too; either one unreadable leaves the check
 // that needs it waiting rather than failing the student's whole report, and
 // card_pairs missing is the database before migration_016.
-export async function loadStudent(db, student) {
+export async function loadStudent(db, student, { course = "fr" } = {}) {
+  const t = TABLES[course] || TABLES.fr;
   const [answers, cards, deals, settings, pairs, corrections] = await Promise.all([
-    readAll(db, "card_reviews", student.id),
-    readAll(db, "user_cards", student.id),
-    readAll(db, "dealt_sets", student.id),
+    readAll(db, t.answers, student.id),
+    readAll(db, t.cards, student.id),
+    readAll(db, t.deals, student.id),
     db.from("fsrs_settings").select("*").eq("user_id", student.id).maybeSingle(),
-    readAll(db, "card_pairs", student.id),
-    readAll(db, "parse_corrections", student.id),
+    course === "es" ? Promise.resolve({ data: [] }) : readAll(db, "card_pairs", student.id),
+    readAll(db, t.corrections, student.id),
   ]);
   const failed = answers.error || cards.error || (deals.error && !missingTable(deals.error) ? deals.error : null);
   if (failed) return { student, error: failed.message || String(failed) };
@@ -98,17 +113,24 @@ export async function loadStudent(db, student) {
     pairsTable: !missingTable(pairs.error),
     corrections: corrections.error ? null : corrections.data,
     judging: null,
+    course,
   };
+}
+
+// The time zone rows saved without one are read in: the student's latest, from
+// the answer answered last (answers are in id order, which is random).
+export function latestZoneOf(answers) {
+  return answers.reduce((best, r) => (r.time_zone && (!best || Date.parse(r.answered_at) >= Date.parse(best.answered_at)) ? r : best), null)?.time_zone || null;
 }
 
 // The checks on a loaded record, as the report kept for it. `examples`: how
 // many lines of each check to keep (the checks' own default when left out);
 // the morning check on the Mac asks for all, so none goes unraised.
-export function reportFor(rec, { now = Date.now(), examples } = {}) {
+export function reportFor(rec, { now = Date.now(), examples, rulesFrom } = {}) {
   const { student } = rec;
   if (rec.error) return { user_id: student.id, user_email: student.email, ok: false, error: rec.error };
   // Rows saved without a time zone are read in the student's latest one.
-  const latestZone = [...rec.answers].reverse().find((r) => r.time_zone)?.time_zone || null;
+    const latestZone = latestZoneOf(rec.answers);
   const report = runStatusChecks({
     answers: rec.answers,
     cards: rec.cards,
@@ -119,7 +141,9 @@ export function reportFor(rec, { now = Date.now(), examples } = {}) {
     pairsTable: rec.pairsTable,
     corrections: rec.corrections,
     timeZone: latestZone,
-    lessonRank,
+    rulesFrom,
+    lessonRank: rec.course === "es" ? SPANISH.lessonRank : lessonRank,
+    course: rec.course || "fr",
     now,
     ...(examples != null ? { examples } : {}),
   });
@@ -136,17 +160,6 @@ export function reportFor(rec, { now = Date.now(), examples } = {}) {
   };
 }
 
-// One student's checks. `judge` as for checkEveryone.
-export async function checkStudent(db, student, { now = Date.now(), judge = null } = {}) {
-  const rec = await loadStudent(db, student);
-  if (!rec) return null;
-  if (judge && !rec.error) {
-    await judgeLookalikes(db, [rec], judge);
-    await putAwayRepeats(db, [rec]);
-  }
-  return reportFor(rec, { now });
-}
-
 // Everyone. One student's failure is theirs alone.
 //
 // `judge` is given only by the daily run: { apiKey, startBy, deadline, cap,
@@ -157,11 +170,18 @@ export async function checkStudent(db, student, { now = Date.now(), judge = null
 // to keep the verdicts and check everyone. With `judge`, the copies Claude
 // judged one card are then put away (putAwayRepeats). `examples` as for
 // reportFor.
-export async function checkEveryone(db, { now = Date.now(), judge = null, examples } = {}) {
+// `only`: a Set of emails to check and no one else (the morning check of the
+// test app, scripts/status-check.mjs --test-app).
+//
+// `course` "es" checks the Spanish decks instead (2026-10-22). Look-alikes
+// are put to Claude for French cards only, so `judge` is for French.
+export async function checkEveryone(db, { now = Date.now(), judge = null, examples, only = null, rulesFrom, course = "fr" } = {}) {
   const loaded = [];
+  if (course !== "fr") judge = null;
   for (const student of await listStudents(db)) {
+    if (only && !only.has(student.email) && !only.has(student.id)) continue;
     try {
-      const rec = await loadStudent(db, student);
+      const rec = await loadStudent(db, student, { course });
       if (rec) loaded.push(rec);
     } catch (e) {
       loaded.push({ student, error: e.message || String(e) });
@@ -173,7 +193,7 @@ export async function checkEveryone(db, { now = Date.now(), judge = null, exampl
   }
   return loaded.map((rec) => {
     try {
-      return reportFor(rec, { now, examples });
+      return reportFor(rec, { now, examples, rulesFrom });
     } catch (e) {
       return { user_id: rec.student.id, user_email: rec.student.email, ok: false, error: e.message || String(e) };
     }
@@ -265,7 +285,7 @@ export async function judgeLookalikes(db, recs, { apiKey, startBy = Infinity, de
 const answeredCard = (row, answeredIds) =>
   answeredIds.has(String(row.id)) || DIRECTIONS.some((d) => { const s = sideOf(row, d); return s.fsrs_state !== 0 || s.reps > 0; });
 const isList = (row) => listParts(row).length >= 2;
-const isLessonCard = (row) => typeof row?.source === "string" && row.source.startsWith("lesson:");
+const isLessonCard = (row) => !!lessonIdOf(row);
 // Of two copies neither of which has answers, `older` first: whether to keep
 // the older.
 const keepOlder = (older, newer) =>
@@ -288,7 +308,10 @@ export async function putAwayRepeats(db, recs, { at = new Date().toISOString() }
       if (isList(drop) && !isList(keep)) { keptBoth++; continue; }
       if (isArchived(drop)) continue;
       const patch = { source: archivedSource(drop.source), archived_reason: "duplicate", archived_at: at, merged_into: keep.id };
-      const { error } = await db.from("user_cards").update(patch).eq("id", drop.id).eq("user_id", rec.student.id);
+      const update = (p) => db.from("user_cards").update(p).eq("id", drop.id).eq("user_id", rec.student.id);
+      // archived_by (migration_029) marks this as the daily run's own call; before it is run, write without.
+      let { error } = await update({ ...patch, archived_by: "daily-run" });
+      if (error && (error.code === "PGRST204" || error.code === "42703")) ({ error } = await update(patch));
       if (error) { failed = error.message; break; }
       Object.assign(drop, patch);
       touched.add(String(a.id)).add(String(b.id));

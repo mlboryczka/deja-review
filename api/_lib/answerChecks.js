@@ -48,12 +48,22 @@ const AT_ONCE = 12;
 // The question Claude is asked, word for word as /api/review-answer has asked
 // it since before verdicts were kept. Changing a word changes the version
 // below, so a test run says which question it tested.
-export function answerPrompt({ direction, french, expected, typed }) {
-  const shownSide = direction === "fr" ? "French" : "English";
-  const expectedSide = direction === "fr" ? "English" : "French";
-  return `You are reviewing a French learner's flashcard answer. Decide whether their answer should be accepted as equivalent to the expected answer.
+//
+// `language` is the language being learned: French, or Spanish for the
+// Spanish module (2026-10-22). Left out, the question is French, word for
+// word as before, so the version below is unchanged.
+//
+// The shown side is quoted as the student saw it: the English on a card shown
+// English side first (until 2026-11-13 the French was quoted there as "the
+// English side"). A drill ("vivre → je", "relatif → adverbe") is answered in
+// the language being learned, so its expected answer isn't called English.
+export function answerPrompt({ direction, french, english, expected, typed, language = "French", drill = false }) {
+  const shownSide = direction === "fr" ? language : "English";
+  const expectedSide = direction === "fr" && !drill ? "English" : language;
+  const shown = direction === "fr" ? french : english;
+  return `You are reviewing a ${language} learner's flashcard answer. Decide whether their answer should be accepted as equivalent to the expected answer.
 
-The card showed the ${shownSide} side: "${french || ""}"
+The card showed the ${shownSide} side: "${shown || ""}"
 The expected ${expectedSide} answer was: "${expected}"
 The user typed: "${typed}"
 
@@ -61,12 +71,12 @@ Consider:
 - Synonyms and near-synonyms (e.g., "instead of" vs "in place of", "salesperson" vs "salesman")
 - Minor phrasing variations that preserve meaning
 - Whether the user's answer demonstrates correct understanding
-- For French answers, grammatical gender must be correct (un vs une, le vs la)
+- For ${language} answers, grammatical gender must be correct (${language === "Spanish" ? "un vs una, el vs la" : "un vs une, le vs la"})${language === "Spanish" ? "\n- For Spanish answers, an accent counts only where it changes a verb's tense or person (habló vs hablo, hablé vs hable); any other missing or wrong accent, and a missing ñ, is no mistake (estan for están, esta for the verb está, tu for tú, ano for año)" : ""}
 - For English answers, articles (a/an/the) are interchangeable
 
 Do NOT accept:
 - Answers in the wrong language
-- Answers with wrong grammatical gender in French
+- Answers with wrong grammatical gender in ${language}${language === "Spanish" ? "\n- Spanish answers with an accent that changes a verb's tense or person (hablo for habló)" : ""}
 - Answers that mean something different
 - Answers that are partially correct but miss the core meaning
 
@@ -77,8 +87,12 @@ Respond with ONLY a JSON object, no other text:
 // Seven characters that change whenever the question or the model does.
 export const ANSWER_PROMPT_VERSION = createHash("sha1")
   .update(ANSWER_MODEL)
-  .update(answerPrompt({ direction: "fr", french: "\u0001", expected: "\u0002", typed: "\u0003" }))
-  .update(answerPrompt({ direction: "en", french: "\u0001", expected: "\u0002", typed: "\u0003" }))
+  .update(answerPrompt({ direction: "fr", french: "\u0001", english: "\u0004", expected: "\u0002", typed: "\u0003" }))
+  .update(answerPrompt({ direction: "en", french: "\u0001", english: "\u0004", expected: "\u0002", typed: "\u0003" }))
+  .update(answerPrompt({ direction: "fr", french: "\u0001", english: "\u0004", expected: "\u0002", typed: "\u0003", drill: true }))
+  // The Spanish question, both ways round: its wording changes the version too.
+  .update(answerPrompt({ direction: "fr", french: "\u0001", english: "\u0004", expected: "\u0002", typed: "\u0003", language: "Spanish" }))
+  .update(answerPrompt({ direction: "en", french: "\u0001", english: "\u0004", expected: "\u0002", typed: "\u0003", language: "Spanish" }))
   .digest("hex")
   .slice(0, 7);
 
@@ -96,12 +110,20 @@ export function readVerdict(text) {
   return { verdict, reasoning: typeof parsed.reasoning === "string" ? parsed.reasoning : "", readable: true };
 }
 
-export async function askClaude({ apiKey, direction, french, expected, typed }) {
+// Whether a card shown French side first is a drill, answered in the language
+// being learned. The app says so (`said`: a conjugation drill or a lesson card
+// with an arrow, as it marks them; a leftover rule card with an arrow has
+// English prose for an answer). A saved verdict doesn't keep that, so the test
+// goes by the arrow, which every drill has.
+export const isDrillCard = ({ direction, french, said }) =>
+  direction === "fr" && (typeof said === "boolean" ? said : String(french || "").includes("→"));
+
+export async function askClaude({ apiKey, direction, french, english, expected, typed, language, drill }) {
   const anthropic = new Anthropic({ apiKey });
   const response = await anthropic.messages.create({
     model: ANSWER_MODEL,
     max_tokens: 1000,
-    messages: [{ role: "user", content: answerPrompt({ direction, french, expected, typed }) }],
+    messages: [{ role: "user", content: answerPrompt({ direction, french, english, expected, typed, language, drill }) }],
   });
   const text = (response.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
   return readVerdict(text);
@@ -121,6 +143,8 @@ export const agrees = (says, verdict) => (says === "accept") === (verdict === "a
 //   is their call when it refused.
 export function ownerCall(row, adminEmail) {
   if (row.owner_says === "accept" || row.owner_says === "reject") return { says: row.owner_says, from: "marked" };
+  // A verdict the old-disputes script saved (migration_031) is nobody's call.
+  if (row.source === "script") return null;
   const own = !!adminEmail && String(row.user_email || "").toLowerCase() === adminEmail;
   if (!own) return null;
   if (row.overridden) return { says: "accept", from: "accept-anyway" };
@@ -131,8 +155,13 @@ export function ownerCall(row, adminEmail) {
 
 // The row saved for one verdict: both sides of the card and what Claude was
 // given as the expected answer, so a test can ask it exactly as the app did.
-export function verdictRow({ user, card_id, direction, french, english, expected, typed, verdict, reasoning }) {
+//
+// `course` "es" marks a Spanish card's verdict (2026-10-22): the store keeps
+// it in es_answer_reviews (migration_021), apart from the French ones that
+// the students' app re-tests as French.
+export function verdictRow({ user, card_id, direction, french, english, expected, typed, verdict, reasoning, course }) {
   return {
+    ...(course === "es" ? { course: "es" } : {}),
     user_id: user.id,
     user_email: user.email || null,
     card_id: String(card_id ?? ""),
@@ -203,7 +232,7 @@ function cases(rows, adminEmail) {
   for (const r of rows) {
     const call = ownerCall(r, adminEmail);
     if (!call) continue;
-    const key = [r.user_id, r.card_id, r.direction, String(r.typed).trim().toLowerCase()].join("|");
+    const key = [r.course || "fr", r.user_id, r.card_id, r.direction, String(r.typed).trim().toLowerCase()].join("|");
     const g = groups.get(key);
     const newer = !g || Date.parse(r.created_at) >= Date.parse(g.latest);
     if (!g) groups.set(key, { r, call, first: r, latest: r.created_at });
@@ -225,12 +254,17 @@ function cases(rows, adminEmail) {
 export async function runAnswerTest({ store, apiKey, adminEmail, deadline = Infinity }) {
   const listed = await store.list();
   if (listed.missing) return { skipped: WAITING };
+  if (listed.error) return { skipped: `couldn't read the marked answers: ${listed.error}` };
   const all = cases(listed.rows || [], adminEmail);
   const chosen = all.slice(0, MAX_CASES);
   if (!chosen.length) return { skipped: "No answers to test yet." };
   const asks = await pooled(
     chosen.flatMap(({ r }) => Array.from({ length: ASKS_PER_CASE }, () => () =>
-      askClaude({ apiKey, direction: r.direction, french: r.front, expected: r.expected, typed: r.typed }).then((v) => v.verdict))),
+      // A Spanish verdict is asked again as Spanish.
+      // The English side too, which an English-first card showed.
+      askClaude({ apiKey, direction: r.direction, french: r.front, english: r.back, expected: r.expected, typed: r.typed,
+        language: r.course === "es" ? "Spanish" : "French",
+        drill: isDrillCard({ direction: r.direction, french: r.front }) }).then((v) => v.verdict))),
     AT_ONCE,
     deadline,
   );
@@ -254,31 +288,46 @@ export async function runAnswerTest({ store, apiKey, adminEmail, deadline = Infi
   return { run: saved.row, summary };
 }
 
+const reviewsTable = (course) => (course === "es" ? "es_answer_reviews" : "answer_reviews");
+
 // The store on Supabase, with the service role. Each call says `missing` when
 // migration_015 hasn't been run, rather than failing.
 export function supabaseAnswerStore(db) {
   const out = ({ data, error }) => (missingTable(error) ? { missing: true } : error ? { error: error.message } : { rows: data });
   return {
-    async save(row) {
-      const { error } = await db.from("answer_reviews").insert(row);
+    async save({ course, ...row }) {
+      const { error } = await db.from(reviewsTable(course)).insert(row);
       return missingTable(error) ? { missing: true } : error ? { error: error.message } : { ok: true };
     },
-    async overridden({ user_id, card_id, direction, typed }) {
-      const { error } = await db.from("answer_reviews").update({ overridden: true })
+    async overridden({ user_id, card_id, direction, typed, course }) {
+      const { error } = await db.from(reviewsTable(course)).update({ overridden: true })
         .eq("user_id", user_id).eq("card_id", String(card_id)).eq("direction", direction === "en" ? "en" : "fr").eq("typed", typed);
       return missingTable(error) ? { missing: true } : error ? { error: error.message } : { ok: true };
     },
+    // Both languages' verdicts, newest first, each saying which it is. The
+    // Spanish table missing (before migration_021) leaves the French ones.
     async list() {
-      return out(await db.from("answer_reviews").select("*").order("created_at", { ascending: false }).limit(1000));
+      const fr = out(await db.from("answer_reviews").select("*").order("created_at", { ascending: false }).limit(1000));
+      if (!fr.rows) return fr;
+      const es = out(await db.from("es_answer_reviews").select("*").order("created_at", { ascending: false }).limit(1000));
+      const rows = [...fr.rows.map((r) => ({ ...r, course: "fr" })), ...(es.rows || []).map((r) => ({ ...r, course: "es" }))]
+        .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).slice(0, 1000);
+      return { rows };
     },
     async get(ids) {
-      return out(await db.from("answer_reviews").select("*").in("id", ids));
+      const fr = out(await db.from("answer_reviews").select("*").in("id", ids));
+      if (!fr.rows) return fr;
+      const es = out(await db.from("es_answer_reviews").select("*").in("id", ids));
+      return { rows: [...fr.rows.map((r) => ({ ...r, course: "fr" })), ...(es.rows || []).map((r) => ({ ...r, course: "es" }))] };
     },
+    // A verdict is in one table or the other; marking it in both finds it.
     async mark(id, says) {
-      const r = await db.from("answer_reviews")
-        .update({ owner_says: says, marked_at: says ? new Date().toISOString() : null })
-        .eq("id", id);
-      return missingTable(r.error) ? { missing: true } : r.error ? { error: r.error.message } : { ok: true };
+      const fields = { owner_says: says, marked_at: says ? new Date().toISOString() : null };
+      const r = await db.from("answer_reviews").update(fields).eq("id", id);
+      if (missingTable(r.error)) return { missing: true };
+      if (r.error) return { error: r.error.message };
+      const e = await db.from("es_answer_reviews").update(fields).eq("id", id);
+      return e.error && !missingTable(e.error) ? { error: e.error.message } : { ok: true };
     },
     async runs() {
       return out(await db.from("eval_runs").select("id, kind, ran_at, version, model, cases, passed, summary, results").eq("kind", "answers").order("ran_at", { ascending: false }).limit(10));

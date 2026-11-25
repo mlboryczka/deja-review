@@ -288,11 +288,15 @@ async function usedDeck({ migrated = true, via = "upload" } = {}) {
   // Removed, the way the app removes a card now.
   const removed = await removeCard({ admin, userId: USER, rowId: byFront(admin, "Naza").id });
   if (removed.status !== 200) throw new Error(`removing a card failed: ${JSON.stringify(removed.json)}`);
-  // A repeat put away by the clean-up, a lesson card, a tutor card.
+  // A repeat put away by the clean-up, a lesson card, a tutor card, and a
+  // card added from a podcast passage (2026-10-09), which has no class dates
+  // either and must be left alone the same way.
   cards(admin).push({ id: 9001, user_id: USER, front: "gratuit (adj)", back: "free", category: "V", dates: [D.C3], source: "archived:cahier-upload",
     fsrs_state: 0, en_fsrs_state: 0, ...(migrated ? { archived_reason: "duplicate", merged_into: byFront(admin, "gratuit").id } : {}) });
   cards(admin).push({ id: 9002, user_id: USER, front: "Je vais bien", back: "I'm fine", category: "V", dates: [], source: "lesson:lecon1#k9", fsrs_state: 2, en_fsrs_state: 0 });
   cards(admin).push({ id: 9003, user_id: USER, front: "une falaise", back: "a cliff", category: "V", dates: [], source: "tutor-chat", fsrs_state: 0, en_fsrs_state: 0 });
+  cards(admin).push({ id: 9004, user_id: USER, front: "un cortège", back: "a protest march", category: "V", dates: [],
+    source: "podcast:3f2a9c4e-0000-4000-8000-000000000001", fsrs_state: 0, en_fsrs_state: 0 });
   return admin;
 }
 
@@ -343,8 +347,9 @@ function headline(label, admin, before, { expectNew = EXPECTED_NEW, expectRead =
   ck(`${label}: the removed card and the put-away repeat stay out of study`,
      isOut(now.cards.find((r) => r.front === "Naza")) && isOut(now.cards.find((r) => r.front === "gratuit (adj)")) &&
        !live.some((r) => /^naza$/i.test(r.front)));
-  ck(`${label}: the lesson and tutor cards are left as they were`,
-     now.cards.find((r) => r.id === 9002)?.source === "lesson:lecon1#k9" && now.cards.find((r) => r.id === 9003)?.source === "tutor-chat");
+  ck(`${label}: the lesson, tutor and podcast cards are left as they were`,
+     now.cards.find((r) => r.id === 9002)?.source === "lesson:lecon1#k9" && now.cards.find((r) => r.id === 9003)?.source === "tutor-chat" &&
+     now.cards.find((r) => r.id === 9004)?.source === "podcast:3f2a9c4e-0000-4000-8000-000000000001");
 }
 
 async function secondTimeAsksNothing(label, admin, run) {
@@ -632,6 +637,26 @@ console.log("\n  a card that is one item of another card's list is that card (th
      different.decisions.length === 1 && different.decisions[0].insert?.front === "ensuite / après" &&
        none.decisions.length === 1 && none.decisions[0].action === "wait",
      JSON.stringify([different.decisions.map((d) => [d.card.front, d.action]), none.decisions.map((d) => [d.card.front, d.action])]));
+
+  // Spanish, the same way (2026-11-13): "una niña" is the student's card for
+  // the "la niña" of "la niña / la chica", so "la chica" becomes a card.
+  // Until then the Spanish articles counted, so the list was joined whole to
+  // "una niña" and "la chica" was lost.
+  for (const [list, back, have, other] of [
+    ["la niña / la chica", "the girl", "una niña", "la chica"],
+    ["la recámara / el cuarto", "the bedroom", "una recámara", "el cuarto"],
+  ]) {
+    const m = await matchNewCards({
+      incoming: [{ front: list, back, category: "V", dates: ["2026-11-05"] }],
+      deck: [{ id: 1, front: have, back: back.replace("the", "a"), dates: [], source: "lesson:es-leccion4#x" }],
+      ask: async (pairs) => pairs.map(() => "same"),
+      language: "es",
+    });
+    ck(`  Spanish: "${list}" beside "${have}" — that item gains the date, and "${other}" becomes a card`,
+       m.decisions.length === 2 && m.decisions.some((d) => d.action === "join" && d.row?.id === 1) &&
+         m.decisions.some((d) => d.action === "insert" && d.insert.front === other),
+       JSON.stringify(m.decisions.map((d) => [d.card.front, d.action, d.insert?.front])));
+  }
 
   // The upload and the sync, against a deck with the list cards: an item
   // the rule is sure of only adds its class date, with no question; one
@@ -1015,7 +1040,7 @@ console.log("\n  Replace works by class, never deletes, and leaves lesson and tu
   // name all six signs of an answer, the same six the copy and the app
   // (src/lib/replaceDeck.js's answered) look at.
   {
-    const sql = readFileSync(new URL("../../migrations/migration_016_notes_read_once.sql", import.meta.url), "utf8");
+    const sql = readFileSync(new URL("../../migrations/migration_025_notes_save_dates.sql", import.meta.url), "utf8");
     const fn = sql.slice(sql.indexOf("create or replace function public.save_notes_reading("));
     const body = fn.slice(0, fn.indexOf("$$;")).replace(/--[^\n]*/g, "").replace(/\s+/g, " ");
     const step = /update public\.user_cards c set source = 'archived:' \|\| coalesce\(c\.source, ''\), archived_reason = a\.reason.*?returning c\.id/.exec(body)?.[0] || "";
@@ -1023,7 +1048,7 @@ console.log("\n  Replace works by class, never deletes, and leaves lesson and tu
     const SIX = ["coalesce(c.fsrs_state, 0) = 0", "coalesce(c.en_fsrs_state, 0) = 0", "coalesce(c.reps, 0) = 0", "coalesce(c.en_reps, 0) = 0",
       "c.last_review is null", "c.en_last_review is null"];
     const missing = SIX.filter((t) => !clause.split(" and ").map((x) => x.trim()).includes(t));
-    ck("migration_016's own save refuses a Replace of an answered card: the clause is there, naming all six signs of an answer",
+    ck("the save as it now stands (migration_025) refuses a Replace of an answered card: the clause is there, naming all six signs of an answer",
        !!step && !!clause && missing.length === 0, step ? `missing: ${missing.join(", ") || "none"}` : "no archive step found");
     const fake = readFileSync(new URL("../fake-supabase.mjs", import.meta.url), "utf8");
     const copy = /const answeredRow = \(r\) => ([^;]*);/.exec(fake)?.[1] || "";
@@ -1032,8 +1057,9 @@ console.log("\n  Replace works by class, never deletes, and leaves lesson and tu
   }
   // Where this machine has Postgres, the real function is run on real rows.
   {
-    const { db: pg, why } = await localPostgres();
-    if (!pg) console.log(`  (not run here: the real save_notes_reading on a local Postgres; ${why})`);
+    const { db: pg, why, broken } = await localPostgres();
+    if (broken) ck("every SQL file loads on a real Postgres", false, why);
+    else if (!pg) console.log(`  (not run here: the real save_notes_reading on a local Postgres; ${why})`);
     else {
       try {
         const U = "00000000-0000-0000-0000-0000000000a1", RUN = "11111111-1111-1111-1111-111111111111";
@@ -1056,6 +1082,30 @@ console.log("\n  Replace works by class, never deletes, and leaves lesson and tu
         const want = [...SIGNS.map((_, i) => `${9001 + i}:in study`), "9007:replaced", "9008:removed"].join(", ");
         ck("on a local Postgres, the real save takes out for a Replace only the card never answered, whichever sign of an answer a card has; a card the student removes goes out answered or not",
            setup.ok && saved.out === "2" && rows.out === want, `${setup.err || saved.err || ""} archived ${saved.out}: ${rows.out}`);
+        // The live deck keeps class dates as text[]: written for jsonb, this
+        // function failed on every call from 2026-10-07 to 2026-11-07, and the
+        // owner's linked cahier saved nothing (migration_025).
+        const RUN2 = "22222222-2222-2222-2222-222222222222";
+        const LONG = Array.from({ length: 700 }, () => Math.random().toString(36).slice(2, 10)).join("");
+        const dated = pg.sql(`insert into public.user_cards (id, user_id, front, back, source, dates) values (9101, '${U}', 'hier', 'yesterday', 'cahier-upload', '{2025-10-02}');
+          update public.notes_read set run_id = '${RUN2}' where user_id = '${U}';`);
+        const notes = pg.sql(`select public.save_notes_reading('${U}', '${RUN2}',
+          '[{"front":"demain","back":"tomorrow","category":"V","dates":["2025-10-09"],"source":"sync"},
+            {"front":"hier","back":"yesterday","category":"V","dates":["2025-10-16"],"source":"sync"}]'::jsonb,
+          '[{"id":9007,"dates":["2025-10-09","2025-10-02"]}]'::jsonb,
+          p_pairs => '[{"card_a":9101,"a_front":"hier","a_back":"yesterday","b_front":"hier","b_back":"yesterday","verdict":"same","version":"v","model":"m","source":"sync"}]'::jsonb,
+          p_classes => '{"2025-10-09":["abc"]}'::jsonb)::text`);
+        const after = pg.sql(`select string_agg(front || ' ' || dates::text, ' | ' order by front) from public.user_cards where front in ('demain', 'hier', 'jamais vu')`);
+        const pairs = pg.sql(`select count(*) from public.card_pairs where user_id = '${U}'`);
+        ck("on a local Postgres with the live date column, the real save adds a card, joins one, adds dates, keeps the verdict and records the lines",
+           dated.ok && /"inserted": 1/.test(notes.out) && /"joined": 1/.test(notes.out) && /"dated": 1/.test(notes.out) &&
+           after.out === "demain {2025-10-09} | hier {2025-10-02,2025-10-16} | jamais vu {2025-10-02,2025-10-09}" && pairs.out === "1",
+           [dated.err, notes.out || notes.err, after.out, pairs.out].join(" / "));
+        const again = pg.sql(`update public.notes_read set run_id = '${RUN2}' where user_id = '${U}'; select public.save_notes_reading('${U}', '${RUN2}',
+          '[{"front":"${LONG}","back":"too long","dates":["2025-10-16"],"source":"sync"},
+            {"front":"la pluie","back":"the rain","dates":["2025-10-16"],"source":"sync"}]'::jsonb) ->> 'inserted'`);
+        const rain = pg.sql(`select dates::text from public.user_cards where front = 'la pluie'`);
+        ck("  and a card the database refuses is left out, the others saved", again.out === "1" && rain.out === "{2025-10-16}", [again.out || again.err, rain.out].join(" / "));
       } finally {
         pg.stop();
       }
@@ -1242,6 +1292,36 @@ console.log("\n  a removed card is kept, out of study, and never comes back");
   const anon = await call({ action: "remove", row_id: 42 }, null);
   ck("no session: refused (401)", anon.code === 401, String(anon.code));
   ck("no row is ever deleted", db.tables.user_cards.length === 2);
+
+  // Undo on a card the tutor removed (2026-10-28): { action: "restore", row_id }.
+  const back = await call({ action: "restore", row_id: 41 });
+  const row41b = db.tables.user_cards.find((r) => r.id === 41);
+  ck("Undo puts the removed card back in study as it was, with its schedule and answers",
+     back.code === 200 && back.body?.ok && back.body.row?.id === 41 && !isOut(row41b) && row41b.source === "cahier-upload" &&
+       !row41b.archived_reason && !row41b.archived_at && row41b.stability === 3.5 && JSON.stringify(db.tables.card_reviews) === reviewsBefore,
+     `${back.code} ${JSON.stringify(back.body)}`);
+  db.tables.user_cards.push({ id: 43, user_id: USER, front: "un banc", back: "a bench", source: "archived:cahier-upload", archived_reason: "duplicate", dates: [] });
+  const repeat = await call({ action: "restore", row_id: 43 });
+  ck("a card taken out for another reason (a repeat) stays out (409)", repeat.code === 409 && isOut(db.tables.user_cards.find((r) => r.id === 43)), String(repeat.code));
+  const notTheirs = await call({ action: "restore", row_id: 42 });
+  ck("another student's card can't be put back (403)", notTheirs.code === 403, String(notTheirs.code));
+
+  // Code check 2026-11-07, no. 16: editing a card's French keeps the answers
+  // the student had accepted for it.
+  db.tables.card_alternates = [
+    { user_id: USER, card_id: "un tabouret", direction: "fr", alternate_text: "a seat" },
+    { user_id: USER, card_id: "un tabouret", direction: "en", alternate_text: "un siège" },
+    { user_id: "someone-else", card_id: "un tabouret", direction: "fr", alternate_text: "a chair" },
+  ];
+  const progressBefore = JSON.stringify(db.tables.user_cards.find((r) => r.id === 41));
+  const edit = await call({ row_id: 41, front: "Un tabouret haut", back: "a stool" });
+  const alts = db.tables.card_alternates;
+  ck("editing the French side moves the accepted English answers to the new side",
+     edit.code === 200 && alts.some((r) => r.user_id === USER && r.card_id === "un tabouret haut" && r.direction === "fr" && r.alternate_text === "a seat") &&
+       !alts.some((r) => r.user_id === USER && r.card_id === "un tabouret" && r.direction === "fr"), `${edit.code} ${JSON.stringify(alts)}`);
+  ck("another student's answers stay where they were, and the schedule is untouched",
+     alts.some((r) => r.user_id === "someone-else" && r.card_id === "un tabouret") &&
+       db.tables.user_cards.find((r) => r.id === 41).stability === 3.5);
 }
 
 console.log("\n  the lesson sync uses the same rule");
@@ -1417,7 +1497,7 @@ console.log("\n  a class Claude couldn't read stays unread, on the upload and on
   const r = await upload(admin, NOTEBOOK_2);
   claude.readFailIf = null;
   ck("when no class can be read, the upload says so and saves no card",
-     r.ok === false && /Couldn't read your lessons/.test(r.error) && JSON.stringify(snapshot(admin).cards) === JSON.stringify(before.cards), r.error);
+     r.ok === false && /Couldn't read your classes/.test(r.error) && JSON.stringify(snapshot(admin).cards) === JSON.stringify(before.cards), r.error);
   const after = await sync(admin);
   ck("and the turn is free straight afterwards: a sync isn't told the notes are busy", after.ok && !after.busy && after.cardsAdded === 5,
      JSON.stringify(after).slice(0, 160));
@@ -1589,6 +1669,4 @@ console.log("\n  before migration_016: everything keeps working, by class date")
 }
 
 server.close();
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+ck.done();

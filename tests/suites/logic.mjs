@@ -2,14 +2,18 @@
 // the cases that motivated them.
 import { classifyCard } from "../../src/lib/cardTypes.js";
 import { looksMultiSense } from "../../src/lib/multiSense.js";
-import { cleanFrenchPrompt, cleanEnglishPrompt, dropFinalPeriod } from "../../src/lib/cardText.js";
-import { findRelatedCards, recentMisses, relevantMisses, buildTutorContext, cardPrompt } from "../../src/lib/deckContext.js";
-import { buildRequestMessages, normalizeCards } from "../../api/chat.js";
+import { cleanFrenchPrompt, cleanEnglishPrompt, dropFinalPeriod, firstAnswer } from "../../src/lib/cardText.js";
+import { drillAlternates } from "../../src/lib/cardInstruction.js";
+import { findRelatedCards, relevantMisses, buildTutorContext, cardPrompt, exerciseAbout, exerciseLabel } from "../../src/lib/deckContext.js";
+import { buildRequestMessages, normalizeCards, normalizeEdits, tutorFor } from "../../api/chat.js";
 import { reconcileLessons } from "../../src/lib/lessonSync.js";
 import { planReplace } from "../../src/lib/replaceDeck.js";
 import { lessonSource, lessonCardKey } from "../../src/lib/lessonSource.js";
 import { isArchived, archivedSource } from "../../src/lib/archive.js";
-import { LESSONS } from "../../src/data/lessons/index.js";
+import { LESSONS as FRENCH_LESSONS } from "../../src/data/lessons/index.js";
+import { SPANISH } from "../../src/data/lessons/es/index.js";
+// Every lesson, the Spanish module's included (2026-10-22).
+const LESSONS = [...FRENCH_LESSONS, ...SPANISH.LESSONS];
 import { choicesOf, startedLessons, lessonsInCards, onCards, setKeyOf, dealScopeOf } from "../../src/lib/lessonChoice.js";
 import { readFileSync } from "node:fs";
 import { checker } from "../check.mjs";
@@ -87,8 +91,10 @@ table("looksMultiSense — shortlists real suspects only", [
   ["I have never been so single in my life", false],
 ], (back) => looksMultiSense({ b: back }));
 
-// The deck's own grammar and pronunciation sections are the corpus every
-// pattern in isGrammarCard was derived from. If a change stops recognising
+// The deck's own grammar section (all arrow drills today; no pronunciation
+// cards remain in it)
+// and the rule cards the owner sorted in September 2026 are the corpus the
+// patterns in isGrammarCard were derived from. If a change stops recognising
 // them, this catches it.
 console.log("\n  classifyCard — against the real cahier corpus");
 const { RAW } = await import("../../src/data/cards.js");
@@ -98,6 +104,17 @@ ck(
   `every card in the grammar and pronunciation sections reads as grammar (${section.length})`,
   missed.length === 0,
   missed.length ? missed.map(([f]) => f).join("; ").slice(0, 160) : ""
+);
+// The 56 rule cards the owner archived or converted (the "keep" ones are
+// vocabulary and are not expected to read as grammar). Most rest on one
+// non-arrow pattern, which keepAnswerable relies on.
+const { decisions: sorted } = JSON.parse(readFileSync(new URL("../../scripts/data/grammar-sort-decisions.json", import.meta.url), "utf8"));
+const ruleCards = sorted.filter((d) => d.decision !== "keep");
+const unseen = ruleCards.filter((d) => classifyCard({ f: d.front, b: d.back }) !== "grammar");
+ck(
+  `every rule card the owner sorted in September still reads as grammar (${ruleCards.length})`,
+  ruleCards.length === 56 && unseen.length === 0,
+  unseen.length ? unseen.map((d) => d.front).join("; ").slice(0, 160) : `${ruleCards.length} cards`
 );
 const vocabSection = RAW.filter(([, , c]) => c === "vocab" || c === "expr");
 const pulled = vocabSection.filter(([f, b, c]) => classifyCard({ f, b, cat: c }) === "grammar");
@@ -164,23 +181,34 @@ console.log("\n  findRelatedCards — the cards this question is about");
   ck("a shared function word in the gloss is not a match", unload.length === 1 && unload[0] === "décharger", unload.join(", ") || "nothing");
 }
 
-console.log("\n  recentMisses — what they are actually getting wrong");
+console.log("\n  relevantMisses — what they are actually getting wrong");
 {
-  const missed = recentMisses(DECK).map((c) => c.front);
+  const NOW = Date.parse("2026-09-12T12:00:00Z");
+  const D = [
+    { row_id: 1, f: "la colline", b: "the hill", last_answer_correct: false, last_review: "2026-09-10" },
+    { row_id: 2, f: "la colline verte", b: "the green hill", last_answer_correct: false, last_review: "2026-09-11" },
+    // Never reviewed: null means "not answered", not "missed".
+    { row_id: 3, f: "le chemin de fer", b: "the hill railway", last_answer_correct: null, last_review: null },
+    // Missed only asked in English, and more recently than anything else.
+    { row_id: 4, f: "la pente", b: "the hill slope", cat: "vocab", last_answer_correct: true, last_review: "2020-01-01",
+      en_last_answer_correct: false, en_last_review: "2026-09-12" },
+  ];
+  const missed = relevantMisses({ question: "hill?", cards: D, now: NOW }).map((c) => c.front);
   // The migration_006 shape of bug: null means "never reviewed", not "missed".
   // Treating it as falsy sweeps the entire unreviewed deck in.
-  ck(
-    "an unreviewed card is not a miss",
-    !missed.includes("le chemin de fer"),
-    missed.join(", ") || "nothing"
-  );
-  ck("only the missed cards come back", missed.length === 2, missed.join(", "));
-  ck("most recently missed first", missed[0] === "la colline", missed.join(", "));
-  // Missed only asked in English, and more recently than anything else.
-  const enMiss = { f: "la pente", b: "the slope", cat: "vocab", last_answer_correct: true, last_review: "2020-01-01",
-    en_last_answer_correct: false, en_last_review: "2099-01-01" };
-  const withEn = recentMisses([...DECK, enMiss]).map((c) => c.front);
-  ck("a card missed only the other way round is a miss, placed by when", withEn[0] === "la pente", withEn.join(", "));
+  ck("an unreviewed card is not a miss", !missed.includes("le chemin de fer"), missed.join(", ") || "nothing");
+  ck("only the missed cards come back", missed.length === 3, missed.join(", "));
+  ck("a card missed only the other way round is a miss, and most recent first", missed[0] === "la pente" && missed[1] === "la colline verte", missed.join(", "));
+}
+
+console.log("\n  tidy-ups: subjunctive drill alternates, and a Spanish card's one meaning for the tutor");
+{
+  const alts = drillAlternates("aller (subjonctif) → je", "que j'aille");
+  ck("a subjunctive drill gets \"j'aille\" and no \"je que j'aille\"", alts.includes("j'aille") && !alts.some((a) => /je que|que je que/.test(a)), alts.join(" | "));
+  ck("the alternates have no repeats", new Set(alts).size === alts.length, alts.join(" | "));
+  const hola = { row_id: 9, f: "hola", b: "hello / hi", shownDir: "en", answered: false };
+  const ctx = buildTutorContext({ question: "hi?", cards: [], currentCard: hola, course: "es" });
+  ck("a Spanish card's prompt for the tutor is its first meaning", ctx.currentCard.prompt === "hello", ctx.currentCard.prompt);
 }
 
 console.log("\n  findRelatedCards — the way learners actually type");
@@ -287,6 +315,169 @@ console.log("\n  /api/chat — what a conversation becomes");
   ck("a grammar card with nothing to produce is dropped", !cards.includes("bien que + subjonctif"), cards.join(", "));
   ck("a pronunciation card is dropped", !cards.includes("le e muet"), cards.join(", "));
   ck("an arrow drill and a word survive", cards.length === 2, cards.join(", "));
+
+  // Changing a card the student has (2026-10-18): asked to, the tutor edits
+  // it, and its next turn knows what it changed and whether it stuck.
+  const edits = normalizeEdits([
+    { front: "ainsi que", new_back: "as well as / along with" },
+    { front: "ainsi que", new_back: "again" },
+    { front: "une colline" },
+    { front: "", new_back: "x" },
+  ]);
+  ck("an edit keeps its card and its new English", edits.length === 1 && edits[0].front === "ainsi que" && edits[0].newBack === "as well as / along with", JSON.stringify(edits));
+  ck("an edit that changes nothing, or names no card, is dropped", !edits.some((e) => e.front === "une colline" || !e.front), JSON.stringify(edits));
+
+  const edited = buildRequestMessages({
+    messages: [
+      { role: "user", content: "take just as off that card" },
+      { role: "assistant", content: "Done.", edits: [{ was: "ainsi que — as well as / just as", now: "ainsi que — as well as", status: "done" }] },
+      { role: "user", content: "and the other one?" },
+      { role: "assistant", content: "Changed.", edits: [{ was: "une colline — a hill", now: "une colline — a mound", status: "undone" }] },
+      { role: "user", content: "why not?" },
+    ],
+    context: { currentCard: { prompt: "ainsi que", answer: "as well as", front: "ainsi que", back: "as well as", answered: true } },
+  });
+  ck("an earlier answer keeps the cards it changed", /Cards you changed: ainsi que — as well as \/ just as → ainsi que — as well as\]/.test(text(edited[1])), text(edited[1]));
+  ck("an edit the student undid says so", /they undid this/.test(text(edited[3])), text(edited[3]));
+  ck("the card on screen is named as the deck stores it", /In their deck it is the card "ainsi que" — "as well as"/.test(text(edited.at(-1))), text(edited.at(-1)));
+
+  // Removing a card the student has (owner, 2026-10-28: "the tutor should be
+  // able to remove cards"): both tutors can, and are told when to, and the
+  // next turn knows what went and whether it was put back.
+  ck("both tutors can remove a card, and are told when to",
+     [tutorFor({}), tutorFor({ course: "es" })].every((t) => t.tools.some((x) => x.name === "remove_flashcard") && /call remove_flashcard/.test(t.system)));
+  const removals = normalizeEdits([
+    { front: "haber", remove: true },
+    { front: "haber", new_back: "to have" },
+    { front: "", remove: true },
+    { front: "ainsi que", new_back: "as well as", remove: false },
+  ]);
+  ck("a removal names its card and nothing else, and a second call on the same card is dropped",
+     removals.length === 2 && JSON.stringify(removals[0]) === '{"front":"haber","remove":true}' && removals[1].front === "ainsi que" && !removals[1].remove,
+     JSON.stringify(removals));
+  const removed = buildRequestMessages({
+    messages: [
+      { role: "user", content: "remove it" },
+      { role: "assistant", content: "Removed.", edits: [{ was: "haber — to have", now: "", status: "done", removed: true }] },
+      { role: "user", content: "put it back" },
+      { role: "assistant", content: "Done.", edits: [{ was: "haber — to have", now: "", status: "undone", removed: true }] },
+      { role: "user", content: "thanks" },
+    ],
+  });
+  ck("an earlier answer keeps the card it removed", /\[Cards you changed: haber — to have → removed from their deck\]/.test(text(removed[1])), text(removed[1]));
+  ck("a removal the student undid says so", /removed from their deck \(they undid this\)/.test(text(removed[3])), text(removed[3]));
+}
+
+// The Spanish module's tutor (owner, 2026-10-26: "tutor needs to be added to
+// spanish module"): its own prompt and tools, words and phrases only, Spanish
+// filler words, and on Exercises the exercise on screen in place of a card.
+console.log("\n  The Spanish tutor");
+{
+  const text = (m) => (typeof m.content === "string" ? m.content : m.content.map((b) => b.text).join(""));
+  const es = tutorFor({ course: "es" });
+  const fr = tutorFor({});
+  ck("a Spanish request gets the Spanish tutor, and anything else the French one",
+     /learner of Spanish/.test(es.system) && /learner of French/.test(fr.system) && tutorFor({ course: "de" }) === fr);
+  const enumOf = (t) => t.tools.find((x) => x.name === "propose_flashcards").input_schema.properties.cards.items.properties.category.enum.join();
+  ck("the Spanish tutor proposes words and phrases only, the French one grammar drills too",
+     enumOf(es) === "vocab,expr" && enumOf(fr) === "vocab,expr,gram", `${enumOf(es)} / ${enumOf(fr)}`);
+  const kept = normalizeCards({
+    cards: [
+      { front: "pedir → yo", back: "pido", category: "gram" },
+      { front: "una colina", back: "a hill", category: "vocab" },
+      { front: "estar de buen humor", back: "to be in a good mood", category: "expr" },
+    ],
+  }, es.categories).map((c) => c.front);
+  ck("a Spanish grammar drill is dropped, a word and a phrase stay", kept.join(" | ") === "una colina | estar de buen humor", kept.join(" | "));
+
+  // An accent counts only where it changes a verb's tense (owner, 2026-10-26),
+  // so the tutor must not call "esta" for "está" a mistake, and a card marked
+  // "✗ The accent changes the tense" reaches it with what was typed.
+  ck("the Spanish tutor knows an accent counts only where it changes the tense",
+     /"hablo" for "habló" is marked wrong, "esta" for "está" is not/.test(es.system) && !/marks "esta" for "está"/.test(es.system));
+  const accent = text(buildRequestMessages({
+    course: "es",
+    messages: [{ role: "user", content: "why?" }],
+    context: { currentCard: { prompt: "I spoke", answer: "hablé", answered: true, result: "wrongAccent", typed: "hable" } },
+  }).at(-1));
+  ck("a card marked wrong for a tense accent reaches the tutor with what was typed",
+     /They typed "hable", which was marked wrong because an accent that changes the verb's tense/.test(accent), accent);
+
+  // "la", "en" and "qué" match every card; "ya" is the word asked about.
+  const ES = [
+    { f: "la casa", b: "the house", row_id: 1 },
+    { f: "el carro", b: "the car", row_id: 2 },
+    { f: "ya", b: "already / now", row_id: 3 },
+    { f: "de nada", b: "you're welcome", row_id: 4 },
+  ];
+  const ya = buildTutorContext({ question: "¿Qué significa ya en la frase?", cards: ES, course: "es" });
+  ck("in Spanish the word asked about is found, and the filler words find nothing",
+     (ya?.relatedCards || []).map((c) => c.front).join() === "ya", JSON.stringify(ya?.relatedCards));
+
+  const exercise = {
+    key: "ex:leccion4/1/2",
+    lesson: "Lección 4 · Verbos regulares",
+    number: 1,
+    title: "Conjugación",
+    instruction: "Completar con el verbo regular conjugado en presente.",
+    english: "Fill each gap with the regular verb in brackets, in the present tense.",
+    items: [
+      { number: 1, prompt: "Yo ___ mucho con mis amigos. (caminar)", answer: "Yo camino mucho con mis amigos. (caminar)",
+        answered: true, typed: "Yo [camina] mucho con mis amigos. (caminar)", verdict: "wrong", correct: "Yo camino mucho con mis amigos. (caminar)" },
+      // A draft still in the box is the student's, and never sent.
+      { number: 2, prompt: "Mis papás ___ cerca de Nueva York. (vivir)", answer: "Mis papás viven cerca de Nueva York. (vivir)",
+        answered: false, typed: "Mis papás [viv] cerca" },
+    ],
+    focus: 2,
+    last: 1,
+  };
+  const onEx = buildTutorContext({ question: "why was number 1 wrong?", cards: ES, exercise, course: "es" });
+  ck("on Exercises the exercise goes, every item with it, and where the cursor is",
+     onEx?.exercise?.items?.length === 2 && onEx.exercise.focus === 2 && onEx.exercise.last === 1, JSON.stringify(onEx?.exercise));
+  ck("what was typed goes only once an item has been answered",
+     onEx.exercise.items[0].typed && !("typed" in onEx.exercise.items[1]), JSON.stringify(onEx.exercise.items));
+  ck("a card on screen wins over an exercise",
+     !buildTutorContext({ question: "x", cards: ES, currentCard: { ...ES[0], shownDir: "fr", answered: false }, exercise, course: "es" })?.exercise);
+  ck("a question keeps the exercise and item it was asked about",
+     exerciseAbout(exercise) === "Ejercicio 1 (Conjugación), number 2: « Mis papás ___ cerca de Nueva York. (vivir) »", exerciseAbout(exercise));
+  ck("the panel's header names the item with the cursor",
+     exerciseLabel(exercise) === "Ejercicio 1, 2: Mis papás ___ cerca de Nueva York. (vivir)", exerciseLabel(exercise));
+
+  const sent = text(buildRequestMessages({ course: "es", messages: [{ role: "user", content: "why was number 1 wrong?" }], context: onEx }).at(-1));
+  ck("the tutor is told the exercise by its number on the page",
+     /Exercise on screen: Ejercicio 1, "Conjugación", from Lección 4 · Verbos regulares\./.test(sent), sent);
+  ck("and that item 1 was marked wrong, with the correct answer",
+     /1\. "Yo ___ mucho con mis amigos\. \(caminar\)" — they answered "Yo \[camina\] mucho con mis amigos\. \(caminar\)", which was marked wrong\. The correct answer: "Yo camino/.test(sent), sent);
+  ck("and that item 2 is not answered and not to be given away",
+     /2\. "Mis papás ___ cerca de Nueva York\. \(vivir\)" — NOT answered yet, so do not give its answer away\./.test(sent), sent);
+  // "Ask the tutor" under a missed answer (owner, 2026-11-07): the tutor is
+  // told which item it was pressed under, and the reason "Why?" shows.
+  const asking = {
+    ...exercise,
+    focus: 1,
+    asked: 1,
+    last: 2,
+    items: [
+      { ...exercise.items[0], why: "With yo, caminar ends in -o." },
+      { ...exercise.items[1], answered: true, typed: "Mis papás [viven] cerca de Nueva York. (vivir)", verdict: "right", why: "Should not go." },
+    ],
+  };
+  const askedCtx = buildTutorContext({ question: "why?", cards: ES, exercise: asking, course: "es" });
+  ck("the item Ask the tutor was pressed under goes with the exercise",
+     askedCtx?.exercise?.asked === 1 && askedCtx.exercise.focus === 1, JSON.stringify({ asked: askedCtx?.exercise?.asked, focus: askedCtx?.exercise?.focus }));
+  ck("an item that isn't in the exercise isn't named as asked",
+     !("asked" in buildTutorContext({ question: "why?", cards: ES, exercise: { ...asking, asked: 99 }, course: "es" }).exercise));
+  ck("the reason goes with a miss, and not with a right answer",
+     askedCtx.exercise.items[0].why === "With yo, caminar ends in -o." && !("why" in askedCtx.exercise.items[1]), JSON.stringify(askedCtx.exercise.items));
+  const askedSent = text(buildRequestMessages({ course: "es", messages: [{ role: "user", content: "why?" }], context: askedCtx }).at(-1));
+  ck("the tutor is told which item they asked from, even when another was answered later",
+     /They pressed "Ask the tutor" under item 1, so that is the item they are asking about/.test(askedSent) && /The item they answered last is 2\./.test(askedSent), askedSent);
+  ck("and the reason the app shows for it",
+     /The reason the app shows when they press Why\?: "With yo, caminar ends in -o\."/.test(askedSent) && !/Should not go/.test(askedSent), askedSent);
+  ck("and its rule says what \"this one\" then means",
+     /If you are told they pressed "Ask the tutor" under an item, "this one" with no number means that item\./.test(es.system));
+  ck("and where the cursor is, and which item was answered last",
+     /The cursor is on item 2\./.test(sent) && /The item they answered last is 1\./.test(sent), sent);
 }
 
 // Keeping a deck in step with a lesson. The requirement that costs real data:
@@ -344,6 +535,22 @@ console.log("\n  reconcileLessons — the lesson is the authority, the edit is t
   const afterWithdraw = reconcileLessons([LESSON], withdrawn);
   ck("a card the lesson dropped is retired", afterWithdraw.stale.length === 1 && afterWithdraw.stale[0] === 9,
      afterWithdraw.stale.join(","));
+
+  // A grammar card the lesson now asks as a phrase keeps its row, and the row
+  // becomes a phrase (the Spanish sentences to translate, 2026-10-25). Only
+  // grammar rows move.
+  const asPhrase = { id: "test", cards: [["Él es aburrido", "He is boring", "E"], ["finir → tu", "finis", "G"]] };
+  const recatted = reconcileLessons([asPhrase], [
+    { ...stored("Él es aburrido", lessonCardKey("Él es aburrido"), 4), cat: "gram" },
+    { ...stored("finir → tu", lessonCardKey("finir → tu"), 5), cat: "gram" },
+  ]);
+  ck("a grammar row the lesson now asks as a phrase becomes one, kept",
+     recatted.recat.length === 1 && recatted.recat[0].row_id === 4 && recatted.recat[0].category === "E" &&
+     !recatted.stale.length && !recatted.missing.length, JSON.stringify(recatted.recat));
+  const kept = reconcileLessons([{ id: "test", cards: [["un mot", "a word", "G"]] }], [
+    { ...stored("un mot", lessonCardKey("un mot"), 6), cat: "vocab" },
+  ]);
+  ck("and a word or phrase row never becomes grammar", kept.recat.length === 0, JSON.stringify(kept.recat));
 
   // Rows written before keys existed.
   const legacy = [stored("parler → tu", null, 1), stored("who knows", null, 7)];
@@ -406,6 +613,214 @@ console.log("\n  lessons — every released card still matches its lesson");
   }
 }
 
+// The typed-answer matcher, lifted from FlashcardApp.jsx as the lesson
+// checker lifts it: the Spanish module's articles and punctuation, and French
+// marked as before (2026-10-22).
+console.log("\n  marking — Spanish articles and ¿ ¡, French unchanged");
+{
+  const { default: fs } = await import("node:fs");
+  const { default: os } = await import("node:os");
+  const { default: path } = await import("node:path");
+  const app = fs.readFileSync(new URL("../../src/FlashcardApp.jsx", import.meta.url), "utf8");
+  const start = app.indexOf("function normalize(s)");
+  const mStart = app.indexOf("function matchAnswer(");
+  const end = app.indexOf("\n}\n", mStart) + 3;
+  const file = path.join(os.tmpdir(), `logic-matcher-${process.pid}.mjs`);
+  // The one import the matcher needs: which Spanish accents count.
+  const accents = new URL("../../src/lib/spanishAccents.js", import.meta.url).href;
+  fs.writeFileSync(file, `import { accentCounts, OLD_ACCENTS } from ${JSON.stringify(accents)};\n` + app.slice(start, end) + "\nexport { matchAnswer, hasMeaningList };\n");
+  const { matchAnswer, hasMeaningList } = await import(`file://${file}?t=${Date.now()}`);
+  fs.unlinkSync(file);
+  const ok = (typed, answer, opts) => matchAnswer(typed, answer, [], opts).match === true;
+  ck("a Spanish question typed without ¿ is right", ok("Como estas?", "¿Cómo estás?", { articles: "none" }));
+  ck("a Spanish word card's article may be left off", ok("mano", "la mano", { articles: "es" }));
+  ck("but not given the wrong gender", matchAnswer("el mano", "la mano", [], { articles: "es" }).wrongArticle === true);
+  // A leading le or les in a Spanish phrase is a pronoun: a wrong one is a
+  // wrong answer to mark as such, not "Wrong article" (French rules said that).
+  ck("a Spanish pronoun is never called a wrong article",
+     matchAnswer("Les hablé", "Le hablé", [], { articles: "none" }).wrongArticle !== true &&
+     matchAnswer("Les hablé", "Le hablé").wrongArticle === true);
+  ck("an English answer still drops its the", ok("hand", "the hand", { articles: "en" }));
+  // Spanish answers have their accents checked (owner, 2026-10-22), but only
+  // those that change a verb's tense (2026-10-26, src/lib/spanishAccents.js).
+  const es = { articles: "none", accents: true };
+  // Feedback #59 (owner, 2026-10-30): "LA always means los angeles".
+  const mexicana = "Soy mexicana, pero vivo en Los Ángeles";
+  const mexicanaEn = "I am Mexican, but I live in Los Angeles / I'm Mexican, but I live in Los Angeles";
+  ck("LA or L.A. is Los Ángeles, typed either way round, but a lower-case la is still the article",
+     ok("Soy mexicana, pero vivo en LA", mexicana, es) && ok("Soy mexicana pero vivo en L.A.", mexicana, es) &&
+     ok("I'm Mexican, but I live in LA", mexicanaEn, { articles: "en" }) &&
+     !ok("Soy mexicana, pero vivo en la", mexicana, es) && ok("LA casa", "la casa", { articles: "es" }));
+  ck("a Spanish drill right with its accent is right", ok("habló", "habló", { exact: true, accents: true }));
+  ck("and without it is a wrong accent: hablo is another tense", matchAnswer("hablo", "habló", [], { exact: true, accents: true }).wrongAccent === true);
+  ck("so is llego for llegó in a phrase", matchAnswer("Ayer llego tarde", "Ayer llegó tarde", [], es).wrongAccent === true);
+  ck("an accent that changes no tense is forgiven, ¿ or not: como estas for ¿Cómo estás?",
+     ok("Cómo estás?", "¿Cómo estás?", es) && ok("como estas", "¿Cómo estás?", es));
+  ck("esta is right for the verb está, and estan for están",
+     ok("Hoy don Rafael esta de mal humor", "Hoy don Rafael está de mal humor", es) && ok("Ellos estan en casa", "Ellos están en casa", es));
+  ck("a missing ñ is forgiven like an accent: anos for años", ok("Tengo diez anos", "Tengo diez años", es));
+  ck("a typo elsewhere is still forgiven, with the accents right", ok("Tengo diez añoss", "Tengo diez años", es));
+  ck("the accents the RAE still allows are right: sólo for solo", ok("Sólo tengo uno", "Solo tengo uno", es));
+  ck("French answers are still marked accents aside", ok("tres bien", "très bien") && ok("evidemment", "évidemment"));
+  ck("French still forgives a left-off article", ok("chemin de fer", "le chemin de fer"));
+  ck("and still checks its gender", matchAnswer("la vélo", "le vélo").wrongArticle === true);
+  // An accepted answer with the other article stays accepted (code check
+  // 2026-11-07, no. 1): the first alternative used to answer "wrong article"
+  // before the accepted one was tried.
+  ck("une enfant, once accepted for un enfant, is right next time",
+     matchAnswer("une enfant", "un enfant", ["une enfant"]).match === true &&
+     matchAnswer("una turista", "un turista / una turista", [], { articles: "es" }).match === true);
+  // A sentence's English is one answer (code check 2026-11-07, no. 3): "If I
+  // were you" alone was right for "Yo en tu lugar no le diría nada".
+  const tuLugar = "If I were you, I wouldn't tell him anything / If I were you, I wouldn't say anything to him";
+  const tuLugarOpts = { meanings: hasMeaningList("Yo en tu lugar no le diría nada"), articles: "en" };
+  ck("half a sentence's English is not right",
+     !ok("If I were you", tuLugar, tuLugarOpts) && !ok("I wouldn't tell him anything", tuLugar, tuLugarOpts));
+  ck("and the whole of it is right, not just close",
+     matchAnswer("If I were you, I wouldn't tell him anything", tuLugar, [], tuLugarOpts).close !== true &&
+     ok("If I were you, I wouldn't tell him anything", tuLugar, tuLugarOpts));
+  ck("a short phrase still has a list of meanings: that's useless for ça sert à rien",
+     hasMeaningList("ça sert à rien") &&
+     ok("that's useless", "that serves no purpose, that's useless", { meanings: true }) &&
+     matchAnswer("that serves no purpose, that's useless", "that serves no purpose, that's useless", [], { meanings: true }).close !== true);
+  ck("and le enfant is still the wrong article", matchAnswer("le enfant", "un enfant", ["une enfant"]).wrongArticle === true);
+  // On a Spanish card the irregular verb forms, numbers and months are marked
+  // exactly (owner, 2026-10-25): the tolerance let "poní" through for puse,
+  // and "setenta" for sesenta.
+  const { SPANISH_EXACT, ENGLISH_EXACT } = await import("../../src/data/lessons/es/exactWords.js");
+  const verbs = { ...es, exactWords: SPANISH_EXACT };
+  const en = { articles: "en", exactWords: ENGLISH_EXACT };
+  ck("a wrong number or month is wrong, either way round",
+     !ok("setenta", "sesenta", verbs) && !ok("el treinta de julio", "el treinta de junio", verbs) &&
+     !ok("Son las cuatro y doce", "Son las cuatro y diez", verbs) && !ok("doscientos personas", "doscientas personas", verbs) &&
+     !ok("July 30th", "June 30th", en) && !ok("It's 8:45", "It's 8:15", en));
+  ck("which the tolerance let through before", ok("setenta", "sesenta", es) && ok("July 30th", "June 30th", { articles: "en" }));
+  ck("an English number may still be its figure", ok("I have 2 brothers", "I have two brothers", en));
+  // Feedback #63 to #65 (the owner, 2026-11-18).
+  ck("LA typed for Los Ángeles is right", ok("¿Por qué estás en LA?", "¿Por qué estás en Los Ángeles?", { articles: "none", accents: true }));
+  ck("he danced is wrong for I danced: another person", !ok("he danced", "I danced", en) && ok("I danced", "I danced", en) && ok("I dancd", "I danced", en));
+  ck("muchas is right, not close enough, for mucho / mucha / muchos / muchas",
+     JSON.stringify(matchAnswer("muchas", "mucho / mucha / muchos / muchas", [], { articles: "es", accents: true })) === '{"match":true}');
+  const put = "Ayer puse la computadora en la sala";
+  ck("a wrong verb form in a phrase is wrong", !ok("Ayer poní la computadora en la sala", put, verbs) &&
+     !ok("La semana pasada tenemos que trabajar mucho", "La semana pasada tuvimos que trabajar mucho", verbs));
+  ck("so is ser for estar", !ok("Soy aquí con mi esposo", "Estoy aquí con mi esposo", verbs) &&
+     !ok("Él es aburrido", "Él está aburrido", verbs));
+  ck("which the tolerance let through before", ok("Ayer poní la computadora en la sala", put, es));
+  ck("a slip elsewhere in the phrase is still close enough",
+     matchAnswer("Ayer puse la computadora en la sla", put, [], verbs).close === true &&
+     matchAnswer("Conozco el centro bien", "Conozco bien el centro", [], verbs).close === true);
+  ck("an exact word right but for an accent that changes no tense is right: pusé for puse, se for sé",
+     ok("Ayer pusé la computadora en la sala", put, verbs) && ok("No se", "No sé", verbs));
+  ck("one whose accent changes the tense is a wrong accent",
+     matchAnswer("Ella hablo con Ana", "Ella habló con Ana", [], { ...es, exactWords: new Map([["habló", ["habló"]]]) }).wrongAccent === true);
+  ck("the forms the code check of 2026-11-07 found missing are wrong when mistyped (no. 2)",
+     !ok("Ella no puede venir ayer", "Ella no pudo venir ayer", verbs) &&
+     !ok("El café cuestan cuarenta y cinco pesos", "El café cuesta cuarenta y cinco pesos", verbs) &&
+     !ok("¡Sigues derecho!", "¡Sigue derecho!", verbs) &&
+     !ok("Siempre nos han encantado viajar", "Siempre nos ha encantado viajar", verbs) &&
+     !ok("Yo en tu lugar no le decía nada", "Yo en tu lugar no le diría nada", verbs));
+  ck("and a slip elsewhere in them is still close enough", ok("Ella no pudo venir aller", "Ella no pudo venir ayer", verbs));
+  ck("se, not on the list, is never asked for as sé", ok("Mi esposa se lama Linda", "Mi esposa se llama Linda", verbs));
+  // Code check 2026-11-07, no. 12: the tutor's grammar cards are marked exactly.
+  ck("a tutor grammar card is marked exactly: bien qu'il pleut is not bien qu'il pleuve",
+     matchAnswer("bien qu'il pleut", "bien qu'il pleuve", [], { exact: true }).match === false &&
+     ok("bien qu'il pleuve", "bien qu'il pleuve", { exact: true }) &&
+     /card\.source === "tutor-chat"/.test(app));
+  // No. 13: à is not the English "a".
+  ck("à la maison is not right as maison, nor à droite as droite",
+     !ok("maison", "à la maison") && matchAnswer("droite", "à droite").close === true &&
+     matchAnswer("à droite", "à droite").close !== true && ok("a droite", "à droite"));
+  ck("but a cat is still a cat", ok("cat", "a cat", { articles: "en" }) && ok("cat", "a cat"));
+  // No. 14: a number without its hyphen.
+  ck("forty five is forty-five, forty four still is not",
+     ok("The coffee is forty five pesos", "The coffee is forty-five pesos", en) && !ok("The coffee is forty four pesos", "The coffee is forty-five pesos", en) &&
+     ok("The coffee is forty-five pesos", "The coffee is forty-five pesos", en));
+  // No. 15: l' may be left off like le and la.
+  ck("IA for l'IA, eau pétillante for l'eau pétillante, and the wrong gender still refused",
+     ok("IA", "l'IA (l'intelligence artificielle)") && matchAnswer("eau pétillante", "l'eau pétillante").close !== true &&
+     ok("eau pétillante", "l'eau pétillante") && ok("l'eau", "l'eau") && matchAnswer("abord", "d'abord").close === true);
+  ck("a Spanish article is no French article: colline is right for une colline, not for una colline",
+     ok("colline", "une colline") && !ok("colline", "una colline"));
+  // No. 18: a figure for an English number word.
+  ck("a figure counts for the number word: 3 for three, 7th for seventh, 2nd floor for second floor",
+     ok("I have 3 brothers", "I have three brothers", en) && ok("the 7th", "the seventh", en) && ok("on the 2nd floor", "on the second floor", en) &&
+     !ok("I have 4 brothers", "I have three brothers", en) && !ok("8th", "seventh", en));
+  // No. 19: a missing ñ on a word whose accent counts.
+  ck("el bano is right for el baño, bañó is still a tense mistake, enseño for enseñó too",
+     ok("Voy al bano", "Voy al baño", es) && ok("Le ensenó la foto", "Le enseñó la foto", es) &&
+     matchAnswer("Le enseño la foto", "Le enseñó la foto", [], es).wrongAccent === true &&
+     matchAnswer("Voy al bañó", "Voy al baño", [], es).wrongAccent === true && ok("Llamame manana", "Llámame mañana", es));
+}
+
+// A Spanish card's row is found by its front (es_user_cards is unique on
+// user and front, as user_cards is), so two Spanish lessons with one front
+// would write over each other's row.
+console.log("\n  Spanish lessons — no front in two of them");
+{
+  const seen = new Map();
+  const twice = [];
+  for (const lesson of SPANISH.LESSONS) {
+    for (const [front] of lesson.cards) {
+      if (seen.has(front) && seen.get(front) !== lesson.id) twice.push(`${front} (${seen.get(front)}, ${lesson.id})`);
+      seen.set(front, lesson.id);
+    }
+  }
+  ck("every Spanish front belongs to one lesson", twice.length === 0, twice.join(" | "));
+  // Words and phrases only (owner, 2026-10-25: "the flashcards module for the
+  // spanish section should be all words and phrases, no grammar"); the
+  // grammar is on the Exercises page.
+  const grammar = SPANISH.LESSONS.flatMap((l) => l.cards.filter(([, , c]) => c === "G").map(([f]) => `${l.id}: ${f}`));
+  ck("no Spanish lesson has a grammar card", grammar.length === 0, grammar.slice(0, 5).join(" | "));
+  // The verb tables' irregular forms live on in phrases, and marking holds
+  // them exact; a phrase made for one that has none of them is no use.
+  const { IRREGULAR_FORMS } = await import("../../src/data/lessons/es/irregularForms.js");
+  const words = (f) => f.toLowerCase().normalize("NFC").split(/[\s¿?¡!.,]+/);
+  const bare = SPANISH.LESSONS.flatMap((l) => l.cards
+    .filter(([f, , , s]) => s === "verbforms" && !words(f).some((w) => IRREGULAR_FORMS.has(w)))
+    .map(([f]) => `${l.id}: ${f}`));
+  ck("every verb-form phrase holds an irregular form", bare.length === 0, bare.join(" | "));
+  // And on every Spanish front, not only the verb-form phrases, an irregular
+  // form is on the list (code check 2026-11-07, no. 2: pudo, cuesta, sigue
+  // and others were missing, so "El café cuestan…" passed). Checked against
+  // the irregular forms below, of the verbs the lessons use. A form with a
+  // pronoun joined on (dime, dímelo, hazme, diviértete) is skipped and kept
+  // off the list, as the check's final review said.
+  const KNOWN_IRREGULAR = (
+    "pudo pude pudiste pudimos pudieron tenga tengas tengan cuesta cuestan duele duelen " +
+    "estuve estuviste estuvo estuvimos estuvieron sigue siguen sigues siga sigas sigan " +
+    "ha han has he hemos hay hubo mientas miente miento mienten pierdo pierde pierden pierdes " +
+    "llueve llueva mide mido miden harías haría haríamos harían hará haré podría podrías " +
+    "podríamos podrían podré podrá tendré tendrá tendría tendríamos diré dirá diría vendrá vendría " +
+    "querrá querría sabré sabría saldría saldríamos saldrían siento siente sienten sintió " +
+    "cierra cierro empieza empiezo empiezan juega juego juegan vuelvo vuelves vuelven " +
+    "encuentro encuentra muestra piensa pienso piensan muero murió haga hagas hagan ponga " +
+    "salga venga vengas diga digas digan sea sean vaya vayas vayan vayamos sepa dé den esté " +
+    "estén tuviera pudiera hubiera dijera hiciera quisiera quisieras tuvo tuviste tuvieron " +
+    "quisieron quisimos supimos supo trajo traje trajeron caigo cayó cayeron oiga traiga " +
+    "sirve sirven pida pidan repito repiten consigo elijo elige recuerdo recuerda recuerdas " +
+    "almuerzo almuerza despierto despierta despiertan pruebo prueba suena nieva huele " +
+    "mueve muevo devuelvo devuelve comienza comienzo conduzco traduzco ofrezco parezco " +
+    "conozca conozcas durmiendo pidiendo sintiendo leyendo oyendo trayendo diciendo viniendo"
+  ).split(" ");
+  const JOINED = new Set(["dime", "dímelo", "hazme", "diviértete"]);
+  const { SPANISH_EXACT: EXACT_ES } = await import("../../src/data/lessons/es/exactWords.js");
+  const missing = new Set();
+  // After el, un, una, del or al the word is a noun, never a verb form: "en el
+  // almuerzo" is lunch, not "I have lunch" (2026-11-16). La, los and las are
+  // left out, since they also come before a verb as pronouns ("la conozco").
+  const ARTICLE = new Set(["el", "un", "una", "unos", "unas", "del", "al"]);
+  for (const lesson of SPANISH.LESSONS) for (const [f] of lesson.cards) {
+    const ws = words(f);
+    ws.forEach((w, i) => {
+      if (ARTICLE.has(ws[i - 1])) return;
+      if (!JOINED.has(w) && KNOWN_IRREGULAR.includes(w) && !EXACT_ES.has(w)) missing.add(`${w} (${lesson.id}: ${f})`);
+    });
+  }
+  ck("every irregular form on a Spanish front is typed exactly", missing.size === 0, [...missing].join(" | "));
+  ck("a form with a pronoun joined on stays off the list", [...JOINED].every((w) => !IRREGULAR_FORMS.has(w)));
+}
+
 // "Replace my existing deck" deleted the whole deck before adding the upload,
 // and every answer with it: one tick wiped a student's history. Then it
 // matched cards by their exact French and deleted those never answered. Since
@@ -449,6 +864,16 @@ console.log("\n  replacing the deck works by class and never deletes a card");
      JSON.stringify({ stay: ow.stay.map((r) => r.id), out: ow.archive.map((r) => r.id) }));
   ck("nothing is ever deleted", !("remove" in plan));
   ck("lesson and tutor cards are left alone", !plan.archive.some((r) => r.id === 5 || r.id === 6));
+  // A card added with "Add to my cards" under a podcast passage (2026-10-09)
+  // belongs to the student as a tutor card does: it has no class dates, so a
+  // Replace would otherwise take it out unanswered, for good.
+  const added = planReplace([
+    row(21, "un cortège", [], { source: "podcast:3f2a9c4e-0000-4000-8000-000000000001" }),
+    row(22, "grimper", [], { source: "tutor-chat" }),
+    row(23, "ouvrir", []),
+  ], ["2026-01-05"]);
+  ck("a card added from a podcast passage is left alone, as a tutor card is, while a notes card with no class in the upload leaves",
+     added.archive.map((r) => r.id).join(",") === "23", added.archive.map((r) => r.id).join(","));
   ck("a card a Replace took out comes back when its class is in the upload", plan.restore.map((r) => r.id).join(",") === "8",
      plan.restore.map((r) => r.id).join(","));
   ck("a card the student removed never does", !plan.restore.some((r) => r.id === 7));
@@ -494,6 +919,26 @@ console.log("\n  reconcileLessons — a reworded lesson card keeps its row");
      !done.retext.length && !done.missing.length && !done.stale.length, JSON.stringify(done));
 }
 
+// A lesson may correct the English a card shows (code check 2026-11-07, no.
+// 11: "¿Qué tienen sobre México?" showed no "(ustedes)"). The students' copies
+// take the new English on the same row, so their schedule, answers and
+// accepted answers stay with it.
+console.log("\n  reconcileLessons — a corrected English side reaches existing copies");
+{
+  const es3 = SPANISH.LESSONS.find((l) => l.id === "leccion3");
+  const card = es3.cards.find(([f]) => f === "¿Qué tienen sobre México?");
+  ck("the card shows (ustedes), last, where the prompt keeps it", /\(ustedes\)$/.test(card[1]), card[1]);
+  const key = lessonCardKey(card[0]);
+  const row = (b, extra = {}) => ({ f: card[0], b, row_id: 9, source: lessonSource("leccion3", key), fsrs_state: 2, en_fsrs_state: 2, ...extra });
+  const LESSON = { id: "leccion3", cards: [card] };
+  const r = reconcileLessons([LESSON], [row(card[5])]);
+  ck("a copy with the old English is rewritten on its own row",
+     r.retext.length === 1 && r.retext[0].row_id === 9 && r.retext[0].back === card[1] && r.retext[0].front === card[0] &&
+     !r.missing.length && !r.stale.length && !r.archive.length, JSON.stringify(r));
+  ck("a copy the student edited is left alone", reconcileLessons([LESSON], [row("What have you got on Mexico?")]).retext.length === 0);
+  ck("once rewritten, nothing more is written", reconcileLessons([LESSON], [row(card[1])]).retext.length === 0);
+}
+
 // From feedback: grammar drills filed as vocab, and prompts that give the
 // answer away or end in a stray full stop.
 console.log("\n  card text — what the prompt may not show");
@@ -510,6 +955,25 @@ console.log("\n  card text — what the prompt may not show");
   ck("an ellipsis is not a full stop", dropFinalPeriod("c'est pour ça que...") === "c'est pour ça que...");
   ck("nor is etc.", dropFinalPeriod("tout etc.") === "tout etc.");
   ck("? and ! are untouched", dropFinalPeriod("Tu viens ?") === "Tu viens ?");
+}
+
+// Owner, 2026-10-25, on Spanish cards: "one version of the correct
+// translation is fine". The card shows one; marking reads the card itself.
+console.log("\n  firstAnswer — a Spanish card shows one answer of its list");
+{
+  ck("the first of a list",
+     firstAnswer("Sí, somos de Nueva York / Somos de Nueva York / Nosotros somos de Nueva York") === "Sí, somos de Nueva York");
+  ck("a single answer is unchanged", firstAnswer("they (women only)") === "they (women only)");
+  ck("a note for the whole card stays",
+     firstAnswer("What's your name? / What are you called? (tú)") === "What's your name? (tú)");
+  ck("a note naming who the last answer's you is goes",
+     firstAnswer("They are teachers / They're teachers / You are teachers (ustedes)") === "They are teachers");
+  ck("so does one for the last answer's your",
+     firstAnswer("his book / her book / your book (usted, ustedes)") === "his book");
+  ck("and a usage note", firstAnswer("on the second floor / on the third floor (US)") === "on the second floor");
+  ck("a note the first answer already says goes",
+     firstAnswer("It went well for me / I did well / It went well (for me)") === "It went well for me");
+  ck("a slash with no spaces is not a list", firstAnswer("ser (presente) → él/ella") === "ser (presente) → él/ella");
 }
 
 console.log("\n  archive — out of circulation, recoverable");
@@ -690,12 +1154,15 @@ console.log("\n  archive — out of circulation, recoverable");
   const chosen = lessonsInCards(ids, started, { imperatif: false, adverbes: true });
   ck("the student's choice overrides that, either way", !chosen.has("imperatif") && chosen.has("adverbes"),
      JSON.stringify([...chosen]));
-  const catalogue = LESSONS.map((l) => l.id);
+  const catalogue = FRENCH_LESSONS.map((l) => l.id);
   const fresh = lessonsInCards(catalogue, new Set(), {});
   ck("without a choice, the five basic lessons are on and L'impératif and the adverbs are off",
      ["lecon1", "lecon2", "lecon3", "lecon4", "lecon5"].every((id) => fresh.has(id)) &&
      !fresh.has("imperatif") && !fresh.has("adverbes"), JSON.stringify([...fresh]));
   ck("a basic lesson switched off by hand stays off", !lessonsInCards(catalogue, new Set(), { lecon1: false }).has("lecon1"));
+  const spanishFresh = lessonsInCards(SPANISH.LESSONS.map((l) => l.id), new Set(), {});
+  ck("in Spanish, Lessons 1 to 6 are on without a choice and the later ones off",
+     SPANISH.LESSONS.every((l) => spanishFresh.has(l.id) === /^leccion[1-6]$/.test(l.id)), JSON.stringify([...spanishFresh]));
 
   const all = { scope: "all", lessonsOn: byDefault, lessonIds: ids };
   const cahier = { scope: "cahier", lessonsOn: byDefault, lessonIds: ids };
@@ -719,6 +1186,196 @@ console.log("\n  archive — out of circulation, recoverable");
      Object.keys(choicesOf(null)).length === 0);
 }
 
-const n = ck.fails();
-console.log(n ? `\n  FAILED: ${n}` : "\n  all checks passed");
-process.exit(n ? 1 : 0);
+// The tutor on Podcasts (built owner-only on 2026-10-09; the test app's users have it too since 2026-10-19). There is no card on screen
+// there: the tutor is told the RFI episode, its transcript and the passage
+// being answered, and until the passage is answered it must not translate or
+// summarise it, because that is the exercise.
+console.log("\n  the tutor on Podcasts — the episode and the passage, instead of a card");
+{
+  const { PODCAST_TRANSCRIPT_MAX, podcastAbout } = await import("../../src/lib/deckContext.js");
+  const text = (m) => (typeof m.content === "string" ? m.content : m.content.map((b) => b.text).join(""));
+  const passageFr = "Les manifestants ont défilé dans le calme jusqu’à la place de la République.";
+  // Long enough to be cut by the 200-character limit cards get, with a marker
+  // well past it, and another past the transcript's own limit.
+  const middle = "BIEN-AU-DELA-DE-DEUX-CENTS";
+  const beyond = "AU-DELA-DE-LA-LIMITE";
+  const transcript = `Bonsoir à tous. ${"Il fait beau. ".repeat(40)}${middle} ${"x".repeat(PODCAST_TRANSCRIPT_MAX)}${beyond}`;
+  const podcast = (passage) => ({
+    key: "pod:ep-1:s1-abcdef12",
+    episode: { title: "Les mots de l’info : défiler", date: "Tuesday 6 October", show: "Les mots de l’info" },
+    passage,
+    transcript,
+  });
+  const unanswered = podcast({ fr: passageFr, kind: "translate", answered: false, typed: "the protesters", verdict: null });
+
+  const ctx = buildTutorContext({ question: "what does défiler mean?", cards: [], podcast: unanswered });
+  ck("the passage on screen is sent, marked as not answered", ctx?.podcast?.passage?.fr === passageFr && ctx.podcast.passage.answered === false,
+     JSON.stringify(ctx?.podcast?.passage));
+  ck("a half-typed answer is not sent before the passage is checked", !("typed" in (ctx?.podcast?.passage || {})),
+     JSON.stringify(ctx?.podcast?.passage));
+  ck("the transcript is kept up to its limit and no further",
+     ctx?.podcast?.transcript.length === PODCAST_TRANSCRIPT_MAX && ctx.podcast.transcript.includes(middle) && !ctx.podcast.transcript.includes(beyond),
+     `${ctx?.podcast?.transcript.length} characters`);
+  ck("no card is described on Podcasts", !ctx?.currentCard, JSON.stringify(Object.keys(ctx || {})));
+  const withCard = buildTutorContext({ question: "why?", cards: [], currentCard: { f: "une colline", b: "a hill", shownDir: "fr", answered: false }, podcast: unanswered });
+  ck("a card on screen is what the tutor is told about, never both", !!withCard?.currentCard && !withCard.podcast, JSON.stringify(Object.keys(withCard || {})));
+
+  const about = podcastAbout(unanswered);
+  ck("a question keeps the episode and the start of its passage as what it was about",
+     about.length <= 200 && about.includes("Les mots de l’info") && about.includes("Les manifestants"), about);
+  ck("never the transcript", !about.includes("Bonsoir"), about);
+
+  const out = buildRequestMessages({
+    messages: [
+      { role: "user", content: "a hint?", about },
+      { role: "assistant", content: "Think of a parade." },
+      { role: "user", content: "what does défiler mean?" },
+    ],
+    context: ctx,
+  });
+  const last = text(out[out.length - 1]);
+  ck("an earlier question keeps what was on screen, without calling it a card",
+     /Asked while this was on screen/.test(text(out[0])) && /Les manifestants/.test(text(out[0])) && !/this card/.test(text(out[0])), text(out[0]));
+  ck("the passage goes with the latest question", last.includes(passageFr), last.slice(0, 300));
+  ck("an unanswered passage is flagged as not to be translated", /NOT answered/.test(last) && /do not translate/.test(last), last.slice(0, 400));
+  ck("it says which exercise the passage is", /translate it into English/.test(last), last.slice(0, 400));
+  // The server clips on its own as well: a request built some other way is
+  // held to the same limit.
+  const raw = text(buildRequestMessages({
+    messages: [{ role: "user", content: "what does défiler mean?" }],
+    context: { podcast: { ...ctx.podcast, transcript } },
+  }).at(-1));
+  ck("the transcript reaches the tutor well past the 200 characters a card gets, up to its limit",
+     last.includes(middle) && raw.includes(middle) && !raw.includes(beyond), `${raw.length} characters sent from ${transcript.length}`);
+  ck("the earlier turns carry no transcript, so the history stays the same from turn to turn",
+     !text(out[0]).includes("Bonsoir") && !text(out[1]).includes("Bonsoir"), text(out[0]).slice(0, 120));
+
+  const answeredCtx = buildTutorContext({
+    question: "why only partly?",
+    cards: [],
+    podcast: podcast({ fr: passageFr, kind: "gist", answered: true, typed: "People marched calmly", verdict: "partly" }),
+  });
+  const after = text(buildRequestMessages({ messages: [{ role: "user", content: "why only partly?" }], context: answeredCtx }).at(-1));
+  ck("once checked, what they typed and how it was marked are sent",
+     after.includes("People marched calmly") && /partly right/.test(after) && !/NOT answered/.test(after), after.slice(0, 400));
+  ck("a gist passage is described as giving the idea", /give the idea of it in English/.test(after), after.slice(0, 400));
+
+  // The questions are numbered on the page, and "question 2" in the chat
+  // means the second whichever passage is on screen (owner, 2026-10-18).
+  const numbered = {
+    ...podcast({ number: 1, fr: passageFr, kind: "gist", answered: true, typed: "People marched calmly", verdict: "partly" }),
+    questions: [
+      { number: 1, fr: passageFr, kind: "gist", answered: true, typed: "People marched calmly", verdict: "partly" },
+      { number: 2, fr: "Le gouvernement a promis de répondre avant vendredi.", kind: "translate", answered: false, typed: "a half-typed draft", verdict: null },
+    ],
+  };
+  const numCtx = buildTutorContext({ question: "question 2", cards: [], podcast: numbered });
+  const numText = text(buildRequestMessages({ messages: [{ role: "user", content: "question 2" }], context: numCtx }).at(-1));
+  ck("the passage on screen says which question it is", /passage on their screen \(Question 1\)/.test(numText), numText.slice(0, 300));
+  ck("every question goes, numbered as on the page", /Question 1 \(give the idea/.test(numText) && /Question 2 \(translate into English; NOT answered/.test(numText) && numText.includes("répondre avant vendredi"),
+     numText.slice(0, 900));
+  ck("a question not yet answered sends no draft", !numText.includes("a half-typed draft"), numText.slice(0, 900));
+  ck("an answered one says what they wrote and how it was marked", /Question 1 \(give the idea in English; answered "People marched calmly", which was marked as partly right\)/.test(numText), numText.slice(0, 900));
+  ck("what a question was about names its number", /Question 1, « Les manifestants/.test(podcastAbout(numbered)) && podcastAbout(numbered).length <= 200, podcastAbout(numbered));
+
+  const episodeOnly = buildTutorContext({ question: "what does amerrir mean?", cards: [], podcast: podcast(null) });
+  const epText = text(buildRequestMessages({ messages: [{ role: "user", content: "what does amerrir mean?" }], context: episodeOnly }).at(-1));
+  ck("with no passage on screen, the episode and its transcript still go", /Podcast episode on screen/.test(epText) && epText.includes(middle) && !/passage on their screen/.test(epText),
+     epText.slice(0, 200));
+}
+
+// A picture pasted into the tutor (owner, 2026-10-18). It goes to the tutor
+// as a picture before the words typed with it; the newest three go with the
+// history and an older one as a note that it was there.
+console.log("\n  the tutor — a pasted picture");
+{
+  const pic = (n) => ({ media_type: "image/jpeg", data: `/9j/${"A".repeat(40 + n)}` });
+  const out = buildRequestMessages({
+    messages: [{ role: "user", content: "what does this mean?", image: pic(0) }],
+    context: { currentCard: { prompt: "la colline", answer: "the hill", answered: true } },
+  });
+  const blocks = out[0].content;
+  ck("the picture goes first, then the words", Array.isArray(blocks) && blocks[0].type === "image" && blocks[0].source.media_type === "image/jpeg" && blocks[1].type === "text",
+     JSON.stringify(blocks).slice(0, 200));
+  ck("the [Context] block still rides with the latest question", /\[Context\]/.test(blocks[1].text) && /what does this mean\?$/.test(blocks[1].text), blocks[1].text.slice(0, 200));
+
+  const only = buildRequestMessages({ messages: [{ role: "user", content: "", image: pic(0) }] });
+  ck("a picture with nothing typed is still a question", only.length === 1 && only[0].content[0].type === "image" && only[0].content[1].text.length > 0,
+     JSON.stringify(only).slice(0, 200));
+
+  const bad = buildRequestMessages({ messages: [{ role: "user", content: "this?", image: { media_type: "text/html", data: "PGI+" } }] });
+  ck("something that isn't a picture is not passed on", typeof bad[0].content === "string" && !/PGI/.test(bad[0].content), JSON.stringify(bad));
+  const huge = buildRequestMessages({ messages: [{ role: "user", content: "this?", image: { media_type: "image/png", data: "A".repeat(1_300_000) } }] });
+  ck("nor a picture past the size limit", typeof huge[0].content === "string", typeof huge[0].content);
+
+  const turns = [];
+  for (let i = 0; i < 5; i++) {
+    turns.push({ role: "user", content: `picture ${i}`, image: pic(i) });
+    turns.push({ role: "assistant", content: `answer ${i}` });
+  }
+  turns.push({ role: "user", content: "and now?" });
+  const thread = buildRequestMessages({ messages: turns });
+  const pictured = thread.filter((m) => Array.isArray(m.content) && m.content.some((b) => b.type === "image"));
+  ck("only the latest three pictures go", pictured.length === 3, String(pictured.length));
+  const flat = (m) => (typeof m.content === "string" ? m.content : m.content.filter((b) => b.type === "text").map((b) => b.text).join(""));
+  ck("an older one goes as a note that it was there", /no longer attached/.test(flat(thread[0])) && /picture 0/.test(flat(thread[0])), flat(thread[0]));
+  const cached = thread.at(-2).content;
+  ck("the history before the latest question is still marked for caching", Array.isArray(cached) && !!cached.at(-1).cache_control, JSON.stringify(cached).slice(0, 200));
+  // The turn marked for caching is the one just before the latest question, so
+  // the picture turn has to sit there.
+  const picTurn = buildRequestMessages({ messages: [{ role: "user", content: "hi" }, { role: "assistant", content: "yes" }, { role: "user", content: "this?", image: pic(1) }, { role: "user", content: "why?" }] });
+  const marked = picTurn.at(-2).content;
+  ck("a picture turn marked for caching keeps its picture", Array.isArray(marked) && marked[0].type === "image" && marked.at(-1).type === "text" && !!marked.at(-1).cache_control, JSON.stringify(marked).slice(0, 120));
+}
+
+// Several pictures with one question, now that a screenshot saved as a file
+// can be added too (owner, 2026-11-01: "screenshots need to be able to be
+// added to the tutor"). The newest three in the thread go; the rest are
+// counted in a note.
+console.log("\n  the tutor — several pictures with one question");
+{
+  const pic = (n) => ({ media_type: "image/png", data: `iVBO${"B".repeat(40 + n)}` });
+  const flat = (m) => (typeof m.content === "string" ? m.content : m.content.filter((b) => b.type === "text").map((b) => b.text).join(""));
+  const two = buildRequestMessages({
+    messages: [{ role: "user", content: "compare these", images: [pic(0), pic(1)] }],
+    context: { currentCard: { prompt: "la colline", answer: "the hill", answered: true } },
+  });
+  const blocks = two[0].content;
+  ck("both pictures go, then the words", blocks.length === 3 && blocks[0].type === "image" && blocks[1].type === "image" && blocks[2].type === "text",
+     JSON.stringify(blocks.map((b) => b.type)));
+  ck("the [Context] block rides with the words", /\[Context\]/.test(blocks[2].text) && /compare these$/.test(blocks[2].text), blocks[2].text.slice(0, 120));
+
+  const none = buildRequestMessages({ messages: [{ role: "user", content: "", images: [pic(0), pic(1)] }] });
+  ck("pictures with nothing typed are still a question", none.length === 1 && /these pictures with nothing typed/.test(flat(none[0])), flat(none[0]));
+
+  const thread = buildRequestMessages({
+    messages: [
+      { role: "user", content: "first", images: [pic(2)] },
+      { role: "assistant", content: "one" },
+      { role: "user", content: "second", images: [pic(3), pic(4)] },
+      { role: "assistant", content: "two" },
+      { role: "user", content: "third", images: [pic(5), pic(6)] },
+    ],
+  });
+  const count = (m) => (Array.isArray(m.content) ? m.content.filter((b) => b.type === "image").length : 0);
+  ck("three pictures in all go, the newest first", thread.map(count).join(",") === "0,0,1,0,2", thread.map(count).join(","));
+  ck("one left out of a turn is noted there", /one more picture here/.test(flat(thread[2])) && /second/.test(flat(thread[2])), flat(thread[2]));
+  ck("a turn with none left says it had one", /sent a picture here; it is no longer attached/.test(flat(thread[0])), flat(thread[0]));
+
+  const held = buildRequestMessages({ messages: [{ role: "user", content: "earlier", imagesDropped: 2 }, { role: "assistant", content: "ok" }, { role: "user", content: "now?" }] });
+  ck("pictures the page held back are counted", /sent 2 pictures here; they are no longer attached/.test(flat(held[0])), flat(held[0]));
+}
+
+// Code check 2026-11-07, no. 17: the editors' notes in Spanish Lessons 1, 2, 5, 6
+// and 8 describe the marking as it is, not as it was before 2026-10-25.
+console.log("\n  Spanish lesson notes — what the cards catch now");
+{
+  const read = (n) => readFileSync(new URL(`../../src/data/lessons/es/leccion${n}.js`, import.meta.url), "utf8");
+  ck("Lessons 1 and 2 no longer say the verb mix-ups pass on phrase cards",
+     !/Ella eres mexicana" passes/.test(read(1)) && !/pass on them as close enough/.test(read(2)) &&
+     /is wrong for "Ella es mexicana"/.test(read(1)) && /marked wrong there too/.test(read(2)));
+  ck("Lesson 5 says ¿Quiero intentarlo? is wrong now", /is wrong for "Can I try\?"/.test(read(5)));
+  ck("Lesson 8 no longer says the app doesn't mark an accent", !/which the app doesn't mark/.test(read(8)));
+}
+
+ck.done();

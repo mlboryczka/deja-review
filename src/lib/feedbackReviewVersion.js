@@ -4,4 +4,5 @@
 // review's choices change (api/_lib/feedbackReview.js).
 //   1  correct the card, app problem, no change (2026-10-04)
 //   2  adds removing the card (2026-10-04)
-export const FEEDBACK_REVIEW_VERSION = 2;
+//   3  Spanish feedback with no card is Spanish, and the Spanish note says how Spanish is marked (2026-11-15)
+export const FEEDBACK_REVIEW_VERSION = 3;

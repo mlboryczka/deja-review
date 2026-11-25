@@ -148,7 +148,7 @@ export const CARDS = [
   ["Ne me parle pas comme ça !", "Don't talk to me like that!", "E", "phrase"],
   ["Profites-en bien !", "Make the most of it!", "E", "phrase"],
   ["Rappelle-le-moi demain", "Remind me tomorrow", "E", "phrase"],
-  ["Dis-le-moi !", "Tell me!", "E", "phrase"],
+  ["Dis-le-moi !", "Tell me (it)! / Tell it to me!", "E", "phrase", undefined, "Tell me!"],
   ["Donne-les-moi", "Give them to me", "E", "phrase"],
   ["Tu devrais y retourner → à l'impératif", "Retournes-y", "G", "ex7"],
   ["Tu devrais en regarder un → à l'impératif", "Regardes-en un", "G", "ex7"],

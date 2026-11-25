@@ -73,7 +73,8 @@ export function clearStudyPlace(userId) {
 //   entries  each card and way round: row id, direction, what it was dealt as,
 //            and whether it is a retry (with the retry's own id, and the card
 //            it pushed out of the set, which goes back in if the miss is
-//            changed to right)
+//            changed to right, or that it was added to a set with room and
+//            pushed nothing out)
 //   idx      the entry on screen
 //   face     whether that card's answer has been seen, what was typed, and
 //            whether "My answer should be accepted" accepted it: a card whose
@@ -102,6 +103,7 @@ export function packSet({ deck, idx, stats, done, answers, blockStart, face, day
       d: c.shownDir || "fr",
       b: c._bucket || null,
       ...(c._retry ? { t: 1, i: c._rid || null } : null),
+      ...(c._retry && c._added ? { a: 1 } : null),
       ...(c._retry && c._displaced
         ? { x: { r: c._displaced.row_id, d: c._displaced.shownDir || "fr", b: c._displaced._bucket || null } }
         : null),
@@ -131,6 +133,7 @@ export function unpackEntries(saved, cards) {
     entries.push({
       ...entry,
       ...(e.t ? { _retry: true, _rid: e.i || undefined } : null),
+      ...(e.t && e.a ? { _added: true } : null),
       ...(pushedOut ? { _displaced: pushedOut } : null),
     });
   });
