@@ -1,7 +1,7 @@
 // When the tests of Claude's work run, and what they report (2026-10-06).
 //
-// Two tests, both run by the server on their own (api/cahier-daily.js, one
-// daily schedule each), never by a button: the owner's decisions in the app
+// Three tests, all run by the server on their own (api/cahier-daily.js), never
+// by a button. Two have a daily schedule each; the third has none (below): the owner's decisions in the app
 // already are the right answers, and asking them again was busywork (owner,
 // 2026-10-06).
 //
@@ -9,6 +9,10 @@
 //            (api/_lib/answerChecks.js)
 //   notes    Claude reading class notes into cards, against the owner's
 //            corrections (api/_lib/notesChecks.js)
+//   repeats  Claude's same-or-different question about look-alike cards
+//            (api/_lib/repeatsChecks.js, 2026-10-06). No schedule of its own:
+//            it runs on whichever of the two schedules above has nothing of
+//            its own due.
 //
 // A test is due when it has never run, when the way Claude is asked has
 // changed since its last run (its version), or a week after its last run (less

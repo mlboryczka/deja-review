@@ -199,7 +199,7 @@ export async function askSameCard({ apiKey, pairs, deadline = Date.now() + DEFAU
       const left = deadline - Date.now();
       if (left < 5000) { errors.push(new Error("There wasn't time to compare the cards.")); continue; }
       try {
-        const verdicts = await askOnce(client, pairs.slice(start, start + PAIRS_PER_CALL), AbortSignal.timeout(left), language);
+        const verdicts = await askOnce(client, pairs.slice(start, start + PAIRS_PER_CALL), Number.isFinite(left) ? AbortSignal.timeout(Math.min(left, 2 ** 31 - 1)) : undefined, language);
         verdicts.forEach((v, j) => { out[start + j] = v; });
       } catch (e) {
         errors.push(e);

@@ -87,7 +87,6 @@ export function repeatsJudge(c) {
 }
 
 export const summarize = (cases) => tally(cases, repeatsJudge);
-export const repeatsPass = (c) => repeatsJudge(c) === "pass";
 
 // The whole test, as the server runs it on its own: every case asked
 // REPEATS_RUNS times, in rounds that each put every case to Claude once, and

@@ -50,6 +50,7 @@ import { missingTable } from "../../src/lib/dealLog.js";
 import { archivedSource, isArchived } from "../../src/lib/archive.js";
 import { DIRECTIONS, sideOf } from "../../src/lib/directions.js";
 import { listParts } from "../../src/lib/sameCard.js";
+import { lessonIdOf } from "../../src/lib/lessonSource.js";
 import { askSameCard, SAME_CARD_VERSION, SAME_CARD_MODEL } from "./sameCardQuestion.js";
 
 // The daily run's schedule in vercel.json. Vercel sends it with the request
@@ -157,17 +158,6 @@ export function reportFor(rec, { now = Date.now(), examples, rulesFrom } = {}) {
     report,
     error: null,
   };
-}
-
-// One student's checks. `judge` as for checkEveryone.
-export async function checkStudent(db, student, { now = Date.now(), judge = null } = {}) {
-  const rec = await loadStudent(db, student);
-  if (!rec) return null;
-  if (judge && !rec.error) {
-    await judgeLookalikes(db, [rec], judge);
-    await putAwayRepeats(db, [rec]);
-  }
-  return reportFor(rec, { now });
 }
 
 // Everyone. One student's failure is theirs alone.
@@ -295,7 +285,7 @@ export async function judgeLookalikes(db, recs, { apiKey, startBy = Infinity, de
 const answeredCard = (row, answeredIds) =>
   answeredIds.has(String(row.id)) || DIRECTIONS.some((d) => { const s = sideOf(row, d); return s.fsrs_state !== 0 || s.reps > 0; });
 const isList = (row) => listParts(row).length >= 2;
-const isLessonCard = (row) => typeof row?.source === "string" && row.source.startsWith("lesson:");
+const isLessonCard = (row) => !!lessonIdOf(row);
 // Of two copies neither of which has answers, `older` first: whether to keep
 // the older.
 const keepOlder = (older, newer) =>
