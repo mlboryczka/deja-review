@@ -118,7 +118,7 @@ export default {
         { prompt: "Did you put away your clothes in the wardrobe before leaving?", answer: "Tu as rangé tes vêtements dans l'armoire avant de partir ?",
           also: ["Vous avez rangé vos vêtements dans l'armoire avant de partir ?", "Est-ce que tu as rangé tes vêtements dans l'armoire avant de partir ?"] },
         { prompt: "I doubt he understood anything.", answer: "Je doute qu'il ait compris quoi que ce soit.",
-          also: ["Je doute qu'il ait compris quelque chose.", "Je doute qu'il ait compris grand-chose."] },
+          also: ["Je doute qu'il ait compris quelque chose."] }, // check: removed "grand-chose": it means "much", not "anything"
         { prompt: "I was super happy to see her.", answer: "J'étais super content de la voir.",
           also: ["J'étais super contente de la voir.", "J'ai été super content de la voir."] },
         { prompt: "Were you afraid that her son had an accident?", answer: "Tu avais peur que son fils ait eu un accident ?",

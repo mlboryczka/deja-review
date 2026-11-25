@@ -207,7 +207,7 @@ export default {
         { prompt: "Don't eat everything.", answer: "Ne mange pas tout." },
         { prompt: "Eat it.", answer: "Mange-le.", also: ["Mange-la."] },
         { prompt: "Don't drive too fast!", answer: "Ne conduis pas trop vite !" },
-        { prompt: "Go!", answer: "Vas-y !" },
+        { prompt: "Go!", answer: "Vas-y !", also: ["Va !"] }, // check: added "Va !": the plain tu imperative of aller is a right answer to "Go!"
         { prompt: "Eat some.", answer: "Manges-en." },
         { prompt: "Talk to her about it.", answer: "Parle-lui-en." },
         { prompt: "Don't sit here.", answer: "Ne t'assieds pas ici.", also: ["Ne t'assois pas ici."] },

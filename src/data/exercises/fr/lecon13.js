@@ -74,7 +74,7 @@ export default {
         { prompt: "a few + noun", answer: "quelques" },
         { prompt: "sometimes", answer: "parfois", also: ["des fois", "quelquefois"] },
         { prompt: "crazy", answer: "fou", also: ["folle", "fou, folle"] },
-        { prompt: "a class", answer: "une classe" },
+        { prompt: "a class", answer: "une classe", also: ["un cours"] }, // check: added "un cours": "a class" is also a lesson, and Leçon 8 taught "prendre des cours"
         { prompt: "until", answer: "jusqu'à" },
         { prompt: "to be scared", answer: "avoir peur" },
       ],

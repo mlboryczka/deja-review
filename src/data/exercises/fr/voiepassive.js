@@ -52,7 +52,8 @@ export default {
       instruction: "Traduire les phrases suivantes en utilise la structure « on (+ pronom COI) + verbe COI ».",
       english: "Translate each sentence into French with on (+ an indirect object pronoun) + the verb: \"I've been told\" is \"on m'a dit\".",
       items: [
-        { prompt: "I've been told that it's dangerous there.", answer: "On m'a dit que c'était dangereux là-bas." },
+        { prompt: "I've been told that it's dangerous there.", answer: "On m'a dit que c'était dangereux là-bas.",
+          also: ["On m'a dit que c'est dangereux là-bas."] }, // check: added the present: the English "it's" is a fact still true, which keeps the present after "on m'a dit que"
         { prompt: "Were you shown the new house?", answer: "On t'a montré la nouvelle maison ?",
           also: ["On vous a montré la nouvelle maison ?", "Est-ce qu'on t'a montré la nouvelle maison ?"] },
         { prompt: "They've been asked to leave earlier.", answer: "On leur a demandé de partir plus tôt." },
