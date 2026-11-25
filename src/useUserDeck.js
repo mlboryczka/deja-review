@@ -4,6 +4,7 @@ import { CAT_DB_TO_UI } from "./lib/cardCategories";
 import { isArchived } from "./lib/archive";
 import { withLocalAnswers } from "./lib/directions";
 import { missingColumn } from "./lib/reviewLog";
+import { missingTable } from "./lib/dealLog";
 
 // Since migration_016 a card out of study says why (archived_reason), which
 // the lesson sync needs: a lesson card the student removed stays removed
@@ -258,7 +259,7 @@ export function useUserDeck(user, { table = "user_cards", store = user?.id } = {
           from = 0;
           continue;
         }
-        if (error && (error.code === "42P01" || error.code === "PGRST205")) setMissing(true);
+        if (missingTable(error)) setMissing(true);
         if (error) {
           console.error("Failed to load user deck:", error);
           // Keep whatever is already on screen. Blanking a cached deck over a

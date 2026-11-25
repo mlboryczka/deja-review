@@ -6,6 +6,7 @@ import {
 } from "./lib/fsrsSettings";
 import { leftDueCards } from "./lib/sessionQueue";
 import { localISODate, browserTimeZone } from "./lib/studyDay";
+import { missingTable } from "./lib/dealLog";
 
 // The student's own FSRS settings (migration_012), applied to the scheduler.
 //
@@ -21,8 +22,6 @@ import { localISODate, browserTimeZone } from "./lib/studyDay";
 // and nothing is written.
 
 const DAILY_KEY = "fsrs-daily:";
-
-const missing = (error) => error && (error.code === "42P01" || error.code === "PGRST205");
 
 // The choice a row stands for: "auto", or the fixed target's name.
 export function choiceOf(row) {
@@ -59,7 +58,7 @@ export function useFsrsSettings(user, { cards, freshSeq, dir, dealtFromRef, onEs
         .from("fsrs_settings").select("*").eq("user_id", userId).maybeSingle();
       if (cancelled) return;
       if (error) {
-        if (!missing(error)) {
+        if (!missingTable(error)) {
           console.error("Load FSRS settings failed:", error);
           failedRead.current = true;
           // 5s, 10s, 20s ... up to five minutes between tries.

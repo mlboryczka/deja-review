@@ -16,6 +16,7 @@
 
 import { keyHeaders } from "./anthropicKey.js";
 import { DIALOGUE_PREFIX } from "./dialogueRounds.js";
+import { missingTable } from "./dealLog.js";
 
 export const EXERCISE_ENDPOINT = "/api/review-answer";
 
@@ -99,7 +100,7 @@ export async function loadAnswers({ supabase, userId, dialogues = false }) {
       .order("answered_at", { ascending: true })
       .range(from, from + PAGE - 1);
     if (error) {
-      const missing = error.code === "42P01" || error.code === "PGRST205";
+      const missing = missingTable(error);
       return { answers: rows, missing, error: missing ? null : error };
     }
     for (const r of data || []) {

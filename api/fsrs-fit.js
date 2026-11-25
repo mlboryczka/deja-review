@@ -31,6 +31,7 @@ import { buildHistories, fittingSequences, replayHistory } from "../src/lib/fsrs
 import { makeScheduler } from "../src/lib/spacedRepetition.js";
 import { STARTING_WEIGHTS, STARTING_VERSION, FIRST_FIT, fitDue, usableWeights, withFirstGaps, settingsKind } from "../src/lib/fsrsSettings.js";
 import { allowIphoneApp } from "./_lib/cors.js";
+import { missingTable } from "../src/lib/dealLog.js";
 
 export const config = { maxDuration: 60 };
 
@@ -62,9 +63,6 @@ function validTimeZone(tz) {
   }
 }
 
-// Postgres "relation does not exist", or PostgREST's "not in the schema cache".
-const missing = (error) => error && (error.code === "42P01" || error.code === "PGRST205" || error.code === "PGRST202");
-
 async function readAll(query) {
   const out = [];
   for (let from = 0; ; from += 1000) {
@@ -80,7 +78,7 @@ export async function fitUser({ admin, userId, timeZone, now = Date.now(), optim
   const { data: row, error: rowError } = await admin
     .from("fsrs_settings").select("*").eq("user_id", userId).maybeSingle();
   if (rowError) {
-    if (missing(rowError)) return { ok: true, status: "not-set-up" };
+    if (missingTable(rowError)) return { ok: true, status: "not-set-up" };
     throw new Error(rowError.message);
   }
 

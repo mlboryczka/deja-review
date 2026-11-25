@@ -43,6 +43,7 @@ import { LESSON_TEXTS } from "../../src/data/exercises/es/texts.js";
 import { aboutTheText, lessonTextOf, findItem, isAnswered, kindOf, markByKey, typedText, hintLevels, plain, matchesAccepted, VERDICTS } from "../../src/lib/exerciseMarking.js";
 import { UnreadableReply } from "./podcastQuestions.js";
 import { claudeError } from "./podcasts.js";
+import { missingTable } from "../../src/lib/dealLog.js"; // migration_022 missing
 
 export const MARK_MODEL = "claude-opus-5-5";
 // The student is waiting on the page for this one sentence.
@@ -202,10 +203,6 @@ export function hintsShown(item, n) {
   return Number.isInteger(n) ? Math.max(0, Math.min(n, hintLevels(item))) : 0;
 }
 
-// Whether a failed insert means the table isn't there yet (migration_022).
-const isMissingTable = (error) =>
-  /42P01|PGRST205/.test(String(error?.code || "")) || /does not exist|could not find the table/i.test(String(error?.message || ""));
-
 // { status, json }. `apiKey` is a function returning resolveAnthropicKey's
 // { key } or { error, code, status }, called only when Claude is needed.
 // `ask` stands in for askMark in the tests.
@@ -275,7 +272,7 @@ export async function handleExerciseRequest({ body, user, store, apiKey, ask = a
       answeredAt: saved?.row?.answered_at || new Date().toISOString(),
     },
     saved: !saved?.error,
-    ...(saved?.error && isMissingTable(saved.error) ? { missing: true } : {}),
+    ...(saved?.error && missingTable(saved.error) ? { missing: true } : {}),
   });
 }
 
@@ -411,7 +408,7 @@ async function handleDispute({ body, user, store, apiKey, review }) {
     reasoning: result.reasoning,
     ...(result.forced ? { forced: true } : null),
     saved: !saved?.error,
-    ...(saved?.error && isMissingTable(saved.error) ? { missing: true } : null),
+    ...(saved?.error && missingTable(saved.error) ? { missing: true } : null),
   });
 }
 

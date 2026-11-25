@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "./supabase";
 import { courseOf } from "./lib/course";
+import { missingTable } from "./lib/dealLog";
 
 // The linked cahier: the Google Doc the student and their teacher actually
 // write in, read again whenever they open the app so a class added after the
@@ -52,7 +53,7 @@ export function useCahierSync(user, course = "fr") {
         .from(table).select("*").eq("user_id", userId).maybeSingle();
       if (cancelled) return;
       // Before migration_023 there is no caderno table: nothing is linked.
-      const noTable = err && spanish && /PGRST205|42P01/.test(String(err.code));
+      const noTable = spanish && missingTable(err);
       if (err && !noTable) console.error("Couldn't read the cahier link:", err);
       // A failed read is not "nothing linked": keep the link already known.
       if (!err || noTable) setLink(data || null);
