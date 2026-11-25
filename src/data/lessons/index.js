@@ -71,9 +71,10 @@ const ALL = [
 // added after Leçons 2 to 5 (owner, 2026-10-06): since 2026-11-13 in four
 // stages of five (./stages.js), as the Spanish lessons are, where they were
 // all under "Basic Lessons". Every other lesson follows, each on its own. In
-// the sidebar a stage opens and closes as Spanish's do; the other lessons sit
-// after the stages at the usual indent. On the Lessons page they have the
-// heading "More lessons".
+// the sidebar a stage opens and closes as Spanish's do, and since 2026-11-25
+// the other lessons are one more stage after them, "More lessons", which
+// opens and closes the same way. On the Lessons page and on Stats they have
+// the open heading "More lessons".
 const LESSON_STAGES = frenchStagesOf(ALL);
 
 export const FRENCH = {

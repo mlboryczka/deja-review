@@ -1774,7 +1774,12 @@ conditional (90) and Lesson 20 · Lire and écrire (91).
   another closes it, and a closed one still shows the lesson you're in. On
   the Lessons page and in Progress by Lesson each stage folds on its own. The
   other lessons, each its own subject (owner, 2026-11-13), follow the stages
-  one by one, under "More lessons" on the Lessons page. `LESSONS` keeps the
+  one by one, under "More lessons" on the Lessons page and on Stats. In the
+  sidebar, since 2026-11-25 (owner: "More lessons, build it"), "More lessons"
+  is one more stage after the four, opening and closing as they do, so the
+  fourteen lessons no longer run on below Lesson 20 at the same indent. A
+  group by subject (verb forms, pronouns) was considered and dropped, because
+  Lessons 1–20 teach those subjects too. `LESSONS` keeps the
   order lessons were added in, because a lesson's place there is part of
   every one of its cards' rank.
 

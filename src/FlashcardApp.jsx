@@ -1206,7 +1206,16 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   const exStageFolds = useStageFolds(EXERCISE_GROUPS, exView.lesson);
   const dgStageFolds = useStageFolds(DIALOGUE_GROUPS, dgView.lesson);
   const lessonOpenHere = mode === "study" && lessonFilter !== "all" ? lessonFilter : null;
-  const lessonStageFolds = useStageFolds(LESSON_STAGES, lessonOpenHere);
+  // In the sidebar, the lessons in no stage (French L'impératif to Les
+  // pronoms) are one more stage after the others, "More lessons", which opens
+  // and closes as they do (owner, 2026-11-25: "More lessons, build it"). Only
+  // the sidebar: on the Lessons page and on Stats they stay under their open
+  // "More lessons" heading.
+  const sideLessonStages = useMemo(() => LESSON_STAGES && [
+    ...LESSON_STAGES,
+    ...LESSON_GROUPS.filter((g) => !g.folds).map((g) => ({ title: g.title, rows: g.lessons.map(({ id, title }) => ({ id, title })) })),
+  ], [LESSON_STAGES, LESSON_GROUPS]);
+  const lessonStageFolds = useStageFolds(sideLessonStages, lessonOpenHere);
   // Changing module stops the browser voice: a card being read aloud must
   // not carry on over an episode, nor a podcast word over the next card. The
   // episode's own recording is the podcasts page's to pause, and it does so
@@ -3781,10 +3790,12 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
                   rather than a trip through the catalogue. Not on the rail,
                   which has no room to nest anything. In Spanish they are in
                   the same stages as on Exercises (owner, 2026-11-07), and
-                  French has stages of its own (2026-11-13). */}
-              {m === "lessons" && !sidebarMin && lessonsOpen && LESSON_STAGES && (
+                  French has stages of its own (2026-11-13), with the lessons
+                  in none of them under a last one, "More lessons"
+                  (2026-11-25). */}
+              {m === "lessons" && !sidebarMin && lessonsOpen && sideLessonStages && (
                 <SideStages
-                  stages={LESSON_STAGES}
+                  stages={sideLessonStages}
                   folds={lessonStageFolds}
                   current={lessonOpenHere}
                   titleOf={(id) => lessonById(id)?.title}
@@ -3793,10 +3804,9 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
                   data="lesson"
                 />
               )}
-              {/* Without stages, every group; with them, the lessons in no
-                  stage, which follow the stages one by one: French
-                  L'impératif and the adverbs (owner, 2026-11-13). */}
-              {m === "lessons" && !sidebarMin && lessonsOpen && LESSON_GROUPS.filter((group) => !LESSON_STAGES || !group.folds).map((group) => {
+              {/* Without stages, every group. With them, nothing here: the
+                  lessons in no stage are the last stage above. */}
+              {m === "lessons" && !sidebarMin && lessonsOpen && !LESSON_STAGES && LESSON_GROUPS.map((group) => {
                 // Folded, it still shows the lesson you're in. (It used to
                 // refuse to fold there, so the press did nothing you could
                 // see.)
