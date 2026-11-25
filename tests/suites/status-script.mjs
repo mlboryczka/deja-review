@@ -10,15 +10,20 @@
 // the deck twice and a deleted card back each failing their check. And the
 // morning check, --everyone: every student, what the server's daily run last
 // asked Claude about look-alikes, and the three tests of Claude's work with
-// any slip named. No browser; the stand-in's address replaces SUPABASE_URL,
-// so nothing leaves the machine.
+// any slip named. Also: --email names another account or none; --record keeps
+// what was raised, so the next morning it says "Nothing new"; a daily run that
+// couldn't ask Claude is kept as a line of its own with the error beneath it;
+// open feedback counts as a problem until it is resolved; the free plans'
+// figures are read, and warned about past 80% and 95%; --test-app judges the
+// admin's record alone and keeps its own list. No browser; the stand-in's
+// address replaces SUPABASE_URL, so nothing leaves the machine.
 process.env.TZ = "America/New_York";
 
 import http from "node:http";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { mkdtempSync, readFileSync, existsSync } from "node:fs";
+import { mkdtempSync, readFileSync, existsSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { checker } from "../check.mjs";
 import { READ_ONLY, whatItDoes, writes } from "../requestKinds.mjs";
@@ -39,18 +44,19 @@ const pairsOf = (cards) => standInVerdicts(cards, new Date(end).toISOString()).m
 
 // The stand-in. `state.migrated` false answers dealt_sets as a missing table
 // (before migration_013), `state.m16` false card_pairs (before migration_016).
-// Filters and order as PostgREST reads them: col=eq.x, col=in.(a,b),
-// order=col.asc|desc, offset and limit.
+// Filters and order as PostgREST reads them: col=eq.x, col=is.null,
+// order=col.asc|desc, offset and limit. `state.plan` ({code, body}) replaces
+// plan_usage's answer of 50 MB of database and 12 MB of files.
 const state = {
   migrated: true, m16: true, requests: [], answers: rec.answers, cards: rec.cards,
   pairs: pairsOf(rec.cards), corrections: [CORRECTION], reports: [], runs: [], feedback: [],
 };
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, "http://x");
-  state.requests.push({ method: req.method, path: url.pathname, auth: req.headers.authorization, apikey: req.headers.apikey });
+  state.requests.push({ method: req.method, path: url.pathname });
   const send = (code, body) => { res.writeHead(code, { "content-type": "application/json" }); res.end(JSON.stringify(body)); };
   if (req.method === "POST" && url.pathname === "/rest/v1/rpc/plan_usage") {
-    return send(200, { database_bytes: 50e6, storage_bytes: 12e6 });
+    return state.plan ? send(state.plan.code, state.plan.body) : send(200, { database_bytes: 50e6, storage_bytes: 12e6 });
   }
   if (req.method !== "GET") return send(405, { message: "the stand-in only answers reads" });
   if (req.headers.apikey !== KEY || req.headers.authorization !== `Bearer ${KEY}`) return send(401, { message: "no key" });
@@ -60,6 +66,7 @@ const server = http.createServer((req, res) => {
   const m = url.pathname.match(/^\/rest\/v1\/(\w+)$/);
   const tables = {
     card_reviews: state.answers, user_cards: state.cards, dealt_sets: [...rec.deals, ...(state.otherDeals || [])], fsrs_settings: [rec.settings, ...(state.otherSettings || [])],
+    ...(state.es ? { es_card_reviews: state.es.answers, es_user_cards: state.es.cards, es_dealt_sets: state.es.deals } : {}),
     card_pairs: state.pairs, parse_corrections: state.corrections, status_reports: state.reports, eval_runs: state.runs,
     beta_feedback: state.feedback,
   };
@@ -71,7 +78,6 @@ const server = http.createServer((req, res) => {
   for (const [k, v] of url.searchParams) {
     if (["select", "order", "offset", "limit"].includes(k)) continue;
     if (v.startsWith("eq.")) rows = rows.filter((r) => String(r[k]) === v.slice(3));
-    else if (v.startsWith("in.(")) { const set = v.slice(4, -1).split(","); rows = rows.filter((r) => set.includes(String(r[k]))); }
     else if (v === "is.null") rows = rows.filter((r) => r[k] == null);
   }
   const order = url.searchParams.get("order");
@@ -97,7 +103,8 @@ await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const BASE = `http://127.0.0.1:${server.address().port}`;
 
 // Runs the script. ADMIN_EMAIL is a space: set, so a .env.local can't fill it
-// in, and blank, so the script falls back to VITE_ADMIN_EMAIL. HOME is a
+// in, and blank, so the script falls back to VITE_ADMIN_EMAIL (which a test
+// that wants no address blanks the same way, with a space). HOME is a
 // fresh folder, so the morning check's list of problems already raised
 // (kept under the home folder) is this run's own, never the owner's.
 const HOME = mkdtempSync(join(tmpdir(), "status-script-home-"));
@@ -168,8 +175,36 @@ console.log("\n  named with --email");
   ck("another account is checked when named, whatever the case of the address", r.out.startsWith("other@example.com: 0 answers on record"), r.out.split("\n")[0]);
   const nobody = await run(["--email", "nobody@example.com"]);
   ck("an address with no account says so and fails", /No account for nobody@example.com/.test(nobody.out) && nobody.code === 1, nobody.out.trim());
-  const none = await run([], { VITE_ADMIN_EMAIL: "" });
+  const none = await run([], { VITE_ADMIN_EMAIL: " " });
   ck("with no address anywhere it asks whose record", /Whose record\?/.test(none.out) && none.code === 1, none.out.trim());
+}
+
+console.log("\n  a card the student removed");
+{
+  // The count of cards removed would be 0 whatever the script did if no card
+  // in the record had been taken out.
+  const removedCard = { id: 990010, user_id: USER_ID, front: "le test", back: "the test", category: "V", dates: [], source: "archived:cahier-upload", archived_reason: "removed", created_at: new Date(end - 20 * 86400000).toISOString(), fsrs_state: 0, en_fsrs_state: 0 };
+  state.cards = [...rec.cards, removedCard];
+  const r = await run();
+  state.cards = rec.cards;
+  ck("one card the student removed is counted: 1 card removed", r.out.includes(`${state.pairs.length} verdicts of Claude's on look-alike cards, 1 card removed, 1 correction.`), r.out.split("\n")[1]);
+}
+
+console.log("\n  the free plans' warnings");
+{
+  // 420 MB of 500 MB is past 80%; 960 MB of 1 GB is past 80% and 95%.
+  state.plan = { code: 200, body: { database_bytes: 420e6, storage_bytes: 960e6 } };
+  const big = await run(["--everyone"]);
+  ck("a database past 80% is warned of, with its figure beneath",
+     /- Supabase: the database is over 80% of the free plan's 500 MB\n {6}420 MB used/.test(big.out) && !/the database is over 95%/.test(big.out), big.out.match(/Supabase, database[^\n]*/)?.[0]);
+  ck("stored files past 95% get both warnings",
+     /- Supabase: the stored files are over 80% of the free plan's 1 GB/.test(big.out) && /- Supabase: the stored files are over 95% of the free plan's 1 GB\n {6}960 MB used/.test(big.out), big.out.match(/Supabase, stored files[^\n]*/)?.[0]);
+  ck("and the exit code says something new needs looking at", big.code === 1);
+  state.plan = { code: 404, body: { code: "PGRST202", message: "Could not find the function public.plan_usage" } };
+  const noFn = await run(["--everyone"]);
+  ck("with migration_018 not run it says so, and the check fails rather than reads 0",
+     /- Supabase: the size of the database can't be read until migration_018 is run/.test(noFn.out) && noFn.code === 1, noFn.out.match(/Supabase: the size[^\n]*/)?.[0]);
+  state.plan = null;
 }
 
 console.log("\n  before migration_013");
@@ -368,5 +403,27 @@ console.log("\n  a fault in the record");
   ck("  and once fixed, they drop off it", scheduling(Object.keys(JSON.parse(readFileSync(RAISED_TEST, "utf8")))) === 0);
 }
 
+console.log("\n  the test app's Spanish deck");
+{
+  // A Spanish record with ten answers scheduled ten days off, like the French
+  // fault above, served from the es_ tables.
+  const bad = rec.answers.filter((a) => a.counted && a.state_before === 2).slice(0, 10);
+  state.es = {
+    answers: rec.answers.map((a) => (bad.includes(a) ? { ...a, due_after: new Date(Date.parse(a.due_after) + 10 * 86400000).toISOString() } : a)),
+    cards: rec.cards, deals: rec.deals,
+  };
+  const RAISED_TEST = join(HOME, ".claude", "scheduled-tasks", "morning-check", "raised-test-app.json");
+  const before = existsSync(RAISED_TEST) ? readFileSync(RAISED_TEST, "utf8") : null;
+  const t = await run(["--test-app", "--record"]);
+  state.es = null;
+  const kept = Object.keys(JSON.parse(readFileSync(RAISED_TEST, "utf8")));
+  const spanish = (t.out.split("The same, on the Spanish deck:")[1] || "");
+  ck("it checks the admin's Spanish deck and prints its checks", /student@example\.com:\n/.test(spanish) && /\[FAIL\] Every answer was scheduled the way FSRS says/.test(spanish), spanish.split("\n").slice(0, 3).join(" | "));
+  ck("  and a fault in it is kept as 'Test app (Spanish): …'", kept.some((k) => k.startsWith("Test app (Spanish): student@example.com: Every answer was scheduled")), kept.join(" | "));
+  ck("  and every kept problem's name starts 'Test app: ' or 'Test app (Spanish): '", kept.length > 0 && kept.every((k) => /^Test app( \(Spanish\))?: /.test(k)));
+  if (before === null) rmSync(RAISED_TEST, { force: true }); else writeFileSync(RAISED_TEST, before);
+}
+
 server.close();
+rmSync(HOME, { recursive: true, force: true });
 ck.done();
