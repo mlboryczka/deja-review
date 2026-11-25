@@ -115,14 +115,13 @@ create table if not exists public.card_alternates (
   alternate_text text not null,
   source_feedback_id uuid references public.feedback_submissions(id) on delete set null,
   created_at timestamptz not null default now(),
-  unique (user_id, card_id, direction, alternate_text)
+  -- Named as migration_008 names its index, so a fresh build holds one
+  -- unique rule, not two (migration_033).
+  constraint card_alternates_owner_key unique (user_id, card_id, direction, alternate_text)
 );
 
 create index if not exists card_alternates_user_id_idx
   on public.card_alternates(user_id);
-
-create index if not exists card_alternates_card_id_idx
-  on public.card_alternates(card_id);
 
 alter table public.card_alternates enable row level security;
 
@@ -168,6 +167,11 @@ create policy "Users manage their own alternates"
 --                   same notes)
 --   migration_029 → archived_by on user_cards (marks the repeats the daily
 --                   run put away on Claude's verdict)
+--   migration_031 → 'script' allowed as the source of an answer_reviews row
+--   migration_032 → only the server may set archived_reason, merged_into or
+--                   archived_by on user_cards
+--   migration_033 → the unused card_alternates lookup by card dropped
+--   migration_034 → es_parse_corrections linked to accounts
 --   migration_017 → podcast_episodes (shared, written by the server),
 --                   podcast_follows, podcast_answers (the Podcasts module)
 --   migration_011 → cahier_links

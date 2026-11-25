@@ -156,19 +156,19 @@ export const CARDS = [
 
   // ── Irregular verb forms, each in a short phrase with this lesson's words
   //    (2026-10-25). The verb must be typed exactly: irregularForms.js.
-  ["Vuelve pronto a Guadalajara", "Come back to Guadalajara soon / Come back soon to Guadalajara / Return to Guadalajara soon (to a friend, with volver)", "E", "verbforms"],
+  ["Vuelve pronto a Guadalajara", "Come back to Guadalajara soon / Come back soon to Guadalajara / Return to Guadalajara soon (tú, with volver)", "E", "verbforms"],
   ["Vuelva más tarde", "Come back later / Return later (usted, with volver)", "E", "verbforms"],
-  ["Haz la maleta esta noche", "Pack your suitcase tonight / Pack tonight / Pack your bag tonight / Pack the suitcase tonight (to a friend, with hacer)", "E", "verbforms"],
-  ["Ve derecho dos cuadras", "Go straight for two blocks / Go straight two blocks / Go straight ahead for two blocks (to a friend, with ir)", "E", "verbforms"],
-  ["Pon las maletas en el ascensor", "Put the suitcases in the elevator / Put the suitcases in the lift (to a friend)", "E", "verbforms", "Pon las maletas en el elevador"],
-  ["Ten todo listo para mañana", "Have everything ready for tomorrow (to a friend)", "E", "verbforms"],
-  ["Ven a mi edificio: está enfrente de un parque", "Come to my building: it's across from a park / Come to my building: it is across from a park / Come to my building: it's opposite a park / Come to my building: it's in front of a park (to a friend, with enfrente)", "E", "verbforms"],
+  ["Haz la maleta esta noche", "Pack your suitcase tonight / Pack tonight / Pack your bag tonight / Pack the suitcase tonight (tú, with hacer)", "E", "verbforms"],
+  ["Ve derecho dos cuadras", "Go straight for two blocks / Go straight two blocks / Go straight ahead for two blocks (tú, with ir)", "E", "verbforms"],
+  ["Pon las maletas en el ascensor", "Put the suitcases in the elevator / Put the suitcases in the lift (tú)", "E", "verbforms", "Pon las maletas en el elevador"],
+  ["Ten todo listo para mañana", "Have everything ready for tomorrow (tú)", "E", "verbforms"],
+  ["Ven a mi edificio: está enfrente de un parque", "Come to my building: it's across from a park / Come to my building: it is across from a park / Come to my building: it's opposite a park / Come to my building: it's in front of a park (tú, with enfrente)", "E", "verbforms"],
   ["Diga algo en español", "Say something in Spanish (usted)", "E", "verbforms"],
   ["Sepa que aquí siempre es bienvenido", "Know that you're always welcome here / Know that you are always welcome here / Please know that you're always welcome here (usted)", "E", "verbforms"],
-  ["Empiecen a comer", "Start eating / Start to eat / Begin eating / Begin to eat (to several people)", "E", "verbforms"],
-  ["No digas eso enfrente de los niños", "Don't say that in front of the kids / Don't say that in front of the children / Do not say that in front of the kids (to a friend, with enfrente)", "E", "verbforms"],
-  ["No vayas al centro en carro", "Don't go downtown by car / Do not go downtown by car / Don't drive downtown (to a friend)", "E", "verbforms"],
-  ["No seas egoísta", "Don't be selfish / Do not be selfish (to a friend)", "E", "verbforms"],
+  ["Empiecen a comer", "Start eating / Start to eat / Begin eating / Begin to eat (ustedes)", "E", "verbforms"],
+  ["No digas eso enfrente de los niños", "Don't say that in front of the kids / Don't say that in front of the children / Do not say that in front of the kids (tú, with enfrente)", "E", "verbforms"],
+  ["No vayas al centro en carro", "Don't go downtown by car / Do not go downtown by car / Don't drive downtown (tú)", "E", "verbforms"],
+  ["No seas egoísta", "Don't be selfish / Do not be selfish (tú)", "E", "verbforms"],
 ];
 
 // The notes: her lesson, translated into English and laid out on the notes
