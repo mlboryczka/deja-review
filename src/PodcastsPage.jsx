@@ -6,6 +6,7 @@ import { podcastCall, PodcastError } from "./lib/podcastApi";
 import { checkTiming, sentencesOf, sentenceAt, passageTimes } from "./lib/podcastSync";
 import { BYOK_REQUIRED, BAD_KEY } from "./lib/anthropicKey";
 import { cardIndex } from "./lib/sameCard";
+import { PODCAST_TRANSCRIPT_MAX } from "./lib/deckContext";
 import { isArchived } from "./lib/archive";
 import {
   answerKey, latestAnswers, passageState, isAnswered, passagesOf, episodeProgress, episodeStatus,
@@ -91,7 +92,6 @@ const SLOW_OPEN_MS = 1200;
 // How often the transcript is looked for while an episode's questions are written.
 const EARLY_LOOK_MS = 3000;
 // The tutor is told the transcript, clipped to this (api/chat.js clips again).
-const TUTOR_TRANSCRIPT_CHARS = 12000;
 // The play bar's speeds, in the order the button steps through them.
 const SPEEDS = [1, 0.75, 1.25];
 // The longest answer the server takes (api/_lib/podcasts.js, 'mark').
@@ -954,7 +954,7 @@ function EpisodeView({
         ? { number: passages.indexOf(p) + 1, fr: p.fr, kind: p.kind, answered, typed: answered ? answer.typed || "" : "", verdict: answered ? answer.verdict : null }
         : null,
       questions,
-      transcript: transcript.length > TUTOR_TRANSCRIPT_CHARS ? transcript.slice(0, TUTOR_TRANSCRIPT_CHARS) : transcript,
+      transcript: transcript.length > PODCAST_TRANSCRIPT_MAX ? transcript.slice(0, PODCAST_TRANSCRIPT_MAX) : transcript,
     };
   }, [ep, passages, latest, paragraphs, date, podcast]);
   const sentRef = useRef("");

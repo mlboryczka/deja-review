@@ -10,7 +10,7 @@
 // embeddings, no index. The question is short and the deck is a few thousand
 // rows, so a scan per question is far cheaper than the request it rides on.
 
-import { cleanFrenchPrompt, cleanEnglishPrompt, dropFinalPeriod } from "./cardText.js";
+import { cleanFrenchPrompt, cleanEnglishPrompt, dropFinalPeriod, firstAnswer } from "./cardText.js";
 import { sideOf, directionsOf } from "./directions.js";
 
 // Function words carry no signal and match everything. English and French
@@ -138,22 +138,6 @@ function lastMissedAt(card) {
   return at;
 }
 
-/**
- * The cards most recently got wrong, either way round.
- *
- * @param {Array}  cards  shaped deck rows from useUserDeck
- * @param {number} limit  how many to return
- * @returns {Array<{front: string, back: string}>}
- */
-export function recentMisses(cards, limit = 6) {
-  if (!Array.isArray(cards)) return [];
-  return cards
-    .filter((c) => c?.f && lastMissedAt(c) !== null)
-    .sort((a, b) => lastMissedAt(b) - lastMissedAt(a))
-    .slice(0, limit)
-    .map((c) => ({ front: c.f, back: c.b }));
-}
-
 const MISS_WINDOW_DAYS = 30;
 
 // The content words (accents off) of the side of the card on screen that the
@@ -242,6 +226,8 @@ export function cardAnswer(card) {
 export const PODCAST_TRANSCRIPT_MAX = 12000;
 // A passage is 1–4 sentences; this is room for four long ones.
 export const PODCAST_PASSAGE_MAX = 800;
+// A title, a date, a show name.
+export const PODCAST_TEXT_MAX = 200;
 const PODCAST_VERDICTS = new Set(["got", "partly", "missed"]);
 
 const textOf = (v) => (typeof v === "string" ? v.trim() : "");
@@ -277,7 +263,7 @@ export function questionNumber(passage) {
 // so "question 2" means the second whichever passage is on screen (owner,
 // 2026-10-18). Each with whether it has been answered, under the same rule
 // as the passage on screen. An episode has about eight.
-const PODCAST_QUESTIONS_MAX = 20;
+export const PODCAST_QUESTIONS_MAX = 20;
 
 function questionsOf(list) {
   if (!Array.isArray(list)) return [];
@@ -314,9 +300,9 @@ export function podcastContext(podcast) {
   const answered = !!p?.answered;
   const typed = answered ? textOf(p.typed).slice(0, PODCAST_PASSAGE_MAX) : "";
   const out = {
-    title: textOf(ep.title).slice(0, 200),
-    date: textOf(ep.date).slice(0, 200),
-    show: textOf(ep.show).slice(0, 200),
+    title: textOf(ep.title).slice(0, PODCAST_TEXT_MAX),
+    date: textOf(ep.date).slice(0, PODCAST_TEXT_MAX),
+    show: textOf(ep.show).slice(0, PODCAST_TEXT_MAX),
     passage: fr
       ? {
           ...(questionNumber(p) ? { number: questionNumber(p) } : null),
@@ -351,9 +337,9 @@ export function podcastContext(podcast) {
 // before it has been answered (api/chat.js, "An exercise"). The server clips
 // to the same limits, which leave room: the longest exercise has 41 items,
 // the longest lesson text 1,536 characters (measured 2026-10-26).
-const EXERCISE_TEXT_MAX = 800;
-const EXERCISE_ITEMS_MAX = 60;
-const EXERCISE_LESSON_TEXT_MAX = 4000;
+export const EXERCISE_TEXT_MAX = 800;
+export const EXERCISE_ITEMS_MAX = 60;
+export const EXERCISE_LESSON_TEXT_MAX = 4000;
 const EXERCISE_VERDICTS = new Set(["right", "almost", "wrong"]);
 
 const exerciseItems = (exercise) => (Array.isArray(exercise?.items) ? exercise.items : []);
@@ -428,9 +414,9 @@ export function exerciseContext(exercise) {
   const example = clip(exercise.example);
   const text = textOf(exercise.text).slice(0, EXERCISE_LESSON_TEXT_MAX);
   return {
-    lesson: textOf(exercise.lesson).slice(0, 200),
+    lesson: textOf(exercise.lesson).slice(0, PODCAST_TEXT_MAX),
     number: questionNumber(exercise),
-    title: textOf(exercise.title).slice(0, 200),
+    title: textOf(exercise.title).slice(0, PODCAST_TEXT_MAX),
     instruction: clip(exercise.instruction),
     english: clip(exercise.english),
     ...(example ? { example } : null),
@@ -465,7 +451,9 @@ export function buildTutorContext({ question, previousQuestion, cards, currentCa
 
   if (currentCard?.f) {
     ctx.currentCard = {
-      prompt: cardPrompt(currentCard),
+      // A Spanish card shows only the first of its meanings, so that is what
+      // the tutor is told it shows; the full answer stays the expected one.
+      prompt: course === "es" ? firstAnswer(cardPrompt(currentCard)) : cardPrompt(currentCard),
       answer: cardAnswer(currentCard),
       // The card as the deck stores it, so "change that card" names a card
       // the tutor can edit (edit_flashcard goes by the stored French).

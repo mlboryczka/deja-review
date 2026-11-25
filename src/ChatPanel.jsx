@@ -757,7 +757,7 @@ export default function ChatPanel({
   const undoEdit = useCallback(
     async (edit) => {
       if (edit.rowId == null) return;
-      setError("");
+      setError(""); setErrorCode("");
       patchEdit(edit.key, { status: "undoing" });
       if (edit.remove) {
         try {
@@ -767,7 +767,7 @@ export default function ChatPanel({
         } catch (e) {
           console.error("Undoing tutor removal failed:", e);
           patchEdit(edit.key, { status: "done" });
-          setError(`Couldn't put "${edit.front}" back: ${e.message || "unknown error"}`);
+          setError(`Couldn't put "${edit.front}" back: ${e.message || "unknown error"}`); setErrorCode("");
         }
         return;
       }
@@ -789,7 +789,7 @@ export default function ChatPanel({
       } catch (e) {
         console.error("Undoing tutor edit failed:", e);
         patchEdit(edit.key, { status: "done" });
-        setError(`Couldn't undo the change to "${edit.front}": ${e.message || "unknown error"}`);
+        setError(`Couldn't undo the change to "${edit.front}": ${e.message || "unknown error"}`); setErrorCode("");
       }
     },
     [patchEdit, postCard, writeCard, onCardAdded, onCardUpdated, spanish]
@@ -830,7 +830,7 @@ export default function ChatPanel({
           // fresh thread rather than turn nine of this one. On Exercises, the
           // exercise and the item with the cursor, keyed the same way
           // (ex:<lesson>/<exercise>/<item>).
-          about: currentCard?.f ? cardPrompt(currentCard)
+          about: currentCard?.f ? oneAnswer(cardPrompt(currentCard))
             : podcast ? podcastAbout(podcast)
             : exercise ? exerciseAbout(exercise)
             : "",
@@ -962,6 +962,9 @@ export default function ChatPanel({
         }
 
         await drained();
+        // New chat came while the last of the answer was still appearing: that
+        // answer is dropped with its card changes, as in the catch below.
+        if (threadGenRef.current !== gen) return;
         updateLast((m) => ({ ...m, streaming: false }));
         if (streamError) {
           // A key Anthropic rejects can only surface once generation has
@@ -1136,7 +1139,7 @@ export default function ChatPanel({
     async (card) => {
       if (!user) return;
       const key = frontKey(card.front);
-      setError("");
+      setError(""); setErrorCode("");
       const row = {
         user_id: user.id,
         front: card.front,
@@ -1173,7 +1176,7 @@ export default function ChatPanel({
           if (readErr) throw readErr;
           if (held?.[0] && !isArchived(held[0])) {
             onCardAdded?.(null);
-            setError(`You already have "${card.front}". Your deck is reloading; use Replace to change its English.`);
+            setError(`You already have "${card.front}". Your deck is reloading; use Replace to change its English.`); setErrorCode("");
             return;
           }
           ({ data, error: insErr } = await supabase
@@ -1186,7 +1189,7 @@ export default function ChatPanel({
         onCardAdded?.(Array.isArray(data) ? data[0] || null : null);
       } catch (e) {
         console.error("Add card failed:", e);
-        setError(`Couldn't add "${card.front}": ${e.message || "unknown error"}`);
+        setError(`Couldn't add "${card.front}": ${e.message || "unknown error"}`); setErrorCode("");
       }
     },
     [user, onCardAdded, lang]
@@ -1199,7 +1202,7 @@ export default function ChatPanel({
   const replaceBack = useCallback(
     async (existing, back) => {
       if (!user || existing?.row_id == null) return;
-      setError("");
+      setError(""); setErrorCode("");
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const res = await fetch("/api/admin-update-card", {
@@ -1219,7 +1222,7 @@ export default function ChatPanel({
         onCardUpdated?.(existing.row_id, { b: back });
       } catch (e) {
         console.error("Replace card failed:", e);
-        setError(`Couldn't update "${existing.f}": ${e.message || "unknown error"}`);
+        setError(`Couldn't update "${existing.f}": ${e.message || "unknown error"}`); setErrorCode("");
       }
     },
     [user, onCardUpdated, spanish]

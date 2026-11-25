@@ -95,6 +95,12 @@ import { requireUser } from "./_lib/auth.js";
 import { requireAnthropicKey } from "./_lib/anthropicKey.js";
 import { allowIphoneApp } from "./_lib/cors.js";
 import { claudeProblem, OVERLOADED_TEXT, BILLING_TEXT } from "./_lib/claudeProblem.js";
+// The limits on what the tutor is sent are written once, where the app builds
+// what it sends.
+import {
+  PODCAST_TEXT_MAX, PODCAST_PASSAGE_MAX, PODCAST_TRANSCRIPT_MAX, PODCAST_QUESTIONS_MAX,
+  EXERCISE_TEXT_MAX, EXERCISE_ITEMS_MAX, EXERCISE_LESSON_TEXT_MAX,
+} from "../src/lib/deckContext.js";
 
 // The answer streams, so the wall-clock limit is no longer a cliff — but the
 // function still needs room. Vercel's default is 10s.
@@ -669,9 +675,6 @@ function currentCardLines(cur) {
 // seven saved episode pages (measured roughly, 2026-10-09); 12,000 keeps one
 // whole. It rides only on the latest question, so it is paid for once per
 // question and never piles up in the history.
-const PODCAST_TEXT_MAX = 200;
-const PODCAST_PASSAGE_MAX = 800;
-const PODCAST_TRANSCRIPT_MAX = 12000;
 const clipTo = (v, n) => (typeof v === "string" ? v.trim().slice(0, n) : "");
 
 const PASSAGE_TASK = {
@@ -721,7 +724,6 @@ function podcastLines(pod) {
 
 // Every question, numbered as on the page, so "question 2" can be answered
 // whichever passage is on screen (owner, 2026-10-18). About eight an episode.
-const PODCAST_QUESTIONS_MAX = 20;
 const PASSAGE_KIND = { gist: "give the idea in English", translate: "translate into English" };
 const questionNo = (q) => {
   const n = Number(q?.number);
@@ -754,9 +756,6 @@ function questionLines(list) {
 // The page sends the same limits (src/lib/deckContext.js). Measured on the
 // exercise files (2026-10-26): the longest exercise has 41 items (Lesson 15's
 // third), the longest item 308 characters, the longest lesson text 1,536.
-const EXERCISE_TEXT_MAX = 800;
-const EXERCISE_ITEMS_MAX = 60;
-const EXERCISE_LESSON_TEXT_MAX = 4000;
 const EXERCISE_VERDICT_TEXT = {
   right: "was marked right",
   // As api/_lib/exercises.js marks it.
@@ -980,10 +979,11 @@ export default async function handler(req, res) {
       thinking: { type: "adaptive" },
       output_config: { effort: EFFORT },
       // Breakpoint at the end of the stable prefix (tools render before the
-      // system prompt, so this covers both). Too short to cache by itself —
-      // see withHistoryCache — but on the first question it is the only
-      // prefix there is, and once history is added it costs nothing. Each
-      // course's prompt is a prefix of its own.
+      // system prompt, so this covers both). By the estimate at
+      // withHistoryCache they are now likely enough to cache on their own
+      // (unmeasured); on the first question it is the only prefix there is,
+      // and once history is added it costs nothing. Each course's prompt is a
+      // prefix of its own.
       system: [
         { type: "text", text: tutor.system, cache_control: { type: "ephemeral" } },
       ],
@@ -1032,7 +1032,7 @@ export default async function handler(req, res) {
     if (clientGone) return res.end();
     console.error("chat failed:", err);
 
-    let message = err?.message || "Chat failed";
+    let message;
     let code = "";
     if (err instanceof Anthropic.RateLimitError) {
       message = "Rate limited — give it a moment and try again.";

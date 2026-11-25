@@ -59,7 +59,7 @@ ck("58 a suggestion button's own words are kept out of matching",
 // 59
 ck("59 the tutor is told an accepted answer counts as right",
   /result: disputeAccepted && typeResult !== "revealed" \? "accepted" : typeResult/.test(app) &&
-  /accepted: "was marked wrong at first, then accepted on review, so it counts as right"/.test(chat) && /revealed, disputeAccepted\]|cardSlot, disputeAccepted\]/.test(app));
+  /accepted: "was marked wrong at first, then accepted on review, so it counts as right"/.test(chat) && /typedAnswer, disputeAccepted\]|revealed, disputeAccepted\]|cardSlot, disputeAccepted\]/.test(app));
 
 // 60
 ck("60 the Spanish tutor is told Almost counts as right, with the current Almost rule and no double quote added",
