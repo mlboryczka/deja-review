@@ -2156,7 +2156,7 @@ owner's test app, and reaches `main` only when the owner says so (see
 
 - **The owner, and anyone signed in on the test app** (owner, 2026-10-19:
   "if i give laura access to -mlb then she should see everything in that
-  version"). One rule, `podcastsOpenTo` in `src/lib/testApp.js`, read by
+  version"). One rule, `testAppModulesOpenTo` in `src/lib/testApp.js`, read by
   both sides: the owner anywhere, or anyone signed in when the address is
   one of the test app's two. On the students' app it is still the owner's
   alone. The owner's own tools (feedback, Claude's marking, Status) are not
@@ -2446,7 +2446,7 @@ nothing of one language's set, deck or place carries into the other. The
 Flashcards / Podcasts switch is French only; Spanish has no Podcasts (owner,
 2026-10-22).
 
-- **Who has it**: the same people as Podcasts (`podcastsOpenTo`): the owner,
+- **Who has it**: the same people as Podcasts (`testAppModulesOpenTo`): the owner,
   and anyone signed in on the test app. A student's app has no flag and
   opens on French as always.
 - **Its own deck, in its own tables** (migration_020): `es_user_cards`,

@@ -19,18 +19,13 @@
 
 import { isAdmin } from "./auth.js";
 import { usesOwnersKeyOnTestApp } from "../../src/lib/testApp.js";
-
-export const KEY_HEADER = "x-anthropic-key";
+import { KEY_HEADER, looksLikeAnthropicKey } from "../../src/lib/anthropicKey.js";
 
 // Anthropic keys are `sk-ant-` followed by an opaque token. Checking the
-// shape here means an obviously-wrong value fails fast with a message that
-// says so, instead of becoming a 401 from Anthropic that reads like the
-// tutor being broken.
-const KEY_SHAPE = /^sk-ant-[A-Za-z0-9_-]{20,250}$/;
-
-export function looksLikeAnthropicKey(value) {
-  return typeof value === "string" && KEY_SHAPE.test(value.trim());
-}
+// shape (kept in src/lib/anthropicKey.js, the app's copy too) means an
+// obviously-wrong value fails fast with a message that says so, instead of
+// becoming a 401 from Anthropic that reads like the tutor being broken.
+export { KEY_HEADER, looksLikeAnthropicKey };
 
 // Returns { key, payer } or { error, code, status }.
 export function resolveAnthropicKey(req, user) {

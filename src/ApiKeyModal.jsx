@@ -11,8 +11,9 @@ import {
 
 // "Connect your Claude account".
 //
-// Everything in this app that calls Claude — the tutor, the answer reviewer,
-// the cahier parser — bills an Anthropic account per request. It used to be
+// Everything in this app that asks Claude on a student's behalf — the tutor,
+// answer reviews, marking in Exercises, Dialogues and Podcasts, and reading
+// class notes — bills an Anthropic account per request. It used to be
 // the deploy owner's, for any caller. Now each person brings their own.
 //
 // The key is written to this browser's localStorage and sent as a header on
@@ -72,8 +73,9 @@ export default function ApiKeyModal({ open, onClose, user, serverPays = false })
       <div style={S.modal} onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Connect your Claude account">
         <div style={S.title}>Connect your Claude account</div>
         <p style={S.body}>
-          The tutor, the &ldquo;my answer should be accepted&rdquo; review and
-          the document parser all call Claude, which costs money per request.
+          The tutor, the &ldquo;my answer should be accepted&rdquo; review,
+          the marking of Exercises, Dialogues and Podcasts, and the reading of
+          your class notes all ask Claude, which costs money per request.
           Add your own Anthropic API key and those requests bill your account.
         </p>
 

@@ -44,7 +44,7 @@ import {
 //   • Since 2026-10-19 open to the owner anywhere and to anyone signed in on
 //     the test app; on the students' app the owner only. Every server action
 //     refuses anyone else, and the switch to reach this page follows the same
-//     rule (src/lib/testApp.js, podcastsOpenTo).
+//     rule (src/lib/testApp.js, testAppModulesOpenTo).
 //
 // Added 2026-10-21 (owner: "answer the questions as he goes through the
 // podcast", and sync the transcript "only if you can accurately sync"):

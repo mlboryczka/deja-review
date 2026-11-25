@@ -1,12 +1,12 @@
 // The owner's test app: the `testing` branch, which Vercel serves at these
 // two addresses (owner, 2026-10-09). Pure, plain JS: the client reads it
-// with the page's own address, the server (api/podcasts.js) with the
-// request's.
+// with the page's own address, the server (api/podcasts.js,
+// api/review-answer.js) with the request's.
 //
 // Whoever signs in on the test app gets everything being tried out there,
-// Podcasts included (owner, 2026-10-19: "if i give laura access to -mlb
+// Podcasts, the Spanish module, Exercises and Dialogues included (owner, 2026-10-19: "if i give laura access to -mlb
 // then she should see everything in that version"). On the students' app,
-// dejareview.vercel.app, Podcasts stays the owner's alone. The owner's own
+// dejareview.vercel.app, those stay the owner's alone. The owner's own
 // tools (feedback, Claude's marking, the status checks) are not part of
 // "the version": they stay the owner's on both.
 //
@@ -23,8 +23,9 @@ export const TEST_APP_HOSTS = [
 export const isTestAppHost = (host) =>
   TEST_APP_HOSTS.includes(String(host || "").trim().toLowerCase().replace(/:\d+$/, ""));
 
-// Podcasts: the owner anywhere, and anyone signed in on the test app.
-export const podcastsOpenTo = ({ isOwner, signedIn, host }) =>
+// Podcasts, the Spanish module (language choice, Exercises, Dialogues) and
+// Claude's marking of Exercises and Dialogues: the owner anywhere, and anyone signed in on the test app.
+export const testAppModulesOpenTo = ({ isOwner, signedIn, host }) =>
   !!isOwner || (!!signedIn && isTestAppHost(host));
 
 // Who else uses the owner's Claude account on the test app (owner,

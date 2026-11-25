@@ -195,7 +195,7 @@ export default function App() {
         </p>
         <p style={{ margin: 0, fontSize: 14, maxWidth: 420, lineHeight: 1.5 }}>
           {authError === "timeout"
-            ? "The database didn't answer. If it has been idle for a week or so it may have been paused — resume the project in the Supabase dashboard, then try again."
+            ? "Check your internet connection, then try again. (If you run this app and the connection is fine: a database idle for a week or so may have been paused — resume the project in the Supabase dashboard.)"
             : authError}
         </p>
         <button

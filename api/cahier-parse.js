@@ -144,8 +144,8 @@ export async function readClasses({ admin, userId, apiKey, body = {} }) {
   // cards_parsed, added to rather than overwritten, for a multi-chunk upload.
   if (batchId && cards.length > 0) {
     try {
-      const { data: cur } = await admin.from("upload_batches").select("cards_parsed").eq("id", batchId).single();
-      await admin.from("upload_batches").update({ cards_parsed: (cur?.cards_parsed || 0) + cards.length }).eq("id", batchId);
+      const { data: cur } = await admin.from("upload_batches").select("cards_parsed").eq("id", batchId).eq("user_id", userId).single();
+      await admin.from("upload_batches").update({ cards_parsed: (cur?.cards_parsed || 0) + cards.length }).eq("id", batchId).eq("user_id", userId);
     } catch (e) {
       console.warn("[cahier-parse] cards_parsed update threw:", e?.message || e);
     }

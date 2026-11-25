@@ -12,8 +12,9 @@
 //
 // Keeping the write on the client matters: user_cards is RLS-protected
 // (migration_003), so the insert runs as the signed-in user with their own
-// anon-key session. This endpoint never touches the service role key and
-// so can't write to another user's deck even if the JWT check were wrong.
+// anon-key session. This route writes nothing to the database, so it can't
+// write to another user's deck even if the JWT check were wrong; it uses the
+// service-role key only to verify the caller's token.
 //
 // The Spanish module has a tutor too (owner, 2026-10-26: "tutor needs to be
 // added to spanish module"). A request with `course: "es"` gets a Spanish
@@ -82,12 +83,13 @@
 //
 // Who pays: the caller's own Anthropic key, sent in an x-anthropic-key
 // header and never stored server-side. Without one this answers 402. The
-// deploy owner (ADMIN_EMAIL) falls back to the server's ANTHROPIC_API_KEY.
+// deploy owner (ADMIN_EMAIL) and, on the test app, the accounts named in
+// src/lib/testApp.js fall back to the server's ANTHROPIC_API_KEY.
 // See api/_lib/anthropicKey.js.
 //
 // Environment variables:
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY — to VERIFY the caller's token
-//   ADMIN_EMAIL                             — the one account that may fall back
+//   ADMIN_EMAIL                             — the owner, who may fall back
 //   ANTHROPIC_API_KEY                       — optional, owner's requests only
 
 import Anthropic from "@anthropic-ai/sdk";

@@ -771,10 +771,10 @@ console.log("\n  the owner only");
 // The route lets in the owner, and anyone signed in on the owner's test app
 // (owner, 2026-10-19: "if i give laura access to -mlb then she should see
 // everything in that version"). The app's switch reads the same rule.
-console.log("\n  who has Podcasts: the owner, and anyone on the test app");
+console.log("\n  who has Podcasts and the Spanish module: the owner, and anyone on the test app");
 {
-  const { podcastsOpenTo } = await import("../../src/lib/testApp.js");
-  const open = (isOwner, signedIn, host) => podcastsOpenTo({ isOwner, signedIn, host });
+  const { testAppModulesOpenTo } = await import("../../src/lib/testApp.js");
+  const open = (isOwner, signedIn, host) => testAppModulesOpenTo({ isOwner, signedIn, host });
   ck("the owner, on the students' app", open(true, true, "dejareview.vercel.app"));
   ck("a student on the test app, at either of its addresses",
      open(false, true, "dejareview-mlb.vercel.app") && open(false, true, "french-flashcards-git-testing-mlboryczkas-projects.vercel.app"));
@@ -785,6 +785,9 @@ console.log("\n  who has Podcasts: the owner, and anyone on the test app");
      !open(false, true, "dejareview-mlb.vercel.app.example.com") && !open(false, true, "x.dejareview-mlb.vercel.app"));
   ck("not someone who isn't signed in, even on the test app", !open(false, false, "dejareview-mlb.vercel.app"));
   ck("not a request that names no address", !open(false, true, undefined) && !open(false, true, ""));
+  // The same rule opens Spanish, Exercises and Dialogues, so a student on the
+  // students' app gets neither them nor Podcasts.
+  ck("a student on the students' app has none of Podcasts, Spanish, Exercises or Dialogues", !open(false, true, "dejareview.vercel.app"));
 }
 
 // ── Following and the feeds ────────────────────────────────────────────
