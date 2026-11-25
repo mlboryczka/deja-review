@@ -303,7 +303,7 @@ export const LESSON_TEXTS = {
   },
   {
    "who": "Don Rafael",
-   "text": "¡No! Iba a la escuela a pie. Era muy diferente en esa época. Solo había un salón para toda la primaria."
+   "text": "¡No! Iba a la escuela a pie. Era muy diferente en esa época. Solo había una sala para toda la primaria."
   },
   {
    "who": "Tomás",

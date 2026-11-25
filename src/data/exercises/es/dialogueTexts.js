@@ -2565,7 +2565,7 @@ export const DIALOGUE_TEXTS = {
      },
      {
       "en": "There was only one classroom for the whole elementary school.",
-      "es": "Solo había un salón para toda la primaria."
+      "es": "Solo había una sala para toda la primaria."
      }
     ]
    },
