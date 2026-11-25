@@ -96,8 +96,7 @@ function useRows(userId) {
     if (s.started || !userId) return;
     s.started = true;
     Promise.all([loadAnswers({ supabase, userId, dialogues: true }), loadAccepted({ supabase, userId }).catch(() => ({}))]).then(([{ answers, missing, error }, accepted]) => {
-      // Oldest first; one answered on this page while they loaded is newer
-      // than any of them. One kept under an earlier rule shows the verdict the
+      // Oldest first. One kept under an earlier rule shows the verdict the
       // key gives it now (markedNow), and one accepted since as Right.
       s.accepted = { ...accepted, ...s.accepted };
       const rows = {};
@@ -105,7 +104,6 @@ function useRows(userId) {
         const k = parseItemKey(a.key);
         if (k) (rows[k.lesson] ||= []).push({ ...acceptedNow(markedNow(findItem(DIALOGUES_BY_ID, a.key)?.item, a), s.accepted), index: k.index, keptVerdict: a.verdict });
       }
-      for (const [id, list] of Object.entries(s.rows)) rows[id] = [...(rows[id] || []), ...list];
       s.rows = rows;
       s.missing = missing;
       s.error = error ? "Your earlier answers couldn’t be loaded. Reload the page to try again." : null;
@@ -519,7 +517,7 @@ function SentenceBox({ item, itemKeyValue: key, user, store, onNeedKey }) {
       store.record({ ...a, index, answeredAt: a.answeredAt || now, ticket, unsaved: !saved && !missing });
     } catch (e) {
       if (keyRow) {
-        store.record({ ...keyRow, unsaved: true });
+        store.record({ ...keyRow, unsaved: true, unsavedWhy: e?.message || "" });
       } else {
         // Nothing was marked: the answer goes back in the box to try again,
         // and that sentence is the one to answer again.
@@ -643,7 +641,7 @@ function Marked({ item, answer, user, store }) {
         <div style={M.quiet} data-dialogue-accepted>{acceptedLine(dispute.state, answer)}</div>
       )}
       {dispute.state?.step === "error" && <div style={M.error} role="alert">{dispute.state.message}</div>}
-      {answer.unsaved && <div style={M.quiet}>This answer was marked but not saved, so it won’t be here next time.</div>}
+      {answer.unsaved && <div style={M.quiet}>This answer was marked but not saved, so it won’t be here next time.{answer.unsavedWhy ? ` ${answer.unsavedWhy}` : ""}</div>}
     </>
   );
 }

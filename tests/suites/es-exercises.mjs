@@ -26,7 +26,7 @@
 //     Accept anyway asks nobody; every press is kept; an accepted answer shows
 //     as Right and the key takes it from then on, before Claude is asked;
 //   - a true-or-false pressed the wrong way is wrong without asking Claude;
-//     free writing always goes to Claude;
+//     free writing goes to Claude unless it is the example word for word;
 //   - the server marks with the sheet's own item, not what the page sends,
 //     asks Claude only when the key doesn't settle it, keeps every answer
 //     for the student who gave it, and says so when the table isn't there
@@ -521,6 +521,20 @@ ck("a right verdict carries no correction", readMark({ verdict: "right", note: "
     }),
     JSON.stringify(EXERCISE_GROUPS[1].rows.slice(0, 2))
   );
+}
+
+// Exercises and Dialogues name each lesson with a hand-kept list of titles
+// (titles.js); Flashcards and the notes panel take the title from the lesson's
+// own file, so a lesson reads the same everywhere.
+{
+  const { TITLES } = await import("../../src/data/exercises/es/titles.js");
+  const off = [];
+  for (const [id, title] of Object.entries(TITLES)) {
+    if (id === "leccion8-anexo") continue; // shares Lesson 8's file, with its own name
+    const lesson = (await import(`../../src/data/lessons/es/${id}.js`)).LESSON;
+    if (lesson?.title !== title) off.push(`${id}: "${title}" vs "${lesson?.title}"`);
+  }
+  ck("every lesson's name on Exercises and Dialogues is the one on Flashcards", off.length === 0, off.join("; "));
 }
 
 // Flashcards groups the lessons the same way as Exercises (owner, 2026-11-07:

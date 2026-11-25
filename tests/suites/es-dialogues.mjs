@@ -35,7 +35,7 @@ import { TITLES, EXERCISE_GROUPS } from "../../src/data/exercises/es/titles.js";
 import { EXERCISES_BY_ID } from "../../src/data/exercises/es/index.js";
 import { LESSON_TEXTS } from "../../src/data/exercises/es/texts.js";
 import { stageIds } from "../../src/data/lessons/es/stages.js";
-import { markByKey, isAnswered, itemKey, findItem, hintText, hintLevels, keyReason } from "../../src/lib/exerciseMarking.js";
+import { plain, markByKey, isAnswered, itemKey, findItem, hintText, hintLevels, keyReason } from "../../src/lib/exerciseMarking.js";
 import { roundsOf as roundsToday, nextSentence, dialogueStatus, statusLine, DIALOGUE_PREFIX } from "../../src/lib/dialogueRounds.js";
 import { loadAnswers } from "../../src/lib/exerciseApi.js";
 import { exerciseLabel, exerciseAbout, exerciseContext } from "../../src/lib/deckContext.js";
@@ -127,7 +127,7 @@ ck("other words go to Claude, which can call them right", markByKey(asleep, "Est
 {
   const said = { prompt: "He spoke with Ana.", answer: "Habló con Ana." };
   {
-    const seen = DIALOGUES.flatMap((d) => d.items).filter((it) => it.answer === "Ya veo.");
+    const seen = DIALOGUES.flatMap((d) => d.items).filter((it) => plain(it.answer) === "ya veo");
     ck("veo is right for I see, with or without the text's own ya", seen.length > 0 && seen.every((it) => markByKey(it, "veo")?.verdict === "right" && markByKey(it, "ya veo")?.verdict === "right"));
   }
   ck("an accent that changes the tense is Wrong, and says why (owner, 2026-11-16)",

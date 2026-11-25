@@ -530,7 +530,7 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
     const byKey = isAccepted(store.accepted, key, line) ? { verdict: "right" } : markByKey(item, typed);
     // The key's verdict is shown at once; Claude's is waited for.
     store.record(byKey
-      ? { key, typed: line, verdict: byKey.verdict, markedBy: "key", note: "", correct: byKey.correct || "", answeredAt: now, ticket, saving: true }
+      ? { key, typed: line, verdict: byKey.verdict, markedBy: "key", note: "", correct: byKey.correct || "", answeredAt: now, ticket }
       : { key, typed: line, pending: true, answeredAt: now, ticket });
     const sent = typed;
     drafts.delete(draftKey);
@@ -542,7 +542,7 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
       store.record({ ...a, answeredAt: a.answeredAt || now, ticket, unsaved: !saved && !missing });
     } catch (e) {
       if (byKey) {
-        store.record({ key, typed: line, verdict: byKey.verdict, markedBy: "key", note: "", correct: byKey.correct || "", answeredAt: now, ticket, unsaved: true });
+        store.record({ key, typed: line, verdict: byKey.verdict, markedBy: "key", note: "", correct: byKey.correct || "", answeredAt: now, ticket, unsaved: true, unsavedWhy: e?.message || "" });
       } else {
         // Nothing was marked: the answer goes back in the box to try again,
         // with the hint as it was.
@@ -561,9 +561,11 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
     e.preventDefault();
     if (kind === "gaps") {
       const i = Number(e.currentTarget.dataset.gap);
-      const empty = typed.findIndex((v, j) => j > i && !v.trim());
       if (!typed[i]?.trim()) return;
-      if (empty >= 0 && !typed.every((v) => v.trim())) {
+      // The next empty blank after this one, else the first empty one before it.
+      let empty = typed.findIndex((v, j) => j > i && !v.trim());
+      if (empty < 0) empty = typed.findIndex((v) => !v.trim());
+      if (empty >= 0) {
         e.currentTarget.parentElement?.querySelectorAll("input[data-gap]")?.[empty]?.focus();
         return;
       }
@@ -778,7 +780,7 @@ function Marked({ item, answer, user, store }) {
         <div style={M.quiet} data-ex-accepted>{acceptedLine(dispute.state, answer)}</div>
       )}
       {dispute.state?.step === "error" && <div style={M.error} role="alert">{dispute.state.message}</div>}
-      {answer.unsaved && <div style={M.quiet}>This answer was marked but not saved, so it won’t be here next time.</div>}
+      {answer.unsaved && <div style={M.quiet}>This answer was marked but not saved, so it won’t be here next time.{answer.unsavedWhy ? ` ${answer.unsavedWhy}` : ""}</div>}
     </>
   );
 }

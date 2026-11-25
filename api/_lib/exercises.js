@@ -40,7 +40,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { EXERCISES_BY_ID } from "../../src/data/exercises/es/index.js";
 import { DIALOGUES_BY_ID } from "../../src/data/exercises/es/dialogues.js";
 import { LESSON_TEXTS } from "../../src/data/exercises/es/texts.js";
-import { aboutTheText, lessonTextOf, findItem, isAnswered, kindOf, markByKey, typedText, keyAnswer, hintLevels, plain, matchesAccepted, VERDICTS } from "../../src/lib/exerciseMarking.js";
+import { aboutTheText, lessonTextOf, findItem, isAnswered, kindOf, markByKey, typedText, hintLevels, plain, matchesAccepted, VERDICTS } from "../../src/lib/exerciseMarking.js";
 import { UnreadableReply } from "./podcastQuestions.js";
 import { claudeError } from "./podcasts.js";
 
@@ -138,6 +138,7 @@ export const MARK_VERSION = createHash("sha1")
   .update(MARK_MODEL)
   .update(MARK_SYSTEM)
   .update(JSON.stringify(KIND_LINE))
+  .update(markPrompt.toString())
   .update(JSON.stringify(MARK_SCHEMA))
   .digest("hex")
   .slice(0, 7);
@@ -272,7 +273,6 @@ export async function handleExerciseRequest({ body, user, store, apiKey, ask = a
       key: body.key,
       typed: line,
       answeredAt: saved?.row?.answered_at || new Date().toISOString(),
-      keyAnswer: keyAnswer(item),
     },
     saved: !saved?.error,
     ...(saved?.error && isMissingTable(saved.error) ? { missing: true } : {}),
@@ -305,14 +305,16 @@ export const REVIEW_SCHEMA = {
   additionalProperties: false,
 };
 
+const VERDICT_WORD = { right: "Right", almost: "Almost (right but for small slips)", wrong: "Wrong" };
+
 export const REVIEW_VERSION = createHash("sha1")
   .update(MARK_MODEL)
   .update(REVIEW_SYSTEM)
+  .update(markPrompt.toString())
+  .update(JSON.stringify(VERDICT_WORD))
   .update(JSON.stringify(REVIEW_SCHEMA))
   .digest("hex")
   .slice(0, 7);
-
-const VERDICT_WORD = { right: "Right", almost: "Almost (right but for small slips)", wrong: "Wrong" };
 
 export function reviewPrompt({ lesson, exercise, item, typed, marked }) {
   return [markPrompt({ lesson, exercise, item, typed }), "", `How the app marked it: ${VERDICT_WORD[marked] || "not right"}`].join("\n");

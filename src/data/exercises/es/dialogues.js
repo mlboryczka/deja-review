@@ -11,13 +11,15 @@
 // `id` is what its answers are kept under, `lesson` the lesson it belongs to.
 
 import { TITLES } from "./titles.js";
+import { plain } from "../../../lib/exerciseMarking.js";
 import { DIALOGUE_TEXTS } from "./dialogueTexts.js";
 import { DIALOGUE_PREFIX } from "../../../lib/dialogueRounds.js";
 
-// Other answers the key takes for a sentence, by the text's own Spanish. Claude
+// Other answers the key takes for a sentence, by the text's own Spanish with
+// its capitals and punctuation set aside ("¡Ya veo!" is "Ya veo."). Claude
 // accepts any other correct Spanish; these are the ones the owner has settled
 // (2026-11-07, of "veo" for "I see.": "this should be correct").
-const ALSO = { "Ya veo.": ["Veo."] };
+const ALSO = { "ya veo": ["Veo."] };
 
 const INSTRUCTION = "Traduce esta frase del diálogo de la lección al español.";
 const ENGLISH = "Translate this sentence of the lesson's dialogue into Spanish. Any correct, natural Spanish that says the same thing is right, even if it isn't the dialogue's own wording.";
@@ -28,7 +30,7 @@ export const DIALOGUES = Object.keys(TITLES).filter((id) => DIALOGUE_TEXTS[id]).
   const lines = text.lines.map((line) => ({
     ...line,
     sentences: line.sentences.map((s) => {
-      items.push({ prompt: s.en, answer: s.es, ...(ALSO[s.es] ? { also: ALSO[s.es] } : null), ...(line.who ? { who: line.who } : null) });
+      items.push({ prompt: s.en, answer: s.es, ...(ALSO[plain(s.es)] ? { also: ALSO[plain(s.es)] } : null), ...(line.who ? { who: line.who } : null) });
       return { ...s, index: items.length - 1 };
     }),
   }));
