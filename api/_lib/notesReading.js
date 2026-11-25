@@ -27,7 +27,7 @@
 import { randomUUID, createHash } from "node:crypto";
 import { missingTable, missingFunction } from "../../src/lib/dealLog.js";
 import { missingColumn } from "../../src/lib/reviewLog.js";
-import { archivedSource } from "../../src/lib/archive.js";
+import { archivedSource, ARCHIVE_PREFIX } from "../../src/lib/archive.js";
 import { matchNewCards, waitingDates, plannedWrites } from "../../src/lib/cardMatch.js";
 import { recordAfter, sameRecord, readDatesFrom, lineMatcher } from "../../src/lib/notesLines.js";
 import { planReplace } from "../../src/lib/replaceDeck.js";
@@ -238,7 +238,7 @@ async function saveStepByStep(admin, { userId, inserts, updates, archive, restor
   // does). Only reached with the reason column in place.
   for (const row of hasReasons ? restore : []) {
     const { error } = await admin.from(cardsTable)
-      .update({ source: String(row.source).slice("archived:".length) || null, archived_reason: null, archived_at: null })
+      .update({ source: String(row.source).slice(ARCHIVE_PREFIX.length) || null, archived_reason: null, archived_at: null })
       .eq("id", row.id).eq("user_id", userId).eq("archived_reason", "replaced");
     if (error) return { ok: false, error: `Couldn't bring a card back into study: ${error.message}`, inserted, failed };
   }

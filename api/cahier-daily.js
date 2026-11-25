@@ -1,6 +1,7 @@
 // Vercel cron: GET /api/cahier-daily (see vercel.json)
 //
-// Reads every linked cahier once a day, so a class Laura adds after a lesson
+// Reads every linked French cahier once a day (not the Spanish caderno, which
+// is read when Spanish is opened), so a class Laura adds after a lesson
 // is already cards the next morning — whether or not the student opened the
 // app. Opening the app checks too (useCahierSync); this is what covers the
 // student who doesn't.

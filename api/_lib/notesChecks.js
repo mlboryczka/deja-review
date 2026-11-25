@@ -49,7 +49,7 @@ const AT_ONCE = 20;
 // text so that a change to any helper counts. An edit to the handlers (the
 // iPhone-app lines of 2026-11) is not a change to how a class is read, so it
 // doesn't give the test a new version.
-const SOURCES = ["../../src/lib/cardInstruction.js", "../../src/lib/cardTypes.js", "../../src/lib/sameCard.js"];
+const SOURCES = ["../../src/lib/cardInstruction.js", "../../src/lib/cardTypes.js", "../../src/lib/sameCard.js", "../../src/lib/cardText.js"];
 // The reading path of parse-cahier.js: from its small tables to the request
 // handler, then from cutting a cahier into classes to the end of the file.
 export function readingPathOf(text) {

@@ -85,7 +85,6 @@ const MIN_SECONDS_BETWEEN_CHECKS = 30;
 
 export { docIdFrom };
 
-export const fingerprint = classFingerprint;
 
 export default async function handler(req, res) {
   if (allowIphoneApp(req, res)) return;
@@ -311,7 +310,7 @@ export async function syncUser({ admin, apiKey, userId, url, limit, force = fals
     const waiting = new Set(result.waitingDates);
     const done = parsed.filter((p) => !waiting.has(p.date));
     const classes = { ...seen };
-    for (const p of done) classes[p.date] = fingerprint(p.text);
+    for (const p of done) classes[p.date] = classFingerprint(p.text);
     const dates = done.map((p) => p.date).sort();
     const lastResult = { at: now.toISOString(), dates, cards: result.added, updated: result.seenAgain };
     await updateLink(admin, userId, {

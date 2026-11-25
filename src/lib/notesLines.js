@@ -42,8 +42,8 @@ import { looseKey, partsOf, isDrillFront } from "./sameCard.js";
 export function normalizeLine(line) {
   return String(line ?? "")
     .normalize("NFC")
-    .replace(/[​-‍﻿]/g, "")
-    .replace(/ /g, " ")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "") // zero-width space, joiners and the byte-order mark
+    .replace(/\u00A0/g, " ") // no-break space
     .replace(/[’‘`´]/g, "'")
     .replace(/[“”«»]/g, '"')
     .replace(/[–—]/g, "-")

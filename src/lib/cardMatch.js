@@ -41,9 +41,9 @@
 //   après"): "ensuite" becomes a card. Each item's own questions are asked
 //   in the same call, in case they are needed.
 
-import { cardIndex, isSureMatch, isNearListPart, listParts, looseKeyFor, formsOfOneWord } from "./sameCard.js";
+import { isArchived } from "./archive.js";
+import { cardIndex, isNearListPart, listParts, looseKeyFor, formsOfOneWord } from "./sameCard.js";
 
-const isArchivedRow = (row) => typeof row?.source === "string" && row.source.startsWith("archived:");
 const datesOf = (c) => (Array.isArray(c?.dates) ? c.dates.filter((d) => typeof d === "string") : []);
 
 // A label for a card that shares its French with a different card: its
@@ -60,10 +60,13 @@ export function senseLabel(back) {
 // there, b: the new one); resolves to one "same" / "different" / null per
 // pair, or throws. It is called at most once.
 //
-// Returns { decisions, pairs, asked, askError }. Each decision is
+// Returns { decisions, asked, askError, questions }: `questions` is how many
+// pairs were asked about. Each decision is
 //   { card, action: "join", row }      the card is `row`, already in the deck
 //   { card, action: "insert", insert } a new card, with the dates of every
 //                                      other new card that joined it
+//   { card, action: "join-new", insert } the card is the same as a new card
+//                                      of this run, which is `insert`
 //   { card, action: "wait" }           undecided; its classes stay unread
 // A list card decided item by item gives one decision for each item, and
 // each item's `card` has the list card as `from`.
@@ -169,7 +172,7 @@ export async function matchNewCards({ incoming, deck, ask, language = "fr" }) {
   // The card already in the deck before one made this run, and one in study
   // before one out of it.
   const best = (same) => {
-    const rank = (c) => (standIn.has(c) ? 2 : 0) + (isArchivedRow(c) ? 1 : 0);
+    const rank = (c) => (standIn.has(c) ? 2 : 0) + (isArchived(c) ? 1 : 0);
     return same.slice().sort((x, y) => rank(x) - rank(y))[0];
   };
 
@@ -317,21 +320,18 @@ export function plannedWrites(decisions, waiting = new Set()) {
   const inserts = [];
   const seen = new Set();
   const addDates = new Map();
-  let joined = 0;
   for (const d of decisions || []) {
     if (d.action === "insert" || d.action === "join-new") {
-      if (seen.has(d.insert)) { if (d.action === "join-new") joined++; continue; }
+      if (seen.has(d.insert)) continue;
       seen.add(d.insert);
       const dates = keep(d.insert.dates);
       const hadDates = d.insert.dates.length > 0;
       if (hadDates && dates.length === 0) continue;
       inserts.push({ ...d.insert, dates });
-      if (d.action === "join-new") joined++;
     } else if (d.action === "join") {
       const dates = keep(datesOf(d.card));
       const allWaiting = datesOf(d.card).length > 0 && dates.length === 0;
       if (allWaiting) continue;
-      joined++;
       const row = d.row;
       if (!addDates.has(row)) addDates.set(row, new Set());
       for (const x of dates) addDates.get(row).add(x);
@@ -344,7 +344,6 @@ export function plannedWrites(decisions, waiting = new Set()) {
     const gain = [...dates].filter((x) => !have.has(x)).sort();
     if (gain.length && row.id != null) updates.push({ row, id: row.id, dates: gain, merged: [...new Set([...have, ...gain])].sort() });
   }
-  return { inserts, updates, joined, rowsSeenAgain: addDates.size };
+  return { inserts, updates };
 }
 
-export { isSureMatch };
