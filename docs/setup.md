@@ -92,7 +92,7 @@ deploy, add these environment variables:
   [console.anthropic.com](https://console.anthropic.com). It pays for reading
   every student's linked notebook, Claude's review of feedback, the weekly
   tests of Claude's work, and your own requests. Students bring their own key
-  for theirs (see [Where Claude is used](where-claude-is-used.md#who-pays)).
+  for theirs (see [Claude's jobs, models and costs](claude-jobs-models-and-costs.md#who-pays)).
 - `CRON_SECRET`: any long random string. Vercel sends it with each scheduled
   run, and without it the scheduled runs refuse to start.
 

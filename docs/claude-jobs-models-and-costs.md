@@ -1,4 +1,4 @@
-# Where Claude is used
+# Claude's jobs, models and costs
 
 Claude is only ever called from the server, never from the browser. It does
 seven jobs in the app, and is called again each week to test two of them:
@@ -24,7 +24,7 @@ disputed marks that were never settled.
 A class is a few hundred words, and the job is to pull out the words, phrases
 and conjugations worth a card, so the fastest model does it. The rules for what
 becomes a card, and how the linked notebook is read, are in
-[How class notes become cards](cards-from-notes.md).
+[Class notes to flashcards](class-notes-to-flashcards.md).
 
 ## Settling look-alike cards
 
@@ -35,7 +35,7 @@ Claude: the same card to learn, or different? All of a reading's pairs go in
 one request, or a few side by side for a big first upload. "Same" only adds
 the class date to the student's card. If no answer comes, the card waits for
 the next reading. Every answer is kept with the card pair and a version of the
-question ([details](cards-from-notes.md#one-card-per-thing-to-learn)).
+question ([details](class-notes-to-flashcards.md#one-card-per-thing-to-learn)).
 
 Each morning the server also asks the same question about cards already in a
 deck that look alike and haven't been judged, so a repeat that got in another

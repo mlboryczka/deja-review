@@ -1,4 +1,4 @@
-# dejareview: project context
+# dejareview design and decisions
 
 A flashcard app for learning French with spaced repetition. It is built around
 the student's class notebook, the *cahier*, which the teacher (Laura) and the
@@ -3562,7 +3562,7 @@ old README's setup steps and scheduling detail moved there. The screenshots in
 `docs/screenshots/` were taken against the mock database with the test suites'
 sample data, so no student's cards appear. This document and `tests/README.md`
 stay where they are. GitHub's one-line description of the repository, which
-called the notes handwritten, was corrected at the same time. The page on Claude is `docs/where-claude-is-used.md`, not
+called the notes handwritten, was corrected at the same time. The page on Claude is `docs/claude-jobs-models-and-costs.md`, not
 `docs/claude.md`: on the Mac's case-insensitive disk, Claude Code reads a file
 of that name as a `CLAUDE.md` of instructions.
 

@@ -1,4 +1,4 @@
-# How class notes become cards
+# Class notes to flashcards
 
 Most of a student's cards come from their *cahier*, the notebook they keep with
 their teacher. Here the teacher and the student keep it together in a Google
@@ -183,7 +183,7 @@ Claude follows when making or changing one.
 Any card can be edited in the app, and it keeps its schedule. A student who
 spots a bad card can flag it from the card itself. Claude reviews the report and
 suggests a corrected card, which the owner can apply with one click
-([details](where-claude-is-used.md#reviewing-feedback)).
+([details](claude-jobs-models-and-costs.md#reviewing-feedback)).
 
 ## In the code
 

@@ -41,7 +41,7 @@ the notes is read once, however they come in, so uploading an updated notebook
 adds only what is new, and a word taught again keeps its card and gains the
 new date. Only what can be answered by typing becomes a card: a
 conjugation table becomes one drill per form, and a grammar rule makes no card
-at all. [How class notes become cards](docs/cards-from-notes.md)
+at all. [Class notes to flashcards](docs/class-notes-to-flashcards.md)
 
 ### Scheduling fitted to each student
 
@@ -60,7 +60,7 @@ conjugation drill must be exact, because typo tolerance would accept the very
 mistake being drilled, such as "je vend" for *je vends*. A student who thinks
 a mark is wrong can ask Claude to judge it, and an answer Claude accepts is
 accepted for that student from then on.
-[Where Claude is used](docs/where-claude-is-used.md)
+[Claude's jobs, models and costs](docs/claude-jobs-models-and-costs.md)
 
 ### Lessons
 
@@ -104,7 +104,7 @@ known both ways round.
 ## Built with Claude Code
 
 The app is built with Claude Code. Each working session starts from the
-[working notes](dejareview%20context.md), which describe the app as it
+[working notes](dejareview%20design%20and%20decisions.md), which describe the app as it
 is, record each of the owner's decisions with its date and reason, and list
 what is still open. They are updated with every change. How a lesson is made is
 written down as a [skill](.claude/skills/building-lessons/SKILL.md) that Claude
@@ -114,9 +114,9 @@ follows.
 
 - [Evaluation harness](docs/evaluation-harness.md)
 - [How cards are scheduled](docs/scheduling.md)
-- [How class notes become cards](docs/cards-from-notes.md)
-- [Where Claude is used, and who pays](docs/where-claude-is-used.md)
+- [Class notes to flashcards](docs/class-notes-to-flashcards.md)
+- [Claude's jobs, models and costs](docs/claude-jobs-models-and-costs.md)
 - [Running your own copy](docs/setup.md)
 - [The tests guide](tests/README.md): every test suite, and what each checks
-- [The working notes](dejareview%20context.md): the full design
+- [dejareview design and decisions](dejareview%20design%20and%20decisions.md): the full design
   history
