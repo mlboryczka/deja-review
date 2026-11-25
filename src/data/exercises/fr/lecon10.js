@@ -1,0 +1,180 @@
+// Leçon 10 · Dire et devoir — the written exercises of "EXERCICES - Leçon 10", for the
+// Exercises page. Her CORRECTION gives every answer; the others in `also` are ours.
+// Left out: ex. 1 (sentences of your own), ex. 5 and 6 (yes in a full sentence, with a
+// pronoun), ex. 7 (writing the question), ex. 11–13 (dictation and oral: they need her
+// audio).
+// Her sheet's "carte Vital" (ex. 2 no. 3) is written carte Vitale, as in her dialogue.
+// Her key corrected, each noted on its line: ex. 3 no. 6 "à ses amis" (his friend: à son
+// ami); ex. 9 no. 10 "la dernière semaine" (la semaine dernière, as her Leçon 6 puts
+// dernier after a point in time), no. 11 "j'ai pas fini" (spoken; written je n'ai pas
+// fini), no. 13 "téléphone" (téléphoné), no. 14 "commencé à envoyé" (envoyer). Her ex. 8
+// "avant de + inf" and ex. 10 no. 9 "Le/la secrétaire" are split into what is typed.
+
+export default {
+  id: "lecon10",
+  exercises: [
+    {
+      n: 2,
+      title: "Grammaire",
+      instruction: "Compléter avec un des choix suivants : à, au, aux, de.",
+      english: "Fill each gap with à, au, aux or de (d' before a vowel).",
+      items: [
+        { prompt: "Martin a envoyé un mail ___ Mme Dupont.", gaps: [["à"]] },
+        { prompt: "Je vais parler ___ enfants.", gaps: [["aux"]] },
+        { prompt: "Il a dit ___ ma sœur ___ amener la carte Vitale.", gaps: [["à"], ["d'"]] }, // her sheet: "carte Vital"
+        { prompt: "J'ai répondu ___ ma sœur hier.", gaps: [["à"]] },
+        { prompt: "Tu as donné le dossier ___ Léa ?", gaps: [["à"]] },
+        { prompt: "Le médecin a expliqué ça ___ patient.", gaps: [["au"]] },
+        { prompt: "J'ai demandé ___ Marine ___ partir.", gaps: [["à"], ["de"]] },
+        { prompt: "Je pense que tu dois parler ___ parents de Mathieu.", gaps: [["aux"]] },
+        { prompt: "Tu dois rappeler ___ ta secrétaire ___ mettre à jour les dossiers", gaps: [["à"], ["de"]] },
+        { prompt: "Le médecin m'a dit ___ manger beaucoup de légumes.", gaps: [["de"]] },
+      ],
+    },
+    {
+      n: 3,
+      title: "Grammaire et traduction niveau 1",
+      instruction: "Traduire.",
+      english: "Translate each sentence into French, with à before the person where French needs it.",
+      items: [
+        { prompt: "I talked to my mom.", answer: "J'ai parlé à ma mère.", also: ["J'ai parlé à ma maman."] },
+        { prompt: "He told his sister to leave.", answer: "Il a dit à sa sœur de partir." },
+        { prompt: "The doctor gave the folder to her secretary.", answer: "Le docteur a donné le dossier à sa secrétaire.",
+          also: ["Le médecin a donné le dossier à sa secrétaire.", "La médecin a donné le dossier à sa secrétaire.", "Le docteur a donné le dossier à son secrétaire.",
+            "Le médecin a donné le dossier à son secrétaire.", "La médecin a donné le dossier à son secrétaire."] },
+        { prompt: "Mathieu asked the saleswoman.", answer: "Mathieu a demandé à la vendeuse." },
+        { prompt: "Did you talk to the doctor?", answer: "Tu as parlé au médecin ?",
+          also: ["Vous avez parlé au médecin ?", "Tu as parlé au docteur ?", "Vous avez parlé au docteur ?"] },
+        { prompt: "He reminded his friend to bring the book.", answer: "Il a rappelé à son ami d'amener le livre.", // her key: "à ses amis"
+          also: ["Il a rappelé à son amie d'amener le livre.", "Il a rappelé à son ami d'apporter le livre."] },
+        { prompt: "She didn't answer to the journalist.", answer: "Elle n'a pas répondu au journaliste.", also: ["Elle n'a pas répondu à la journaliste."] },
+        { prompt: "I have to send an email to Jean-Pierre.", answer: "Je dois envoyer un mail à Jean-Pierre.", also: ["Je dois envoyer un email à Jean-Pierre."] },
+        { prompt: "Did you phone my daughter ?", answer: "Tu as téléphoné à ma fille ?",
+          also: ["Vous avez téléphoné à ma fille ?", "Tu as appelé ma fille ?", "Vous avez appelé ma fille ?"] },
+        { prompt: "The doctor told his secretary to update the files.", answer: "Le médecin a dit à sa secrétaire de mettre à jour les dossiers.",
+          also: ["Le médecin a dit à son secrétaire de mettre à jour les dossiers.", "Le docteur a dit à sa secrétaire de mettre à jour les dossiers.",
+            "Le docteur a dit à son secrétaire de mettre à jour les dossiers."] },
+      ],
+    },
+    {
+      n: 4,
+      title: "Grammaire",
+      instruction: "Remplacer les groupes nominaux par les pronoms COI lui et leur.",
+      english: "Write each sentence again with lui or leur in place of à and the person.",
+      items: [
+        { prompt: "La médecin a demandé à son secrétaire de mettre à jour les dossiers.", answer: "La médecin lui a demandé de mettre à jour les dossiers." },
+        { prompt: "Elle a répondu au journaliste.", answer: "Elle lui a répondu." },
+        { prompt: "J'ai demandé à ma mère de venir m'aider.", answer: "Je lui ai demandé de venir m'aider." },
+        { prompt: "Il a parlé longtemps aux enfants.", answer: "Il leur a parlé longtemps.", also: ["Il leur a longtemps parlé."] },
+        { prompt: "James a demandé à la vendeuse de parler plus lentement.", answer: "James lui a demandé de parler plus lentement." },
+        { prompt: "Jean-Pierre a rappelé à ses petits-enfants de faire le ménage.", answer: "Jean-Pierre leur a rappelé de faire le ménage." },
+        { prompt: "Le médecin a répondu à Mme Dupont de venir la semaine prochaine.", answer: "Le médecin lui a répondu de venir la semaine prochaine." },
+        { prompt: "J'ai téléphoné à mes parents la semaine dernière.", answer: "Je leur ai téléphoné la semaine dernière." },
+        { prompt: "J'ai envoyé un mail à la professeure de mes enfants.", answer: "Je lui ai envoyé un mail." },
+        { prompt: "Tu as parlé à ton ami américain ?", answer: "Tu lui as parlé ?" },
+      ],
+    },
+    {
+      n: 8,
+      title: "Traduction",
+      instruction: "Comment on dit … en français ?",
+      english: "Say each word or phrase in French.",
+      items: [
+        { prompt: "an email", answer: "un mail", also: ["un email", "un courriel"] },
+        { prompt: "Are you done?", answer: "Tu as fini ?", also: ["Vous avez fini ?", "Tu as terminé ?"] },
+        { prompt: "to remind", answer: "rappeler" },
+        { prompt: "it's true", answer: "c'est vrai" },
+        { prompt: "the file", answer: "le dossier" },
+        { prompt: "to update", answer: "mettre à jour" },
+        { prompt: "To have to / must", answer: "devoir" },
+        { prompt: "to say / to tell", answer: "dire" },
+        { prompt: "to answer", answer: "répondre" },
+        { prompt: "Wait!", answer: "Attends !", also: ["Attendez !"] },
+        { prompt: "you're right", answer: "tu as raison", also: ["vous avez raison"] },
+        { prompt: "I believe", answer: "je crois" },
+        { prompt: "not yet", answer: "pas encore" },
+        { prompt: "before + ing", answer: "avant de", also: ["avant de + inf", "avant d'"] }, // her key: "avant de + inf"
+        { prompt: "I'm done", answer: "J'ai fini", also: ["J'ai terminé"] },
+        { prompt: "to send", answer: "envoyer" },
+        { prompt: "to phone", answer: "téléphoner", also: ["téléphoner à", "appeler"] },
+        { prompt: "to bring", answer: "amener", also: ["apporter"] },
+        { prompt: "to give", answer: "donner" },
+        { prompt: "that works", answer: "ça marche" },
+        { prompt: "right now", answer: "tout de suite" },
+        { prompt: "to forget", answer: "oublier" },
+        { prompt: "otherwise", answer: "sinon" },
+        { prompt: "a desk", answer: "un bureau" },
+        { prompt: "Good luck (for work)", answer: "Bon courage" },
+      ],
+    },
+    {
+      n: 9,
+      title: "Traduction niveau 2 (sans pronoms)",
+      instruction: "Traduire les phrases suivantes en français.",
+      english: "Translate each sentence into French, naming each person (no lui or leur).",
+      items: [
+        { prompt: "I told my sister to come.", answer: "J'ai dit à ma sœur de venir." },
+        { prompt: "Did you send an email to your tutor?", answer: "Tu as envoyé un mail à ton professeur particulier ?",
+          also: ["Vous avez envoyé un mail à votre professeur particulier ?", "Tu as envoyé un email à ton professeur particulier ?",
+            "Tu as envoyé un mail à ta professeure particulière ?"] },
+        { prompt: "No, not yet! I haven't had the time.", answer: "Non, pas encore ! Je n'ai pas eu le temps." },
+        { prompt: "I'm going to tell Mrs Ramirez to bring her Carte Vitale.", answer: "Je vais dire à Mme Ramirez d'amener sa Carte Vitale.",
+          also: ["Je vais dire à Madame Ramirez d'amener sa carte Vitale.", "Je vais dire à Mme Ramirez d'apporter sa carte Vitale."] },
+        { prompt: "You have to phone the patient before starting to update the files", answer: "Tu dois téléphoner au patient avant de commencer à mettre à jour les dossiers.",
+          also: ["Vous devez téléphoner au patient avant de commencer à mettre à jour les dossiers.", "Tu dois appeler le patient avant de commencer à mettre à jour les dossiers."] },
+        { prompt: "I can't phone Léa, I have to start to work right now.", answer: "Je ne peux pas téléphoner à Léa. Je dois commencer à travailler là.",
+          also: ["Je ne peux pas téléphoner à Léa, je dois commencer à travailler tout de suite.", "Je ne peux pas téléphoner à Léa, je dois commencer à travailler maintenant.",
+            "Je ne peux pas appeler Léa, je dois commencer à travailler là."] },
+        { prompt: "I always forget this word.", answer: "J'oublie toujours ce mot." },
+        { prompt: "I haven't started to update the files.", answer: "Je n'ai pas commencé à mettre à jour les dossiers." },
+        { prompt: "I think I'm done!", answer: "Je crois que j'ai fini.", also: ["Je pense que j'ai fini."] },
+        { prompt: "She gave the folders to her secretary last week.", answer: "Elle a donné les dossiers à sa secrétaire la semaine dernière.", // her key: "la dernière semaine"
+          also: ["Elle a donné les dossiers à son secrétaire la semaine dernière.", "La semaine dernière, elle a donné les dossiers à sa secrétaire."] },
+        { prompt: "You're right, I'm not done.", answer: "Tu as raison, je n'ai pas fini.", // her key: "j'ai pas fini" (spoken)
+          also: ["Vous avez raison, je n'ai pas fini.", "Tu as raison, je n'ai pas terminé."] },
+        { prompt: "Maxime has to do the housework before leaving.", answer: "Maxime doit faire le ménage avant de partir." },
+        { prompt: "I phoned them but they haven't answered.", answer: "Je leur ai téléphoné mais ils n'ont pas répondu.", // her key: "téléphone"
+          also: ["Je leur ai téléphoné mais elles n'ont pas répondu."] },
+        { prompt: "But wait, didn't you start to send the emails?", answer: "Mais attends, tu n'as pas commencé à envoyer les emails ?", // her key: "à envoyé"
+          also: ["Mais attends, tu n'as pas commencé à envoyer les mails ?", "Mais attendez, vous n'avez pas commencé à envoyer les emails ?",
+            "Mais attendez, vous n'avez pas commencé à envoyer les mails ?"] },
+        { prompt: "And otherwise, did you remind Mrs. Dupont to come tomorrow?", answer: "Et sinon, tu as rappelé à Mme Dupont de venir demain ?",
+          also: ["Et sinon, vous avez rappelé à Mme Dupont de venir demain ?"] },
+        { prompt: "I think you're not going to forget.", answer: "Je pense que tu ne vas pas oublier.",
+          also: ["Je pense que vous n'allez pas oublier.", "Je crois que tu ne vas pas oublier."] },
+      ],
+    },
+    {
+      n: 10,
+      title: "Traduction niveau 3 (avec pronoms)",
+      instruction: "Traduire les phrases suivantes en français.",
+      english: "Translate each sentence into French, with a pronoun (me, te, lui, nous, vous, leur) for the person.",
+      items: [
+        { prompt: "I told you that yesterday.", answer: "Je t'ai dit ça hier.", also: ["Je vous ai dit ça hier."] },
+        { prompt: "Did you send her an email?", answer: "Tu lui as envoyé un mail ?", also: ["Vous lui avez envoyé un mail ?", "Tu lui as envoyé un email ?"] },
+        { prompt: "They reminded me to do the housework.", answer: "Ils m'ont rappelé de faire le ménage.", also: ["Elles m'ont rappelé de faire le ménage."] },
+        { prompt: "Did you give them the folders?", answer: "Tu leur as donné les dossiers ?", also: ["Vous leur avez donné les dossiers ?"] },
+        { prompt: "They gave me the book.", answer: "Ils m'ont donné le livre.", also: ["Elles m'ont donné le livre."] },
+        { prompt: "Have you talked to her?", answer: "Tu lui as parlé ?", also: ["Vous lui avez parlé ?"] },
+        { prompt: "James answered me in English.", answer: "James m'a répondu en anglais." },
+        { prompt: "They sent us a present.", answer: "Ils nous ont envoyé un cadeau.", also: ["Elles nous ont envoyé un cadeau."] },
+        { prompt: "The secretary told me to bring the carte Vitale.", answer: "Le secrétaire m'a dit d'amener la carte Vitale.", // her key: "Le/la secrétaire"
+          also: ["La secrétaire m'a dit d'amener la carte Vitale."] },
+        { prompt: "I answered you guys on Monday.", answer: "Je vous ai répondu lundi." },
+        { prompt: "Mr. and Mrs Ramirez phoned me.", answer: "M. et Mme Ramirez m'ont téléphoné.", also: ["Monsieur et Madame Ramirez m'ont téléphoné."] },
+        { prompt: "I told her to stop.", answer: "Je lui ai dit d'arrêter." },
+        { prompt: "They told me to go back home.", answer: "Ils m'ont dit de rentrer à la maison.",
+          also: ["Elles m'ont dit de rentrer à la maison.", "Ils m'ont dit de rentrer chez moi."] },
+        { prompt: "I sent him an email.", answer: "Je lui ai envoyé un email.", also: ["Je lui ai envoyé un mail."] },
+        { prompt: "Jessica asked me to repeat the sentence.", answer: "Jessica m'a demandé de répéter la phrase." },
+        { prompt: "We have talked to them at the beach.", answer: "On leur a parlé sur la plage.",
+          also: ["Nous leur avons parlé sur la plage.", "On leur a parlé à la plage."] },
+        { prompt: "The doctor gave me something to help.", answer: "Le docteur m'a donné quelque chose pour aider.",
+          also: ["Le médecin m'a donné quelque chose pour aider.", "La médecin m'a donné quelque chose pour aider."] },
+        { prompt: "You told me that last time.", answer: "Tu m'as dit ça la dernière fois.", also: ["Vous m'avez dit ça la dernière fois."] },
+        { prompt: "I told you to stop!", answer: "Je t'ai dit d'arrêter !", also: ["Je vous ai dit d'arrêter !"] },
+        { prompt: "James asked me to speak slower.", answer: "James m'a demandé de parler plus lentement." },
+      ],
+    },
+  ],
+};

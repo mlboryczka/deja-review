@@ -10,13 +10,14 @@ import { useState } from "react";
 import { supabase } from "./supabase";
 import { disputeAnswer } from "./lib/exerciseApi.js";
 
-export function useAnswerDispute({ user, answer, onAccepted }) {
+// `course` is "es" or "fr" (src/lib/exerciseApi.js).
+export function useAnswerDispute({ user, answer, onAccepted, course = "es" }) {
   // null, or { step: "reviewing" | "accepted" | "declined" | "error", ... }
   const [state, setState] = useState(null);
   const send = async (force = false) => {
     setState({ step: "reviewing" });
     try {
-      const r = await disputeAnswer({ key: answer.key, typed: answer.typed, verdict: answer.verdict, force }, { supabase, user });
+      const r = await disputeAnswer({ key: answer.key, typed: answer.typed, verdict: answer.verdict, force, course }, { supabase, user });
       if (r.verdict === "accept") {
         const kept = r.saved !== false, missing = !!r.missing;
         // How it went is passed on, so the page keeps it with the answer: it

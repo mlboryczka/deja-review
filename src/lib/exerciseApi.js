@@ -11,6 +11,13 @@
 // The answers already given are read straight from es_exercise_answers
 // (migration_022), which lets a student read only their own rows.
 //
+// French has the same pages since 2026-11-25 (owner: "extend the spanish
+// dialogue and exercises modules to french"), with its answers in tables of
+// its own, exercise_answers and exercise_disputes (migration_036): French
+// tables carry no prefix, as with every French table (src/lib/course.js).
+// `course` is "es" or "fr"; a Spanish request is sent exactly as before, and
+// a French one says `course: "fr"`.
+//
 // The Supabase client is passed in, so this file can be loaded by a test in
 // Node.
 
@@ -19,6 +26,11 @@ import { DIALOGUE_PREFIX } from "./dialogueRounds.js";
 import { missingTable } from "./dealLog.js";
 
 export const EXERCISE_ENDPOINT = "/api/review-answer";
+
+// Which tables a course's answers are in, and what a request says of it.
+export const answersTable = (course) => (course === "fr" ? "exercise_answers" : "es_exercise_answers");
+export const disputesTable = (course) => (course === "fr" ? "exercise_disputes" : "es_exercise_disputes");
+const courseField = (course) => (course === "fr" ? { course: "fr" } : null);
 
 export class ExerciseError extends Error {
   constructor(message, { status = 0, code = "" } = {}) {
@@ -62,20 +74,20 @@ async function send(exercise, ok, { supabase, user, fetchImpl } = {}) {
 }
 
 // { answer, saved, missing? }, or throws ExerciseError with a plain sentence.
-export const markAnswer = ({ key, typed, hints = 0 }, opts) =>
-  send({ action: "answer", key, typed, hints }, (d) => !!d.answer, opts);
+export const markAnswer = ({ key, typed, hints = 0, course }, opts) =>
+  send({ action: "answer", key, typed, hints, ...courseField(course) }, (d) => !!d.answer, opts);
 
 // "My answer should be accepted": { verdict: "accept"|"reject"|"uncertain",
 // reasoning, forced?, saved, missing? }. `typed` is the answer as kept,
 // `verdict` how it was marked; `force` is Accept anyway.
-export const disputeAnswer = ({ key, typed, verdict, force = false }, opts) =>
-  send({ action: "dispute", key, typed, verdict, force }, (d) => typeof d.verdict === "string", opts);
+export const disputeAnswer = ({ key, typed, verdict, force = false, course }, opts) =>
+  send({ action: "dispute", key, typed, verdict, force, ...courseField(course) }, (d) => typeof d.verdict === "string", opts);
 
 // The answers the student has had accepted, as { [item key]: Set of lines as
 // kept } (es_exercise_disputes, migration_027). Before that is run, none.
-export async function loadAccepted({ supabase, userId }) {
+export async function loadAccepted({ supabase, userId, course = "es" }) {
   const accepted = {};
-  const { data, error } = await supabase.from("es_exercise_disputes").select("item_key, typed").eq("user_id", userId).eq("accepted", true);
+  const { data, error } = await supabase.from(disputesTable(course)).select("item_key, typed").eq("user_id", userId).eq("accepted", true);
   for (const r of error ? [] : data || []) (accepted[r.item_key] ||= new Set()).add(r.typed);
   return accepted;
 }
@@ -87,11 +99,11 @@ const PAGE = 1000;
 // when the table isn't there yet (migration_022 not run). The Dialogues page's
 // answers are in the same table: `dialogues` reads those instead of the
 // exercises'.
-export async function loadAnswers({ supabase, userId, dialogues = false }) {
+export async function loadAnswers({ supabase, userId, dialogues = false, course = "es" }) {
   const rows = [];
   for (let from = 0; ; from += PAGE) {
     const mine = supabase
-      .from("es_exercise_answers")
+      .from(answersTable(course))
       .select("item_key, typed, verdict, marked_by, note, correct, answered_at")
       .eq("user_id", userId);
     const { data, error } = await (dialogues

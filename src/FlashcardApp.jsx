@@ -102,14 +102,26 @@ import { testAppModulesOpenTo, usesOwnersKeyOnTestApp } from "./lib/testApp";
 // each Spanish lesson's sheet, answered and marked one item at a time. Its
 // pages are ExercisesPage's; the shell owns which one is showing.
 // Loaded only when Exercises is opened: its 27 sheets are about 800 KB that
-// no one else, French included, should have to download.
-const ExercisesPage = lazy(() => import("./ExercisesPage"));
-import { TITLES as EXERCISE_TITLE_OF, TEXT_OF as EXERCISE_TEXT_OF, EXERCISE_GROUPS } from "./data/exercises/es/titles.js";
+// no one else, French included, should have to download. French has the same
+// pages since 2026-11-25 (owner: "extend the spanish dialogue and exercises
+// modules to french"), with its own sheets, loaded the same way: each course
+// downloads only its own.
+const ExercisesPageEs = lazy(() => import("./ExercisesPageEs"));
+const ExercisesPageFr = lazy(() => import("./ExercisesPageFr"));
+import { TITLES as ES_EXERCISE_TITLE_OF, TEXT_OF as ES_EXERCISE_TEXT_OF, EXERCISE_GROUPS as ES_EXERCISE_GROUPS } from "./data/exercises/es/titles.js";
+import { TITLES as FR_EXERCISE_TITLE_OF, TEXT_OF as FR_EXERCISE_TEXT_OF, EXERCISE_GROUPS as FR_EXERCISE_GROUPS } from "./data/exercises/fr/titles.js";
 // The Spanish Dialogues module (owner, 2026-11-07): each lesson's text, typed
 // back into Spanish from the sheet's English. Its pages are DialoguesPage's,
 // loaded only when Dialogues is opened, as with Exercises.
-const DialoguesPage = lazy(() => import("./DialoguesPage"));
-import { DIALOGUE_TITLE_OF, DIALOGUE_GROUPS } from "./data/exercises/es/dialogueTitles.js";
+const DialoguesPageEs = lazy(() => import("./DialoguesPageEs"));
+const DialoguesPageFr = lazy(() => import("./DialoguesPageFr"));
+import { DIALOGUE_TITLE_OF as ES_DIALOGUE_TITLE_OF, DIALOGUE_GROUPS as ES_DIALOGUE_GROUPS } from "./data/exercises/es/dialogueTitles.js";
+import { DIALOGUE_TITLE_OF as FR_DIALOGUE_TITLE_OF, DIALOGUE_GROUPS as FR_DIALOGUE_GROUPS } from "./data/exercises/fr/dialogueTitles.js";
+// Each course's lessons for Exercises and Dialogues, by course.
+const EXERCISE_SIDES = {
+  es: { titleOf: ES_EXERCISE_TITLE_OF, textOf: ES_EXERCISE_TEXT_OF, groups: ES_EXERCISE_GROUPS, dTitleOf: ES_DIALOGUE_TITLE_OF, dGroups: ES_DIALOGUE_GROUPS, Exercises: ExercisesPageEs, Dialogues: DialoguesPageEs, placePrefix: "es" },
+  fr: { titleOf: FR_EXERCISE_TITLE_OF, textOf: FR_EXERCISE_TEXT_OF, groups: FR_EXERCISE_GROUPS, dTitleOf: FR_DIALOGUE_TITLE_OF, dGroups: FR_DIALOGUE_GROUPS, Exercises: ExercisesPageFr, Dialogues: DialoguesPageFr, placePrefix: "fr" },
+};
 import { stageOf } from "./data/lessons/es/stages.js";
 
 const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase();
@@ -195,11 +207,13 @@ function writePodcastsPlace(userId, { open, view }) {
 export function clearPodcastsPlace(userId) {
   if (!userId) return;
   try { localStorage.removeItem(PODCASTS_PLACE_KEY + userId); } catch { /* storage blocked */ }
-  try { localStorage.removeItem(EXERCISES_PLACE_KEY + userId); } catch { /* storage blocked */ }
+  for (const c of ["es", "fr"]) {
+    try { localStorage.removeItem(`${c}-exercises-place:` + userId); } catch { /* storage blocked */ }
+    try { localStorage.removeItem(`${c}-dialogues-place:` + userId); } catch { /* storage blocked */ }
+    // The exercises started again (ExercisesPage's own key).
+    try { localStorage.removeItem(`${c}-exercises-again:` + userId); } catch { /* storage blocked */ }
+  }
   try { localStorage.removeItem(EXERCISES_FOLDED_KEY + userId); } catch { /* storage blocked */ }
-  try { localStorage.removeItem(DIALOGUES_PLACE_KEY + userId); } catch { /* storage blocked */ }
-  // The exercises started again (ExercisesPage's own key).
-  try { localStorage.removeItem("es-exercises-again:" + userId); } catch { /* storage blocked */ }
 }
 
 // ─── EXERCISES: WHERE YOU WERE (Spanish, 2026-10-24) ─────────────────────
@@ -207,39 +221,41 @@ export function clearPodcastsPlace(userId) {
 // Dialogues, as French has Flashcards and Podcasts. Whether Exercises was showing, and which
 // lesson, is kept per user in this browser like the place in Podcasts, so a
 // reload opens where you were. Only for someone with Spanish.
-const EXERCISES_PLACE_KEY = "es-exercises-place:";
-function readExercisesPlace(userId) {
+// Per course: "es-exercises-place:" and "fr-exercises-place:" (French since
+// 2026-11-25).
+const exercisesPlaceKey = (course) => `${course}-exercises-place:`;
+function readExercisesPlace(userId, course = "es") {
   if (!userId) return null;
   try {
-    const p = JSON.parse(localStorage.getItem(EXERCISES_PLACE_KEY + userId) || "null");
+    const p = JSON.parse(localStorage.getItem(exercisesPlaceKey(course) + userId) || "null");
     if (!p || typeof p !== "object") return null;
-    return { open: p.open === true, lesson: EXERCISE_TITLE_OF[p.lesson] ? p.lesson : null };
+    return { open: p.open === true, lesson: EXERCISE_SIDES[course].titleOf[p.lesson] ? p.lesson : null };
   } catch {
     return null;
   }
 }
-function writeExercisesPlace(userId, { open, lesson }) {
+function writeExercisesPlace(userId, { open, lesson }, course = "es") {
   if (!userId) return;
   try {
-    localStorage.setItem(EXERCISES_PLACE_KEY + userId, JSON.stringify({ open, lesson }));
+    localStorage.setItem(exercisesPlaceKey(course) + userId, JSON.stringify({ open, lesson }));
   } catch { /* storage blocked: the place is a convenience, not a record */ }
 }
 // The same for Dialogues, the switch's third part (2026-11-07).
-const DIALOGUES_PLACE_KEY = "es-dialogues-place:";
-function readDialoguesPlace(userId) {
+const dialoguesPlaceKey = (course) => `${course}-dialogues-place:`;
+function readDialoguesPlace(userId, course = "es") {
   if (!userId) return null;
   try {
-    const p = JSON.parse(localStorage.getItem(DIALOGUES_PLACE_KEY + userId) || "null");
+    const p = JSON.parse(localStorage.getItem(dialoguesPlaceKey(course) + userId) || "null");
     if (!p || typeof p !== "object") return null;
-    return { open: p.open === true, lesson: DIALOGUE_TITLE_OF[p.lesson] ? p.lesson : null };
+    return { open: p.open === true, lesson: EXERCISE_SIDES[course].dTitleOf[p.lesson] ? p.lesson : null };
   } catch {
     return null;
   }
 }
-function writeDialoguesPlace(userId, { open, lesson }) {
+function writeDialoguesPlace(userId, { open, lesson }, course = "es") {
   if (!userId) return;
   try {
-    localStorage.setItem(DIALOGUES_PLACE_KEY + userId, JSON.stringify({ open, lesson }));
+    localStorage.setItem(dialoguesPlaceKey(course) + userId, JSON.stringify({ open, lesson }));
   } catch { /* storage blocked: the place is a convenience, not a record */ }
 }
 // The lessons under All exercises, folded away by All exercises or the arrow
@@ -806,12 +822,12 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   // The same for Exercises, in Spanish.
   const exPlaceRef = useRef(undefined);
   if (exPlaceRef.current === undefined) {
-    exPlaceRef.current = podcastsUser(user) && spanish ? readExercisesPlace(user?.id) : null;
+    exPlaceRef.current = modulesUser(user) ? readExercisesPlace(user?.id, course.id) : null;
   }
   // And for Dialogues.
   const dgPlaceRef = useRef(undefined);
   if (dgPlaceRef.current === undefined) {
-    dgPlaceRef.current = podcastsUser(user) && spanish ? readDialoguesPlace(user?.id) : null;
+    dgPlaceRef.current = modulesUser(user) ? readDialoguesPlace(user?.id, course.id) : null;
   }
   // The page: study | lessons | stats | podcasts. "study" is Cards and also
   // the inside of a lesson (lessonFilter). "podcasts" is the whole Podcasts
@@ -1149,7 +1165,9 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   // The Exercises and Dialogues buttons of the Spanish switch, for the same people as Spanish.
   // Leaving for Flashcards and coming back touches nothing in the cards, as
   // with Podcasts above.
-  const hasExercises = hasModules && spanish;
+  const hasExercises = hasModules;
+  // This course's lessons, and its pages.
+  const xs = EXERCISE_SIDES[course.id] || EXERCISE_SIDES.fr;
   const exercisesOn = hasExercises && mode === "exercises";
   useEffect(() => { if (mode === "exercises" && !hasExercises) setMode("study"); }, [mode, hasExercises]);
   const [exView, setExView] = useState(() => ({ lesson: exPlaceRef.current?.lesson || null }));
@@ -1159,7 +1177,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   // it shows Lesson 8's text. Another lesson, or the list, closes them, as
   // another lesson does on Flashcards.
   const exNotesLesson = exView.lesson
-    ? LESSONS.find((l) => l.id === (EXERCISE_TEXT_OF[exView.lesson] || exView.lesson)) || null
+    ? LESSONS.find((l) => l.id === (xs.textOf[exView.lesson] || exView.lesson)) || null
     : null;
   useEffect(() => { setShowLessonPanel(false); }, [exView.lesson]);
   // ── DIALOGUES (Spanish, 2026-11-07) ──
@@ -1186,15 +1204,15 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   }, [hasExercises]);
   useEffect(() => {
     if (!hasExercises || !user?.id) return;
-    writeExercisesPlace(user.id, { open: exercisesOn, lesson: exView.lesson });
-  }, [hasExercises, user?.id, exercisesOn, exView.lesson]);
+    writeExercisesPlace(user.id, { open: exercisesOn, lesson: exView.lesson }, course.id);
+  }, [hasExercises, user?.id, exercisesOn, exView.lesson, course.id]);
   const goDialogues = useCallback(() => {
     if (hasExercises) setMode("dialogues");
   }, [hasExercises]);
   useEffect(() => {
     if (!hasExercises || !user?.id) return;
-    writeDialoguesPlace(user.id, { open: dialoguesOn, lesson: dgView.lesson });
-  }, [hasExercises, user?.id, dialoguesOn, dgView.lesson]);
+    writeDialoguesPlace(user.id, { open: dialoguesOn, lesson: dgView.lesson }, course.id);
+  }, [hasExercises, user?.id, dialoguesOn, dgView.lesson, course.id]);
   // Folding the lessons under All exercises folds them under All dialogues too.
   const [exLessonsFolded, setExLessonsFolded] = useState(() => readExercisesFolded(user?.id));
   useEffect(() => {
@@ -1203,8 +1221,8 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   }, [user?.id, exLessonsFolded]);
   // The stages open in the sidebar: under All exercises, and under Lessons on
   // Spanish Flashcards (French has no stages).
-  const exStageFolds = useStageFolds(EXERCISE_GROUPS, exView.lesson);
-  const dgStageFolds = useStageFolds(DIALOGUE_GROUPS, dgView.lesson);
+  const exStageFolds = useStageFolds(xs.groups, exView.lesson);
+  const dgStageFolds = useStageFolds(xs.dGroups, dgView.lesson);
   const lessonOpenHere = mode === "study" && lessonFilter !== "all" ? lessonFilter : null;
   // In the sidebar, the lessons in no stage (French L'impératif to Les
   // pronoms) are one more stage after the others, "More lessons", which opens
@@ -3621,14 +3639,16 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
           <div
             data-module-switch
             role="group"
-            aria-label={hasExercises ? "Flashcards, exercises or dialogues" : "Flashcards or podcasts"}
+            aria-label={hasExercises ? (hasPodcasts ? "Flashcards, exercises, dialogues or podcasts" : "Flashcards, exercises or dialogues") : "Flashcards or podcasts"}
             style={sidebarMin ? S.modSwitchMin : S.modSwitch}
           >
             {[
               ["flashcards", "Flashcards", NAV_ICONS.study, goFlashcards],
               ...(hasExercises
                 ? [["exercises", "Exercises", NAV_ICONS.pencil, goExercises], ["dialogues", "Dialogues", NAV_ICONS.dialogues, goDialogues]]
-                : [["podcasts", "Podcasts", NAV_ICONS.headphones, goPodcasts]]),
+                : []),
+              // Podcasts is French, and the owner's (podcastsOpenTo).
+              ...(hasPodcasts ? [["podcasts", "Podcasts", NAV_ICONS.headphones, goPodcasts]] : []),
             ].map(([key, label, icon, go]) => {
               const on = key === (podcastsOn ? "podcasts" : exercisesOn ? "exercises" : dialoguesOn ? "dialogues" : "flashcards");
               return (
@@ -3699,8 +3719,8 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
             with its own lessons. */}
         {(exercisesOn || dialoguesOn) && (() => {
           const side = exercisesOn
-            ? { all: "All exercises", view: exView, setView: setExView, stages: EXERCISE_GROUPS, folds: exStageFolds, titles: EXERCISE_TITLE_OF, data: "ex" }
-            : { all: "All dialogues", view: dgView, setView: setDgView, stages: DIALOGUE_GROUPS, folds: dgStageFolds, titles: DIALOGUE_TITLE_OF, data: "dlg" };
+            ? { all: "All exercises", view: exView, setView: setExView, stages: xs.groups, folds: exStageFolds, titles: xs.titleOf, data: "ex" }
+            : { all: "All dialogues", view: dgView, setView: setDgView, stages: xs.dGroups, folds: dgStageFolds, titles: xs.dTitleOf, data: "dlg" };
           return (
           <>
             <div style={S.sideItemWrap}>
@@ -3974,7 +3994,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
               // Which Podcasts page feedback came from (podcasts/episode,
               // podcasts/mine…), not just "podcasts": the review reads it as
               // "from the <page> page".
-              currentPage={podcastsOn ? `podcasts/${podView.view}` : exercisesOn ? `Spanish exercises/${exView.lesson || "all"}` : dialoguesOn ? `Spanish dialogues/${dgView.lesson || "all"}` : spanish ? `Spanish ${mode}` : mode}
+              currentPage={podcastsOn ? `podcasts/${podView.view}` : exercisesOn ? `${course.language} exercises/${exView.lesson || "all"}` : dialoguesOn ? `${course.language} dialogues/${dgView.lesson || "all"}` : spanish ? `Spanish ${mode}` : mode}
               currentCard={mode === "study" && !sessionDone ? card : null}
               course={course.id}
               open={showFeedback}
@@ -4235,7 +4255,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   if (exercisesOn) {
     return modulePage(
       <Suspense fallback={null}>
-        <ExercisesPage
+        <xs.Exercises
           user={user}
           view={exView}
           setView={setExView}
@@ -4255,7 +4275,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   if (dialoguesOn) {
     return modulePage(
       <Suspense fallback={null}>
-        <DialoguesPage
+        <xs.Dialogues
           user={user}
           view={dgView}
           setView={setDgView}

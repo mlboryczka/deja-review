@@ -1,0 +1,186 @@
+// Leçon 16 · Recevoir, entendre et les pronoms COD — the written exercises of
+// "EXERCICES - Leçon 16", for the Exercises page. Her CORRECTION gives every
+// answer; the also lists are ours.
+// Left out: ex. 1, 2 (sentences of your own with recevoir and entendre),
+// ex. 5, 9 (yes in a full sentence), ex. 6 (a noun group of your own for
+// each pronoun: no set answer), ex. 12–14 (dictation and oral: they need her
+// audio).
+// The sheet's underlining is lost in the copy of her PDF; her answers show
+// which group was underlined (ex. 7 has the sentences of ex. 8), and it is
+// kept here as [[…]].
+// Ex. 3 (find every COD pronoun in the text, then its verb and the group it
+// stands for) is a table in her key: here it is one item per pronoun, in the
+// text's order, and the prompt quotes the sentence it is in, as the student
+// can't see the text.
+// Ex. 7: the verb can't be circled, so the student writes only COD or COI.
+// Typos corrected: her instructions to ex. 4 and 7 have "les groupe
+// nominaux" and "les groupe soulignés" (groupes); ex. 10 no. 13 has "la
+// dernière semaine" (la semaine dernière).
+
+export default {
+  id: "lecon16",
+  exercises: [
+    {
+      n: 3,
+      title: "Grammaire pronoms COD",
+      instruction: "Relever tous les pronoms COD dans le texte, puis préciser à quel verbe ils sont liés et le groupe nominal qu'ils remplacent.",
+      english: "Each COD pronoun (le, la, l', les) of the lesson's text is given here in its sentence. For each one, write the pronoun, the verb it goes with (in the infinitive) and the noun group it stands for, with dashes between them.",
+      items: [
+        { prompt: "Nathalie : « J'avais M. Rozand en physique, vous le connaissez ? »", answer: "le – connaître – M. Rozand",
+          also: ["le – connaissez – M. Rozand", "le – connaître – Monsieur Rozand", "le – connaître – Rozand"] },
+        { prompt: "Le professeur : « Oui je le connais très bien. »", answer: "le – connaître – M. Rozand",
+          also: ["le – connais – M. Rozand", "le – connaître – Monsieur Rozand", "le – connaître – Rozand"] },
+        { prompt: "Le professeur : « Je l'ai rencontré quand on était à la fac ! »", answer: "l' – rencontrer – M. Rozand",
+          also: ["l' – ai rencontré – M. Rozand", "l' – rencontré – M. Rozand", "l' – rencontrer – Monsieur Rozand", "le – rencontrer – M. Rozand"] },
+        { prompt: "Le professeur : « Oui je la connais depuis qu'elle est née ! »", answer: "la – connaître – la fille de M. Rozand",
+          also: ["la – connais – la fille de M. Rozand", "la – connaître – sa fille", "la – connaître – la fille de Monsieur Rozand"] },
+        { prompt: "Nathalie : « Je l'ai trouvée très difficile. »", answer: "l' – trouver – l'épreuve de philo",
+          also: ["l' – ai trouvée – l'épreuve de philo", "l' – trouvée – l'épreuve de philo", "l' – trouver – l'épreuve de philosophie", "la – trouver – l'épreuve de philo"] },
+        { prompt: "Nathalie : « Oui je les ai vus hier. »", answer: "les – voir – Cyril et Gautier",
+          also: ["les – voir – Gautier et Cyril", "les – ai vus – Gautier et Cyril", "les – vus – Gautier et Cyril"] },
+      ],
+    },
+    {
+      n: 4,
+      title: "Grammaire",
+      instruction: "Remplacer les groupes nominaux soulignés par un pronom COD.",
+      english: "Write the sentence again with a COD pronoun (le, la, l' or les) in place of the underlined words. The pronoun goes before the verb, and before avoir in the passé composé, where the participle then agrees with it.",
+      items: [
+        { prompt: "J'ai trouvé [[l'épreuve de physique]] difficile.", answer: "Je l'ai trouvée difficile." },
+        { prompt: "Tu connais bien [[la sœur de Nathalie]] ?", answer: "Tu la connais bien ?" },
+        { prompt: "Comment tu as rencontré [[ton copain]] ?", answer: "Comment tu l'as rencontré ?" },
+        { prompt: "J'adore [[mon nouveau prof de yoga]].", answer: "Je l'adore." },
+        { prompt: "Tu cherchais [[l'agence]] depuis longtemps ?", answer: "Tu la cherchais depuis longtemps ?" },
+        { prompt: "Mathieu a ramené [[les enfants]] à la maison après le match.", answer: "Mathieu les a ramenés à la maison après le match." },
+        { prompt: "Tu as vu [[Cyril et Gautier]] au lycée ?", answer: "Tu les as vus au lycée ?" },
+        { prompt: "Ils ont reçu [[les résultats du bac]].", answer: "Ils les ont reçus." },
+        { prompt: "Ils avaient [[M. Rozand]] en physique.", answer: "Ils l'avaient en physique." },
+        { prompt: "J'attends [[mes amis]] devant le lycée.", answer: "Je les attends devant le lycée." },
+        { prompt: "Tu vois [[la fille en bleu]] là-bas ?", answer: "Tu la vois là-bas ?" },
+        { prompt: "Je n'aimais pas ce mec, je trouvais [[ce mec]] très ennuyeux.", answer: "Je n'aimais pas ce mec, je le trouvais très ennuyeux." },
+        { prompt: "Tu amènes [[ta fille]] au lycée en voiture tous les matins ?", answer: "Tu l'amènes au lycée en voiture tous les matins ?" },
+        { prompt: "Je portais très souvent [[ma chemise verte]].", answer: "Je la portais très souvent." },
+        { prompt: "Émilie prend [[son café]] ici tous les matins.", answer: "Émilie le prend ici tous les matins." },
+      ],
+    },
+    {
+      n: 7,
+      title: "Grammaire pronoms COD et COI",
+      instruction: "Dire si les groupes soulignés sont des COD ou des COI et entourer le verbe associé.",
+      english: "Say whether each underlined group is a direct object (COD, with no preposition) or an indirect object (COI, after à or de). Where two groups are underlined, answer for each, in order. (On paper you also circle the verb; here you don't.)",
+      items: [
+        { prompt: "J'ai vu [[Gautier et Cyril]] au lycée.", answer: "COD", also: ["complément d'objet direct"] },
+        { prompt: "Tu connais bien [[la sœur de Nathalie]] ?", answer: "COD", also: ["complément d'objet direct"] },
+        { prompt: "Je parle [[à mes parents]] tous les jours au téléphone.", answer: "COI", also: ["complément d'objet indirect"] },
+        { prompt: "J'ai trouvé [[l'épreuve de philo]] très difficile.", answer: "COD", also: ["complément d'objet direct"] },
+        { prompt: "Tu as bien réussi [[l'épreuve de maths]] ?", answer: "COD", also: ["complément d'objet direct"] },
+        { prompt: "Tu as dit [[à ton professeur]] que tu avais des difficultés ?", answer: "COI", also: ["complément d'objet indirect"] },
+        { prompt: "Tu téléphonais [[à ton copain]] tous les jours ?", answer: "COI", also: ["complément d'objet indirect"] },
+        { prompt: "J'ai reçu [[les résultats de mes examens]] hier matin.", answer: "COD", also: ["complément d'objet direct"] },
+        { prompt: "Tu entends bien [[le professeur]] de là-bas ?", answer: "COD", also: ["complément d'objet direct"] },
+        { prompt: "J'ai expliqué ça [[à mon professeur]].", answer: "COI", also: ["complément d'objet indirect"] },
+        { prompt: "Tu as rencontré [[ta femme]] à la fac ?", answer: "COD", also: ["complément d'objet direct"] },
+        { prompt: "Vous avez parlé [[à Nathalie]] de ses examens ?", answer: "COI", also: ["complément d'objet indirect"] },
+        { prompt: "Tu as aimé [[le cours de philo d'hier]] ?", answer: "COD", also: ["complément d'objet direct"] },
+        { prompt: "Tu as montré [[ta nouvelle voiture]] [[à ton ami]] ?", answer: "COD - COI",
+          also: ["COD et COI", "ta nouvelle voiture : COD ; à ton ami : COI"] },
+        { prompt: "Vous avez offert [[un cadeau]] [[à vos parents]] ?", answer: "COD - COI",
+          also: ["COD et COI", "un cadeau : COD ; à vos parents : COI"] },
+      ],
+    },
+    {
+      n: 8,
+      title: "Grammaire pronoms COD et COI",
+      instruction: "Remplacer les groupes nominaux soulignés par un pronom.",
+      english: "Write the sentence again with a pronoun in place of the underlined words: le, la, l' or les for a COD, lui or leur for a COI (à and a person).",
+      items: [
+        { prompt: "J'ai vu [[Gautier et Cyril]] au lycée.", answer: "Je les ai vus au lycée." },
+        { prompt: "Tu connais bien [[la sœur de Nathalie]] ?", answer: "Tu la connais bien ?" },
+        { prompt: "Je parle [[à mes parents]] tous les jours au téléphone.", answer: "Je leur parle tous les jours au téléphone." },
+        { prompt: "J'ai trouvé [[l'épreuve de philo]] très difficile.", answer: "Je l'ai trouvée très difficile." },
+        { prompt: "Tu as bien réussi [[l'épreuve de maths]] ?", answer: "Tu l'as bien réussie ?" },
+        { prompt: "Tu as dit [[à ton professeur]] que tu avais des difficultés ?", answer: "Tu lui as dit que tu avais des difficultés ?" },
+        { prompt: "Tu téléphonais [[à ton copain]] tous les jours ?", answer: "Tu lui téléphonais tous les jours ?" },
+        { prompt: "J'ai reçu [[les résultats de mes examens]] hier.", answer: "Je les ai reçus hier." },
+        { prompt: "Tu entends bien [[le professeur]] de là-bas ?", answer: "Tu l'entends bien de là-bas ?" },
+        { prompt: "J'ai expliqué ça [[à mon professeur]].", answer: "Je lui ai expliqué ça." },
+        { prompt: "Tu as rencontré [[ta femme]] à la fac ?", answer: "Tu l'as rencontrée à la fac ?" },
+        { prompt: "Vous avez parlé [[à Nathalie]] de ses examens ?", answer: "Vous lui avez parlé de ses examens ?" },
+        { prompt: "Tu as aimé [[le cours de philo d'hier]] ?", answer: "Tu l'as aimé ?" },
+        { prompt: "Tu as montré [[ta nouvelle voiture]] à ton ami ?", answer: "Tu l'as montrée à ton ami ?" },
+        { prompt: "Vous avez offert un cadeau [[à vos parents]] ?", answer: "Vous leur avez offert un cadeau ?" },
+      ],
+    },
+    {
+      n: 10,
+      title: "Traduction niveau 1",
+      instruction: "Traduire les phrases suivantes en utilisant un pronom COD.",
+      english: "Translate each sentence into French, with a COD pronoun (le, la, l' or les) for him, her, it or them.",
+      items: [
+        { prompt: "I saw her last night.", answer: "Je l'ai vue hier soir." },
+        { prompt: "I took him to school.", answer: "Je l'ai amené à l'école.", also: ["Je l'ai emmené à l'école."] },
+        { prompt: "Did she get it?", answer: "Elle l'a reçu ?", also: ["Elle l'a reçue ?", "Est-ce qu'elle l'a reçu ?"] },
+        { prompt: "I'm looking for them.", answer: "Je les cherche." },
+        { prompt: "I found it very convenient.", answer: "Je l'ai trouvé très pratique.", also: ["Je l'ai trouvée très pratique."] },
+        { prompt: "I love it!", answer: "Je l'adore !", also: ["Je l'aime !"] },
+        { prompt: "Do you know her very well?", answer: "Tu la connais très bien ?",
+          also: ["Vous la connaissez très bien ?", "Est-ce que tu la connais très bien ?"] },
+        { prompt: "Do you see it?", answer: "Tu le vois ?",
+          also: ["Tu la vois ?", "Tu le/la vois ?", "Vous le voyez ?", "Vous la voyez ?"] }, // her key: "Tu le/la vois ?"
+        { prompt: "How did you meet him?", answer: "Comment tu l'as rencontré ?",
+          also: ["Comment vous l'avez rencontré ?", "Comment est-ce que tu l'as rencontré ?"] },
+        { prompt: "How did you meet them?", answer: "Comment tu les as rencontrés ?",
+          also: ["Comment tu les as rencontrées ?", "Comment vous les avez rencontrés ?", "Comment est-ce que tu les as rencontrés ?"] },
+        { prompt: "Mathieu is waiting for them.", answer: "Mathieu les attend." },
+        { prompt: "I hear them every morning.", answer: "Je les entends tous les matins." },
+        { prompt: "Jessica received it last week.", answer: "Jessica l'a reçu la semaine dernière.", // her key: "la dernière semaine"
+          also: ["Jessica l'a reçue la semaine dernière."] },
+        { prompt: "I'm looking at it.", answer: "Je le regarde.", also: ["Je la regarde.", "Je le/la regarde."] }, // her key: "Je le/la regarde."
+        { prompt: "I see her very often.", answer: "Je la vois très souvent." },
+        { prompt: "Can you hear her?", answer: "Tu l'entends ?", also: ["Vous l'entendez ?", "Est-ce que tu l'entends ?"] },
+        { prompt: "I bought them in Paris.", answer: "Je les ai achetés à Paris.", also: ["Je les ai achetées à Paris."] },
+        { prompt: "Did you know them before?", answer: "Tu les connaissais avant ?",
+          also: ["Vous les connaissiez avant ?", "Est-ce que tu les connaissais avant ?"] },
+        { prompt: "I've been waiting for her for 2 hours.", answer: "Je l'attends depuis deux heures.", also: ["Je l'attends depuis 2 heures."] },
+        { prompt: "Did you find it?", answer: "Tu l'as trouvé ?",
+          also: ["Tu l'as trouvée ?", "Vous l'avez trouvé ?", "Est-ce que tu l'as trouvé ?"] },
+      ],
+    },
+    {
+      n: 11,
+      title: "Traduction niveau 2",
+      instruction: "Traduire les phrases suivantes.",
+      english: "Translate each sentence into French.",
+      items: [
+        { prompt: "I was looking for her.", answer: "Je la cherchais." },
+        { prompt: "Did you receive them last night?", answer: "Tu les as reçus hier soir ?",
+          also: ["Tu les as reçues hier soir ?", "Vous les avez reçus hier soir ?"] },
+        { prompt: "How did it go?", answer: "Comment ça s'est passé ?", also: ["Ça s'est passé comment ?"] },
+        { prompt: "I found it more difficult this year.", answer: "Je l'ai trouvé plus difficile cette année.",
+          also: ["Je l'ai trouvée plus difficile cette année."] },
+        { prompt: "For how long have you known her?", answer: "Depuis combien de temps tu la connais ?",
+          also: ["Tu la connais depuis combien de temps ?", "Depuis combien de temps vous la connaissez ?"] },
+        { prompt: "I'm hopeless at mathematics and same at physics.", answer: "Je suis nulle en mathématiques et pareil en physique.",
+          also: ["Je suis nul en mathématiques et pareil en physique.", "Je suis nulle en maths et pareil en physique.", "Je suis nul en maths et pareil en physique."] },
+        { prompt: "Fingers crossed!", answer: "Je croise les doigts !", also: ["On croise les doigts !"] },
+        { prompt: "Where were you born again?", answer: "Où tu es né déjà ?", also: ["Où tu es née déjà ?", "Tu es né où déjà ?"] },
+        { prompt: "Have you talked to her?", answer: "Tu lui as parlé ?", also: ["Vous lui avez parlé ?", "Est-ce que tu lui as parlé ?"] },
+        { prompt: "Where did you meet him?", answer: "Où tu l'as rencontré ?",
+          also: ["Tu l'as rencontré où ?", "Où vous l'avez rencontré ?", "Où est-ce que tu l'as rencontré ?"] },
+        { prompt: "I'm sure it's going to be okay.", answer: "Je suis sûr que ça va aller.", also: ["Je suis sûre que ça va aller."] },
+        { prompt: "Have you seen them at school?", answer: "Tu les as vus à l'école ?", also: ["Vous les avez vus à l'école ?"] },
+        { prompt: "They're worried about the oral exam.", answer: "Ils ont peur pour l'épreuve orale.", also: ["Elles ont peur pour l'épreuve orale."] },
+        { prompt: "Do you speak to them often?", answer: "Tu leur parles souvent ?",
+          also: ["Vous leur parlez souvent ?", "Est-ce que tu leur parles souvent ?"] },
+        { prompt: "You have to imagine it!", answer: "Il faut l'imaginer !", also: ["Tu dois l'imaginer !"] },
+        { prompt: "Thanks but that was not very useful.", answer: "Merci mais ce n'était pas très utile." },
+        { prompt: "Who is your godmother again?", answer: "Qui est ta marraine déjà ?", also: ["C'est qui ta marraine déjà ?"] },
+        { prompt: "I was chatting with my teacher when he called me.", answer: "Je discutais avec mon professeur quand il m'a appelé.",
+          also: ["Je discutais avec mon professeur quand il m'a appelée."] },
+        { prompt: "I did it for them!", answer: "Je l'ai fait pour eux !", also: ["Je l'ai fait pour elles !"] },
+        { prompt: "I knew him very well but we haven't talked for 10 years.", answer: "Je le connaissais très bien mais on n'a pas parlé depuis 10 ans.",
+          also: ["Je le connaissais très bien mais on ne s'est pas parlé depuis 10 ans.", "Je le connaissais très bien mais nous n'avons pas parlé depuis 10 ans.", "Je le connaissais très bien mais on n'a pas parlé depuis dix ans."] },
+      ],
+    },
+  ],
+};

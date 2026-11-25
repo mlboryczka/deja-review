@@ -355,7 +355,8 @@ export function exerciseLabel(exercise) {
   const n = questionNumber(exercise);
   const title = textOf(exercise?.title);
   // A dialogue (the Dialogues module) has no number: its title names it.
-  const name = n ? `Ejercicio ${n}` : title || "Ejercicio";
+  const word = exercise?.word === "Exercice" ? "Exercice" : "Ejercicio";
+  const name = n ? `${word} ${n}` : title || word;
   const item = exerciseFocus(exercise);
   if (item) return `${name}, ${questionNumber(item)}: ${textOf(item.prompt)}`;
   return n && title ? `${name} · ${title}` : name;
@@ -369,7 +370,8 @@ export function exerciseLabel(exercise) {
 export function exerciseAbout(exercise) {
   const n = questionNumber(exercise);
   const title = textOf(exercise?.title);
-  const name = n ? `Ejercicio ${n}${title ? ` (${title})` : ""}` : title || "An exercise";
+  const word = exercise?.word === "Exercice" ? "Exercice" : "Ejercicio";
+  const name = n ? `${word} ${n}${title ? ` (${title})` : ""}` : title || "An exercise";
   const item = exerciseFocus(exercise);
   if (!item) return name;
   const p = textOf(item.prompt);
@@ -414,6 +416,8 @@ export function exerciseContext(exercise) {
   const example = clip(exercise.example);
   const text = textOf(exercise.text).slice(0, EXERCISE_LESSON_TEXT_MAX);
   return {
+    // French says Exercice where Spanish says Ejercicio (2026-11-25).
+    ...(exercise.word === "Exercice" ? { word: "Exercice" } : null),
     lesson: textOf(exercise.lesson).slice(0, PODCAST_TEXT_MAX),
     number: questionNumber(exercise),
     title: textOf(exercise.title).slice(0, PODCAST_TEXT_MAX),

@@ -77,19 +77,8 @@ export const LEFT_OUT = {
   leccion21: [1, 3, 4, 5], leccion22: [1, 4, 5], leccion23: [1, 2],
 };
 
-// The page numbers a lesson's exercises 1, 2, 3… as they now stand (owner,
-// 2026-10-25: "renumber the exercises properly"). `n` stays the sheet's
-// number, which every answer is kept under. An instruction pointing at
-// another exercise ("del ejercicio 1", Lesson 18) points at its number on the
-// page.
-export function numbered(exercises) {
-  const number = new Map(exercises.map((ex, i) => [ex.n, i + 1]));
-  const renumber = (text) =>
-    typeof text === "string"
-      ? text.replace(/\b(ejercicio|exercise) (\d+)\b/gi, (all, word, n) => (number.has(Number(n)) ? `${word} ${number.get(Number(n))}` : all))
-      : text;
-  return exercises.map((ex, i) => ({ ...ex, number: i + 1, instruction: renumber(ex.instruction), english: renumber(ex.english) }));
-}
+import { numbered } from "../../../lib/numberedExercises.js";
+export { numbered };
 
 export const EXERCISE_LESSONS = [
   leccion1, leccion2, leccion3, leccion4, leccion5, leccion6, leccion7_1, leccion7_2, leccion7_3,

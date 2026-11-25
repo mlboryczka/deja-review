@@ -17,7 +17,7 @@
 // and the owner's Apply and Dismiss: see _lib/feedbackReview.js. One with
 // `answerChecks` is the owner's list of these verdicts and the test made from
 // them: see _lib/answerChecks.js. One with `exercise` is an answer to the
-// Spanish Exercises, marked and kept: see _lib/exercises.js. They live here
+// Spanish Exercises, or the French ones when it says `course: "fr"`, marked and kept: see _lib/exercises.js. They live here
 // because the Hobby plan deploys at most 12 routes.
 //
 // Every verdict is saved (answer_reviews, migration_015; es_answer_reviews
@@ -217,7 +217,7 @@ async function exercises(req, res, user) {
     const { status, json } = await handleExerciseRequest({
       body: req.body.exercise,
       user,
-      store: db ? supabaseExerciseStore(db) : null,
+      store: db ? supabaseExerciseStore(db, req.body.exercise.course === "fr" ? "fr" : "es") : null,
       apiKey: () => resolveAnthropicKey(req, user),
     });
     return res.status(status).json(json);

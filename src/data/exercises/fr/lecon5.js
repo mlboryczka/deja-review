@@ -1,0 +1,136 @@
+// Leçon 5 · Vouloir et pouvoir — the written exercises of "EXERCICES - Leçon
+// 5", for the Exercises page. Her CORRECTION gives every answer; the also
+// lists are ours.
+// Left out: ex. 1, 2 (a sentence of your own with each form of pouvoir and
+// vouloir), ex. 3 (yes in a full sentence), ex. 5 (no in a full sentence),
+// ex. 9 (questions about the dialogue, answered in a sentence of your own),
+// ex. 10 (dictation) and ex. 11, 12 (oral: they need her audio).
+// Ex. 8 (true or false): her key writes "C'est vrai, …" and "C'est faux, …";
+// here each answer is "Vrai." or "Faux." and her sentence.
+// Slips in her key corrected (each marked on its line): ex. 4 no. 1, ex. 7
+// no. 9. Typos in her sheet corrected: ex. 4 no. 5 "Il est Anglais" and ex. 8
+// no. 1 "Mike est Australien" (her key writes both in small letters).
+
+export default {
+  id: "lecon5",
+  exercises: [
+    {
+      n: 4,
+      title: "Conjugaison",
+      instruction: "Mettre les phrases à la forme négative.",
+      english: "Make each sentence negative with ne … pas (n' before a vowel).",
+      items: [
+        // her key has "Je n'aime pas marcher.", dropping "à Paris"
+        { prompt: "J'aime marcher à Paris.", answer: "Je n'aime pas marcher à Paris." },
+        { prompt: "Je veux aller à Notre Dame.", answer: "Je ne veux pas aller à Notre Dame." },
+        { prompt: "Je peux essayer.", answer: "Je ne peux pas essayer." },
+        { prompt: "Tu as des amis français.", answer: "Tu n'as pas d'amis français." },
+        { prompt: "Il est anglais.", answer: "Il n'est pas anglais." }, // her sheet has "Il est Anglais."
+        { prompt: "Ils vont aux États-Unis.", answer: "Ils ne vont pas aux États-Unis." },
+        { prompt: "Nous aimons regarder la télé.", answer: "Nous n'aimons pas regarder la télé." },
+        { prompt: "Vous préférez prendre le métro ?", answer: "Vous ne préférez pas prendre le métro ?" },
+        { prompt: "Je sais où c'est.", answer: "Je ne sais pas où c'est." },
+        { prompt: "Marie habite à Paris.", answer: "Marie n'habite pas à Paris." },
+        { prompt: "C'est ici.", answer: "Ce n'est pas ici." },
+      ],
+    },
+    {
+      n: 6,
+      title: "Traduction",
+      instruction: "Comment on dit …. en français ?",
+      english: "Say each word or phrase in French.",
+      items: [
+        { prompt: "I don't know", answer: "je ne sais pas" },
+        { prompt: "to ask", answer: "demander" },
+        { prompt: "to prefer", answer: "préférer" },
+        { prompt: "to speak / to talk", answer: "parler" },
+        { prompt: "slower", answer: "plus lentement" },
+        { prompt: "Sure!", answer: "Bien sûr !" },
+        { prompt: "a saleswoman", answer: "une vendeuse" },
+        { prompt: "to look for", answer: "chercher" },
+        { prompt: "a line", answer: "une ligne" },
+        { prompt: "a tourist", answer: "un/une touriste", also: ["un touriste", "une touriste"] },
+        { prompt: "to repeat", answer: "répéter" },
+        { prompt: "lost", answer: "perdu", also: ["perdue"] },
+        { prompt: "to help", answer: "aider" },
+        { prompt: "there is / there are", answer: "il y a" },
+        { prompt: "newspapers", answer: "des journaux", also: ["les journaux", "journaux"] },
+        { prompt: "to be able to / can", answer: "pouvoir" },
+        { prompt: "an idea", answer: "une idée" },
+        { prompt: "Good luck!", answer: "Bonne chance !" },
+        { prompt: "a metro station", answer: "une station de métro" },
+        { prompt: "to try", answer: "essayer" },
+        { prompt: "Have a nice day!", answer: "Bonne journée !" },
+        { prompt: "to want", answer: "vouloir" },
+        { prompt: "slowly", answer: "lentement" },
+        { prompt: "a map", answer: "un plan", also: ["une carte"] },
+      ],
+    },
+    {
+      n: 7,
+      title: "Traduction",
+      instruction: "Traduire les phrases suivantes en français.",
+      english: "Translate these sentences into French.",
+      items: [
+        { prompt: "I think that it is a good idea.", answer: "Je pense que c'est une bonne idée." },
+        { prompt: "I am going to ask the lady who sells newspapers.", answer: "Je vais demander à la vendeuse de journaux." },
+        { prompt: "Have a nice day!", answer: "Bonne journée !" },
+        { prompt: "I am sorry, I don't know where Notre Dame is.", answer: "Je suis désolée, je ne sais pas où est Notre Dame.",
+          also: ["Je suis désolé, je ne sais pas où est Notre Dame."] },
+        { prompt: "There is a metro station in Saint Michel.", answer: "Il y a une station de métro à Saint Michel." },
+        { prompt: "I like to walk but I am going to take the metro today.", answer: "J'aime marcher mais je vais prendre le métro aujourd'hui." },
+        { prompt: "Jessica doesn't speak very good French.", answer: "Jessica ne parle pas très bien français.",
+          also: ["Jessica ne parle pas très bien le français."] },
+        { prompt: "The little girl doesn't look for the beach.", answer: "La petite fille ne cherche pas la plage." },
+        // her key has "… vous sortez à Saint Michel"; the sentence says Odéon
+        { prompt: "You take the 4 line and you go out in Odéon.", answer: "Vous prenez la ligne 4 et vous sortez à Odéon.",
+          also: ["Tu prends la ligne 4 et tu sors à Odéon."] },
+        { prompt: "The cathedral is close to the metro station.", answer: "La cathédrale est près de la station de métro." },
+        { prompt: "I am lost, can you help me please?", answer: "Je suis perdu, vous pouvez m'aider s'il vous plaît ?",
+          also: ["Je suis perdue, vous pouvez m'aider s'il vous plaît ?", "Je suis perdu, tu peux m'aider s'il te plaît ?",
+            "Je suis perdue, tu peux m'aider s'il te plaît ?"] },
+        { prompt: "They are going to ask where the bookstore is.", answer: "Ils vont demander où est la librairie.",
+          also: ["Elles vont demander où est la librairie."] },
+        { prompt: "I don't know why she is not here today.", answer: "Je ne sais pas pourquoi elle n'est pas ici aujourd'hui." },
+        { prompt: "It is not a good idea.", answer: "Ce n'est pas une bonne idée." },
+        { prompt: "My friends don't like to surf.", answer: "Mes amis n'aiment pas surfer.", also: ["Mes amies n'aiment pas surfer."] },
+        { prompt: "They don't want to go to Marseille.", answer: "Ils ne veulent pas aller à Marseille.",
+          also: ["Elles ne veulent pas aller à Marseille."] },
+        { prompt: "You can't take the metro here.", answer: "Tu ne peux pas prendre le métro ici.",
+          also: ["Vous ne pouvez pas prendre le métro ici."] },
+        { prompt: "Can I try?", answer: "Je peux essayer ?", also: ["Est-ce que je peux essayer ?"] },
+        { prompt: "She thinks that you can ask.", answer: "Elle pense que tu peux demander.", also: ["Elle pense que vous pouvez demander."] },
+        { prompt: "Can you repeat slower please?", answer: "Tu peux répéter plus lentement s'il te plaît ?",
+          also: ["Vous pouvez répéter plus lentement s'il vous plaît ?"] },
+      ],
+    },
+    {
+      n: 8,
+      title: "Compréhension écrite",
+      instruction: "Dire si c'est VRAI ou FAUX et faire une phrase pour confirmer ou corriger (utiliser la négation avant la correction).",
+      english: "Say whether each sentence about the dialogue is true or false, and write a sentence that confirms or corrects it. To correct one, first say what is not so with ne … pas, then what is.",
+      items: [
+        // her sheet has "Mike est Australien."
+        { prompt: "Mike est australien.", truth: false,
+          answer: "Faux. Mike n'est pas australien, il est américain." },
+        { prompt: "Il veut aller au Louvre.", truth: false,
+          answer: "Faux. Il ne veut pas aller au Louvre, il veut aller à Notre Dame." },
+        { prompt: "Il demande à un passant.", truth: true,
+          answer: "Vrai. Il demande à un passant." },
+        { prompt: "Le passant habite à Paris et il sait où est Notre Dame.", truth: false,
+          answer: "Faux. Le passant n'habite pas à Paris et il ne sait pas où est Notre Dame." },
+        { prompt: "Mike parle très bien français.", truth: false,
+          answer: "Faux. Mike ne parle pas très bien français." },
+        { prompt: "Il adore prendre le métro.", truth: false,
+          answer: "Faux. Il n'aime pas prendre le métro, il préfère marcher.",
+          also: ["Faux. Il n'aime pas le métro, il préfère marcher."] },
+        { prompt: "La vendeuse de journaux aide Mike.", truth: true,
+          answer: "Vrai. Elle aide Mike.", also: ["Vrai. La vendeuse de journaux aide Mike."] },
+        { prompt: "Il y a la ligne 4 à Saint-Michel.", truth: true,
+          answer: "Vrai. Il y a la ligne 4 à Saint-Michel." },
+        { prompt: "Mike va marcher pour aller à Notre Dame.", truth: true,
+          answer: "Vrai. Il va marcher pour aller à Notre Dame." },
+      ],
+    },
+  ],
+};
