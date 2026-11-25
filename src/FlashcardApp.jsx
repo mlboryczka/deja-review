@@ -2224,7 +2224,9 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   // Answer handling: update progress + spaced-repetition state.
   //
   // Two parallel updates per answer:
-  //   1. card_progress (legacy score/seen/got) — still drives the Stats view.
+  //   1. card_progress (legacy score/seen/got) — read only by the admin users
+  //      page's Studied and Mastered columns (api/admin-users.js). The Stats
+  //      page does not read it.
   //   2. user_cards spaced-rep fields (box, next_due_at, lapses) — drives
   //      session selection on the next deck build.
   //
@@ -2922,7 +2924,9 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   // could see. The owner decided the same day that the streak goes too. The
   // record of past answers (card_reviews) is history, and stays.
   const resetAll = async () => {
-    if (!confirm("Reset all of your progress? Every card goes back to not yet seen, and your streak starts again. This can't be undone.")) return;
+    if (!confirm(spanish
+      ? "Reset all of your Spanish progress? Every Spanish card goes back to not yet seen, and your Spanish streak starts again. Your French cards aren't touched. This can't be undone."
+      : "Reset all of your progress? Every card goes back to not yet seen, and your streak starts again. This can't be undone.")) return;
     const reset = resetColumns();
     const { error } = await supabase.from(tbl("user_cards")).update(reset).eq("user_id", user.id);
     if (error) {
@@ -4547,7 +4551,6 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
             {history && points.length > 0 && (
               <RememberedChart
                 points={points}
-                now={now}
                 week={{ gain: gain(areas.all.remembered, weekAgo.all), met: history.newMetBetween(endOfDayAgo(7, now), now) }}
                 all={{ remembered: aboutRemembered(areas.all), met: history.newMetBetween(-Infinity, now) }}
                 allLabel={startedThen ? "Since you started" : `Since ${firstDayLong}`}
@@ -4581,7 +4584,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
               <ProgressByLesson groups={lessonGroups} rows={[...lessonRows, ...classRows]} />
             )}
 
-            <button style={S.resetBtn} onClick={resetAll}>Reset all progress</button>
+            <button style={S.resetBtn} onClick={resetAll}>{spanish ? "Reset all Spanish progress" : "Reset all progress"}</button>
           </div>
         </main>
         {modals}

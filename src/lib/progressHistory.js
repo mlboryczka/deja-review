@@ -20,7 +20,7 @@
 //
 // Days are the student's own, 4am to 4am (lib/studyDay.js).
 
-import { retrievability, areaOf } from "./progress.js";
+import { retrievability, areaOf, isSeen } from "./progress.js";
 import { isTwoWay } from "./directions.js";
 import { State } from "./spacedRepetition.js";
 import { localISODate, startOfLocalDay } from "./studyDay.js";
@@ -38,9 +38,6 @@ const sideAfter = (rec) => ({
   last_review: rec.answered_at,
   last_answer_correct: rec.correct,
 });
-
-const isSeenNow = (card) =>
-  (card.fsrs_state ?? NEW) !== NEW || (isTwoWay(card) && (card.en_fsrs_state ?? NEW) !== NEW);
 
 // The start of each of the student's days from `first` to `now`, oldest first.
 function dayStarts(first, now) {
@@ -98,7 +95,7 @@ export function statsOverTime({ cards, rows, now = Date.now() }) {
     for (const list of [life.fr, life.en]) if (list.length && (!first || list[0].at < first.at)) first = list[0];
     life.firstId = first && first.state_before === NEW ? first.id : null;
     life.firstAt = first ? (first.state_before === NEW ? first.at : -Infinity) : Infinity;
-    life.counts = isSeenNow(life.card);
+    life.counts = isSeen(life.card);
     life.area = areaOf(life.card, now);
     life.twoWay = isTwoWay(life.card);
   }

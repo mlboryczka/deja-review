@@ -78,11 +78,14 @@ import { sideOf, sideColumns, directionsOf, isTwoWay, otherDirection, itemKey } 
 // default; `target` is the student's own choice (20, 30, 50 or 100).
 export const BLOCK_SIZE = 50;
 
+// A class within this many days is "recent". Stats (progress.js) uses it too.
+export const RECENT_CLASS_DAYS = 14;
+
 const DEFAULTS = Object.freeze({
   target: BLOCK_SIZE,
   // A class within this many days is "recent": what the student is being
   // taught right now, so its words come before the older pile.
-  recentDays: 14,
+  recentDays: RECENT_CLASS_DAYS,
 });
 
 // These three read one direction's state: sideOf(card, dir), not the card.

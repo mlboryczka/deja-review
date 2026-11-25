@@ -53,7 +53,7 @@ const weekBig = (gain) =>
   gain > 0 ? `+${gain.toLocaleString()} remembered` : gain < 0 ? `−${(-gain).toLocaleString()} remembered` : "No change";
 
 // ~N remembered, day by day. points: one per day, oldest first, today last.
-export function RememberedChart({ points, now, week, all, allLabel }) {
+export function RememberedChart({ points, week, all, allLabel }) {
   const [range, setRange] = useState("7");
   const [hover, setHover] = useState(null);
   const shown = range === "7" ? points.slice(-8) : points;
@@ -202,6 +202,10 @@ function AreaRow({ row, name, onClick, open }) {
   const s = row.summary;
   return (
     <div style={onClick ? { ...S.area, cursor: "pointer" } : S.area} onClick={onClick}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => {
+        if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onClick(); }
+      } : undefined}
       role={onClick ? "button" : undefined} aria-expanded={onClick ? open : undefined}
       data-stats-area={row.key}>
       <div style={S.areaHead}>
