@@ -1,6 +1,13 @@
 // The Exercises module (Spanish, test app; owner 2026-10-24: "create a new
 // module only in the spanish module for quizzing me on the exercises you put
-// together for each lesson").
+// together for each lesson"), and French since 2026-11-25 (owner: "extend the
+// spanish dialogue and exercises modules to french").
+//
+// Which course it shows is its `pack` (src/data/exercises/<course>/
+// exercisesPack.js): the sheets, their stages and texts, the marking and the
+// words that differ. The shell loads the page with its course's pack, so
+// French never downloads the Spanish sheets, nor Spanish the French. French
+// answers are kept in exercise_answers and exercise_disputes (migration_036).
 //
 // Two pages: Exercises, the lessons with how far you are in each, and a
 // lesson's exercises, the sheet's written exercises one under another, each
@@ -38,23 +45,36 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, Fragment } from "react";
 import { supabase } from "./supabase";
 import { T } from "./theme";
-import { EXERCISES_BY_ID } from "./data/exercises/es/index.js";
-import { EXERCISE_GROUPS } from "./data/exercises/es/titles.js";
 import { stageIds } from "./data/lessons/es/stages.js";
-import { LESSON_TEXTS } from "./data/exercises/es/texts.js";
-import { aboutTheText, lessonTextOf, itemKey, kindOf, isAnswered, markByKey, typedText, keyAnswer, keyReason, hintText, hintLevels, markedNow, findItem, countsAsRight, acceptedNow, isAccepted } from "./lib/exerciseMarking.js";
+import { aboutTheText, lessonTextOf, itemKey, kindOf, hintText, hintLevels, findItem, countsAsRight } from "./lib/exerciseMarking.js";
 import { markAnswer, loadAnswers, loadAccepted } from "./lib/exerciseApi.js";
 import { useAnswerDispute, acceptedLine } from "./useAnswerDispute";
 import { VerdictMark, VERDICT_INK, MARKED_STYLE as M } from "./VerdictMark";
 import { BYOK_REQUIRED, BAD_KEY } from "./lib/anthropicKey";
 import { startOfLocalDay } from "./lib/studyDay";
 
+// ── The course on show ───────────────────────────────────────────────────
+// The pack the page was last drawn with. The app shows one course at a time
+// (App.jsx mounts it afresh for each), so the helpers below can read it here
+// rather than be handed it at every turn. What the page holds is kept per
+// course and user (storeFor), so nothing of one course shows in the other.
+let P = null;
+const isAnswered = (...a) => P.marking.isAnswered(...a);
+const markByKey = (...a) => P.marking.markByKey(...a);
+const typedText = (...a) => P.marking.typedText(...a);
+const keyAnswer = (...a) => P.marking.keyAnswer(...a);
+const keyReason = (...a) => P.marking.keyReason(...a);
+const markedNow = (...a) => P.marking.markedNow(...a);
+const acceptedNow = (...a) => P.marking.acceptedNow(...a);
+const isAccepted = (...a) => P.marking.isAccepted(...a);
+
 // ── The answers, kept per user for as long as the page is open ───────────
 // Outside React, so a mark still on its way lands when it comes back, even if
 // the page was left meanwhile, and coming back doesn't read them all again.
 const stores = new Map();
 function storeFor(userId) {
-  if (!stores.has(userId)) {
+  const id = `${P.course}:${userId}`;
+  if (!stores.has(id)) {
     const s = { latest: {}, accepted: {}, loading: true, missing: false, error: null, listeners: new Set(), version: 0, started: false };
     s.emit = () => { s.version++; s.listeners.forEach((l) => l()); };
     // An answer given on this page carries a ticket, newer ones higher: a
@@ -95,9 +115,9 @@ function storeFor(userId) {
       s.latest = rest;
       s.emit();
     };
-    stores.set(userId, s);
+    stores.set(id, s);
   }
-  return stores.get(userId);
+  return stores.get(id);
 }
 function useAnswers(userId) {
   const s = storeFor(userId);
@@ -108,14 +128,15 @@ function useAnswers(userId) {
   useEffect(() => {
     if (s.started || !userId) return;
     s.started = true;
-    Promise.all([loadAnswers({ supabase, userId }), loadAccepted({ supabase, userId }).catch(() => ({}))]).then(([{ answers, missing, error }, accepted]) => {
+    const course = P.course, byId = P.EXERCISES_BY_ID;
+    Promise.all([loadAnswers({ supabase, userId, course }), loadAccepted({ supabase, userId, course }).catch(() => ({}))]).then(([{ answers, missing, error }, accepted]) => {
       // Oldest first, so each item ends on its latest; one answered on this
       // page while they loaded is newer than any of them. One kept under an
       // earlier rule shows the verdict the key gives it now (markedNow), and
       // one accepted since shows as Right (acceptedNow).
       s.accepted = { ...accepted, ...s.accepted };
       const latest = {};
-      for (const a of answers) latest[a.key] = acceptedNow(markedNow(findItem(EXERCISES_BY_ID, a.key)?.item, a), s.accepted);
+      for (const a of answers) latest[a.key] = acceptedNow(markedNow(findItem(byId, a.key)?.item, a), s.accepted);
       for (const [k, a] of Object.entries(s.latest)) latest[k] = a;
       s.latest = latest;
       s.missing = missing;
@@ -145,16 +166,16 @@ const drafts = new Map();
 const hintsKept = new Map();
 
 // "Start again" on an exercise: answers given before it are kept, but no
-// longer shown. Kept in this browser, per user.
-const AGAIN_KEY = "es-exercises-again:";
+// longer shown. Kept in this browser, per course and user: "es-exercises-again:"
+// or "fr-exercises-again:" (the pack's againKey).
 function readAgain(userId) {
   try {
-    const v = JSON.parse(localStorage.getItem(AGAIN_KEY + userId) || "{}");
+    const v = JSON.parse(localStorage.getItem(P.againKey + userId) || "{}");
     return v && typeof v === "object" ? v : {};
   } catch { return {}; }
 }
 function writeAgain(userId, value) {
-  try { localStorage.setItem(AGAIN_KEY + userId, JSON.stringify(value)); } catch {}
+  try { localStorage.setItem(P.againKey + userId, JSON.stringify(value)); } catch {}
 }
 
 // An item's answer as the page shows it: its latest, unless it was given
@@ -226,9 +247,10 @@ function tutorExercise(lesson, latest, again, focusKey) {
   const focus = exerciseOfKey(lesson, focusKey) === ex ? Number(String(focusKey).split("/").pop()) || 0 : 0;
   // The lesson's text goes when the exercise is about it (true or false
   // about the dialogue, translating the text).
-  const text = aboutTheText(ex) ? lessonTextOf(LESSON_TEXTS[lesson.textOf || lesson.id]) : "";
+  const text = aboutTheText(ex) ? lessonTextOf(P.LESSON_TEXTS[lesson.textOf || lesson.id]) : "";
   return {
     key: `ex:${lesson.id}/${ex.n}${focus ? `/${focus}` : ""}`,
+    word: P.exerciseWord,
     lesson: lesson.title,
     number: ex.number,
     title: ex.title,
@@ -243,7 +265,8 @@ function tutorExercise(lesson, latest, again, focusKey) {
 }
 
 // ── The page ─────────────────────────────────────────────────────────────
-export default function ExercisesPage({ user, view, setView, onNeedKey, onTutorContext, openChat, notes = null }) {
+export default function ExercisesPage({ pack, user, view, setView, onNeedKey, onTutorContext, openChat, notes = null }) {
+  P = pack;
   const store = useAnswers(user?.id);
   const [again, setAgain] = useState(() => readAgain(user?.id));
   const startAgain = (lessonId, n) => {
@@ -252,7 +275,7 @@ export default function ExercisesPage({ user, view, setView, onNeedKey, onTutorC
     writeAgain(user?.id, next);
     store.clearExercise(`${lessonId}/${n}/`);
   };
-  const lesson = view?.lesson ? EXERCISES_BY_ID[view.lesson] : null;
+  const lesson = view?.lesson ? P.EXERCISES_BY_ID[view.lesson] || null : null;
   const scrollRef = useRef(null);
   useEffect(() => { scrollRef.current?.scrollTo?.(0, 0); }, [view?.lesson]);
   // On the list of lessons no exercise is on screen.
@@ -270,7 +293,7 @@ export default function ExercisesPage({ user, view, setView, onNeedKey, onTutorC
       <div style={S.page}>
         {store.missing && (
           <p style={S.notice} data-exercises-missing>
-            Your answers are marked but not kept yet: the database needs one update. Run migration_022_spanish_exercises.sql in Supabase, then reload.
+            Your answers are marked but not kept yet: the database needs one update. Run {P.migration} in Supabase, then reload.
           </p>
         )}
         {store.error && <p style={S.notice}>{store.error}</p>}
@@ -296,7 +319,7 @@ export default function ExercisesPage({ user, view, setView, onNeedKey, onTutorC
             </p>
             {/* Under the course's four stages, as the Lessons page on
                 Flashcards is (owner, 2026-11-07). */}
-            {EXERCISE_GROUPS.map((stage) => {
+            {P.EXERCISE_GROUPS.map((stage) => {
               const closed = closedStages.has(stage.title);
               return (
                 <Fragment key={stage.title}>
@@ -307,7 +330,7 @@ export default function ExercisesPage({ user, view, setView, onNeedKey, onTutorC
                     </span>
                   </button>
                   {!closed && stageIds(stage).map((id) => {
-                    const l = EXERCISES_BY_ID[id];
+                    const l = P.EXERCISES_BY_ID[id];
                     const t = tally(l, store.latest, again);
                     return (
                       <button key={l.id} type="button" className="ex-row" style={S.row} onClick={() => setView({ lesson: l.id })} data-exercise-lesson={l.id}>
@@ -438,7 +461,7 @@ function ExerciseBlock({ user, lesson, exercise, store, again, onStartAgain, foc
   return (
     <section style={S.ex} data-exercise={exercise.n}>
       <div style={S.exHead}>
-        <span style={S.exNum}>Ejercicio {exercise.number}</span>
+        <span style={S.exNum}>{P.exerciseWord} {exercise.number}</span>
         <span style={S.exTitle}>{exercise.title}</span>
         {answered > 0 && (
           <span style={S.exScore} data-exercise-score>{`${right} of ${exercise.items.length} right`}</span>
@@ -537,7 +560,7 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
     setTypedState(emptyTyped(item));
     focusNext(key);
     try {
-      const { answer: a, saved, missing } = await markAnswer({ key, typed: sent, hints }, { supabase, user });
+      const { answer: a, saved, missing } = await markAnswer({ key, typed: sent, hints, course: P.course }, { supabase, user });
       if (missing) { store.missing = true; }
       store.record({ ...a, answeredAt: a.answeredAt || now, ticket, unsaved: !saved && !missing });
     } catch (e) {
@@ -599,7 +622,7 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
                         data-gap={i}
                         aria-label={`Blank ${i + 1}`}
                         autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
-                        lang="es"
+                        lang={P.lang}
                       />
                     )}
                   </Fragment>
@@ -620,7 +643,7 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
             )}
             {kind === "truth" && (
               <div style={S.truthRow}>
-                {[[true, "Verdadero"], [false, "Falso"]].map(([v, label]) => (
+                {[[true, P.truth.yes], [false, P.truth.no]].map(([v, label]) => (
                   <button
                     key={label}                    type="button"
                     data-truth={String(v)}
@@ -642,7 +665,7 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
                     placeholder="Your answer (⌘ Enter to check)"
                     onChange={(e) => setTyped(e.target.value)}
                     onKeyDown={onEnter}
-                    lang="es"
+                    lang={P.lang}
                     autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
                     aria-label="Your answer"
                   />
@@ -653,7 +676,7 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
                     onChange={(e) => setTyped(kind === "truth" ? { ...typed, text: e.target.value } : e.target.value)}
                     onKeyDown={onEnter}
                     autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
-                    lang="es"
+                    lang={P.lang}
                     aria-label="Your answer"
                   />
                 )}
@@ -724,7 +747,7 @@ function TypedLine({ text }) {
 function Marked({ item, answer, user, store }) {
   const kind = kindOf(item);
   const [why, setWhy] = useState(false);
-  const dispute = useAnswerDispute({ user, answer, onAccepted: (line, how) => store.accept(answer.key, line, how) });
+  const dispute = useAnswerDispute({ user, answer, course: P.course, onAccepted: (line, how) => store.accept(answer.key, line, how) });
   if (answer.pending) {
     return (
       <>

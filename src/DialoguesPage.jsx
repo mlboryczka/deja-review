@@ -1,4 +1,7 @@
-// The Dialogues module (Spanish, test app). Laura's advice: go over each
+// The Dialogues module (Spanish, test app; French too since 2026-11-25, owner:
+// "extend the spanish dialogue and exercises modules to french": the same
+// page, with its course's `pack`, src/data/exercises/<course>/dialoguesPack.js,
+// as on Exercises). Laura's advice: go over each
 // lesson's text several times, and a good way is to read the English and
 // translate it back into Spanish (owner, 2026-11-07: "it's a third module.
 // each dialogue from each lesson. let's do typing to start.").
@@ -29,10 +32,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, Fragment } from "react";
 import { supabase } from "./supabase";
 import { T } from "./theme";
-import { DIALOGUES, DIALOGUES_BY_ID, DIALOGUE_OF } from "./data/exercises/es/dialogues.js";
-import { DIALOGUE_GROUPS } from "./data/exercises/es/dialogueTitles.js";
 import { stageIds } from "./data/lessons/es/stages.js";
-import { itemKey, parseItemKey, isAnswered, markByKey, typedText, keyReason, hintText, hintLevels, markedNow, findItem, countsAsRight, acceptedNow, isAccepted } from "./lib/exerciseMarking.js";
+import { itemKey, parseItemKey, hintText, hintLevels, findItem, countsAsRight } from "./lib/exerciseMarking.js";
 import { markAnswer, loadAnswers, loadAccepted } from "./lib/exerciseApi.js";
 import { useAnswerDispute, acceptedLine } from "./useAnswerDispute";
 import { VerdictMark, VERDICT_INK, MARKED_STYLE as M } from "./VerdictMark";
@@ -44,9 +45,21 @@ import { localISODate } from "./lib/studyDay";
 // Outside React, as on Exercises, so a mark still on its way lands when it
 // comes back even if the page was left meanwhile. Every answer is held, not
 // only the latest, because a round is worked out from all of them.
+// The course on show: the pack the page was last drawn with, as on Exercises
+// (one course at a time; what the page holds is kept per course and user).
+let P = null;
+const isAnswered = (...a) => P.marking.isAnswered(...a);
+const markByKey = (...a) => P.marking.markByKey(...a);
+const typedText = (...a) => P.marking.typedText(...a);
+const keyReason = (...a) => P.marking.keyReason(...a);
+const markedNow = (...a) => P.marking.markedNow(...a);
+const acceptedNow = (...a) => P.marking.acceptedNow(...a);
+const isAccepted = (...a) => P.marking.isAccepted(...a);
+
 const stores = new Map();
 function storeFor(userId) {
-  if (!stores.has(userId)) {
+  const sid = `${P.course}:${userId}`;
+  if (!stores.has(sid)) {
     const s = { rows: {}, accepted: {}, problems: {}, loading: true, missing: false, error: null, listeners: new Set(), version: 0, started: false };
     s.emit = () => { s.version++; s.listeners.forEach((l) => l()); };
     // An answer given on this page carries a ticket: its mark replaces it.
@@ -82,9 +95,9 @@ function storeFor(userId) {
       s.problems = { ...s.problems, [key]: problem };
       s.emit();
     };
-    stores.set(userId, s);
+    stores.set(sid, s);
   }
-  return stores.get(userId);
+  return stores.get(sid);
 }
 function useRows(userId) {
   const s = storeFor(userId);
@@ -95,14 +108,15 @@ function useRows(userId) {
   useEffect(() => {
     if (s.started || !userId) return;
     s.started = true;
-    Promise.all([loadAnswers({ supabase, userId, dialogues: true }), loadAccepted({ supabase, userId }).catch(() => ({}))]).then(([{ answers, missing, error }, accepted]) => {
+    const course = P.course, byId = P.DIALOGUES_BY_ID;
+    Promise.all([loadAnswers({ supabase, userId, dialogues: true, course }), loadAccepted({ supabase, userId, course }).catch(() => ({}))]).then(([{ answers, missing, error }, accepted]) => {
       // Oldest first. One kept under an earlier rule shows the verdict the
       // key gives it now (markedNow), and one accepted since as Right.
       s.accepted = { ...accepted, ...s.accepted };
       const rows = {};
       for (const a of answers) {
         const k = parseItemKey(a.key);
-        if (k) (rows[k.lesson] ||= []).push({ ...acceptedNow(markedNow(findItem(DIALOGUES_BY_ID, a.key)?.item, a), s.accepted), index: k.index, keptVerdict: a.verdict });
+        if (k) (rows[k.lesson] ||= []).push({ ...acceptedNow(markedNow(findItem(byId, a.key)?.item, a), s.accepted), index: k.index, keptVerdict: a.verdict });
       }
       s.rows = rows;
       s.missing = missing;
@@ -166,9 +180,10 @@ function tutorDialogue(dialogue, tries, focus) {
 }
 
 // ── The page ─────────────────────────────────────────────────────────────
-export default function DialoguesPage({ user, view, setView, onNeedKey, onTutorContext, openChat, notes = null }) {
+export default function DialoguesPage({ pack, user, view, setView, onNeedKey, onTutorContext, openChat, notes = null }) {
+  P = pack;
   const store = useRows(user?.id);
-  const dialogue = view?.lesson ? DIALOGUE_OF[view.lesson] : null;
+  const dialogue = view?.lesson ? P.DIALOGUE_OF[view.lesson] || null : null;
   const scrollRef = useRef(null);
   useEffect(() => { scrollRef.current?.scrollTo?.(0, 0); }, [view?.lesson]);
   // On the list of lessons no text is on screen.
@@ -179,7 +194,7 @@ export default function DialoguesPage({ user, view, setView, onNeedKey, onTutorC
       <div style={S.page}>
         {store.missing && (
           <p style={S.notice} data-dialogues-missing>
-            Your answers are marked but not kept yet: the database needs one update. Run migration_022_spanish_exercises.sql in Supabase, then reload.
+            Your answers are marked but not kept yet: the database needs one update. Run {P.migration} in Supabase, then reload.
           </p>
         )}
         {store.error && <p style={S.notice}>{store.error}</p>}
@@ -208,7 +223,7 @@ export default function DialoguesPage({ user, view, setView, onNeedKey, onTutorC
 // Under the course's four stages, as on Exercises and on the Lessons page.
 function DialogueList({ store, onPick }) {
   const today = localISODate();
-  const status = useMemo(() => Object.fromEntries(DIALOGUES.map((d) => [
+  const status = useMemo(() => Object.fromEntries(P.DIALOGUES.map((d) => [
     d.lesson,
     dialogueStatus(d.items.length, store.rows[d.id] || NO_ROWS, today),
   ])), [store.rows, today]);
@@ -239,9 +254,9 @@ function DialogueList({ store, onPick }) {
     <>
       <h1 style={S.h1}>Dialogues</h1>
       <p style={S.intro}>
-        Each lesson’s dialogue in English, to type back into Spanish one sentence at a time.
+        Each lesson’s dialogue in English, to type back into {P.language} one sentence at a time.
       </p>
-      {DIALOGUE_GROUPS.map((stage) => {
+      {P.DIALOGUE_GROUPS.map((stage) => {
         const closed = closedStages.has(stage.title);
         return (
           <Fragment key={stage.title}>
@@ -251,7 +266,7 @@ function DialogueList({ store, onPick }) {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
               </span>
             </button>
-            {!closed && stageIds(stage).map((id) => row(DIALOGUE_OF[id]))}
+            {!closed && stageIds(stage).map((id) => row(P.DIALOGUE_OF[id]))}
           </Fragment>
         );
       })}
@@ -330,7 +345,7 @@ function OneDialogue({ user, dialogue, store, scrollRef, onBack, onNeedKey, onTu
         <span data-dialogue-count>
           {`${count} sentences${tries.size ? ` · ${tries.size} done` : ""}`}
         </span>
-        <button type="button" style={reading ? { ...S.textBtn, ...S.textBtnOn } : S.textBtn} onClick={() => setReading((v) => !v)} aria-expanded={reading} title="The Spanish and the English, side by side" data-dialogue-read-btn>
+        <button type="button" style={reading ? { ...S.textBtn, ...S.textBtnOn } : S.textBtn} onClick={() => setReading((v) => !v)} aria-expanded={reading} title={`The ${P.language} and the English, side by side`} data-dialogue-read-btn>
           Read it
         </button>
         {notes && (
@@ -410,23 +425,23 @@ function OneDialogue({ user, dialogue, store, scrollRef, onBack, onNeedKey, onTu
 function ReadIt({ dialogue }) {
   return (
     <div style={S.read} data-dialogue-read>
-      {dialogue.headingEs && (
+      {dialogue[P.headingKey] && (
         <div style={S.readRow}>
-          <div style={S.readTitle} lang="es">{dialogue.headingEs}</div>
+          <div style={S.readTitle} lang={P.lang}>{dialogue[P.headingKey]}</div>
           <div style={S.readTitle}>{dialogue.heading}</div>
         </div>
       )}
       {dialogue.lines.map((line, i) => {
         const style = line.kind === "scene" ? S.readScene : line.kind === "question" ? S.readQuestion : S.readLine;
         const side = (who, key) => (
-          <div style={style} {...(key === "es" ? { lang: "es" } : null)}>
+          <div style={style} {...(key === P.side ? { lang: P.lang } : null)}>
             {who && <b style={S.readWho}>{who}</b>}{who && " "}
             {line.sentences.map((s) => s[key]).join(" ")}
           </div>
         );
         return (
           <div key={i} style={S.readRow}>
-            {side(line.whoEs, "es")}
+            {side(line[P.whoKey], P.side)}
             {side(line.who, "en")}
           </div>
         );
@@ -512,7 +527,7 @@ function SentenceBox({ item, itemKeyValue: key, user, store, onNeedKey }) {
     drafts.delete(draftKey);
     hintsKept.delete(draftKey);
     try {
-      const { answer: a, saved, missing } = await markAnswer({ key, typed: line, hints: hintSent }, { supabase, user });
+      const { answer: a, saved, missing } = await markAnswer({ key, typed: line, hints: hintSent, course: P.course }, { supabase, user });
       if (missing) store.missing = true;
       store.record({ ...a, index, answeredAt: a.answeredAt || now, ticket, unsaved: !saved && !missing });
     } catch (e) {
@@ -544,12 +559,12 @@ function SentenceBox({ item, itemKeyValue: key, user, store, onNeedKey }) {
           style={S.textarea}
           rows={1}
           value={typed}
-          placeholder="In Spanish"
+          placeholder={`In ${P.language}`}
           onChange={(e) => setTyped(e.target.value)}
           onKeyDown={onKeyDown}
-          lang="es"
+          lang={P.lang}
           autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
-          aria-label="Your answer, in Spanish"
+          aria-label={`Your answer, in ${P.language}`}
           data-dialogue-box
         />
         <button
@@ -603,11 +618,11 @@ function SentenceBox({ item, itemKeyValue: key, user, store, onNeedKey }) {
 // nothing under it, however it was worded.
 function Marked({ item, answer, user, store }) {
   const [why, setWhy] = useState(false);
-  const dispute = useAnswerDispute({ user, answer, onAccepted: (line, how) => store.accept(answer.key, line, how) });
+  const dispute = useAnswerDispute({ user, answer, course: P.course, onAccepted: (line, how) => store.accept(answer.key, line, how) });
   if (answer.pending) {
     return (
       <>
-        <div style={S.mine} lang="es">{answer.typed}</div>
+        <div style={S.mine} lang={P.lang}>{answer.typed}</div>
         <div style={S.checking} data-dialogue-checking>Claude is checking this answer…</div>
       </>
     );
@@ -619,8 +634,8 @@ function Marked({ item, answer, user, store }) {
   const reviewing = dispute.state?.step === "reviewing";
   return (
     <>
-      <div style={{ ...M.answer, color: VERDICT_INK[v] }} lang="es" data-dialogue-typed data-dialogue-verdict={v}><VerdictMark verdict={v} /><span>{answer.typed}</span></div>
-      {v !== "right" && <div style={M.correct} lang="es" data-dialogue-correct>{item.answer}</div>}
+      <div style={{ ...M.answer, color: VERDICT_INK[v] }} lang={P.lang} data-dialogue-typed data-dialogue-verdict={v}><VerdictMark verdict={v} /><span>{answer.typed}</span></div>
+      {v !== "right" && <div style={M.correct} lang={P.lang} data-dialogue-correct>{item.answer}</div>}
       {(showWhy || showDispute || reviewing) && (
         <div style={M.links}>
           {showWhy && <button type="button" style={S.link} onClick={() => setWhy(true)} data-dialogue-why>Why?</button>}

@@ -1,0 +1,140 @@
+// Leçon 3 · Avoir — the written exercises of "EXERCICES - Leçon 3", for the
+// Exercises page. Her CORRECTION gives every answer; the also lists are ours.
+// Left out: ex. 2, 3 (yes in a full sentence), ex. 8 (questions about the
+// dialogue, answered in a sentence of your own), ex. 9 (dictation) and
+// ex. 10, 11 (oral: they need her audio).
+// Ex. 7 (true or false): her key writes "C'est vrai, …" and "C'est faux, …";
+// here each answer is "Vrai." or "Faux." and her sentence.
+// Typos corrected: ex. 6 no. 3, her sheet has "the sale assistant"; ex. 7
+// nos. 3 and 7, her sheet has "la soeur de Élise".
+
+export default {
+  id: "lecon3",
+  exercises: [
+    {
+      n: 1,
+      title: "Conjugaison",
+      instruction: "Compléter avec le verbe AVOIR conjugué au présent.",
+      english: "Fill each gap with the right present-tense form of avoir (to have).",
+      items: [
+        { prompt: "J'___ un livre sur la Révolution Française.", gaps: [["ai"]] },
+        { prompt: "Vous ___ quelque chose sur Paris ?", gaps: [["avez"]] },
+        { prompt: "Il ___ des écouteurs sans fil.", gaps: [["a"]] },
+        { prompt: "Ils ___ une idée.", gaps: [["ont"]] },
+        { prompt: "Ma sœur ___ 7 ans.", gaps: [["a"]] },
+        { prompt: "Nous ___ un livre sur la Tour Eiffel.", gaps: [["avons"]] },
+        { prompt: "Mes enfants ___ un nouveau livre.", gaps: [["ont"]] },
+        { prompt: "J'___ des enfants.", gaps: [["ai"]] },
+        { prompt: "Élise ___ un cadeau à faire.", gaps: [["a"]] },
+        { prompt: "James et Jessica ___ deux enfants.", gaps: [["ont"]] },
+        { prompt: "Ils ___ 8 et 10 ans.", gaps: [["ont"]] },
+      ],
+    },
+    {
+      n: 4,
+      title: "Traduction",
+      instruction: "Comment on dit …. en français ?",
+      english: "Say each word or phrase in French.",
+      items: [
+        { prompt: "there", answer: "là-bas", also: ["là"] },
+        { prompt: "a gift", answer: "un cadeau" },
+        { prompt: "the history", answer: "l'histoire" },
+        { prompt: "to take", answer: "prendre" },
+        { prompt: "new (masc)", answer: "nouveau" },
+        { prompt: "a book", answer: "un livre" },
+        { prompt: "sure", answer: "bien sûr" },
+        { prompt: "a sister", answer: "une sœur" },
+        { prompt: "also", answer: "aussi" },
+        { prompt: "both books", answer: "les deux livres" },
+        { prompt: "without", answer: "sans" },
+        { prompt: "beautiful (masc)", answer: "beau" },
+        { prompt: "something", answer: "quelque chose" },
+        { prompt: "my father", answer: "mon père" },
+        { prompt: "a table", answer: "une table" },
+        { prompt: "the city", answer: "la ville" },
+        { prompt: "on the second floor", answer: "au deuxième étage" },
+        { prompt: "an idea", answer: "une idée" },
+        { prompt: "discounts", answer: "des promotions", also: ["les promotions"] },
+        { prompt: "wireless", answer: "sans fil" },
+        { prompt: "Have a nice day!", answer: "Bonne journée !" },
+      ],
+    },
+    {
+      n: 5,
+      title: "Traduction niveau 1",
+      instruction: "Traduire les phrases suivantes en français.",
+      english: "Translate these sentences into French.",
+      items: [
+        { prompt: "I have a book about the city of Paris.", answer: "J'ai un livre sur la ville de Paris." },
+        { prompt: "Do you guys have children?", answer: "Vous avez des enfants ?", also: ["Est-ce que vous avez des enfants ?"] },
+        { prompt: "I have an idea!", answer: "J'ai une idée !" },
+        { prompt: "My sister is 17 years old.", answer: "Ma sœur a 17 ans.", also: ["Ma sœur a dix-sept ans."] },
+        { prompt: "Yes sure we have wireless earphones.", answer: "Oui bien sûr, nous avons des écouteurs sans fil." },
+        { prompt: "We have something about the Eiffel Tower.", answer: "Nous avons quelque chose sur la Tour Eiffel." },
+        { prompt: "I also have a gift to give for my father.", answer: "J'ai aussi un cadeau à faire à mon père.",
+          also: ["J'ai aussi un cadeau pour mon père."] },
+        { prompt: "They have promotions on the earphones.", answer: "Ils ont des promotions sur les écouteurs.",
+          also: ["Elles ont des promotions sur les écouteurs."] },
+        { prompt: "Jessica has a new book.", answer: "Jessica a un nouveau livre." },
+        { prompt: "My children are 4 and 6 years old.", answer: "Mes enfants ont 4 et 6 ans.", also: ["Mes enfants ont quatre et six ans."] },
+        { prompt: "My sister has an idea.", answer: "Ma sœur a une idée." },
+        { prompt: "I'm going to take the book and the earphones.", answer: "Je vais prendre le livre et les écouteurs." },
+      ],
+    },
+    {
+      n: 6,
+      title: "Traduction niveau 2",
+      instruction: "Traduire les phrases suivantes en français.",
+      english: "Translate these sentences into French.",
+      items: [
+        { prompt: "What do you have about Paris?", answer: "Qu'est-ce que vous avez sur Paris ?", also: ["Qu'est-ce que tu as sur Paris ?"] },
+        { prompt: "How is your sister doing?", answer: "Comment va ta sœur ?" },
+        // her sheet has "the sale assistant"
+        { prompt: "I think that the sales assistant is here.", answer: "Je pense que le vendeur est ici.",
+          also: ["Je pense que la vendeuse est ici."] },
+        // her key: "Je suis français(e) mais j'habite à New York depuis 8 ans."
+        { prompt: "I am French but I've been living in New York for 8 years.", answer: "Je suis français mais j'habite à New York depuis 8 ans.",
+          also: ["Je suis française mais j'habite à New York depuis 8 ans.", "Je suis français mais j'habite à New York depuis huit ans.",
+            "Je suis française mais j'habite à New York depuis huit ans."] },
+        { prompt: "Why are you guys tired?", answer: "Pourquoi vous êtes fatigués ?",
+          also: ["Pourquoi vous êtes fatiguées ?", "Pourquoi est-ce que vous êtes fatigués ?"] },
+        { prompt: "I think that Élise is going to the bookstore.", answer: "Je pense qu'Élise va à la librairie." },
+        { prompt: "My sister's name is Élise.", answer: "Le nom de ma sœur est Élise.", also: ["Ma sœur s'appelle Élise."] },
+        { prompt: "Actually, they've been together for 6 months.", answer: "En fait, ils sont ensemble depuis 6 mois.",
+          also: ["En fait, ils sont ensemble depuis six mois.", "En fait, elles sont ensemble depuis 6 mois."] },
+        { prompt: "We are going to have dinner there.", answer: "Nous allons dîner là-bas." },
+        { prompt: "I think that they have promotions on the earphones.", answer: "Je pense qu'ils ont des promotions sur les écouteurs.",
+          also: ["Je pense qu'elles ont des promotions sur les écouteurs."] },
+        { prompt: "After the beach, I'm going to have dinner at the restaurant.", answer: "Après la plage, je vais dîner au restaurant." },
+        { prompt: "What are you guys going to do?", answer: "Qu'est-ce que vous allez faire ?" },
+        { prompt: "The earphones are on the table over there.", answer: "Les écouteurs sont sur la table là-bas." },
+        { prompt: "She is 5 years old.", answer: "Elle a 5 ans.", also: ["Elle a cinq ans."] },
+        { prompt: "The kids are going to take the books.", answer: "Les enfants vont prendre les livres." },
+      ],
+    },
+    {
+      n: 7,
+      title: "Compréhension écrite",
+      instruction: "Dire si c'est VRAI ou FAUX et faire une phrase pour confirmer ou corriger.",
+      english: "Say whether each sentence about the dialogue is true or false, and write a sentence that confirms or corrects it.",
+      items: [
+        { prompt: "Élise a un cadeau à faire à son père.", truth: true,
+          answer: "Vrai. Elle a un cadeau à faire à son père.", also: ["Vrai. Élise a un cadeau à faire à son père."] },
+        { prompt: "Élise est à la librairie.", truth: true,
+          answer: "Vrai. Elle est à la librairie.", also: ["Vrai. Élise est à la librairie."] },
+        // her sheet has "La soeur de Élise"
+        { prompt: "La soeur d'Élise a 9 ans.", truth: false,
+          answer: "Faux. Elle a 17 ans.", also: ["Faux. La sœur d'Élise a 17 ans."] },
+        { prompt: "Les livres sont en promotion.", truth: false,
+          answer: "Faux. Les écouteurs sont en promotion." },
+        { prompt: "Les écouteurs sont au premier étage.", truth: false,
+          answer: "Faux. Les écouteurs sont au deuxième étage.", also: ["Faux. Ils sont au deuxième étage."] },
+        { prompt: "Élise va prendre le livre et les écouteurs.", truth: true,
+          answer: "Vrai. Elle va prendre les livres et les écouteurs.", also: ["Vrai. Élise va prendre les deux livres et les écouteurs."] },
+        // her sheet has "la soeur de Élise"
+        { prompt: "Le vendeur a une idée pour le cadeau de la soeur d'Élise.", truth: true,
+          answer: "Vrai. Il a une idée pour le cadeau." },
+      ],
+    },
+  ],
+};

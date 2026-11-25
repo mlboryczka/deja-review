@@ -75,7 +75,7 @@ export function bare(s) {
 // instruction names the text, or an item is true-or-false or free writing.
 // (Marking and the tutor used to use two tests and agreed on only 7 of 14.)
 export function aboutTheText(exercise) {
-  if (/comprensi|diálogo|dialogo|texto|lección|leccion/i.test(`${exercise?.title} ${exercise?.instruction}`)) return true;
+  if (/comprensi|compréhension|comprehension|diálogo|dialogo|dialogue|texto|texte|lección|leccion|leçon|lecon/i.test(`${exercise?.title} ${exercise?.instruction}`)) return true;
   return (exercise?.items || []).some((it) => {
     const k = kindOf(it);
     return k === "truth" || k === "open";
@@ -100,24 +100,315 @@ export function kindOf(item) {
 // The key's right answers for one box.
 const answersOf = (item) => [item?.answer, ...(Array.isArray(item?.also) ? item.also : [])].filter((a) => typeof a === "string" && a.trim());
 
-// The words of a typed text off only in an accent that counts, as [typed,
-// right] pairs, against a right answer it matches accents aside. Both are
-// plain(), and accents don't move words, so they line up word for word.
-function countingSlips(t, a) {
-  const want = a.split(" ");
-  return t.split(" ").map((w, i) => [w, want[i]]).filter(([w, r]) => w !== r && accentSlip(w, r));
+// ── The marking itself, for one language ───────────────────────────────
+// Everything below that differs by language comes from `rules` (2026-11-25,
+// French Exercises and Dialogues, owner: "extend the spanish dialogue and
+// exercises modules to french"):
+//   accentSlip(typed, right)  whether an accent slip on a word of the right
+//                             answer makes the answer wrong
+//   verbForms                 for each answer word that is a verb form, the
+//                             other forms of its verb one letter away
+//   wordFamily                words that are one word in another gender or
+//                             number (a Map of word to family number)
+//   genderEnding(a, b)        whether two words differ only in an ending that
+//                             says who is meant, which only Claude can judge
+//   eitherGender              a noun either gender can be, so its article
+//                             is Claude's to judge
+//   truth                     { yes, no }: the words a true-or-false answer
+//                             starts with
+//   nothing                   what a dash alone in a blank stands for, or null
+//   accentChanges             what an accent that counts changes, for "Why?"
+// The Spanish rules are below; src/lib/frenchMarking.js has the French ones.
+export function makeMarking(rules) {
+  // The words of a typed text off only in an accent that counts, as [typed,
+  // right] pairs, against a right answer it matches accents aside. Both are
+  // plain(), and accents don't move words, so they line up word for word.
+  function countingSlips(t, a) {
+    const want = a.split(" ");
+    return t.split(" ").map((w, i) => [w, want[i]]).filter(([w, r]) => w !== r && accentSlip(w, r));
+  }
+
+  // One wrong, missing, extra or swapped letter between two different words.
+  function oneLetterOff(a, b) {
+    const [s, l] = a.length <= b.length ? [a, b] : [b, a];
+    if (a === b || l.length - s.length > 1) return false;
+    let i = 0;
+    while (i < s.length && s[i] === l[i]) i++;
+    if (s.length < l.length) return s.slice(i) === l.slice(i + 1);
+    return s.slice(i + 1) === l.slice(i + 1) || (s[i] === l[i + 1] && s[i + 1] === l[i] && s.slice(i + 2) === l.slice(i + 2));
+  }
+
+  // The language's own word lists (its rules, below the factory).
+  const { wordFamily: WORD_FAMILY, genderEnding, eitherGender: EITHER_GENDER, verbForms: VERB_FORMS, accentSlip } = rules;
+
+  // What a typed word is against the key's word (both plain()): "slip", a word
+  // that isn't a verb off by a letter or an article of the wrong gender
+  // (Almost); "form", another real form of the key's verb, even one letter off
+  // (Wrong: "pones" for "pone"); "verb", a verb off by a letter that makes no
+  // real form, a typo ("caminaro") or a made-up form ("fuemos"), which only
+  // Claude can tell apart; or null, another word. A word of one to three letters
+  // off by a letter isn't for the key to say: "se" for "te" is another word.
+  function slipKind(typed, want, after) {
+    const [t, w] = [bare(typed), bare(want)];
+    const family = WORD_FAMILY.get(want);
+    if (family !== undefined && WORD_FAMILY.get(t) === family) return EITHER_GENDER.test(bare(after)) ? null : "slip";
+    const forms = Object.hasOwn(VERB_FORMS, w) ? VERB_FORMS[w] : null;
+    if (forms?.includes(t)) return "form";
+    if (Math.min(t.length, w.length) < 4 || !oneLetterOff(t, w) || genderEnding(t, w)) return null;
+    return forms ? "verb" : "slip";
+  }
+
+  // A typed text against one right answer (both plain()), word by word, or null
+  // when anything else differs: a different word, or one left out or added.
+  // What differs, each as the places of its words in the two ({ t: [..], a:
+  // [..] }): `slips` (Almost), `forms` (another form of a verb, Wrong; `accent`
+  // when an accent that changes the tense makes it, "llego" for "llegó") and
+  // `verbs` (Claude's to judge).
+  function slipsAgainst(typed, answer) {
+    const [t, a] = [typed.split(" "), answer.split(" ")];
+    const found = { slips: [], forms: [], verbs: [] };
+    let i = 0, j = 0;
+    while (i < t.length && j < a.length) {
+      const [x, y] = [bare(t[i]), bare(a[j])];
+      if (x === y) {
+        if (t[i] !== a[j] && accentSlip(t[i], a[j])) found.forms.push({ t: [i], a: [j], accent: true });
+        i++; j++;
+        continue;
+      }
+      const kind = slipKind(t[i], a[j], a[j + 1]);
+      if (kind) {
+        found[kind === "form" ? "forms" : kind === "verb" ? "verbs" : "slips"].push({ t: [i], a: [j] });
+        i++; j++;
+      } else if (i + 1 < t.length && x + bare(t[i + 1]) === y) {
+        found.slips.push({ t: [i, i + 1], a: [j] });
+        i += 2; j++;
+      } else if (j + 1 < a.length && x === y + bare(a[j + 1])) {
+        found.slips.push({ t: [i], a: [j, j + 1] });
+        i++; j += 2;
+      } else {
+        return null;
+      }
+    }
+    return i === t.length && j === a.length ? found : null;
+  }
+
+  // One typed text against a list of right answers: { mark: "right" }, { mark:
+  // "accents", answer } (only an accent that changes the tense is off: Wrong),
+  // { mark: "slips", answer, slips } (Almost), { mark: "forms", answer, forms,
+  // slips } (another form of a verb: Wrong), or null. The answer it comes
+  // closest to: one it matches with only slips, else one that only Claude can
+  // judge (null), else one it matches but for another form of a verb. Free
+  // writing has only an example to go by, so `slips` is off for it: "Mi hermano
+  // es alto" for an example "Mi hermana es alta" is as good a sentence.
+  function against(typed, answers, { slips = true } = {}) {
+    const t = plain(typed);
+    if (!t) return null;
+    if (answers.some((a) => plain(a) === t)) return { mark: "right" };
+    const b = bare(typed);
+    const near = answers.filter((a) => bare(a) === b);
+    if (near.length) return near.some((a) => !countingSlips(t, plain(a)).length) ? { mark: "right" } : { mark: "accents", answer: near[0] };
+    if (!slips) return null;
+    let best = null, wrong = null, unsure = false;
+    for (const answer of answers) {
+      const found = slipsAgainst(t, plain(answer));
+      if (!found) continue;
+      if (found.forms.length) {
+        if (!wrong || found.forms.length + found.slips.length < wrong.forms.length + wrong.slips.length) wrong = { mark: "forms", answer, forms: found.forms, slips: found.slips };
+      } else if (found.verbs.length) unsure = true;
+      else if (!best || found.slips.length < best.slips.length) best = { mark: "slips", answer, slips: found.slips };
+    }
+    return best || (unsure ? null : wrong);
+  }
+
+  // A true-or-false answer's sentence, with or without the "Verdadero." or
+  // "Falso." the key's answers start with.
+  const TRUTH_START = new RegExp(`^\\s*(${rules.truth.yes}|${rules.truth.no})\\s*[.,:;!]?\\s*`, "i");
+  const YES_START = new RegExp(`^\\s*${rules.truth.yes}\\b`, "i");
+  const NO_START = new RegExp(`^\\s*${rules.truth.no}\\b`, "i");
+  const truthSentence = (s) => String(s ?? "").replace(TRUTH_START, "");
+
+  // What the student typed for an item, in the shape its kind takes:
+  //   gaps    ["soy", "…"]  one per blank
+  //   truth   { truth: true|false, text: "…" }
+  //   other   "…"
+  // Whether it is complete enough to mark.
+  // A dash alone in a blank is "nada" (code check 2026-11-07, no. 40): the keys
+  // list "—" and "-" for it, and plain() would set it aside as punctuation.
+  const gapText = (t) => (rules.nothing && /^\s*[-–—]+\s*$/.test(String(t ?? "")) ? rules.nothing : t);
+  function isAnswered(item, typed) {
+    const kind = kindOf(item);
+    if (kind === "gaps") return Array.isArray(typed) && typed.length === item.gaps.length && typed.every((t) => plain(gapText(t)));
+    if (kind === "truth") return typeof typed?.truth === "boolean" && !!plain(typed?.text);
+    return !!plain(typed);
+  }
+
+  // The key's verdict: { verdict: "right" }, { verdict: "almost", slips: true },
+  // { verdict: "wrong", form: true } (another form of a verb, or an accent that
+  // makes one), { verdict: "wrong", truth: true } (pressed the wrong way), or
+  // null when Claude has to decide. A miss in one box says which of the key's
+  // answers it comes closest to (`correct`).
+  const isForm = (v) => v?.mark === "forms" || v?.mark === "accents";
+  const verdictOf = (found) =>
+    found.some(isForm) ? { verdict: "wrong", form: true }
+      : found.some((f) => f.mark === "slips") ? { verdict: "almost", slips: true }
+      : { verdict: "right" };
+
+  function markByKey(item, typed) {
+    if (!isAnswered(item, typed)) return null;
+    const kind = kindOf(item);
+    if (kind === "gaps") {
+      const each = item.gaps.map((list, i) => against(gapText(typed[i]), list));
+      // Another form of a verb in one blank is Wrong, whatever the others are.
+      if (each.some(isForm)) return verdictOf(each.filter(Boolean));
+      if (each.some((v) => v === null)) return null;
+      return verdictOf(each);
+    }
+    if (kind === "truth") {
+      if (typed.truth !== item.truth) return { verdict: "wrong", truth: true };
+      const v = against(truthSentence(typed.text), answersOf(item).map(truthSentence));
+      if (!v) return null;
+      if (v.mark === "right") return { verdict: "right" };
+      // The key's own answer it comes closest to, with its Verdadero. or Falso.,
+      // so the correction shown is the student's sentence put right (no. 39).
+      const correct = v.answer === undefined ? undefined : answersOf(item).find((a) => truthSentence(a) === v.answer);
+      return { ...verdictOf([v]), ...(correct ? { correct } : {}) };
+    }
+    // Free writing matches only its own example word for word: anything else
+    // is Claude's to judge.
+    const v = against(typed, answersOf(item), { slips: kind !== "open" });
+    return !v ? null : v.mark === "right" ? { verdict: "right" } : { ...verdictOf([v]), correct: v.answer };
+  }
+
+  // The typed answer as one line, for the log and for Claude: the blanks filled
+  // into the sentence, or "Verdadero. …".
+  function typedText(item, typed) {
+    const kind = kindOf(item);
+    if (kind === "gaps") {
+      let i = 0;
+      return String(item.prompt || "").replace(/___/g, () => `[${String(typed?.[i++] ?? "").trim()}]`);
+    }
+    if (kind === "truth") return `${typed?.truth ? rules.truth.yes : rules.truth.no}. ${truthSentence(typed?.text).trim()}`;
+    return String(typed ?? "").trim();
+  }
+
+  // The key's answer to show after marking: the sentence with its blanks
+  // filled, or the model answer.
+  function keyAnswer(item) {
+    if (kindOf(item) === "gaps") {
+      let i = 0;
+      return String(item.prompt || "").replace(/___/g, () => item.gaps[i++]?.[0] ?? "___");
+    }
+    return String(item?.answer ?? "");
+  }
+
+  // Why the key marked an answer a miss, for "Why?" under it (owner,
+  // 2026-10-26: "there should also be a "why was my answer wrong" option").
+  // A miss Claude marked carries Claude's own sentence (its note); the key's
+  // misses are an answer right but for its slips, an accent that changes a
+  // verb's tense among them, and a true-or-false pressed the wrong way. `line`
+  // is the answer as kept (typedText). "" when the key has nothing to say.
+  function keyReason(item, line) {
+    const kind = kindOf(item);
+    const text = String(line ?? "");
+    if (kind === "truth") {
+      const chose = YES_START.test(text) ? true : NO_START.test(text) ? false : null;
+      if (chose !== null && chose !== item.truth) {
+        return item.truth ? `The statement is true, so the answer is ${rules.truth.yes}.` : `The statement is false, so the answer is ${rules.truth.no}.`;
+      }
+    }
+    // Word by word against the key's answer it comes closest to: another form of
+    // a verb, an accent that changes the tense, and every slip. They are quoted
+    // as written ("Habló", not "habló").
+    const forms = [], accents = [], slipPairs = [];
+    const written = (s) => String(s ?? "").normalize("NFC")
+      .replace(/(^|[^\p{L}])([ap])\.\s?[mM]\.?(?!\p{L})/gu, "$1$2m")
+      .replace(/[¿¡?!.,;:"“”«»()\[\]…–—\-/|]+/g, " ").trim().split(/\s+/);
+    const name = (typed, answers) => {
+      const found = against(typed, answers, { slips: kind !== "open" });
+      if (!found?.answer) return;
+      const [want, got] = [plain(found.answer).split(" "), plain(typed).split(" ")];
+      const [wantAs, typedAs] = [written(found.answer), written(typed)];
+      const pair = ({ t, a }) => `"${a.map((j) => wantAs[j] ?? want[j]).join(" ")}", not "${t.map((i) => typedAs[i] ?? got[i]).join(" ")}"`;
+      if (found.mark === "accents") {
+        got.forEach((w, i) => { if (w !== want[i] && accentSlip(w, want[i])) accents.push(pair({ t: [i], a: [i] })); });
+        return;
+      }
+      for (const f of found.forms || []) (f.accent ? accents : forms).push(pair(f));
+      for (const s of found.slips || []) slipPairs.push(pair(s));
+    };
+    if (kind === "gaps") {
+      // The blanks as typed, out of "Yo [esta] aquí." ([[…]] is the sheet's
+      // underlining).
+      const typed = [...text.matchAll(/\[\[[^\]]*\]\]|\[([^\]]*)\]/g)].filter((m) => m[1] !== undefined).map((m) => m[1]);
+      item.gaps.forEach((list, i) => name(typed[i] ?? "", list));
+    } else if (kind === "truth") {
+      name(truthSentence(text), answersOf(item).map(truthSentence));
+    } else {
+      name(text, answersOf(item));
+    }
+    const wrongs = [
+      forms.length && `${forms.length > 1 ? "Other forms of the verb" : "Another form of the verb"}: ${forms.join("; ")}.`,
+      accents.length && `${accents.length > 1 ? `The accents change the ${rules.accentChanges}` : `The accent changes the ${rules.accentChanges}`}: ${accents.join("; ")}.`,
+    ].filter(Boolean);
+    if (wrongs.length) return [...wrongs, slipPairs.length && `Also ${slipPairs.length > 1 ? `${slipPairs.length} slips` : "a slip"}: ${slipPairs.join("; ")}.`].filter(Boolean).join(" ");
+    if (slipPairs.length) return `Right but for ${slipPairs.length > 1 ? `${slipPairs.length} words` : "one word"}: ${slipPairs.join("; ")}.`;
+    return "";
+  }
+
+  // The typed answer back out of the line it was kept as (typedText's), or
+  // null when it can't be read back.
+  function typedFromLine(item, line) {
+    const kind = kindOf(item);
+    const text = String(line ?? "");
+    if (kind === "gaps") {
+      const typed = [...text.matchAll(/\[\[[^\]]*\]\]|\[([^\]]*)\]/g)].filter((m) => m[1] !== undefined).map((m) => m[1]);
+      return typed.length === item.gaps.length ? typed : null;
+    }
+    if (kind === "truth") {
+      const truth = YES_START.test(text) ? true : NO_START.test(text) ? false : null;
+      return truth === null ? null : { truth, text: truthSentence(text) };
+    }
+    return text;
+  }
+
+  // An answer kept under an earlier rule, shown with the verdict the key gives it
+  // now. The key's Almost while every accent still counted (before 2026-10-26):
+  // "Hoy don Rafael esta de mal humor" was Almost and is Right. A Wrong before
+  // slips were Almost (2026-11-07): "la despertador" was Wrong and is Almost; or
+  // before the key took the answer: "veo" for "I see." was Wrong and is Right. An
+  // Almost, whoever marked it, before another form of a verb was Wrong
+  // (2026-11-16): "pones" for "pone" and "se vistan" were Almost and are Wrong. An
+  // Almost the key can't settle now (a verb a letter off, only Claude's to
+  // judge) keeps its verdict. The row kept stays as it was.
+  function markedNow(item, answer) {
+    const v = answer?.verdict;
+    if (!item || !(v === "almost" || v === "wrong")) return answer;
+    const typed = typedFromLine(item, answer.typed);
+    const now = typed === null ? null : markByKey(item, typed)?.verdict;
+    if (v === "almost") {
+      if (now === "wrong") return { ...answer, verdict: "wrong" };
+      return answer.markedBy === "key" && now === "right" ? { ...answer, verdict: "right" } : answer;
+    }
+    return now === "almost" || now === "right" ? { ...answer, verdict: now } : answer;
+  }
+
+  // An answer the student had accepted with "My answer should be accepted"
+  // (es_exercise_disputes) shows as Right. `accepted` is { [item key]: Set of
+  // lines as kept }, as exerciseApi's loadAccepted gives it. The row kept stays
+  // as it was.
+  function acceptedNow(answer, accepted) {
+    if (!answer || answer.pending || answer.verdict === "right") return answer;
+    return isAccepted(accepted, answer.key, answer.typed) ? { ...answer, verdict: "right", accepted: true } : answer;
+  }
+  // Whether a line is one the student had accepted: the same words, compared as
+  // the key's own answers are (accents aside, but for one that changes a verb's
+  // tense).
+  const matchesAccepted = (lines, line) => !!lines?.length && against(line, lines, { slips: false })?.mark === "right";
+  const isAccepted = (accepted, key, line) => matchesAccepted([...(accepted?.[key] || [])], line);
+  return { isAnswered, markByKey, typedText, keyAnswer, keyReason, markedNow, acceptedNow, matchesAccepted, isAccepted, truthSentence };
 }
 
-// One wrong, missing, extra or swapped letter between two different words.
-function oneLetterOff(a, b) {
-  const [s, l] = a.length <= b.length ? [a, b] : [b, a];
-  if (a === b || l.length - s.length > 1) return false;
-  let i = 0;
-  while (i < s.length && s[i] === l[i]) i++;
-  if (s.length < l.length) return s.slice(i) === l.slice(i + 1);
-  return s.slice(i + 1) === l.slice(i + 1) || (s[i] === l[i + 1] && s[i + 1] === l[i] && s.slice(i + 2) === l.slice(i + 2));
-}
-
+// ── Spanish ──────────────────────────────────────────────────────────────
 // Words that are one word in another gender or number: "la" where the key has
 // "el", "este" where it has "estos". (The key's "está" and "él" aren't here.)
 const WORD_FAMILY = new Map(
@@ -131,267 +422,18 @@ const WORD_FAMILY = new Map(
 const genderEnding = (a, b) => a.replace(/(ora|or|o|a)(s?)$/, "$2") === b.replace(/(ora|or|o|a)(s?)$/, "$2");
 const EITHER_GENDER = /(ista|nte)s?$/;
 
-// What a typed word is against the key's word (both plain()): "slip", a word
-// that isn't a verb off by a letter or an article of the wrong gender
-// (Almost); "form", another real form of the key's verb, even one letter off
-// (Wrong: "pones" for "pone"); "verb", a verb off by a letter that makes no
-// real form, a typo ("caminaro") or a made-up form ("fuemos"), which only
-// Claude can tell apart; or null, another word. A word of one to three letters
-// off by a letter isn't for the key to say: "se" for "te" is another word.
-function slipKind(typed, want, after) {
-  const [t, w] = [bare(typed), bare(want)];
-  const family = WORD_FAMILY.get(want);
-  if (family !== undefined && WORD_FAMILY.get(t) === family) return EITHER_GENDER.test(bare(after)) ? null : "slip";
-  const forms = Object.hasOwn(VERB_FORMS, w) ? VERB_FORMS[w] : null;
-  if (forms?.includes(t)) return "form";
-  if (Math.min(t.length, w.length) < 4 || !oneLetterOff(t, w) || genderEnding(t, w)) return null;
-  return forms ? "verb" : "slip";
-}
-
-// A typed text against one right answer (both plain()), word by word, or null
-// when anything else differs: a different word, or one left out or added.
-// What differs, each as the places of its words in the two ({ t: [..], a:
-// [..] }): `slips` (Almost), `forms` (another form of a verb, Wrong; `accent`
-// when an accent that changes the tense makes it, "llego" for "llegó") and
-// `verbs` (Claude's to judge).
-function slipsAgainst(typed, answer) {
-  const [t, a] = [typed.split(" "), answer.split(" ")];
-  const found = { slips: [], forms: [], verbs: [] };
-  let i = 0, j = 0;
-  while (i < t.length && j < a.length) {
-    const [x, y] = [bare(t[i]), bare(a[j])];
-    if (x === y) {
-      if (t[i] !== a[j] && accentSlip(t[i], a[j])) found.forms.push({ t: [i], a: [j], accent: true });
-      i++; j++;
-      continue;
-    }
-    const kind = slipKind(t[i], a[j], a[j + 1]);
-    if (kind) {
-      found[kind === "form" ? "forms" : kind === "verb" ? "verbs" : "slips"].push({ t: [i], a: [j] });
-      i++; j++;
-    } else if (i + 1 < t.length && x + bare(t[i + 1]) === y) {
-      found.slips.push({ t: [i, i + 1], a: [j] });
-      i += 2; j++;
-    } else if (j + 1 < a.length && x === y + bare(a[j + 1])) {
-      found.slips.push({ t: [i], a: [j, j + 1] });
-      i++; j += 2;
-    } else {
-      return null;
-    }
-  }
-  return i === t.length && j === a.length ? found : null;
-}
-
-// One typed text against a list of right answers: { mark: "right" }, { mark:
-// "accents", answer } (only an accent that changes the tense is off: Wrong),
-// { mark: "slips", answer, slips } (Almost), { mark: "forms", answer, forms,
-// slips } (another form of a verb: Wrong), or null. The answer it comes
-// closest to: one it matches with only slips, else one that only Claude can
-// judge (null), else one it matches but for another form of a verb. Free
-// writing has only an example to go by, so `slips` is off for it: "Mi hermano
-// es alto" for an example "Mi hermana es alta" is as good a sentence.
-function against(typed, answers, { slips = true } = {}) {
-  const t = plain(typed);
-  if (!t) return null;
-  if (answers.some((a) => plain(a) === t)) return { mark: "right" };
-  const b = bare(typed);
-  const near = answers.filter((a) => bare(a) === b);
-  if (near.length) return near.some((a) => !countingSlips(t, plain(a)).length) ? { mark: "right" } : { mark: "accents", answer: near[0] };
-  if (!slips) return null;
-  let best = null, wrong = null, unsure = false;
-  for (const answer of answers) {
-    const found = slipsAgainst(t, plain(answer));
-    if (!found) continue;
-    if (found.forms.length) {
-      if (!wrong || found.forms.length + found.slips.length < wrong.forms.length + wrong.slips.length) wrong = { mark: "forms", answer, forms: found.forms, slips: found.slips };
-    } else if (found.verbs.length) unsure = true;
-    else if (!best || found.slips.length < best.slips.length) best = { mark: "slips", answer, slips: found.slips };
-  }
-  return best || (unsure ? null : wrong);
-}
-
-// A true-or-false answer's sentence, with or without the "Verdadero." or
-// "Falso." the key's answers start with.
-const truthSentence = (s) => String(s ?? "").replace(/^\s*(verdadero|falso)\s*[.,:;!]?\s*/i, "");
-
-// What the student typed for an item, in the shape its kind takes:
-//   gaps    ["soy", "…"]  one per blank
-//   truth   { truth: true|false, text: "…" }
-//   other   "…"
-// Whether it is complete enough to mark.
-// A dash alone in a blank is "nada" (code check 2026-11-07, no. 40): the keys
-// list "—" and "-" for it, and plain() would set it aside as punctuation.
-const gapText = (t) => (/^\s*[-–—]+\s*$/.test(String(t ?? "")) ? "nada" : t);
-export function isAnswered(item, typed) {
-  const kind = kindOf(item);
-  if (kind === "gaps") return Array.isArray(typed) && typed.length === item.gaps.length && typed.every((t) => plain(gapText(t)));
-  if (kind === "truth") return typeof typed?.truth === "boolean" && !!plain(typed?.text);
-  return !!plain(typed);
-}
-
-// The key's verdict: { verdict: "right" }, { verdict: "almost", slips: true },
-// { verdict: "wrong", form: true } (another form of a verb, or an accent that
-// makes one), { verdict: "wrong", truth: true } (pressed the wrong way), or
-// null when Claude has to decide. A miss in one box says which of the key's
-// answers it comes closest to (`correct`).
-const isForm = (v) => v?.mark === "forms" || v?.mark === "accents";
-const verdictOf = (found) =>
-  found.some(isForm) ? { verdict: "wrong", form: true }
-    : found.some((f) => f.mark === "slips") ? { verdict: "almost", slips: true }
-    : { verdict: "right" };
-
-export function markByKey(item, typed) {
-  if (!isAnswered(item, typed)) return null;
-  const kind = kindOf(item);
-  if (kind === "gaps") {
-    const each = item.gaps.map((list, i) => against(gapText(typed[i]), list));
-    // Another form of a verb in one blank is Wrong, whatever the others are.
-    if (each.some(isForm)) return verdictOf(each.filter(Boolean));
-    if (each.some((v) => v === null)) return null;
-    return verdictOf(each);
-  }
-  if (kind === "truth") {
-    if (typed.truth !== item.truth) return { verdict: "wrong", truth: true };
-    const v = against(truthSentence(typed.text), answersOf(item).map(truthSentence));
-    if (!v) return null;
-    if (v.mark === "right") return { verdict: "right" };
-    // The key's own answer it comes closest to, with its Verdadero. or Falso.,
-    // so the correction shown is the student's sentence put right (no. 39).
-    const correct = v.answer === undefined ? undefined : answersOf(item).find((a) => truthSentence(a) === v.answer);
-    return { ...verdictOf([v]), ...(correct ? { correct } : {}) };
-  }
-  // Free writing matches only its own example word for word: anything else
-  // is Claude's to judge.
-  const v = against(typed, answersOf(item), { slips: kind !== "open" });
-  return !v ? null : v.mark === "right" ? { verdict: "right" } : { ...verdictOf([v]), correct: v.answer };
-}
-
-// The typed answer as one line, for the log and for Claude: the blanks filled
-// into the sentence, or "Verdadero. …".
-export function typedText(item, typed) {
-  const kind = kindOf(item);
-  if (kind === "gaps") {
-    let i = 0;
-    return String(item.prompt || "").replace(/___/g, () => `[${String(typed?.[i++] ?? "").trim()}]`);
-  }
-  if (kind === "truth") return `${typed?.truth ? "Verdadero" : "Falso"}. ${truthSentence(typed?.text).trim()}`;
-  return String(typed ?? "").trim();
-}
-
-// The key's answer to show after marking: the sentence with its blanks
-// filled, or the model answer.
-export function keyAnswer(item) {
-  if (kindOf(item) === "gaps") {
-    let i = 0;
-    return String(item.prompt || "").replace(/___/g, () => item.gaps[i++]?.[0] ?? "___");
-  }
-  return String(item?.answer ?? "");
-}
-
-// Why the key marked an answer a miss, for "Why?" under it (owner,
-// 2026-10-26: "there should also be a "why was my answer wrong" option").
-// A miss Claude marked carries Claude's own sentence (its note); the key's
-// misses are an answer right but for its slips, an accent that changes a
-// verb's tense among them, and a true-or-false pressed the wrong way. `line`
-// is the answer as kept (typedText). "" when the key has nothing to say.
-export function keyReason(item, line) {
-  const kind = kindOf(item);
-  const text = String(line ?? "");
-  if (kind === "truth") {
-    const chose = /^\s*verdadero\b/i.test(text) ? true : /^\s*falso\b/i.test(text) ? false : null;
-    if (chose !== null && chose !== item.truth) {
-      return item.truth ? "The statement is true, so the answer is Verdadero." : "The statement is false, so the answer is Falso.";
-    }
-  }
-  // Word by word against the key's answer it comes closest to: another form of
-  // a verb, an accent that changes the tense, and every slip. They are quoted
-  // as written ("Habló", not "habló").
-  const forms = [], accents = [], slipPairs = [];
-  const written = (s) => String(s ?? "").normalize("NFC")
-    .replace(/(^|[^\p{L}])([ap])\.\s?[mM]\.?(?!\p{L})/gu, "$1$2m")
-    .replace(/[¿¡?!.,;:"“”«»()\[\]…–—\-/|]+/g, " ").trim().split(/\s+/);
-  const name = (typed, answers) => {
-    const found = against(typed, answers, { slips: kind !== "open" });
-    if (!found?.answer) return;
-    const [want, got] = [plain(found.answer).split(" "), plain(typed).split(" ")];
-    const [wantAs, typedAs] = [written(found.answer), written(typed)];
-    const pair = ({ t, a }) => `"${a.map((j) => wantAs[j] ?? want[j]).join(" ")}", not "${t.map((i) => typedAs[i] ?? got[i]).join(" ")}"`;
-    if (found.mark === "accents") {
-      got.forEach((w, i) => { if (w !== want[i] && accentSlip(w, want[i])) accents.push(pair({ t: [i], a: [i] })); });
-      return;
-    }
-    for (const f of found.forms || []) (f.accent ? accents : forms).push(pair(f));
-    for (const s of found.slips || []) slipPairs.push(pair(s));
-  };
-  if (kind === "gaps") {
-    // The blanks as typed, out of "Yo [esta] aquí." ([[…]] is the sheet's
-    // underlining).
-    const typed = [...text.matchAll(/\[\[[^\]]*\]\]|\[([^\]]*)\]/g)].filter((m) => m[1] !== undefined).map((m) => m[1]);
-    item.gaps.forEach((list, i) => name(typed[i] ?? "", list));
-  } else if (kind === "truth") {
-    name(truthSentence(text), answersOf(item).map(truthSentence));
-  } else {
-    name(text, answersOf(item));
-  }
-  const wrongs = [
-    forms.length && `${forms.length > 1 ? "Other forms of the verb" : "Another form of the verb"}: ${forms.join("; ")}.`,
-    accents.length && `${accents.length > 1 ? "The accents change the tense" : "The accent changes the tense"}: ${accents.join("; ")}.`,
-  ].filter(Boolean);
-  if (wrongs.length) return [...wrongs, slipPairs.length && `Also ${slipPairs.length > 1 ? `${slipPairs.length} slips` : "a slip"}: ${slipPairs.join("; ")}.`].filter(Boolean).join(" ");
-  if (slipPairs.length) return `Right but for ${slipPairs.length > 1 ? `${slipPairs.length} words` : "one word"}: ${slipPairs.join("; ")}.`;
-  return "";
-}
-
-// The typed answer back out of the line it was kept as (typedText's), or
-// null when it can't be read back.
-function typedFromLine(item, line) {
-  const kind = kindOf(item);
-  const text = String(line ?? "");
-  if (kind === "gaps") {
-    const typed = [...text.matchAll(/\[\[[^\]]*\]\]|\[([^\]]*)\]/g)].filter((m) => m[1] !== undefined).map((m) => m[1]);
-    return typed.length === item.gaps.length ? typed : null;
-  }
-  if (kind === "truth") {
-    const truth = /^\s*verdadero\b/i.test(text) ? true : /^\s*falso\b/i.test(text) ? false : null;
-    return truth === null ? null : { truth, text: truthSentence(text) };
-  }
-  return text;
-}
-
-// An answer kept under an earlier rule, shown with the verdict the key gives it
-// now. The key's Almost while every accent still counted (before 2026-10-26):
-// "Hoy don Rafael esta de mal humor" was Almost and is Right. A Wrong before
-// slips were Almost (2026-11-07): "la despertador" was Wrong and is Almost; or
-// before the key took the answer: "veo" for "I see." was Wrong and is Right. An
-// Almost, whoever marked it, before another form of a verb was Wrong
-// (2026-11-16): "pones" for "pone" and "se vistan" were Almost and are Wrong. An
-// Almost the key can't settle now (a verb a letter off, only Claude's to
-// judge) keeps its verdict. The row kept stays as it was.
-export function markedNow(item, answer) {
-  const v = answer?.verdict;
-  if (!item || !(v === "almost" || v === "wrong")) return answer;
-  const typed = typedFromLine(item, answer.typed);
-  const now = typed === null ? null : markByKey(item, typed)?.verdict;
-  if (v === "almost") {
-    if (now === "wrong") return { ...answer, verdict: "wrong" };
-    return answer.markedBy === "key" && now === "right" ? { ...answer, verdict: "right" } : answer;
-  }
-  return now === "almost" || now === "right" ? { ...answer, verdict: now } : answer;
-}
-
-// An answer the student had accepted with "My answer should be accepted"
-// (es_exercise_disputes) shows as Right. `accepted` is { [item key]: Set of
-// lines as kept }, as exerciseApi's loadAccepted gives it. The row kept stays
-// as it was.
-export function acceptedNow(answer, accepted) {
-  if (!answer || answer.pending || answer.verdict === "right") return answer;
-  return isAccepted(accepted, answer.key, answer.typed) ? { ...answer, verdict: "right", accepted: true } : answer;
-}
-// Whether a line is one the student had accepted: the same words, compared as
-// the key's own answers are (accents aside, but for one that changes a verb's
-// tense).
-export const matchesAccepted = (lines, line) => !!lines?.length && against(line, lines, { slips: false })?.mark === "right";
-export const isAccepted = (accepted, key, line) => matchesAccepted([...(accepted?.[key] || [])], line);
+export const SPANISH_RULES = {
+  accentSlip,
+  verbForms: VERB_FORMS,
+  wordFamily: WORD_FAMILY,
+  genderEnding,
+  eitherGender: EITHER_GENDER,
+  truth: { yes: "Verdadero", no: "Falso" },
+  nothing: "nada",
+  accentChanges: "tense",
+};
+export const SPANISH_MARKING = makeMarking(SPANISH_RULES);
+export const { isAnswered, markByKey, typedText, keyAnswer, keyReason, markedNow, acceptedNow, matchesAccepted, isAccepted } = SPANISH_MARKING;
 
 // A hint for an item still to answer (owner, 2026-10-26: "exercises should
 // have a hint option"). It is the key's first answer with only the first
