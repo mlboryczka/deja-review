@@ -1746,6 +1746,20 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     () => (mode === "stats" && historyRows ? statsOverTime({ cards: userCards, rows: historyRows, now: Date.now() }) : null),
     [mode, userCards, historyRows],
   );
+  // Spanish Stats: each lesson's Grammar (Exercises) and Text (Dialogues),
+  // and the days of those answers (owner, 2026-11-25). Read when Stats opens,
+  // with the exercises loaded only then, so French never downloads them
+  // (lib/spanishMastery.js). null until read, or if it can't be.
+  const [esMastery, setEsMastery] = useState(null);
+  useEffect(() => {
+    if (mode !== "stats" || !spanish || !user?.id) return;
+    let live = true;
+    import("./lib/spanishMastery.js")
+      .then(({ loadSpanishMastery }) => loadSpanishMastery({ supabase, userId: user.id }))
+      .then((m) => { if (live) setEsMastery(m); })
+      .catch(() => { if (live) setEsMastery(null); });
+    return () => { live = false; };
+  }, [mode, spanish, user?.id]);
   const lastElsewhereCheckRef = useRef(0);
   const checkElsewhere = useCallback(async () => {
     if (!user?.id) return;
@@ -4362,14 +4376,20 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     const now = Date.now();
     const todayISO = localISODate();
 
+    // Spanish: the days of Exercises and Dialogues answers count as studied
+    // too (owner, 2026-11-25), { [YYYY-MM-DD]: { items, sentences } }.
+    const answerDays = spanish ? esMastery?.days ?? null : null;
+    const todayAnswers = answerDays?.[todayISO] ?? null;
+
     // Streak: based on actual review days stored in Supabase
-    // (loaded into reviewDates state on mount, appended to by answer()).
+    // (loaded into reviewDates state on mount, appended to by answer()),
+    // and in Spanish the days of exercise and dialogue answers.
     let streak = 0;
     for (let i = 0; i < 365; i++) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const iso = localISODate(d);
-      if (reviewDates.has(iso)) streak++;
+      if (reviewDates.has(iso) || answerDays?.[iso]) streak++;
       // Not having studied yet TODAY doesn't end a streak — the day isn't over.
       else if (iso !== todayISO) break;
     }
@@ -4437,10 +4457,28 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     // Progress by Lesson: a group that folds (Basic Lessons) as one row, its
     // lessons added together, then every other lesson, then the two class
     // groups. Each with its change over the last 7 days.
-    const lessonRow = (l) => ({
-      key: `lesson:${l.id}`, label: l.title, summary: areas.lessons[l.id],
-      delta: weekAgo ? gain(areas.lessons[l.id].remembered, weekAgo.byArea[`lesson:${l.id}`]) : null,
-    });
+    // In Spanish each lesson also has Grammar and Text, and a rating from
+    // its lowest part (lib/lessonMastery.js).
+    const lessonRow = (l) => {
+      const m = spanish && esMastery ? esMastery.byLesson[l.id] || {} : null;
+      return {
+        key: `lesson:${l.id}`, label: l.title, summary: areas.lessons[l.id],
+        delta: weekAgo ? gain(areas.lessons[l.id].remembered, weekAgo.byArea[`lesson:${l.id}`]) : null,
+        ...(m ? {
+          parts: { grammar: m.grammar || null, text: m.text || null },
+          rating: esMastery.rate({ words: areas.lessons[l.id], grammar: m.grammar, text: m.text }),
+        } : null),
+      };
+    };
+    // A group's Grammar or Text: its lessons' added together.
+    const sumParts = (rows, k) => {
+      const list = rows.map((r) => r.parts?.[k]).filter(Boolean);
+      if (!list.length) return null;
+      const firsts = list.map((x) => x.first).filter((x) => x != null), lasts = list.map((x) => x.last).filter((x) => x != null);
+      const add = (f) => list.reduce((n, x) => n + x[f], 0);
+      return { total: add("total"), right: add("right"), almost: add("almost"), tried: add("tried"), hinted: add("hinted"),
+        first: firsts.length ? Math.min(...firsts) : null, last: lasts.length ? Math.max(...lasts) : null };
+    };
     const lessonGroups = [];
     const lessonRows = [];
     for (const g of LESSON_GROUPS) {
@@ -4454,6 +4492,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
         key: `group:${g.title}`, label: g.title, sub: `${lessonCount} ${lessonCount === 1 ? "lesson" : "lessons"}`, lessons: rows,
         summary: { total: sum("total"), seen: sum("seen"), remembered: sum("remembered"), notSeen: sum("notSeen") },
         delta: weekAgo ? rows.reduce((n, r) => n + r.delta, 0) : null,
+        ...(rows.some((r) => r.parts) ? { parts: { grammar: sumParts(rows, "grammar"), text: sumParts(rows, "text") } } : null),
       });
     }
     const classRows = ["recent", "earlier"].map((k) => ({
@@ -4477,8 +4516,15 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
                 <div style={S.metricLabel}>Today</div>
                 <div><span style={S.metricVal}>{today.cards.toLocaleString()}</span> <span style={S.metricUnit}>{today.cards === 1 ? "card" : "cards"}</span></div>
                 <div style={S.metricSub}>
-                  {today.cards === 0 ? "nothing studied yet today" : today.fresh == null ? "" : splitText(today)}
+                  {today.cards === 0 ? (todayAnswers ? "" : "nothing studied yet today") : today.fresh == null ? "" : splitText(today)}
                 </div>
+                {todayAnswers && (
+                  <div style={S.metricSub} data-stats-today-answers>
+                    {[todayAnswers.items && `${todayAnswers.items.toLocaleString()} exercise ${todayAnswers.items === 1 ? "item" : "items"}`,
+                      todayAnswers.sentences && `${todayAnswers.sentences.toLocaleString()} dialogue ${todayAnswers.sentences === 1 ? "sentence" : "sentences"}`]
+                      .filter(Boolean).join(" · ")}
+                  </div>
+                )}
               </div>
               <div style={S.metricCard} data-stats-first-time>
                 <div style={S.metricLabel}>Right first time today</div>
@@ -4525,12 +4571,12 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
 
             {/* The days studied since the first answer on record */}
             {history && history.days.length > 0 && (
-              <StudyCalendar days={history.days} since={startedThen ? `since you started on ${firstDayLong}` : `since ${firstDayLong}`} />
+              <StudyCalendar days={history.days} extra={answerDays} since={startedThen ? `since you started on ${firstDayLong}` : `since ${firstDayLong}`} />
             )}
 
             {/* Each lesson, Basic Lessons folded together, and the class groups */}
             {(lessonGroups.length > 0 || lessonRows.length > 0 || classRows.length > 0) && (
-              <ProgressByLesson groups={lessonGroups} rows={[...lessonRows, ...classRows]} />
+              <ProgressByLesson groups={lessonGroups} rows={[...lessonRows, ...classRows]} parts={!!(spanish && esMastery)} />
             )}
 
             <button style={S.resetBtn} onClick={resetAll}>{spanish ? "Reset all Spanish progress" : "Reset all progress"}</button>
