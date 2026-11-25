@@ -310,6 +310,7 @@ const VERDICT_WORD = { right: "Right", almost: "Almost (right but for small slip
 export const REVIEW_VERSION = createHash("sha1")
   .update(MARK_MODEL)
   .update(REVIEW_SYSTEM)
+  .update(JSON.stringify(KIND_LINE))
   .update(markPrompt.toString())
   .update(JSON.stringify(VERDICT_WORD))
   .update(JSON.stringify(REVIEW_SCHEMA))

@@ -136,11 +136,6 @@ function usable(result, original) {
   if (cards.some((c) => !c?.front?.trim() || !c?.back?.trim())) return false;
   const fronts = cards.map((c) => c.front.trim().toLowerCase());
   if (new Set(fronts).size !== fronts.length) return false;
-  // A "split" that hands back the same single card it was given is a no-op.
-  if (fronts.length === 2 && fronts.includes(original.front.trim().toLowerCase())) {
-    const other = cards.find((c) => c.front.trim().toLowerCase() !== original.front.trim().toLowerCase());
-    if (!other) return false;
-  }
   return true;
 }
 

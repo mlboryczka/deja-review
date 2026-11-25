@@ -1,15 +1,17 @@
 // Vercel serverless function: POST /api/review-answer
 //
-// Called when a user clicks "My answer should have been accepted".
-// Asks Claude to review, and if accepted, records the answer as an alternate
-// in card_alternates so the matcher accepts it going forward.
+// Called when a user clicks "My answer should be accepted" (or "Accept
+// anyway" after a refusal). Asks Claude to review, and if accepted, records
+// the answer as an alternate (card_alternates, or es_card_alternates for a
+// Spanish card) so the matcher accepts it going forward.
 //
 // Request body:
 //   { card_id, direction, french, english, user_answer, expected_answer,
-//     force? }
+//     course? ("es" for Spanish), force? }
 //
 // Returns:
-//   { ok, verdict: "accept"|"reject"|"uncertain", reasoning: "..." }
+//   { ok, verdict: "accept"|"reject"|"uncertain", reasoning: "...",
+//     forced? }
 //
 // A body with `feedback` instead is Claude's review of a piece of feedback,
 // and the owner's Apply and Dismiss: see _lib/feedbackReview.js. One with
@@ -18,14 +20,16 @@
 // Spanish Exercises, marked and kept: see _lib/exercises.js. They live here
 // because the Hobby plan deploys at most 12 routes.
 //
-// Every verdict is saved (answer_reviews, migration_015), accept or not, so
-// the owner can see what Claude decided and mark where it went wrong.
+// Every verdict is saved (answer_reviews, migration_015; es_answer_reviews
+// for Spanish), accept or not, so the owner can see what Claude decided and
+// mark where it went wrong.
 //
 // This route used to have NO authentication of any kind. Anyone who could
 // reach the URL could spend the deploy owner's Anthropic credit and write
 // rows with the service role key. It now requires a verified session, and
-// the Anthropic key that pays is the caller's own unless they are the
-// deploy owner.
+// the Anthropic key that pays is the caller's own, except for the owner and
+// the accounts named in src/lib/testApp.js on the test app (see
+// _lib/anthropicKey.js). A feedback review always uses the server's key.
 
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
@@ -34,7 +38,7 @@ import { requireAnthropicKey, resolveAnthropicKey } from "./_lib/anthropicKey.js
 import { handleFeedbackRequest, supabaseFeedbackStore } from "./_lib/feedbackReview.js";
 import { askClaude, isDrillCard, verdictRow, handleAnswerChecks, supabaseAnswerStore } from "./_lib/answerChecks.js";
 import { handleExerciseRequest, supabaseExerciseStore } from "./_lib/exercises.js";
-import { podcastsOpenTo } from "../src/lib/testApp.js";
+import { testAppModulesOpenTo } from "../src/lib/testApp.js";
 import { allowIphoneApp } from "./_lib/cors.js";
 import { claudeError } from "./_lib/podcasts.js";
 
@@ -96,8 +100,7 @@ export default async function handler(req, res) {
   } = req.body || {};
   // A Spanish card (the Spanish module, 2026-10-22): judged as Spanish, an
   // accepted answer kept with the Spanish deck, and its verdict kept in
-  // answer_reviews marked "es" (migration_021), to be tested like a French
-  // one (owner: "logged in the spanish module just as they are for the french
+  // es_answer_reviews (migration_021), to be tested like the French ones (owner: "logged in the spanish module just as they are for the french
   // module").
   const spanish = course === "es";
   const language = spanish ? "Spanish" : "French";
@@ -203,7 +206,7 @@ async function answerChecks(req, res, user) {
 // the owner and anyone signed in on the test app (src/lib/testApp.js). The
 // key that pays is worked out only if Claude has to mark the answer.
 async function exercises(req, res, user) {
-  if (!podcastsOpenTo({ isOwner: isAdmin(user), signedIn: true, host: req.headers.host })) {
+  if (!testAppModulesOpenTo({ isOwner: isAdmin(user), signedIn: true, host: req.headers.host })) {
     return res.status(403).json({ error: "Exercises aren’t open on this app.", code: "forbidden" });
   }
   const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;

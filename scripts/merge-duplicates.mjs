@@ -26,7 +26,8 @@
 // study — archived, not deleted (src/lib/archive.js) — so their rows, and any
 // answers recorded against them, stay in the database and can be put back:
 //
-//   update user_cards set source = substr(source, 10) where id in (...);
+//   update user_cards set source = substr(source, 10), archived_reason = null,
+//     archived_at = null, merged_into = null where id in (...);
 //
 // A set is skipped if any of its cards is missing, not in this deck, already
 // archived, or a lesson card. --apply writes every row it will change, in full,
@@ -87,7 +88,7 @@ const ids = [...new Set(sets.flatMap((s) => s.ids))];
 const rows = new Map();
 for (let i = 0; i < ids.length; i += 150) {
   const chunk = ids.slice(i, i + 150);
-  for (const r of await call(`${base}/rest/v1/user_cards?select=*&id=in.(${chunk.join(",")})`)) rows.set(r.id, r);
+  for (const r of await call(`${base}/rest/v1/user_cards?select=*&id=in.(${chunk.join(",")})`)) rows.set(String(r.id), r);
 }
 
 const answered = (r) => (r.fsrs_state ?? 0) !== 0 || (r.en_fsrs_state ?? 0) !== 0;
@@ -106,10 +107,11 @@ function keeperOf(members) {
 const plan = [];
 const skipped = [];
 for (const set of sets) {
-  const members = set.ids.map((id) => rows.get(id));
-  const bad = members.find((r) => !r || r.user_id !== userId || isArchived(r) || String(r.source || "").startsWith("lesson:"));
+  const members = set.ids.map((id) => rows.get(String(id)));
+  const badAt = members.findIndex((r) => !r || r.user_id !== userId || isArchived(r) || String(r.source || "").startsWith("lesson:"));
+  const bad = badAt === -1 ? undefined : members[badAt];
   const correction = members.length === 1 && (set.back || set.front);
-  if (bad !== undefined || (members.length < 2 && !correction)) { skipped.push({ ...set, why: bad ? `row ${bad?.id ?? "missing"} not mergeable` : "fewer than two" }); continue; }
+  if (badAt !== -1 || (members.length < 2 && !correction)) { skipped.push({ ...set, why: badAt !== -1 ? `row ${bad?.id ?? set.ids[badAt]} not mergeable` : "fewer than two" }); continue; }
   const named = set.keep != null ? members.find((r) => r.id === set.keep) : null;
   // A named keeper gives way only to a card the student has answered when it
   // hasn't been: their progress is never the thing traded for a better label.
@@ -153,7 +155,15 @@ for (const p of plan) {
     await call(`${base}/rest/v1/user_cards?id=eq.${p.keep.id}&user_id=eq.${userId}`, { method: "PATCH", body: JSON.stringify(change) });
   }
   for (const r of p.drop) {
-    await call(`${base}/rest/v1/user_cards?id=eq.${r.id}&user_id=eq.${userId}`, { method: "PATCH", body: JSON.stringify({ source: archivedSource(r.source) }) });
+    // Why, when and into which card, as the morning check's own put-away
+    // records it (migration_016); the source alone if the columns are missing.
+    const url = `${base}/rest/v1/user_cards?id=eq.${r.id}&user_id=eq.${userId}`;
+    const put = { source: archivedSource(r.source) };
+    try {
+      await call(url, { method: "PATCH", body: JSON.stringify({ ...put, archived_reason: "duplicate", merged_into: p.keep.id, archived_at: new Date().toISOString() }) });
+    } catch {
+      await call(url, { method: "PATCH", body: JSON.stringify(put) });
+    }
   }
   done++;
 }
