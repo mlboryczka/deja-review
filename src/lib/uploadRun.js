@@ -25,7 +25,7 @@ export async function runUpload({ post, mode = "text", content, replace = false,
   onProgress("Slicing your cahier…");
   const slice = await post("/api/parse-cahier", { action: "slice", mode, content });
   const blocks = (slice.blocks || []).map((b) => ({ date: b.date, text: b.text }));
-  if (blocks.length === 0) throw new Error("No lessons found in the input.");
+  if (blocks.length === 0) throw new Error("No classes found in the input.");
 
   onProgress("Checking which classes are new…");
   const plan = await post("/api/parse-cahier", { action: "plan", mode, blocks, replace });
@@ -40,8 +40,8 @@ export async function runUpload({ post, mode = "text", content, replace = false,
     const chunk = toRead.slice(i, i + CHUNK_SIZE);
     onProgress(
       chunks > 1
-        ? `Reading your new lessons… (part ${Math.floor(i / CHUNK_SIZE) + 1} of ${chunks})`
-        : `Reading your new ${chunk.length === 1 ? "lesson" : "lessons"}…`
+        ? `Reading your new classes… (part ${Math.floor(i / CHUNK_SIZE) + 1} of ${chunks})`
+        : `Reading your new ${chunk.length === 1 ? "class" : "classes"}…`
     );
     try {
       const data = await post("/api/cahier-parse", {
@@ -66,7 +66,7 @@ export async function runUpload({ post, mode = "text", content, replace = false,
     // Nothing could be read: give the turn back, and say why.
     await post("/api/parse-cahier", { action: "commit", mode, runId: plan.runId, blocks, cards: [], failedDates, replace: false })
       .catch(() => {});
-    throw new Error(`Couldn't read your lessons: ${firstError || "unknown error"}`);
+    throw new Error(`Couldn't read your classes: ${firstError || "unknown error"}`);
   }
 
   onProgress(cards.length ? `Saving the new cards to your deck…` : "Checking your deck…");

@@ -89,7 +89,7 @@ import { RE_QUEUE_OFFSET, State, settingsInUse } from "./lib/spacedRepetition";
 import { sideOf, sideColumns, directionsOf, isTwoWay, itemKey, resetColumns } from "./lib/directions";
 import { newReviewId, reviewRow, withoutExtras, missingColumn } from "./lib/reviewLog";
 import { dealRow, missingTable } from "./lib/dealLog";
-import { uploadResultText } from "./lib/uploadText";
+import { uploadResultText, yourClasses } from "./lib/uploadText";
 // The Podcasts module (owner, 2026-10-09). Its pages, their hooks and all of
 // the episode audio live in PodcastsPage; the shell here only owns which
 // module is showing, which podcasts page, and the sidebar that marks it.
@@ -672,14 +672,11 @@ function uploadDoneText({ cardsInserted = 0, datesCovered = 0, busy = false }, c
   if (cardsInserted === 0) {
     return "Your cahier is linked. Nothing new to add yet — every class in it is already in your deck.\n\nFrom now on, each class Laura adds becomes cards on its own.";
   }
-  return `Your cahier is linked.\n\n${cardsInserted} cards from ${datesCovered} ${datesCovered === 1 ? "class" : "classes"} you hadn't studied yet. They join your deck as new cards, so they arrive once your reviews are done.\n\nFrom now on, each class Laura adds becomes cards on its own.`;
+  return `Your cahier is linked.\n\n${cardsInserted} ${cardsInserted === 1 ? "card" : "cards"} from ${datesCovered} ${datesCovered === 1 ? "class" : "classes"} you hadn't studied yet. They join your deck as new cards, so they arrive once your reviews are done.\n\nFrom now on, each class Laura adds becomes cards on its own.`;
 }
 
 function cahierArrivalText({ dates = [], cards = 0 } = {}, caderno = false) {
-  const asDay = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "long" });
-  const when = dates.length === 0 ? (caderno ? "Your caderno" : "Your cahier")
-    : dates.length === 1 ? `Your class of ${asDay(dates[0])}`
-    : `Your classes from ${asDay(dates[0])} to ${asDay(dates[dates.length - 1])}`;
+  const when = dates.length === 0 ? (caderno ? "Your caderno" : "Your cahier") : yourClasses(dates);
   return `${when}: ${cards.toLocaleString()} new ${cards === 1 ? "card" : "cards"} added to your deck.`;
 }
 
@@ -707,8 +704,9 @@ function typedGotIt(typeResult) {
 // it is only passed to someone who has both, and draws the flag that does it.
 export default function FlashcardApp({ user, onSignOut: rawSignOut, course: courseId = "fr", onCourse: rawOnCourse }) {
   const course = courseOf(courseId);
-  // The Spanish module: its own deck, lessons and voice. No cahier, uploads
-  // or tour, all of which are about French cards. Its tutor is the Spanish
+  // The Spanish module: its own deck, lessons and voice. No document uploads
+  // or tour, which are about French cards; its notebook is the caderno
+  // (useCahierSync with "es", since 2026-11-02). Its tutor is the Spanish
   // one (owner, 2026-10-26), and card editing works on Spanish cards.
   const spanish = course.id === "es";
   // A Spanish card shows one answer of the list it accepts (lib/cardText.js).
@@ -3353,7 +3351,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
             <div style={S.onbHeroLeft}>
               <h1 style={S.onbHeroTitle}>Welcome.</h1>
               <p style={S.onbHeroText}>
-                Upload your document to get started. We'll turn your lesson notes into a personal deck — vocabulary, expressions, grammar, and conjugation drills.
+                Upload your document to get started. We'll turn your class notes into a personal deck — vocabulary, expressions, grammar, and conjugation drills.
               </p>
               <button style={S.onbHeroCta} onClick={() => openUpload("paste")}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
@@ -3393,8 +3391,8 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
               <div style={{...S.onbCardIcon, ...S.onbCardIconFeatured}}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
               </div>
-              <h3 style={S.onbCardTitle}>Upload .txt file</h3>
-              <p style={S.onbCardDesc}>Drag and drop a plain text file from your computer.</p>
+              <h3 style={S.onbCardTitle}>Upload a file</h3>
+              <p style={S.onbCardDesc}>Drag and drop a .txt, .pdf or .docx file of your class notes.</p>
               <div style={S.onbCardArrow}>→</div>
             </button>
             <button style={S.onbCard} onClick={() => openUpload("link")}>

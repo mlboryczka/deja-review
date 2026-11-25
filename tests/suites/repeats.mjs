@@ -1497,7 +1497,7 @@ console.log("\n  a class Claude couldn't read stays unread, on the upload and on
   const r = await upload(admin, NOTEBOOK_2);
   claude.readFailIf = null;
   ck("when no class can be read, the upload says so and saves no card",
-     r.ok === false && /Couldn't read your lessons/.test(r.error) && JSON.stringify(snapshot(admin).cards) === JSON.stringify(before.cards), r.error);
+     r.ok === false && /Couldn't read your classes/.test(r.error) && JSON.stringify(snapshot(admin).cards) === JSON.stringify(before.cards), r.error);
   const after = await sync(admin);
   ck("and the turn is free straight afterwards: a sync isn't told the notes are busy", after.ok && !after.busy && after.cardsAdded === 5,
      JSON.stringify(after).slice(0, 160));

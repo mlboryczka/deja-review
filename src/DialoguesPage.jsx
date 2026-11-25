@@ -396,7 +396,7 @@ function OneDialogue({ user, dialogue, store, scrollRef, onBack, onNeedKey, onTu
       {showLast && (
         <div ref={doneRef} style={S.done} data-dialogue-done>
           <div style={S.doneLine}>
-            {`You went through all ${last.total} sentences, and ${last.total - last.missed} were right the first time.`}
+            {`You went through all ${last.total} sentences, and ${last.total - last.missed} ${last.total - last.missed === 1 ? "was" : "were"} right the first time.`}
           </div>
           <button type="button" style={S.again} onClick={goAgain} data-dialogue-again>Go again</button>
         </div>

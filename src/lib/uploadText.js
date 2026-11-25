@@ -19,7 +19,7 @@ export const classDay = (iso) =>
 
 // "Your class of 11 November", "Your classes of 11 and 18 November", "Your
 // 4 classes from 2 October to 18 November".
-function yourClasses(dates) {
+export function yourClasses(dates) {
   const d = [...new Set(dates)].sort();
   if (d.length === 1) return `Your class of ${classDay(d[0])}`;
   if (d.length === 2) return `Your classes of ${classDay(d[0])} and ${classDay(d[1])}`;
@@ -29,7 +29,7 @@ function yourClasses(dates) {
 // Cards the database couldn't save. Said plainly: the upload once reported
 // success with 500 of its cards missing. A line is read once, so uploading
 // the same notes again doesn't retry it; changing the line does.
-export function uploadFailedText({ cardsFailed = 0, failedFronts = [] } = {}) {
+function uploadFailedText({ cardsFailed = 0, failedFronts = [] } = {}) {
   if (!cardsFailed) return "";
   const one = cardsFailed === 1;
   const example = failedFronts[0] ? (one ? ` ("${failedFronts[0]}")` : ` (for example "${failedFronts[0]}")`) : "";

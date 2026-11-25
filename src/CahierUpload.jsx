@@ -199,8 +199,8 @@ export function CahierUpload({ open, onClose, onSuccess, hasExisting, initialTab
         force: true,
         onProgress: (run) => setProgress(
           run.remaining
-            ? `Adding your classes… ${run.addedSoFar} cards so far, ${run.remaining} classes to go`
-            : `Adding your classes… ${run.addedSoFar} cards so far`
+            ? `Adding your classes… ${run.addedSoFar} ${run.addedSoFar === 1 ? "card" : "cards"} so far, ${run.remaining} ${run.remaining === 1 ? "class" : "classes"} to go`
+            : `Adding your classes… ${run.addedSoFar} ${run.addedSoFar === 1 ? "card" : "cards"} so far`
         ),
       });
       setStatus("idle");
@@ -221,7 +221,7 @@ export function CahierUpload({ open, onClose, onSuccess, hasExisting, initialTab
 
     if (tab === "paste" || tab === "file") {
       if (!text.trim() || text.trim().length < 50) {
-        setError("Please paste your cahier text (at least 50 characters).");
+        setError(tab === "file" ? "Choose a .txt, .pdf or .docx file with your class notes first." : "Please paste your cahier text (at least 50 characters).");
         return;
       }
       mode = "text";
@@ -286,7 +286,7 @@ export function CahierUpload({ open, onClose, onSuccess, hasExisting, initialTab
       }
       if (res.status >= 500) {
         throw new Error(
-          `Server error (HTTP ${res.status}). The function may have crashed — check Vercel logs.`
+          "Something went wrong on the server. Try again in a few minutes."
         );
       }
       throw new Error(
@@ -312,7 +312,7 @@ export function CahierUpload({ open, onClose, onSuccess, hasExisting, initialTab
         </div>
 
         <p style={M.desc}>
-          {caderno ? "The notes of your Spanish classes, turned into cards." : "Your lesson notes, turned into cards."}
+          {caderno ? "The notes of your Spanish classes, turned into cards." : "Your class notes, turned into cards."}
         </p>
 
         {!caderno && <div style={M.tabs}>
@@ -427,7 +427,7 @@ fonder / créer une entreprise
                       ? `Last checked ${timeAgo(cahier.link.last_checked_at)}.`
                       : "Not checked yet."}
                     {cahier.link.last_result?.cards
-                      ? ` Last added ${cahier.link.last_result.cards.toLocaleString()} cards from ${cahier.link.last_result.dates?.length || 0} classes.`
+                      ? ` Last added ${cahier.link.last_result.cards.toLocaleString()} ${cahier.link.last_result.cards === 1 ? "card" : "cards"} from ${cahier.link.last_result.dates?.length || 0} ${cahier.link.last_result.dates?.length === 1 ? "class" : "classes"}.`
                       : ""}
                   </div>
                   {(cahier.error || cahier.link.last_error) && <div style={M.error}>{cahier.error || cahier.link.last_error}</div>}
@@ -475,7 +475,7 @@ fonder / créer une entreprise
             onClick={handleSubmit}
             disabled={status === "uploading" || (tab === "link" && !!cahier?.checking)}
           >
-            {caderno ? (status === "uploading" ? "Linking…" : "Link") : status === "uploading" ? "Uploading…" : "Upload"}
+            {caderno || tab === "link" ? (status === "uploading" ? "Linking…" : "Link") : status === "uploading" ? "Uploading…" : "Upload"}
           </button>
         </div>
       </div>
@@ -611,11 +611,6 @@ const M = {
     fontFamily: T.font.sans,
     color: T.color.onSurface,
   },
-  fileInput: {
-    fontSize: 14,
-    marginBottom: 8,
-    fontFamily: T.font.sans,
-  },
   dropZone: {
     border: `2px dashed rgba(3,22,50,0.12)`,
     borderRadius: T.radius.xl,
@@ -647,15 +642,6 @@ const M = {
   dropZoneTextSub: {
     fontSize: 12,
     color: T.color.onSurfaceVariant,
-  },
-  filePreview: {
-    padding: 12,
-    background: T.color.tertiaryFixed,
-    color: T.color.onSecondaryContainer,
-    borderRadius: T.radius.lg,
-    fontSize: 13,
-    marginTop: 10,
-    fontWeight: 500,
   },
   linkText: { fontFamily:T.font.sans, fontSize:13, lineHeight:1.7, color:T.color.onSurfaceVariant, margin:"14px 0 0" },
   linkedBox: { marginTop:16, padding:"12px 14px", borderRadius:10, background:T.color.surfaceHigh,
