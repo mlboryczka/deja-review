@@ -3,9 +3,11 @@
 //
 // French is the app as it always was. Spanish is a deck of its own, in
 // tables of its own (migration_020: es_user_cards and the rest), so a Spanish
-// card can never come up in French study, nor reach the morning check, the
-// cahier sync or the students' app, which read only the French tables. The
-// study code is the same for both: it asks this file which table to use and
+// card can never come up in French study or in the students' app, which read
+// only the French tables. Spanish is checked and synced as its own course:
+// the morning check's test-app run checks the owner's Spanish deck, and the
+// cahier sync reads the caderno into es_user_cards; the server's daily run
+// and Check everyone check French only. The study code is the same for both: it asks this file which table to use and
 // under which name to keep things in the browser.
 //
 // Inside the app the side of a card in the language being learned is the

@@ -22,8 +22,10 @@
 --   verdict       'right', 'almost' (right but for an accent or a small slip)
 --                 or 'wrong'
 --   marked_by     'key' (it matched the answer key) or 'claude'
---   note, correct Claude's sentence to the student, and their answer
---                 corrected (empty when the key marked it)
+--   note, correct note: Claude's sentence to the student (empty when the
+--                 key marked it). correct: their answer corrected, by Claude
+--                 or, when the key marked it, the key's closest answer on a
+--                 one-box Almost (empty otherwise)
 --   model, prompt_version  for Claude's marking, as in podcast_answers
 --
 -- The server writes the rows with the service role; a student reads only

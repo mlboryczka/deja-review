@@ -9,7 +9,8 @@
 -- own transcript: "What's being said here? Give the idea in English." or
 -- "Translate into English.", with a Listen button that plays RFI's recording
 -- of that passage. Claude marks each answer "Got it", "Partly" or "Missed",
--- and a passage not fully understood comes back three days later. Nothing in
+-- and a passage not fully understood was to come back three days later (not
+-- done since 19 October 2026). Nothing in
 -- the database could hold any of it: which podcasts a student follows, the
 -- episodes with their transcripts and questions, or the answers.
 --
@@ -72,8 +73,9 @@
 --    stands alone if the questions are ever written again), what the student
 --    typed, Claude's verdict ('got', 'partly', 'missed') and feedback
 --    ({ "caught": [...], "missed": [...], "note": "..." }), the model and
---    prompt version, and due_at: when a passage not fully got comes back
---    (three days on; empty for 'got'). A passage's state is its latest answer.
+--    prompt version, and due_at: when a passage not fully got was to come
+--    back (three days on; empty for 'got'). Since 19 October 2026 nothing
+--    writes due_at and nothing reads it. A passage's state is its latest answer.
 --    The server writes them with the service role; a student reads only their
 --    own; nobody updates or deletes one. An episode with answers can't be
 --    deleted (no cascade), so clearing old episodes can never take a
@@ -172,7 +174,7 @@ create table if not exists public.podcast_answers (
   model text,
   prompt_version text,
   answered_at timestamptz not null default now(),
-  -- when the passage comes back; null for 'got'
+  -- when the passage was to come back; unused since 19 October 2026
   due_at timestamptz,
   time_zone text,
   created_at timestamptz not null default now()

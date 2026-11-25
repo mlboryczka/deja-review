@@ -56,9 +56,10 @@ create table if not exists public.card_reviews (
   direction text not null check (direction in ('fr', 'en')),
   answered_at timestamptz not null,
   correct boolean not null,
-  -- FSRS takes one answer per card per direction per day. A retry, or a card
-  -- already answered today, is still an answer, and is kept with counted
-  -- false and no FSRS figures.
+  -- FSRS takes one answer per card per direction per day. A card already
+  -- answered today is still an answer, and is kept with counted false and no
+  -- FSRS figures. (Since 14 October 2026, on the test app, the retry after a
+  -- miss is counted, with FSRS figures; see docs/scheduling.md.)
   counted boolean not null,
   -- 1 Again, 3 Good: the app grades binary. Null when not counted.
   rating smallint check (rating between 1 and 4),

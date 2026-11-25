@@ -38,7 +38,7 @@ create table if not exists public.upload_batches (
   source text,                             -- 'paste' | 'file' | 'link' | 'pdf' etc.
   input_chars integer,
   cards_parsed integer not null default 0, -- count returned by Claude
-  cards_accepted integer,                  -- count actually inserted (set by client after commit)
+  cards_accepted integer,                  -- count actually inserted (set by the server, api/parse-cahier.js, since 26 September 2026)
   cards_edited_post_parse integer not null default 0,
   few_shot_correction_ids uuid[] not null default '{}',
   model text,                              -- 'claude-haiku-4-5' etc.
