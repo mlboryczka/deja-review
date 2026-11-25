@@ -108,7 +108,7 @@ export const CARDS = [
   ["jugar", "to play", "V", "words"],
   ["la primaria", "elementary school / primary school", "V", "words"],
   ["afuera", "outside", "V", "words"],
-  ["un salón", "a classroom", "V", "words"],
+  ["una sala", "a classroom", "V", "words"],
   ["hasta", "until", "V", "words"],
   ["tener miedo", "to be scared / to be afraid", "V", "words"],
   ["a pie", "on foot", "V", "words"],
@@ -121,7 +121,7 @@ export const CARDS = [
   ["¿En serio?", "Seriously? / Really? (not de verdad)", "V", "words"],
 
   // ── 4. Solo (ex. 8)
-  ["Solo había un salón", "There was only one classroom", "E", "solo"],
+  ["Solo había una sala", "There was only one classroom", "E", "solo"],
   ["Solo hablo español con mi mamá", "I only speak Spanish with my mom / I only speak Spanish with my mum", "E", "solo"],
 
   // ── Phrases from the dialogue and her ex. 9: used to, would
@@ -262,7 +262,7 @@ export const NOTES = [
       { t: "note", v: "Like hay, había never changes for more than one: *había cinco niños en la familia*, \"there were five children in the family\", not habían." },
       { t: "pairs", head: ["Spanish", "English"], v: [
         ["No había tele en la casa", "There was no TV at home"],
-        ["Solo había un salón", "There was only one classroom"],
+        ["Solo había una sala", "There was only one classroom"],
       ]},
     ],
   },
@@ -270,7 +270,7 @@ export const NOTES = [
     tab: "Solo",
     h: "5 · Solo, only",
     blocks: [
-      { t: "lead", v: "\"Only\" is solo, usually before the verb: *solo había un salón*, \"there was only one classroom\"." },
+      { t: "lead", v: "\"Only\" is solo, usually before the verb: *solo había una sala*, \"there was only one classroom\"." },
       { t: "pairs", head: ["Spanish", "English"], v: [
         ["Solo veía la tele los sábados", "I only watched TV on Saturdays"],
         ["Solo hablo español con mi mamá", "I only speak Spanish with my mom"],
