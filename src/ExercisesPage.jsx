@@ -858,11 +858,6 @@ const S = {
   // The blanks' words in bold, in the colour of the rest of the answer.
   typedGap: { fontWeight: 700 },
   checking: { marginTop: 8, fontSize: 12.5, color: T.color.onSurfaceVariant, fontStyle: "italic" },
-  fb: { marginTop: 8, fontSize: 13.5, lineHeight: 1.6, color: T.color.onSurface },
-  verdict: { display: "inline-block", padding: "2px 10px", marginRight: 8, borderRadius: T.radius.full, fontSize: 11.5, fontWeight: 800 },
-  line: { marginTop: 6, fontSize: 13.5, lineHeight: 1.55, color: T.color.primary },
-  unsaved: { marginTop: 6, fontSize: 12, color: T.color.onSurfaceVariant },
-  reviewing: { fontSize: 12, color: T.color.onSurfaceVariant, fontStyle: "italic" },
   link: LINK,
   again: { marginTop: 12, padding: "7px 14px", borderWidth: 1, borderStyle: "solid", borderColor: "rgba(3,22,50,0.15)", borderRadius: T.radius.md, background: "transparent", color: T.color.primary, fontFamily: T.font.sans, fontWeight: 700, fontSize: 12, cursor: "pointer" },
 };

@@ -711,11 +711,6 @@ const S = {
 
   mine: { marginTop: 4, paddingLeft: 12, borderLeft: `3px solid ${T.color.surfaceHigh}`, fontFamily: T.font.serif, fontSize: 15, lineHeight: 1.6, color: T.color.onSurface, whiteSpace: "pre-wrap" },
   checking: { marginTop: 8, fontSize: 12.5, color: T.color.onSurfaceVariant, fontStyle: "italic" },
-  fb: { marginTop: 6, fontSize: 13.5, lineHeight: 1.6, color: T.color.onSurface },
-  verdict: { display: "inline-block", padding: "2px 10px", marginRight: 8, borderRadius: T.radius.full, fontSize: 11.5, fontWeight: 800 },
-  line: { marginTop: 6, fontSize: 13.5, lineHeight: 1.55, color: T.color.primary },
-  unsaved: { marginTop: 6, fontSize: 12, color: T.color.onSurfaceVariant },
-  reviewing: { fontSize: 12, color: T.color.onSurfaceVariant, fontStyle: "italic" },
   link: LINK,
 
   done: { padding: "18px 22px", background: T.color.surfaceLowest, borderWidth: 1, borderStyle: "solid", borderColor: LINE, borderRadius: T.radius.xl, marginBottom: 16 },
