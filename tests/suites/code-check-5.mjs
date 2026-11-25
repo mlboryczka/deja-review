@@ -33,7 +33,7 @@ ck("23 'Mark for review' names the study day", app.includes("new Date(`${localIS
 
 // 24: Auto-speak keyed on the slot, quiet once the set is done.
 ck("24 auto-speak depends on the slot, not the card object",
-   /\[autoSpeak, cardSlot, flipped, mode, sessionDone\]/.test(app) && /!autoSpeak \|\| !c \|\| mode !== "study" \|\| sessionDone/.test(app));
+   /\[autoSpeak, cardSlot, flipped, mode, sessionDone, oneAnswer\]/.test(app) && /!autoSpeak \|\| !c \|\| mode !== "study" \|\| sessionDone/.test(app));
 
 // 25: a failed read of the settings is tried again.
 ck("25 the settings read is retried after a failure", /setReadTry/.test(settings) && /failedRead\.current = true/.test(settings));

@@ -10,7 +10,6 @@ import { reconcileLessons, ADOPTED_SOURCE } from "./lib/lessonSync";
 import { archivedSource, ARCHIVE_PREFIX } from "./lib/archive";
 import { readPlace, writePlace, dropSets, packSet, unpackEntries } from "./lib/studyPlace";
 import { CHOICE_KEY, choicesOf, startedLessons, lessonsInCards, onCards, setKeyOf, dealScopeOf } from "./lib/lessonChoice";
-import { withdrawRetry } from "./lib/sessionQueue";
 import LessonPanel, { LESSON_PANEL_WIDTH } from "./LessonPanel";
 import Tour from "./Tour";
 import { tourSteps, TOUR_LESSON } from "./lib/tourSteps";
@@ -85,7 +84,7 @@ import { localISODate, reviewedToday, endOfLocalDay, browserTimeZone } from "./l
 import { progressByArea, progressChanges, aboutRemembered, areaDates } from "./lib/progress";
 import { statsOverTime, HISTORY_COLUMNS, endOfDayAgo, allSeenBy } from "./lib/progressHistory";
 import { RememberedChart, StudyCalendar, ProgressByLesson, Bands, splitText } from "./StatsSections";
-import { buildSession, practiceSession, applyAnswer, placeRetry, countBuckets, countsAnswer, BLOCK_SIZE } from "./lib/sessionQueue";
+import { buildSession, practiceSession, applyAnswer, placeRetry, withdrawRetry, countBuckets, countsAnswer, BLOCK_SIZE } from "./lib/sessionQueue";
 import { RE_QUEUE_OFFSET, State, settingsInUse } from "./lib/spacedRepetition";
 import { sideOf, sideColumns, directionsOf, isTwoWay, itemKey, resetColumns } from "./lib/directions";
 import { newReviewId, reviewRow, withoutExtras, missingColumn } from "./lib/reviewLog";
@@ -261,10 +260,13 @@ const sameTutorContext = (a, b) => {
   try { return JSON.stringify(a) === JSON.stringify(b); } catch { return false; }
 };
 
-// Feature flag: hide the pronunciation assessment UI (mic button + results
-// panel) without removing any code. The Azure backend, audio.js parser, and
-// PronunciationPanel component all stay in place — they just don't render.
-// Flip to `true` to bring it back.
+// Reads a card's text as it is (French cards have one answer to read).
+const sameText = (text) => text;
+
+// Feature flag: hides the pronunciation assessment UI (mic button + results
+// panel). Flipping it to `true` would not bring pronunciation scoring back:
+// the scoring backend (api/pronounce.js) was removed on 2026-09-08, and
+// assessPronunciation in audio.js now always returns an error.
 const PRONUNCIATION_ENABLED = false;
 
 // Cards are labelled by the three types in lib/cardTypes (grammar / word /
@@ -632,9 +634,7 @@ function matchAnswer(typed, correct, extraAlts = [], { exact = false, meanings =
   return accentMiss ? { match: false, wrongAccent: true } : { match: false };
 }
 
-// The columns an answer changes, as they stood before it — so a corrected
-// grade can be recomputed from the card as it was, not from the answer being
-// replaced.
+// Flip or type, kept on this browser.
 const STUDY_MODE_KEY = "study-mode";
 // Auto-speak and the number of cards in a set, kept on this browser like the
 // flip/type choice. A new set size applies to the set on screen at once (the
@@ -712,13 +712,13 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   // one (owner, 2026-10-26), and card editing works on Spanish cards.
   const spanish = course.id === "es";
   // A Spanish card shows one answer of the list it accepts (lib/cardText.js).
-  const oneAnswer = spanish ? firstAnswer : (text) => text;
+  const oneAnswer = spanish ? firstAnswer : sameText;
   // Which table each thing is in, and what this browser keeps it under.
   const tbl = course.table;
   const storeId = course.store(user?.id);
   // The course's lessons. The same object on every render, so it never
   // changes a hook's dependencies.
-  const { LESSONS, LESSON_GROUPS, LESSON_STAGES, LESSONS_SHOWN, lessonById, lessonRank, cardInstructionFor, lessonBackFor } = catalogueFor(course.id);
+  const { LESSONS, LESSON_GROUPS, LESSON_STAGES, lessonById, lessonRank, cardInstructionFor, lessonBackFor } = catalogueFor(course.id);
   // The browser voice reads this course's language.
   setSpeechLanguage(course.speech);
   const { progress, loaded: progressLoaded, updateCard, resetAll: resetAllProgress } = useProgress(user, { table: tbl("card_progress"), store: storeId });
@@ -822,14 +822,12 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   // Flashcards. A separate module flag left behind on Podcasts would have the
   // tour pointing at a Lessons item that isn't drawn.
   const [mode, setMode] = useState(() => (podPlaceRef.current?.open ? "podcasts" : exPlaceRef.current?.open ? "exercises" : dgPlaceRef.current?.open ? "dialogues" : "study"));
-  // seen/got/missed count TYPED answers only — those are verifiable, and
-  // accuracy built from self-reported flips would be meaningless. `answered`
-  // counts every graded card in either mode, so the end-of-session summary
-  // has something true to say when nothing was typed.
+  // `answered` counts every graded card in either mode, so the
+  // end-of-session summary has something true to say when nothing was typed.
   // firstAnswered/firstGot count each card's FIRST answer of the day, in
   // either mode — what the checkpoint reports as "right first time". A retry
   // or a card revisited with Previous card is not a first answer.
-  const [stats, setStats] = useState({ seen:0, got:0, missed:0, answered:0, firstAnswered:0, firstGot:0 });
+  const [stats, setStats] = useState({ answered:0, firstAnswered:0, firstGot:0 });
   // Bumped by Continue to deal the next block from the deck already in memory.
   const [blockSeq, setBlockSeq] = useState(0);
   // Progress when the current block was dealt, so the checkpoint can say what
@@ -1128,7 +1126,6 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   // 2026-09-27). The result used to land on whichever card was on screen when
   // it came back, and accepted a wrong answer there.
   const disputeRef = useRef(null);
-  const autoAdvanceTimer = useRef(null);
   const isAdmin = isAdminUser(user);
   // Whose Claude account pays: the owner anywhere, and Laura on the test app
   // (api/_lib/anthropicKey.js decides the same on the server).
@@ -1242,12 +1239,13 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   // episode's own recording is the podcasts page's to pause, and it does so
   // as it unmounts. Keyed on the change itself, so it never runs for a
   // student, whose app can't change module.
-  const podcastsWasOnRef = useRef(podcastsOn);
+  const moduleOn = podcastsOn || exercisesOn || dialoguesOn;
+  const moduleWasOnRef = useRef(moduleOn);
   useEffect(() => {
-    if (podcastsWasOnRef.current === podcastsOn) return;
-    podcastsWasOnRef.current = podcastsOn;
+    if (moduleWasOnRef.current === moduleOn) return;
+    moduleWasOnRef.current = moduleOn;
     stopSpeaking();
-  }, [podcastsOn]);
+  }, [moduleOn]);
   // The podcasts the owner follows, listed under My podcasts in the sidebar
   // and handed to the page. Not asked for at all in a student's app.
   const podFollows = usePodcastFollows(user, { enabled: hasPodcasts });
@@ -1575,7 +1573,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
         setDeckSig(filterSig);
         setIdx(at);
         setSessionDone(!!saved.done);
-        setStats(saved.stats || { seen:0, got:0, missed:0, answered:0, firstAnswered:0, firstGot:0 });
+        setStats(saved.stats || { answered:0, firstAnswered:0, firstGot:0 });
         // The card on screen as it was left: one whose answer had been seen
         // comes back showing it, so it can't be graded as if seen afresh.
         const face = saved.face;
@@ -1690,7 +1688,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
         avoid: lastAnsweredRef.current,
       });
     }
-    const { queue: cards, counts } = dealt;
+    const { queue: cards } = dealt;
     recordDeal({ kind: "new", scope: dealScope, direction: dirRef.current, slots: setSizeRef.current, dealt });
     blockStartRef.current = progressByArea(userCards);
 
@@ -1726,7 +1724,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     setIdx(0);
     // A rebuilt queue is unworked, whatever the last one's state was.
     setSessionDone(false);
-    setStats({ seen:0, got:0, missed:0, answered:0, firstAnswered:0, firstGot:0 });
+    setStats({ answered:0, firstAnswered:0, firstGot:0 });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, typeFilter, lessonFilter, scope, switchSig, userCards, blockSeq, deckFreshSeq, recheck, setSize]);
 
@@ -2120,12 +2118,12 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
       const t = setTimeout(() => speakFrench(oneAnswer(cleanFrenchPrompt(c.f, c.b))), 200);
       return () => clearTimeout(t);
     }
-  }, [autoSpeak, cardSlot, flipped, mode, sessionDone]);
+  }, [autoSpeak, cardSlot, flipped, mode, sessionDone, oneAnswer]);
 
   // Speak French manually (button handler)
   const speakCard = useCallback(() => {
     if (card) speakFrench(oneAnswer(cleanFrenchPrompt(card.f, card.b)));
-  }, [card]);
+  }, [card, oneAnswer]);
 
   // Speak any specific text (used for "tap a word to hear it")
   const speakText = useCallback((text) => {
@@ -2223,16 +2221,6 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
       }
     }
   }, [typeMode, idx, typeResult, mode, flipped]);
-
-  // Clear any pending auto-advance timer on unmount or card change
-  useEffect(() => {
-    return () => {
-      if (autoAdvanceTimer.current) {
-        clearTimeout(autoAdvanceTimer.current);
-        autoAdvanceTimer.current = null;
-      }
-    };
-  }, [idx]);
 
 
   // Answer handling: update progress + spaced-repetition state.
@@ -2473,9 +2461,6 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
       firstAnswered: s.firstAnswered + (firstAnswer ? 1 : 0),
       firstGot: s.firstGot + (firstAnswer && got ? 1 : 0)
         + (recordedBefore ? (got ? 1 : 0) - (earlier.got ? 1 : 0) : 0),
-      ...(source === "typed"
-        ? { seen: s.seen+1, got: s.got+(got?1:0), missed: s.missed+(got?0:1) }
-        : null),
     }));
     // Wrong answers: the card comes back RE_QUEUE_OFFSET cards later, INSIDE
     // the block — added on top while the block is shorter than the set size,
@@ -2618,10 +2603,6 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     // Stepping back puts an answerable card on screen again, so the session
     // is no longer over.
     setSessionDone(false);
-    if (autoAdvanceTimer.current) {
-      clearTimeout(autoAdvanceTimer.current);
-      autoAdvanceTimer.current = null;
-    }
     skipFlipAnim.current = true;
     setFlipped(false);
     setIdx(i => Math.max(0, i-1));
@@ -2640,7 +2621,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     setDeck([]);
     currentCardIdRef.current = null;
     setFlipped(false);
-    setStats({ seen:0, got:0, missed:0, answered:0, firstAnswered:0, firstGot:0 });
+    setStats({ answered:0, firstAnswered:0, firstGot:0 });
     setSessionDone(false);
     setTypedAnswer("");
     setTypeResult(null);
@@ -2658,7 +2639,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     setDeck([]);
     currentCardIdRef.current = null;
     setFlipped(false);
-    setStats({ seen:0, got:0, missed:0, answered:0, firstAnswered:0, firstGot:0 });
+    setStats({ answered:0, firstAnswered:0, firstGot:0 });
     setSessionDone(false);
     setTypedAnswer("");
     setTypeResult(null);
@@ -2695,12 +2676,8 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   // (e.g. after a result is shown and Again/Got It buttons are visible).
   const flipRef = useRef(flip);
   const answerRef = useRef(answer);
-  const goBackRef = useRef(goBack);
-  const giveUpRef = useRef(giveUpTyped);
   useEffect(() => { flipRef.current = flip; }, [flip]);
   useEffect(() => { answerRef.current = answer; });
-  useEffect(() => { goBackRef.current = goBack; });
-  useEffect(() => { giveUpRef.current = giveUpTyped; });
 
   // Anything layered over the study view. While one of these is up the card
   // is not what the keyboard is addressing: pressing Enter to submit in a
@@ -2980,10 +2957,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     resetSession();
   };
 
-  // ── SEED DEMO DECK (admin only) ─────────────────────────────────────
-  // Bulk-inserts RAW into user_cards for the current user. Preserves
-  // categories (vocab/expr/gram/pron → V/E/G/P) and dates so Matt's existing
-  // card_progress rows continue to match via the lowercased-front id.
+  // ── LESSON SYNC ─────────────────────────────────────────────────────
   // Keep every lesson's cards in step with the lesson itself.
   //
   // Lessons are part of the app, not something a student uploads: a new
@@ -3146,6 +3120,10 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   // "Add" button that no longer exists, because the sync above puts every
   // lesson in every deck on load. Nothing had called it since.
 
+  // ── SEED DEMO DECK (admin only) ─────────────────────────────────────
+  // Bulk-inserts RAW into user_cards for the current user. Preserves
+  // categories (vocab/expr/gram/pron → V/E/G/P) and dates so Matt's existing
+  // card_progress rows continue to match via the lowercased-front id.
   const seedDemoDeck = async () => {
     if (!user) return;
     setSeeding(true);
@@ -3232,21 +3210,17 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
         // a human-readable `error` string — surface it directly. Only fall
         // back to the noisy "HTTP N + raw response" dump for unexpected 5xx.
         const friendly = body && typeof body === "object" && body.error;
-        if (res.status >= 400 && res.status < 500 && friendly) {
-          alert(friendly);
-        } else {
-          alert(
-            `Card update failed.\n` +
+        // The reason is returned, and shown once in the Edit card window.
+        if (res.status >= 400 && res.status < 500 && friendly) return { error: friendly };
+        return {
+          error: `Card update failed.\n` +
             `HTTP ${res.status}\n` +
-            `Response: ${typeof body === "string" ? body.slice(0, 400) : JSON.stringify(body).slice(0, 400)}`
-          );
-        }
-        return false;
+            `Response: ${typeof body === "string" ? body.slice(0, 400) : JSON.stringify(body).slice(0, 400)}`,
+        };
       }
     } catch (e) {
       console.error("Card update network error:", e);
-      alert(`Card update network error: ${e.message || e}`);
-      return false;
+      return { error: `Card update network error: ${e.message || e}` };
     }
 
     // Fire-and-forget: log to the parse-corrections ledger every time a
@@ -4152,7 +4126,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
                 batchId: editingCard.batch_id,
               }
             );
-            if (ok) setEditingCard(null);
+            if (ok === true) setEditingCard(null);
             return ok;
           }}
           onDelete={async () => {
@@ -4321,11 +4295,14 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     );
   }
 
-  // ── STATS VIEW ──────────────────────────────────────────────────────
   // ── LESSONS ──────────────────────────────────────────────────────────
   // The catalogue. A lesson you have added is studied from here or from the
   // sidebar; one you haven't is added, which copies its cards into your deck.
   if (mode === "lessons") {
+    // A lesson card whose front the deck already had as its own is not added
+    // (reconcileLessons' `taken`), but the word is there. The same for every
+    // lesson, so worked out once.
+    const ownFronts = new Set(userCards.filter((c) => !lessonIdOf(c)).map((c) => c.f));
     return (
       <div style={shellStyle}>
         {sidebar}
@@ -4355,9 +4332,6 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
               {!(group.folds && pageClosedGroups.has(group.title)) && group.lessons.map((lesson) => {
               const owned = userCards.filter((c) => lessonIdOf(c) === lesson.id);
               const added = owned.length > 0;
-              // A lesson card whose front the deck already had as its own is
-              // not added (reconcileLessons' `taken`), but the word is there.
-              const ownFronts = new Set(userCards.filter((c) => !lessonIdOf(c)).map((c) => c.f));
               // A lesson card taken out as a repeat of a card in the deck is
               // there as that card: "Allons-y !" as the notes card "On y va /
               // Allons-y" (the owner, 2026-10-12: "why 107/108?").
@@ -4432,6 +4406,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     );
   }
 
+  // ── STATS ───────────────────────────────────────────────────────────
   if (mode === "stats") {
     const now = Date.now();
     const todayISO = localISODate();
@@ -4616,7 +4591,6 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     );
   }
 
-  // ── FEEDBACK VIEW (admin only) ──────────────────────────────────────
   // ── STUDY MODE ──────────────────────────────────────────────────────
   // French shown as the prompt gets its English gloss stripped — otherwise the
   // card answers itself. English shown as the prompt loses any note naming the
@@ -4633,12 +4607,10 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   // appear broken.
   const effectiveTypeMode = typeMode && !!card;
 
-  // The card face is the same affordance as the "Show answer" button, so in
-  // What the completion panel says it did. Accuracy needs a denominator you
-  // can trust, so it is only offered when something was actually typed;
-  // otherwise the honest report is a count of what you worked through.
-  // Answers, not cards: a block of 50 includes its retries. Right first time
-  // counts each card's first answer of the day.
+  // What the completion panel says it did: a count of the answers given, and
+  // how many were right the first time. Answers, not cards: a block of 50
+  // includes its retries. Right first time counts each card's first answer of
+  // the day, flipped or typed.
   const blockSummary = stats.firstAnswered > 0
     ? `${stats.answered} ${stats.answered === 1 ? "answer" : "answers"}, ${stats.firstGot} right first time`
     : `${stats.answered} ${stats.answered === 1 ? "answer" : "answers"}`;
@@ -4648,12 +4620,14 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
       : LESSONS.find((l) => `lesson:${l.id}` === area)?.title || "Lesson";
   const moreOrFewer = (n, word) => `about ${Math.abs(n)} ${n >= 0 ? "more" : "fewer"} ${word}`;
 
-  // type mode tapping it has to run giveUpTyped. A bare flip() would turn the
-  // card over while leaving typeResult null — the answer visible, but the app
-  // still believing the card was unanswered, so the action row never appears.
-  // Once the answer is showing, the card is the same affordance as
-  // "Continue →": tapping it grades and moves on, so you can work through a
-  // session without moving the pointer off the card.
+  const cardLesson = card ? LESSONS.find((l) => l.id === lessonIdOf(card)) || null : null;
+  // What to type, above the prompt of a grammar card: "Present tense, with
+  // je", "Write the adverb for this adjective". "vivre → je" never said which
+  // tense, and "relatif → adverbe" read as a word to translate. In italics, like
+  // the tap hint, so it reads as the app talking rather than part of the card.
+  // Grammar cards are only ever shown French side.
+  const instruction = card && card.shownDir === "fr" ? cardInstructionFor(card) : null;
+
   // Which language the typed answer is supposed to be in.
   //
   // Not the same question as which side is showing. A vocab card shown
@@ -4664,20 +4638,19 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   //
   // The arrow is the test, the same marker classifyCard treats as definitive
   // for a conjugation drill.
-  const cardLesson = card ? LESSONS.find((l) => l.id === lessonIdOf(card)) || null : null;
-  // What to type, above the prompt of a grammar card: "Present tense, with
-  // je", "Write the adverb for this adjective". "vivre → je" never said which
-  // tense, and "relatif → adverbe" read as a word to translate. In italics, like
-  // the tap hint, so it reads as the app talking rather than part of the card.
-  // Grammar cards are only ever shown French side.
-  const instruction = card && card.shownDir === "fr" ? cardInstructionFor(card) : null;
-
   const answerLang = (c) =>
     !c ? "English"
       : c.shownDir === "en" ? course.language
       : String(c.f || "").includes("→") ? course.language
       : "English";
 
+  // The card face is the same affordance as the "Show answer" button, so in
+  // type mode tapping it has to run giveUpTyped. A bare flip() would turn the
+  // card over while leaving typeResult null — the answer visible, but the app
+  // still believing the card was unanswered, so the action row never appears.
+  // Once the answer is showing, the card is the same affordance as
+  // "Continue →": tapping it grades and moves on, so you can work through a
+  // session without moving the pointer off the card.
   const onCardClick = () => {
     if (!effectiveTypeMode) return flip();
     // With an answer typed but not checked, tapping the card checks it. It
@@ -4774,39 +4747,37 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
             </button>
             {/* Kept in the page when closed, only hidden, so its switches can
                 be reached the same way whether or not it is showing. */}
-            {(
-              <div style={showSettings ? S.settingsMenu : {...S.settingsMenu, display:"none"}} data-settings-menu role="dialog" aria-label="Settings" aria-hidden={!showSettings}>
-                <div style={S.settingsSec}>
-                  <div style={S.settingsSeg}>
-                    {[["fr", `${course.language} → English`], ["en", `English → ${course.language}`], ["mix", "Mixed"]].map(([k, label]) => (
-                      <button key={k} data-dir-choice={k} style={dir === k ? {...S.dirBtn, ...S.dirBtnA, ...S.settingsSegBtn} : {...S.dirBtn, ...S.settingsSegBtn}} onClick={() => setDir(k)}>{label}</button>
-                    ))}
-                  </div>
-                </div>
-                {/* A change made once the card's answer has been seen waits for
-                    the next card (toggleTypeMode, the effect on dir); the
-                    switch shows where it is going. */}
-                <div style={{...S.settingsSec, ...S.settingsSecRule}}>
-                  <SettingsSwitch label="Type answer" on={pendingTypeMode ?? typeMode} onClick={toggleTypeMode} data-type-toggle />
-                  {TTS_AVAILABLE && (
-                    <SettingsSwitch label="Auto-speak" on={autoSpeak} onClick={() => setAutoSpeak((v) => !v)} data-auto-speak />
-                  )}
-                  {/* Everything (on) or only the student's own cards (off):
-                      lib/lessonChoice.js. Inside a lesson it means nothing. */}
-                  {lessonFilter === "all" && !spanish && (
-                    <SettingsSwitch label="Include lessons" on={scope === "all"} onClick={() => setScope(scope === "all" ? "cahier" : "all")} data-scope />
-                  )}
-                </div>
-                <div style={{...S.settingsSec, ...S.settingsSecRule}}>
-                  <div style={S.settingsCap}>Cards in a set</div>
-                  <div style={S.settingsSeg}>
-                    {SET_SIZES.map((n) => (
-                      <button key={n} data-set-size={n} style={setSize === n ? {...S.dirBtn, ...S.dirBtnA, ...S.settingsSegBtn} : {...S.dirBtn, ...S.settingsSegBtn}} onClick={() => setSetSize(n)}>{n}</button>
-                    ))}
-                  </div>
+            <div style={showSettings ? S.settingsMenu : {...S.settingsMenu, display:"none"}} data-settings-menu role="dialog" aria-label="Settings" aria-hidden={!showSettings}>
+              <div style={S.settingsSec}>
+                <div style={S.settingsSeg}>
+                  {[["fr", `${course.language} → English`], ["en", `English → ${course.language}`], ["mix", "Mixed"]].map(([k, label]) => (
+                    <button key={k} data-dir-choice={k} style={dir === k ? {...S.dirBtn, ...S.dirBtnA, ...S.settingsSegBtn} : {...S.dirBtn, ...S.settingsSegBtn}} onClick={() => setDir(k)}>{label}</button>
+                  ))}
                 </div>
               </div>
-            )}
+              {/* A change made once the card's answer has been seen waits for
+                  the next card (toggleTypeMode, the effect on dir); the
+                  switch shows where it is going. */}
+              <div style={{...S.settingsSec, ...S.settingsSecRule}}>
+                <SettingsSwitch label="Type answer" on={pendingTypeMode ?? typeMode} onClick={toggleTypeMode} data-type-toggle />
+                {TTS_AVAILABLE && (
+                  <SettingsSwitch label="Auto-speak" on={autoSpeak} onClick={() => setAutoSpeak((v) => !v)} data-auto-speak />
+                )}
+                {/* Everything (on) or only the student's own cards (off):
+                    lib/lessonChoice.js. Inside a lesson it means nothing. */}
+                {lessonFilter === "all" && !spanish && (
+                  <SettingsSwitch label="Include lessons" on={scope === "all"} onClick={() => setScope(scope === "all" ? "cahier" : "all")} data-scope />
+                )}
+              </div>
+              <div style={{...S.settingsSec, ...S.settingsSecRule}}>
+                <div style={S.settingsCap}>Cards in a set</div>
+                <div style={S.settingsSeg}>
+                  {SET_SIZES.map((n) => (
+                    <button key={n} data-set-size={n} style={setSize === n ? {...S.dirBtn, ...S.dirBtnA, ...S.settingsSegBtn} : {...S.dirBtn, ...S.settingsSegBtn}} onClick={() => setSetSize(n)}>{n}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
           </div>
         </div>
@@ -4976,7 +4947,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
                       </div>
                     )}
                     {!effectiveTypeMode && <div className="card-hint" style={S.cardHint}>Tap to reveal translation</div>}
-                    {effectiveTypeMode && !typeResult && <div className="card-hint" style={S.cardHint}>Tap to show answer</div>}
+                    {effectiveTypeMode && !typeResult && <div className="card-hint" style={S.cardHint}>{typedAnswer.trim() ? "Tap to check your answer" : "Tap to show answer"}</div>}
                     {!effectiveTypeMode && <ShortcutsTooltip />}
                     {!showFeedback && <ReportCardButton onReport={reportCard} nextToInfo={!effectiveTypeMode} />}
                     {answerSeen && <TurnCardButton onTurn={flip} toAnswer />}
@@ -4997,7 +4968,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
                     )}
                     {/* Spanish cards are edited in the Spanish deck, and the
                         edit logged as Spanish (2026-10-22). */}
-                    {<div style={S.cardActionsFloat}>
+                    <div style={S.cardActionsFloat}>
                       <button
                         style={S.cardActionBtn}
                         onClick={(e) => { e.stopPropagation(); setEditingCard(card); }}
@@ -5005,7 +4976,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
                       >
                         ✏️
                       </button>
-                    </div>}
+                    </div>
                     {!showFeedback && <ReportCardButton onReport={reportCard} />}
                     {answerSeen && <TurnCardButton onTurn={flip} />}
                   </div>
@@ -5086,7 +5057,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
                                   <button
                                     style={{ ...S.typeLink, ...S.typeLinkMuted }}
                                     onClick={markForReview}
-                                    title="Record as incorrect and keep this card near the top of the queue"
+                                    title="Record as incorrect; it comes back later in this set or when it is next due"
                                   >
                                     Mark for review
                                   </button>
@@ -5212,7 +5183,6 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   );
 }
 
-// ─── EDIT CARD MODAL ─────────────────────────────────────────────────────
 // ─── FEEDBACK ENTRY ────────────────────────────────────────────────────────
 // One entry in the feedback log, the same in the "View feedback" modal and on
 // the Feedback Review page. The entry itself is read-only; in View feedback,
@@ -5750,6 +5720,7 @@ function UsersModal({ onClose }) {
   );
 }
 
+// ─── EDIT CARD MODAL ─────────────────────────────────────────────────────
 function EditCardModal({ card, onClose, onSave, onDelete, language = "French" }) {
   const [front, setFront] = useState(card.f);
   const [back, setBack] = useState(card.b);
@@ -5769,8 +5740,8 @@ function EditCardModal({ card, onClose, onSave, onDelete, language = "French" })
     setSaving(true);
     setError("");
     const ok = await onSave(front, back);
-    if (!ok) {
-      setError("Save failed");
+    if (ok !== true) {
+      setError(ok?.error || "Save failed");
       setSaving(false);
     }
   };
