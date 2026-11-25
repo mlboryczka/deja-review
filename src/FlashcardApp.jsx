@@ -97,7 +97,7 @@ import { uploadResultText, yourClasses } from "./lib/uploadText";
 import PodcastsPage from "./PodcastsPage";
 import { usePodcastFollows } from "./usePodcasts";
 import { podcastBySlug } from "./lib/podcastCatalogue";
-import { testAppModulesOpenTo, usesOwnersKeyOnTestApp } from "./lib/testApp";
+import { testAppModulesOpenTo, podcastsOpenTo, usesOwnersKeyOnTestApp } from "./lib/testApp";
 // The Spanish Exercises module (owner, 2026-10-24): the written exercises of
 // each Spanish lesson's sheet, answered and marked one item at a time. Its
 // pages are ExercisesPage's; the shell owns which one is showing.
@@ -116,16 +116,18 @@ const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase();
 // The owner's account. Client-side only, so it only ever HIDES things: every
 // podcasts action is refused on the server for anyone else (api/podcasts.js).
 const isAdminUser = (user) => !!(user?.email && user.email.toLowerCase() === ADMIN_EMAIL);
-// Podcasts: the owner, and anyone signed in on the owner's test app
-// (lib/testApp.js, owner 2026-10-19). The server checks the same rule.
-const podcastsUser = (user) => testAppModulesOpenTo({
+// Podcasts: the owner alone, on both apps (lib/testApp.js, owner
+// 2026-11-25: "Podcasts mine only"). The server checks the same rule.
+const podcastsUser = (user) => podcastsOpenTo({ isOwner: isAdminUser(user) });
+// The Spanish module (2026-10-22), with Exercises and Dialogues: everyone
+// signed in since 2026-11-25 (lib/testApp.js), who switch between French and
+// Spanish with the flag in the top-right corner (LanguageFlag, below).
+const modulesUser = (user) => testAppModulesOpenTo({
   isOwner: isAdminUser(user),
   signedIn: !!user?.id,
   host: appHost(),
 });
-// The Spanish module (2026-10-22): the same people, who switch between French
-// and Spanish with the flag in the top-right corner (LanguageFlag, below).
-export const hasLanguageChoice = (user) => podcastsUser(user);
+export const hasLanguageChoice = (user) => modulesUser(user);
 
 // ─── PODCASTS: WHERE THE OWNER WAS ───────────────────────────────────────
 // The sidebar's switch has two buttons, Flashcards and Podcasts (owner,
@@ -806,12 +808,12 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   // The same for Exercises, in Spanish.
   const exPlaceRef = useRef(undefined);
   if (exPlaceRef.current === undefined) {
-    exPlaceRef.current = podcastsUser(user) && spanish ? readExercisesPlace(user?.id) : null;
+    exPlaceRef.current = modulesUser(user) && spanish ? readExercisesPlace(user?.id) : null;
   }
   // And for Dialogues.
   const dgPlaceRef = useRef(undefined);
   if (dgPlaceRef.current === undefined) {
-    dgPlaceRef.current = podcastsUser(user) && spanish ? readDialoguesPlace(user?.id) : null;
+    dgPlaceRef.current = modulesUser(user) && spanish ? readDialoguesPlace(user?.id) : null;
   }
   // The page: study | lessons | stats | podcasts. "study" is Cards and also
   // the inside of a lesson (lessonFilter). "podcasts" is the whole Podcasts
@@ -1111,13 +1113,13 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   // early returns (Loading, the onboarding screen): a hook below them would
   // change the number of hooks once the deck loads, and React throws.
   //
-  // Who has it: the owner, and anyone signed in on the test app (owner,
-  // 2026-10-19; lib/testApp.js).
+  // Who has it: the owner alone, on both apps (owner, 2026-11-25: "Podcasts
+  // mine only"; lib/testApp.js).
   //
-  // The same people have the Spanish module (2026-10-22), switched to with
-  // the flag in the top-right corner. Podcasts is French: not in Spanish.
-  const hasModules = podcastsUser(user);
-  const hasPodcasts = hasModules && !spanish;
+  // Everyone signed in has the Spanish module (since 2026-11-25), switched to
+  // with the flag in the top-right corner. Podcasts is French: not in Spanish.
+  const hasModules = modulesUser(user);
+  const hasPodcasts = podcastsUser(user) && !spanish;
   // Whether Podcasts is showing. Owner only: `mode` can only become
   // "podcasts" through goPodcasts or the owner's saved place, both of which
   // check, and this checks again so nothing a student could reach depends on

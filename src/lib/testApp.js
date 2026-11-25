@@ -9,8 +9,9 @@
 // dejareview.vercel.app.) The owner's own
 // tools (feedback, Claude's marking, the status checks) are not part of
 // "the version": they stay the owner's on both.
-// Since 2026-11-25 the students' app shows the same modules to every student
-// (testAppModulesOpenTo below); only the owner's tools stay the owner's.
+// Since 2026-11-25 the students' app shows the Spanish module, Exercises and
+// Dialogues to every student (testAppModulesOpenTo below); Podcasts and the
+// owner's tools stay the owner's (podcastsOpenTo below).
 //
 // Who pays: the caller's own key, or the server's (the owner's Claude
 // account) for the owner anywhere and for the people named below on the test
@@ -25,12 +26,16 @@ export const TEST_APP_HOSTS = [
 export const isTestAppHost = (host) =>
   TEST_APP_HOSTS.includes(String(host || "").trim().toLowerCase().replace(/:\d+$/, ""));
 
-// Podcasts, the Spanish module (language choice, Exercises, Dialogues) and
-// Claude's marking of Exercises and Dialogues: open to everyone signed in, on
-// the students' app and the test app alike (owner, 2026-11-25: "do it!").
+// The Spanish module (language choice, Exercises, Dialogues) and Claude's
+// marking of Exercises and Dialogues: open to everyone signed in, on the
+// students' app and the test app alike (owner, 2026-11-25: "do it!").
 // The address no longer matters; `host` is still passed by every caller.
 export const testAppModulesOpenTo = ({ isOwner, signedIn }) =>
   !!isOwner || !!signedIn;
+
+// Podcasts: the owner alone, on both apps (owner, 2026-11-25: "Podcasts mine
+// only"). The app's switch and api/podcasts.js read this rule.
+export const podcastsOpenTo = ({ isOwner }) => !!isOwner;
 
 // Who else uses the owner's Claude account on the test app (owner,
 // 2026-10-19: "she can just use mine ... only laura and I have access").

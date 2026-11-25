@@ -15,10 +15,10 @@
 //   add-card  { episodeId, front, back } -> { added, have, removed, waiting }
 // Errors: { error, code } with a plain sentence the page shows as it is.
 //
-// Who may use it (testAppModulesOpenTo, src/lib/testApp.js; since 2026-10-19): the
-// owner anywhere, and anyone signed in on the test app; on the students' app
-// the owner only, and anyone else gets 403 "Admin only". The client shows the
-// module by the same rule, but only the server's check keeps anyone out.
+// Who may use it (podcastsOpenTo, src/lib/testApp.js): the owner alone, on
+// both apps (owner, 2026-11-25: "Podcasts mine only"); anyone else gets 403
+// "Admin only". The client shows the module by the same rule, but only the
+// server's check keeps anyone out.
 //
 // The key that pays is worked out only inside the actions that call Claude
 // (writing an episode's questions, marking, and the same-card question when
@@ -35,7 +35,7 @@ import { createClient } from "@supabase/supabase-js";
 import { requireUser, isAdmin } from "./_lib/auth.js";
 import { resolveAnthropicKey } from "./_lib/anthropicKey.js";
 import { handlePodcastRequest, supabasePodcastStore, claudeError } from "./_lib/podcasts.js";
-import { testAppModulesOpenTo } from "../src/lib/testApp.js";
+import { podcastsOpenTo } from "../src/lib/testApp.js";
 import { allowIphoneApp } from "./_lib/cors.js";
 
 // Writing an episode's questions can take a couple of minutes (its own limit
@@ -50,10 +50,8 @@ export default async function handler(req, res) {
 
   const user = await requireUser(req, res);
   if (!user) return;
-  // The owner, and anyone signed in on the owner's test app (owner,
-  // 2026-10-19). The host is the address Vercel routed this request by, so
-  // the students' app's code only ever sees its own.
-  if (!testAppModulesOpenTo({ isOwner: isAdmin(user), signedIn: true, host: req.headers.host })) {
+  // The owner alone, on both apps (owner, 2026-11-25: "Podcasts mine only").
+  if (!podcastsOpenTo({ isOwner: isAdmin(user) })) {
     return res.status(403).json({ error: "Admin only" });
   }
 

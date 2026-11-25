@@ -18,8 +18,8 @@
 //     else's answer is ever in a reply;
 //   - a reply from Claude that can't be read saves nothing;
 //   - no key, no call; the handler itself still refuses anyone it is not told is
-//     an admin (403, no call). Who may reach it is the route's rule (the owner,
-//     and anyone signed in on the test app since 2026-10-19), checked below;
+//     an admin (403, no call). Who may reach it is the route's rule (the owner
+//     alone, on both apps, since 2026-11-25), checked below;
 //   - "Add to my cards" inserts one new row (never an upsert over a card,
 //     never a schedule), says "In your deck" for a card the student has,
 //     leaves a card they removed removed, and adds nothing on a guess when
@@ -770,10 +770,21 @@ console.log("\n  the handler's own admin gate (the route lets in the test app's 
   ck("an unknown action is refused", (await run(store, OWNER, { action: "delete-everything" })).status === 400);
 }
 
-// Since 2026-11-25 (owner: "do it!") every signed-in student has Podcasts, the
-// Spanish module, Exercises and Dialogues, on the students' app too. The
-// app's switch and the routes read the same rule.
-console.log("\n  who has Podcasts and the Spanish module: everyone signed in, on both apps");
+// Since 2026-11-25 (owner: "do it!") every signed-in student has the Spanish
+// module, Exercises and Dialogues, on the students' app too; Podcasts stays
+// the owner's alone (owner: "Podcasts mine only"). The app's switch and the
+// routes read the same rules.
+console.log("\n  who has Podcasts: the owner alone, on both apps");
+{
+  const { podcastsOpenTo } = await import("../../src/lib/testApp.js");
+  ck("the owner, on either app", podcastsOpenTo({ isOwner: true }));
+  ck("not a student, signed in on the students' app or the test app",
+     !podcastsOpenTo({ isOwner: false, signedIn: true, host: "dejareview.vercel.app" })
+     && !podcastsOpenTo({ isOwner: false, signedIn: true, host: "dejareview-mlb.vercel.app" }));
+  const route = (await import("node:fs")).readFileSync(new URL("../../api/podcasts.js", import.meta.url), "utf8");
+  ck("the Podcasts route lets in only by that rule", /if \(!podcastsOpenTo\(/.test(route) && !/testAppModulesOpenTo/.test(route));
+}
+console.log("\n  who has the Spanish module: everyone signed in, on both apps");
 {
   const { testAppModulesOpenTo } = await import("../../src/lib/testApp.js");
   const open = (isOwner, signedIn, host) => testAppModulesOpenTo({ isOwner, signedIn, host });
