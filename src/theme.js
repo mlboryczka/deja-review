@@ -18,13 +18,10 @@ export const T = {
 
     // Secondary "Terracotta" family — interactive accents, progress, celebration
     secondary: "#9c4234",
-    secondaryContainer: "#fe8f7c",
     onSecondary: "#ffffff",
-    onSecondaryContainer: "#76261b",
 
     // Background "Clay" — the paper of the app
     background: "#fdf8f6",
-    onBackground: "#1c1b1b",
 
     // Surface tiers — boundaries via tonal shifts, not lines
     surface: "#fdf8f6",
@@ -39,15 +36,15 @@ export const T = {
     // Semantic status
     error: "#ba1a1a",
     errorContainer: "#ffdad6",
-    onError: "#ffffff",
     onErrorContainer: "#93000a",
 
     // Tertiary — used sparingly for contextual blocks
-    tertiary: "#25120a",
     tertiaryFixed: "#ffdbcf",
 
     // Ghost borders at 15% opacity — "felt, not seen"
     outlineGhost: "rgba(3, 22, 50, 0.08)",
+    // The edge of the lesson name on a card, a little firmer than the ghost one
+    outline: "rgba(3, 22, 50, 0.18)",
   },
 
   // The "Midnight Gradient" — primary CTA background, never a flat hex
@@ -81,16 +78,5 @@ export const T = {
     modal: "0 20px 60px rgba(3, 22, 50, 0.15)",
     // Small lift for inputs on focus
     focus: "0 2px 12px rgba(3, 22, 50, 0.08)",
-  },
-
-  // Spacing scale — use for gaps, padding, margins
-  space: {
-    xs: 4,
-    sm: 8,
-    md: 12,
-    lg: 16,
-    xl: 24,
-    xxl: 32,
-    xxxl: 48,
   },
 };

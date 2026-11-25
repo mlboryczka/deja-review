@@ -7,6 +7,7 @@ import { clearDeckCache } from "./useUserDeck";
 import { clearProgressCache } from "./useProgress";
 import { clearTutorThread } from "./lib/tutorThreads";
 import { clearStudyPlace } from "./lib/studyPlace";
+import { T } from "./theme";
 import { clearPodcastDrafts } from "./usePodcasts";
 import { clearKey } from "./lib/anthropicKey";
 
@@ -206,7 +207,7 @@ export default function App() {
             fontSize: 14,
             fontFamily: "inherit",
             color: "#fff",
-            background: "#9c4234",
+            background: T.color.secondary,
             border: "none",
             borderRadius: 8,
             cursor: "pointer",
@@ -220,7 +221,7 @@ export default function App() {
 
   userIdRef.current = session?.user?.id || null;
   const signOutBanner = signOutError ? (
-    <div role="alert" onClick={() => setSignOutError("")} style={{ position: "fixed", top: 12, left: "50%", transform: "translateX(-50%)", zIndex: 5000, background: "#9c4234", color: "#fff", padding: "10px 18px", borderRadius: 8, fontSize: 14, fontFamily: "sans-serif", cursor: "pointer", boxShadow: "0 4px 16px rgba(0,0,0,0.25)" }}>
+    <div role="alert" onClick={() => setSignOutError("")} style={{ position: "fixed", top: 12, left: "50%", transform: "translateX(-50%)", zIndex: 5000, background: T.color.secondary, color: "#fff", padding: "10px 18px", borderRadius: 8, fontSize: 14, fontFamily: "sans-serif", cursor: "pointer", boxShadow: "0 4px 16px rgba(0,0,0,0.25)" }}>
       {signOutError}
     </div>
   ) : null;
@@ -241,7 +242,7 @@ export default function App() {
 }
 
 const centred = {
-  background: "#fdf8f6",
+  background: T.color.background,
   minHeight: "100vh",
   display: "flex",
   alignItems: "center",
