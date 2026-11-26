@@ -4487,7 +4487,9 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
                         {lesson.title}
                         {spanish && mastered.has(lesson.id) && <MasteredBadge small style={{ marginLeft: 8, position: "relative", top: -2 }} />}
                       </div>
-                      <div style={S.lessonSub}>{lesson.subtitle}</div>
+                      {/* No description under the title, and no credit line
+                          (owner, 2026-11-26: "remove the grey explainer text
+                          everywhere", "remove this everywhere"). */}
                     </div>
                     {/* No "add" step: lessons ship with the app and sync
                         themselves into the deck on load. A student should
@@ -4518,8 +4520,6 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
                     {added
                       ? `${Math.min(inDeck, lesson.cards.length)} of ${lesson.cards.length} cards in your deck`
                       : `${lesson.cards.length} cards · adding to your deck`}
-                    {" · "}
-                    {lesson.source}
                   </div>
                   <div style={S.lessonSwitchRow} data-tour-include={lesson.id}>
                     <button

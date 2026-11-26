@@ -107,9 +107,8 @@ export default function LessonPanel({ open, onClose, lesson, reflow = false, sid
         <div style={S.head}>
           <div>
             <div style={S.title}>{lesson.title}</div>
-            {/* Whose materials the lesson is from. A lesson written for the
-                app has no one to credit and leaves the line out. */}
-            {lesson.creditInNotes !== false && <div style={S.sub}>{lesson.source}</div>}
+            {/* No credit line under the title (owner, 2026-11-26: "remove
+                this everywhere"). */}
           </div>
           <button style={S.close} onClick={onClose} title="Close">✕</button>
         </div>
