@@ -27,6 +27,9 @@
 // cards (api/_lib/repeatsChecks.js, 2026-10-06), has no schedule of its own:
 // it runs in either of the last two when that one's own test isn't due, so
 // no fifth cron is needed. On a day both of theirs are due it waits a day.
+// The test of how the app marks the owner's Spanish exercises, dialogues and
+// class sentences (api/_lib/markingChecks.js, 2026-11-26) runs the same way,
+// before the look-alike one, on whichever schedule has nothing of its own due.
 //
 // "Due" is api/_lib/evalRuns.js's: never run, the way Claude is asked has
 // changed since, or a week since the last run. Otherwise those tests do
@@ -47,6 +50,7 @@ import { isDue } from "./_lib/evalRuns.js";
 import { ANSWER_PROMPT_VERSION, runAnswerTest, supabaseAnswerStore } from "./_lib/answerChecks.js";
 import { NOTES_PROMPT_VERSION, runNotesTest, supabaseNotesStore } from "./_lib/notesChecks.js";
 import { REPEATS_PROMPT_VERSION, runRepeatsTest, supabaseRepeatsStore } from "./_lib/repeatsChecks.js";
+import { MARKS_VERSION, runMarksTest, supabaseMarksStore } from "./_lib/markingChecks.js";
 
 export const ANSWERS_SCHEDULE = "0 15 * * *";
 export const NOTES_SCHEDULE = "0 16 * * *";
@@ -100,7 +104,7 @@ export async function runFirstDue(order, testFor, { now = Date.now } = {}) {
   return { skipped: waiting || "not due" };
 }
 
-// The three tests of Claude's work, each with its store, its version and how
+// The four tests of Claude's work, each with its store, its version and how
 // it runs. `deadline` is when to stop starting calls to Claude.
 function testFor(kind, admin, apiKey) {
   if (kind === "answers") {
@@ -117,6 +121,10 @@ function testFor(kind, admin, apiKey) {
         read: async (block) => cardsFromExtracted(await extractCardsFromBlock(anthropic, block)),
       }),
     };
+  }
+  if (kind === "marks") {
+    const store = supabaseMarksStore(admin);
+    return { store, version: MARKS_VERSION, run: (deadline) => runMarksTest({ store, apiKey, adminEmail: adminEmail(), deadline }) };
   }
   const store = supabaseRepeatsStore(admin);
   return { store, version: REPEATS_PROMPT_VERSION, run: (deadline) => runRepeatsTest({ store, apiKey, deadline }) };
@@ -141,7 +149,7 @@ export default async function handler(req, res) {
 
   const schedule = req.headers["x-vercel-cron-schedule"];
   if (schedule === ANSWERS_SCHEDULE || schedule === NOTES_SCHEDULE) {
-    const order = schedule === ANSWERS_SCHEDULE ? ["answers", "repeats"] : ["notes", "repeats"];
+    const order = schedule === ANSWERS_SCHEDULE ? ["answers", "marks", "repeats"] : ["notes", "marks", "repeats"];
     try {
       const out = await runFirstDue(order, (kind) => testFor(kind, admin, ANTHROPIC_API_KEY));
       return res.status(200).json({ ok: true, ...out, run: out.run?.id || null });

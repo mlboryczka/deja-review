@@ -318,10 +318,12 @@ if (args.includes("--everyone")) {
     ["answers", "Claude's marking of typed answers"],
     ["notes", "Claude reading class notes into cards"],
     ["repeats", "Claude judging whether two look-alike cards are the same card"],
+    ["marks", "The app's marking of your Spanish exercises, dialogues and class sentences"],
   ]) {
     const e = evals[kind] || {};
     const last = e.latest ? `last tested ${e.latest.ran_at.slice(0, 10)} (version ${e.latest.version}, ${e.latest.passed} of ${e.latest.cases} right every time)` : "not tested yet";
     console.log(`\n${label}: ${last}.`);
+    if (kind === "marks" && e.latest?.summary?.bySource) console.log(marksLines(e.latest.summary.bySource));
     if (e.error) { unreadable = true; console.log(`  Couldn't read its tests: ${e.error}`); }
     for (const line of e.regressions || []) { console.log(`  - ${line}`); problems.push(`${label}: ${line}`); }
     if (!e.error && !(e.regressions || []).length) console.log("  Nothing it got right before is wrong now.");
@@ -491,3 +493,16 @@ console.log(settings
 console.log("");
 console.log(statusText(report));
 process.exit(report.ok ? 0 : 1);
+
+// The marking test's counts for each of the three, in words
+// (api/_lib/markingChecks.js).
+function marksLines(bySource) {
+  const name = { exercises: "Exercises answers you disputed", dialogues: "Dialogues sentences you disputed", class: "Class sentences you decided" };
+  return Object.entries(name).map(([k, label]) => {
+    const s = bySource[k] || {};
+    if (!s.cases) return `  ${label}: none to test.`;
+    return `  ${label}: ${s.cases}, marked as you counted them every time on ${s.every}; ` +
+      `${s.rightMarkedDown} you counted Right marked Wrong or Almost, ${s.wrongMarkedRight} you counted Wrong marked Right` +
+      `${s.sometimes ? `, ${s.sometimes} marked differently from one try to the next` : ""}.`;
+  }).join("\n");
+}

@@ -405,7 +405,7 @@ export function makeMarking(rules) {
   // tense).
   const matchesAccepted = (lines, line) => !!lines?.length && against(line, lines, { slips: false })?.mark === "right";
   const isAccepted = (accepted, key, line) => matchesAccepted([...(accepted?.[key] || [])], line);
-  return { isAnswered, markByKey, typedText, keyAnswer, keyReason, markedNow, acceptedNow, matchesAccepted, isAccepted, truthSentence };
+  return { isAnswered, markByKey, typedText, typedFromLine, keyAnswer, keyReason, markedNow, acceptedNow, matchesAccepted, isAccepted, truthSentence };
 }
 
 // ── Spanish ──────────────────────────────────────────────────────────────

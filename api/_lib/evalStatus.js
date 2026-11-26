@@ -7,11 +7,14 @@
 //   notes    Claude reading class notes into cards
 //   repeats  Claude judging whether two look-alike cards are the same card
 //            (since 2026-10-06; api/_lib/repeatsChecks.js)
+//   marks    the app's marking of the owner's Spanish exercises, dialogues
+//            and class sentences (since 2026-11-26; api/_lib/markingChecks.js)
 
 import { regressions } from "./evalRuns.js";
 import { answerJudge, supabaseAnswerStore } from "./answerChecks.js";
 import { notesJudge } from "./notesChecks.js";
 import { repeatsJudge, repeatsSlip } from "./repeatsChecks.js";
+import { marksJudge, marksSlip } from "./markingChecks.js";
 import { missingTable } from "../../src/lib/dealLog.js";
 
 const COLUMNS = "id, kind, ran_at, version, model, cases, passed, summary, results";
@@ -76,6 +79,16 @@ export async function evalStatus(db) {
     const ids = new Set(regressions(r.latest, r.previous, repeatsJudge, (c) => c.says));
     const named = (r.latest?.results || []).filter((c) => ids.has(c.id)).map(repeatsSlip);
     out.repeats = { latest: brief(r.latest), regressions: named };
+  }
+
+  // Each case carries what was typed or said and the item, so it is named
+  // from the run itself.
+  const m = await lastTwo(db, "marks");
+  if (m.missing || m.error) out.marks = { error: m.error || null, regressions: [] };
+  else {
+    const ids = new Set(regressions(m.latest, m.previous, marksJudge, (c) => c.says));
+    const named = (m.latest?.results || []).filter((c) => ids.has(c.id)).map(marksSlip);
+    out.marks = { latest: brief(m.latest), regressions: named };
   }
 
   return out;
