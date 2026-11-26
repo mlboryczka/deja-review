@@ -75,7 +75,7 @@ for (const f of files) {
   if (start < 0 || firstHeading < 0) continue;
   const spanish = linesOf(html.slice(html.indexOf("</p>", start) + 4, firstHeading));
   const translation = html.search(/<h2 class="big">\s*Traducci/i);
-  if (!spanish.length || translation < 0) continue; // Lesson 15 has no text.
+  if (!spanish.length || translation < 0) continue; // A sheet with no text.
   const after = html.slice(translation + 10);
   const next = after.search(/<h2 class="big"/);
   const english = linesOf(next >= 0 ? after.slice(0, next) : after);

@@ -1,6 +1,8 @@
 // Lección 15 · Questions — built from the Spanish course's Lección 15 sheets
 // (adapted from Laura Caufour's LFL METHOD): the lesson (five grammar
-// sections, no dialogue, no numbers) and the exercise sheet. There is no
+// sections, no numbers) and the exercise sheet. Laura's sheet had no
+// dialogue; the one now on it (Santiago meets Matt at Emilia's party) was
+// written by Claude and approved by the owner on 2026-11-26, and has no cards. There is no
 // answer key: every answer here is the one a Mexican Spanish teacher would
 // give, and every answer such a teacher would accept is listed.
 //

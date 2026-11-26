@@ -330,6 +330,91 @@ export const LESSON_TEXTS = {
    "text": "¡Claro! Pero esta vez, tú escoges."
   }
  ],
+ "leccion15": [
+  {
+   "scene": "En una fiesta en la casa de Emilia, Santiago conoce a Matt, el amigo australiano de Emilia."
+  },
+  {
+   "who": "Santiago",
+   "text": "¡Hola! Soy Santiago. ¿Y tú? ¿Cómo te llamas?"
+  },
+  {
+   "who": "Matt",
+   "text": "Hola, me llamo Matt. Soy amigo de Emilia."
+  },
+  {
+   "who": "Santiago",
+   "text": "No eres mexicano, ¿verdad? ¿De dónde eres?"
+  },
+  {
+   "who": "Matt",
+   "text": "No, soy australiano."
+  },
+  {
+   "who": "Santiago",
+   "text": "¿Y cuánto tiempo hace que vives en México?"
+  },
+  {
+   "who": "Matt",
+   "text": "Vivo aquí desde hace tres años."
+  },
+  {
+   "who": "Santiago",
+   "text": "¿Y por qué viniste a México?"
+  },
+  {
+   "who": "Matt",
+   "text": "Por el trabajo. ¡Y porque me encanta la comida mexicana! ¿Y tú? ¿Con quién viniste a la fiesta?"
+  },
+  {
+   "who": "Santiago",
+   "text": "Con mi hermana. Trabaja con Emilia. Oye, ¿quiénes son esas personas, allá con Emilia?"
+  },
+  {
+   "who": "Matt",
+   "text": "Son sus papás. ¿No conoces a la familia de Emilia?"
+  },
+  {
+   "who": "Santiago",
+   "text": "No, no conozco a su familia. ¿Y dónde vives? ¿Cerca de aquí?"
+  },
+  {
+   "who": "Matt",
+   "text": "No, vivo en el centro. Me encanta, pero es caro."
+  },
+  {
+   "who": "Santiago",
+   "text": "¿Cuántas habitaciones tiene tu departamento?"
+  },
+  {
+   "who": "Matt",
+   "text": "Solo una, ¡y cuesta más de quince mil pesos! ¿Y tú, qué vas a hacer en diciembre? ¿Adónde vas de vacaciones?"
+  },
+  {
+   "who": "Santiago",
+   "text": "Este año no voy a salir de vacaciones."
+  },
+  {
+   "who": "Matt",
+   "text": "¿Y eso?"
+  },
+  {
+   "who": "Santiago",
+   "text": "Porque no puedo tomar mis días libres. ¡Mi jefe no quiere! ¿Y tú? ¿Cuándo regresas a Australia?"
+  },
+  {
+   "who": "Matt",
+   "text": "¡Como yo este verano! Pero esta vez sí voy: regreso a Australia el veinte de diciembre."
+  },
+  {
+   "who": "Santiago",
+   "text": "¡Qué bien! ¿Cuál es tu número? ¿Por qué no vamos al cine un día?"
+  },
+  {
+   "who": "Matt",
+   "text": "¡Claro! ¿Cuándo? ¿El sábado?"
+  }
+ ],
  "leccion16": [
   {
    "scene": "Andrés cuenta cómo empezó su viaje."
