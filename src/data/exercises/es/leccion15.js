@@ -2,7 +2,9 @@
 // for the Exercises page. The sheet has no answer key: every answer here was
 // written for the app, as a Mexican Spanish teacher would mark it.
 //
-// Left out: ex. 8 to 11 (audio).
+// Left out: ex. 8 to 11 (audio). Ex. 12, questions on the dialogue Claude
+// wrote for the sheet (owner, 2026-11-26), is here as the sheet has it but
+// left out of the page with every other question on a text (index.js).
 // Changed from the sheet:
 //   - Ex. 2 and 3: the sheet's first item is the worked example ("¿No trabajas
 //     mucho? Sí, sí trabajo mucho."), so it is the exercise's example, not an
@@ -338,6 +340,34 @@ export default {
           also: ["¿No crees que es más fácil? No, no creo.", "¿No piensas que es más fácil? No, creo que no.", "¿No piensas que es más fácil? No, no creo."] },
         { prompt: "Isn't the weather nice there today? No, it isn't, it's raining a lot.", answer: "¿No hace buen tiempo allá hoy? No, no hace buen tiempo, está lloviendo mucho.",
           also: ["¿No hace buen tiempo allá hoy? No, está lloviendo mucho.", "¿No hace buen tiempo allá hoy? No, no hace buen tiempo, llueve mucho.", "¿Hoy no hace buen tiempo allá? No, no hace buen tiempo, está lloviendo mucho.", "¿No hace buen tiempo ahí hoy? No, no hace buen tiempo, está lloviendo mucho."] },
+      ],
+    },
+    {
+      n: 12,
+      title: "Comprensión y producción escrita",
+      instruction: "Responder a las preguntas sobre el diálogo con una frase.",
+      english: "Answer each question about the dialogue in one sentence.",
+      items: [
+        { prompt: "¿De dónde es Matt?", answer: "Matt es de Australia.",
+          also: ["Es de Australia.", "Matt es australiano.", "Es australiano."] },
+        { prompt: "¿Cuánto tiempo hace que Matt vive en México?", answer: "Matt vive en México desde hace tres años.",
+          also: ["Vive en México desde hace tres años.", "Vive aquí desde hace tres años.", "Hace tres años que vive en México.", "Desde hace tres años."] },
+        { prompt: "¿Por qué vino Matt a México?", answer: "Vino por el trabajo, y porque le encanta la comida mexicana.",
+          also: ["Matt vino a México por el trabajo, y porque le encanta la comida mexicana.", "Vino por el trabajo y porque le encanta la comida mexicana.", "Por el trabajo, y porque le encanta la comida mexicana.", "Vino por el trabajo.", "Por el trabajo."] },
+        { prompt: "¿Con quién vino Santiago a la fiesta?", answer: "Santiago vino a la fiesta con su hermana.",
+          also: ["Vino con su hermana.", "Vino a la fiesta con su hermana.", "Con su hermana."] },
+        { prompt: "¿Quiénes están con Emilia?", answer: "Sus papás están con Emilia.",
+          also: ["Los papás de Emilia están con ella.", "Los papás de Emilia están con Emilia.", "Sus papás.", "Están sus papás."] },
+        { prompt: "¿Dónde vive Matt?", answer: "Matt vive en el centro.",
+          also: ["Vive en el centro.", "En el centro."] },
+        { prompt: "¿Cuántas habitaciones tiene el departamento de Matt?", answer: "El departamento de Matt tiene solo una habitación.",
+          also: ["Tiene solo una habitación.", "Solo tiene una habitación.", "Tiene una habitación.", "Solo una."] },
+        { prompt: "¿Por qué Santiago no va a salir de vacaciones?", answer: "Porque no puede tomar sus días libres: su jefe no quiere.",
+          also: ["Porque no puede tomar sus días libres.", "Porque su jefe no quiere.", "Santiago no va a salir de vacaciones porque no puede tomar sus días libres.", "Porque no puede tomar sus días libres, su jefe no quiere."] },
+        { prompt: "¿Cuándo regresa Matt a Australia?", answer: "Matt regresa a Australia el veinte de diciembre.",
+          also: ["Regresa el veinte de diciembre.", "Regresa a Australia el veinte de diciembre.", "El veinte de diciembre.", "Regresa el 20 de diciembre.", "El 20 de diciembre."] },
+        { prompt: "¿Qué quiere hacer Santiago con Matt?", answer: "Santiago quiere ir al cine con Matt.",
+          also: ["Quiere ir al cine con Matt.", "Quiere ir al cine con él.", "Quiere ir al cine.", "Ir al cine."] },
       ],
     },
   ],

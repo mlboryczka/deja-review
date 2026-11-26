@@ -62,7 +62,7 @@ import leccion23 from "./leccion23.js";
 //   write the question   7-1: 4 · 7-2: 6 · 9: 6 · 10: 5 · 11: 8 · 14: 6 ·
 //                        15: 4, 5 · 22: 5
 //   about the text       1: 6 · 2: 7 · 3: 10 · 4: 9 · 5: 12 · 6: 10 · 7-1: 7 ·
-//                        7-2: 9 · 14: 2 · 16: 4 · 18: 9
+//                        7-2: 9 · 14: 2 · 15: 12 · 16: 4 · 18: 9
 //   yes or no, in full   1: 2 · 2: 3 · 3: 2, 3 · 4: 2, 3 · 5: 4, 6 · 6: 3, 4 ·
 //                        7-2: 4, 5 · 8: 3, 4 · 9: 4, 5 · 10: 3, 4 · 11: 6, 7 ·
 //                        12-1: 2, 3 (ex. 2 again, in the plural), 7 ·
@@ -73,7 +73,7 @@ export const LEFT_OUT = {
   leccion6: [3, 4, 5, 10], "leccion7-1": [1, 3, 4, 7], "leccion7-2": [1, 2, 4, 5, 6, 9], leccion8: [3, 4],
   "leccion8-anexo": [4], leccion9: [1, 2, 4, 5, 6], leccion10: [1, 2, 3, 4, 5, 11], leccion11: [1, 2, 6, 7, 8],
   "leccion12-1": [1, 2, 3, 5, 7], "leccion12-2": [1, 4, 5, 6, 11], leccion13: [1, 7, 8], leccion14: [2, 4, 5, 6],
-  leccion15: [2, 3, 4, 5], leccion16: [1, 2, 4, 6, 7], leccion17: [1, 2, 5, 6, 9, 11], leccion18: [9, 11],
+  leccion15: [2, 3, 4, 5, 12], leccion16: [1, 2, 4, 6, 7], leccion17: [1, 2, 5, 6, 9, 11], leccion18: [9, 11],
   leccion21: [1, 3, 4, 5], leccion22: [1, 4, 5], leccion23: [1, 2],
 };
 

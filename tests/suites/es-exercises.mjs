@@ -100,8 +100,8 @@ for (const lesson of EXERCISE_LESSONS) {
 }
 ck(`all ${EXERCISE_LESSONS.length} sheets load, with ${items} items, each answerable and marked right by its own key`,
    EXERCISE_LESSONS.length === 27 && items > 2000 && problems.length === 0, problems.slice(0, 8).join("; "));
-ck("the lesson text is there for every sheet that has one (not Lesson 15, which has none)",
-   EXERCISE_LESSONS.filter((l) => l.textOf !== "leccion15" && !LESSON_TEXTS[l.textOf]).length === 0);
+ck("the lesson text is there for every sheet",
+   EXERCISE_LESSONS.filter((l) => !LESSON_TEXTS[l.textOf]).length === 0);
 
 // The owner, 2026-10-25: "get rid of these types of exercises throughout
 // lessons", and of answering yes in a full sentence, "remove this type of
@@ -116,8 +116,8 @@ for (const lesson of EXERCISE_LESSONS) {
 }
 ck("no exercise taken out on 2026-10-25 is left: no sentence of your own, nothing about yourself, no question to write, no answer about the text, no yes or no in a full sentence",
    leftIn.length === 0, leftIn.join("; "));
-ck("91 exercises are out, 149 are in (the present in Lessons 9, 10, 11 and 13 included), every lesson keeps some, and every other item is still there",
-   Object.values(LEFT_OUT).flat().length === 91 && EXERCISE_LESSONS.reduce((n, l) => n + l.exercises.length, 0) === 149 &&
+ck("92 exercises are out, 149 are in (the present in Lessons 9, 10, 11 and 13 included), every lesson keeps some, and every other item is still there",
+   Object.values(LEFT_OUT).flat().length === 92 && EXERCISE_LESSONS.reduce((n, l) => n + l.exercises.length, 0) === 149 &&
    EXERCISE_LESSONS.every((l) => l.exercises.length > 0) && items === 2481);
 // The owner, 2026-11-02: "why are the lessons 9 and 10 exercises not asking
 // me about the present tense for verbs like venir and ver", then yes to a

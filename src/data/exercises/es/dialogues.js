@@ -1,7 +1,6 @@
 // The Dialogues module's texts (Spanish, test app; owner, 2026-11-07): each
 // lesson's text, sentence by sentence, the English from its sheet's Traducción
-// page (dialogueTexts.js). Lesson 15 has no text, and Lesson 8's time-and-date
-// sheet shares Lesson 8's.
+// page (dialogueTexts.js). Lesson 8's time-and-date sheet shares Lesson 8's.
 //
 // Each text is in the shape of an exercise sheet with one exercise, whose
 // items are its sentences, so the answer key, Claude's marking and the hints

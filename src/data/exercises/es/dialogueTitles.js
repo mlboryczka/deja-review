@@ -2,14 +2,15 @@
 // (dialogues.js) so the sidebar can list them without loading the texts, which
 // load only when Dialogues is opened (FlashcardApp's lazy DialoguesPage).
 //
-// Every lesson's sheet but two has a text to go over: Lesson 15 has none, and
-// Lesson 8's time-and-date sheet shares Lesson 8's. They are in the course's
+// Every lesson's sheet but one has a text to go over: Lesson 8's time-and-date
+// sheet shares Lesson 8's. (Lesson 15 had none until 2026-11-26, when the owner
+// approved a dialogue Claude wrote for it.) They are in the course's
 // four stages, as everywhere (data/lessons/es/stages.js).
 
 import { EXERCISE_TITLES } from "./titles.js";
 import { stagesOf } from "../../lessons/es/stages.js";
 
-const NO_TEXT = new Set(["leccion8-anexo", "leccion15"]);
+const NO_TEXT = new Set(["leccion8-anexo"]);
 
 export const DIALOGUE_TITLES = EXERCISE_TITLES.filter((l) => !NO_TEXT.has(l.id));
 export const DIALOGUE_TITLE_OF = Object.fromEntries(DIALOGUE_TITLES.map((l) => [l.id, l.title]));

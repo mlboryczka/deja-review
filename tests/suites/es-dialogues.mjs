@@ -3,7 +3,7 @@
 //
 // What must hold, in plain words:
 //   - every lesson with a text has its dialogue, in the same four stages as
-//     everywhere; Lesson 15 has none, and Lesson 8's annex shares Lesson 8's;
+//     everywhere; Lesson 8's annex shares Lesson 8's;
 //   - not a word of the text is lost in cutting it into sentences, every
 //     sentence has its English and its Spanish, and no box asks for one word
 //     when there is a sentence to go with it;
@@ -46,8 +46,8 @@ const ck = checker();
 
 // ── The texts ───────────────────────────────────────────────────────────
 console.log("The texts");
-ck("every lesson's sheet but Lesson 15 and Lesson 8's annex has its text",
-   DIALOGUES.length === 25 && Object.keys(TITLES).every((id) => !!DIALOGUE_OF[id] === !["leccion15", "leccion8-anexo"].includes(id)));
+ck("every lesson's sheet but Lesson 8's annex has its text",
+   DIALOGUES.length === 26 && Object.keys(TITLES).every((id) => !!DIALOGUE_OF[id] === (id !== "leccion8-anexo")));
 ck("the sidebar's list and the texts name the same lessons, in course order",
    JSON.stringify(DIALOGUE_TITLES.map((l) => l.id)) === JSON.stringify(DIALOGUES.map((d) => d.lesson)));
 {
@@ -97,7 +97,7 @@ const norm = (s) => String(s).replace(/\s+/g, " ").trim();
 // them. Only change these on purpose, knowing what it does to answers kept.
 const COUNTS = {
   leccion1: 14, leccion2: 16, leccion3: 17, leccion4: 19, leccion5: 24, leccion6: 21, "leccion7-1": 21, "leccion7-2": 19, "leccion7-3": 17,
-  leccion8: 15, leccion9: 17, leccion10: 24, leccion11: 24, "leccion12-1": 22, "leccion12-2": 20, leccion13: 31, leccion14: 24, leccion16: 13,
+  leccion8: 15, leccion9: 17, leccion10: 24, leccion11: 24, "leccion12-1": 22, "leccion12-2": 20, leccion13: 31, leccion14: 24, leccion15: 42, leccion16: 13,
   leccion17: 40, leccion18: 32, leccion19: 24, leccion20: 39, leccion21: 28, leccion22: 20, leccion23: 29,
 };
 ck("each text still has the sentences its answers are kept under",
@@ -289,7 +289,7 @@ const key = itemKey(d.id, 1, at);
   ck("with no key to pay for Claude, it's said, and nothing is kept", status === 402 && json.code === "byok_required" && s.rows.length === 0);
 }
 {
-  const { status, json } = await handleExerciseRequest({ body: { action: "answer", key: `${DIALOGUE_PREFIX}leccion15/1/1`, typed: "x" }, user, store: store(), apiKey: () => ({ key: "k" }), ask: ask(null) });
+  const { status, json } = await handleExerciseRequest({ body: { action: "answer", key: `${DIALOGUE_PREFIX}leccion8-anexo/1/1`, typed: "x" }, user, store: store(), apiKey: () => ({ key: "k" }), ask: ask(null) });
   ck("a sentence the app doesn't have is refused", status === 400 && json.code === "no_item");
 }
 {

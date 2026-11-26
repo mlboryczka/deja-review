@@ -2661,6 +2661,323 @@ export const DIALOGUE_TEXTS = {
    }
   ]
  },
+ "leccion15": {
+  "lines": [
+   {
+    "kind": "scene",
+    "sentences": [
+     {
+      "en": "At a party at Emilia's house, Santiago meets Matt, Emilia's Australian friend.",
+      "es": "En una fiesta en la casa de Emilia, Santiago conoce a Matt, el amigo australiano de Emilia."
+     }
+    ]
+   },
+   {
+    "kind": "say",
+    "who": "Santiago",
+    "whoEs": "Santiago",
+    "sentences": [
+     {
+      "en": "Hi! I'm Santiago.",
+      "es": "¡Hola! Soy Santiago."
+     },
+     {
+      "en": "And you?",
+      "es": "¿Y tú?"
+     },
+     {
+      "en": "What's your name?",
+      "es": "¿Cómo te llamas?"
+     }
+    ]
+   },
+   {
+    "kind": "say",
+    "who": "Matt",
+    "whoEs": "Matt",
+    "sentences": [
+     {
+      "en": "Hi, my name is Matt.",
+      "es": "Hola, me llamo Matt."
+     },
+     {
+      "en": "I'm a friend of Emilia's.",
+      "es": "Soy amigo de Emilia."
+     }
+    ]
+   },
+   {
+    "kind": "say",
+    "who": "Santiago",
+    "whoEs": "Santiago",
+    "sentences": [
+     {
+      "en": "You're not Mexican, are you?",
+      "es": "No eres mexicano, ¿verdad?"
+     },
+     {
+      "en": "Where are you from?",
+      "es": "¿De dónde eres?"
+     }
+    ]
+   },
+   {
+    "kind": "say",
+    "who": "Matt",
+    "whoEs": "Matt",
+    "sentences": [
+     {
+      "en": "No, I'm Australian.",
+      "es": "No, soy australiano."
+     }
+    ]
+   },
+   {
+    "kind": "say",
+    "who": "Santiago",
+    "whoEs": "Santiago",
+    "sentences": [
+     {
+      "en": "And how long have you been living in Mexico?",
+      "es": "¿Y cuánto tiempo hace que vives en México?"
+     }
+    ]
+   },
+   {
+    "kind": "say",
+    "who": "Matt",
+    "whoEs": "Matt",
+    "sentences": [
+     {
+      "en": "I've been living here for three years.",
+      "es": "Vivo aquí desde hace tres años."
+     }
+    ]
+   },
+   {
+    "kind": "say",
+    "who": "Santiago",
+    "whoEs": "Santiago",
+    "sentences": [
+     {
+      "en": "And why did you come to Mexico?",
+      "es": "¿Y por qué viniste a México?"
+     }
+    ]
+   },
+   {
+    "kind": "say",
+    "who": "Matt",
+    "whoEs": "Matt",
+    "sentences": [
+     {
+      "en": "For work.",
+      "es": "Por el trabajo."
+     },
+     {
+      "en": "And because I love Mexican food!",
+      "es": "¡Y porque me encanta la comida mexicana!"
+     },
+     {
+      "en": "And you?",
+      "es": "¿Y tú?"
+     },
+     {
+      "en": "Who did you come to the party with?",
+      "es": "¿Con quién viniste a la fiesta?"
+     }
+    ]
+   },
+   {
+    "kind": "say",
+    "who": "Santiago",
+    "whoEs": "Santiago",
+    "sentences": [
+     {
+      "en": "With my sister.",
+      "es": "Con mi hermana."
+     },
+     {
+      "en": "She works with Emilia.",
+      "es": "Trabaja con Emilia."
+     },
+     {
+      "en": "Hey, who are those people over there with Emilia?",
+      "es": "Oye, ¿quiénes son esas personas, allá con Emilia?"
+     }
+    ]
+   },
+   {
+    "kind": "say",
+    "who": "Matt",
+    "whoEs": "Matt",
+    "sentences": [
+     {
+      "en": "They're her parents.",
+      "es": "Son sus papás."
+     },
+     {
+      "en": "Don't you know Emilia's family?",
+      "es": "¿No conoces a la familia de Emilia?"
+     }
+    ]
+   },
+   {
+    "kind": "say",
+    "who": "Santiago",
+    "whoEs": "Santiago",
+    "sentences": [
+     {
+      "en": "No, I don't know her family.",
+      "es": "No, no conozco a su familia."
+     },
+     {
+      "en": "And where do you live?",
+      "es": "¿Y dónde vives?"
+     },
+     {
+      "en": "Near here?",
+      "es": "¿Cerca de aquí?"
+     }
+    ]
+   },
+   {
+    "kind": "say",
+    "who": "Matt",
+    "whoEs": "Matt",
+    "sentences": [
+     {
+      "en": "No, I live downtown.",
+      "es": "No, vivo en el centro."
+     },
+     {
+      "en": "I love it, but it's expensive.",
+      "es": "Me encanta, pero es caro."
+     }
+    ]
+   },
+   {
+    "kind": "say",
+    "who": "Santiago",
+    "whoEs": "Santiago",
+    "sentences": [
+     {
+      "en": "How many bedrooms does your apartment have?",
+      "es": "¿Cuántas habitaciones tiene tu departamento?"
+     }
+    ]
+   },
+   {
+    "kind": "say",
+    "who": "Matt",
+    "whoEs": "Matt",
+    "sentences": [
+     {
+      "en": "Only one, and it costs more than fifteen thousand pesos!",
+      "es": "Solo una, ¡y cuesta más de quince mil pesos!"
+     },
+     {
+      "en": "And you, what are you going to do in December?",
+      "es": "¿Y tú, qué vas a hacer en diciembre?"
+     },
+     {
+      "en": "Where are you going on vacation?",
+      "es": "¿Adónde vas de vacaciones?"
+     }
+    ]
+   },
+   {
+    "kind": "say",
+    "who": "Santiago",
+    "whoEs": "Santiago",
+    "sentences": [
+     {
+      "en": "I'm not going on vacation this year.",
+      "es": "Este año no voy a salir de vacaciones."
+     }
+    ]
+   },
+   {
+    "kind": "say",
+    "who": "Matt",
+    "whoEs": "Matt",
+    "sentences": [
+     {
+      "en": "How come?",
+      "es": "¿Y eso?"
+     }
+    ]
+   },
+   {
+    "kind": "say",
+    "who": "Santiago",
+    "whoEs": "Santiago",
+    "sentences": [
+     {
+      "en": "Because I can't take my days off.",
+      "es": "Porque no puedo tomar mis días libres."
+     },
+     {
+      "en": "My boss won't let me!",
+      "es": "¡Mi jefe no quiere!"
+     },
+     {
+      "en": "And you?",
+      "es": "¿Y tú?"
+     },
+     {
+      "en": "When are you going back to Australia?",
+      "es": "¿Cuándo regresas a Australia?"
+     }
+    ]
+   },
+   {
+    "kind": "say",
+    "who": "Matt",
+    "whoEs": "Matt",
+    "sentences": [
+     {
+      "en": "Like me this summer!",
+      "es": "¡Como yo este verano!"
+     },
+     {
+      "en": "But this time I am going: I go back to Australia on December twentieth.",
+      "es": "Pero esta vez sí voy: regreso a Australia el veinte de diciembre."
+     }
+    ]
+   },
+   {
+    "kind": "say",
+    "who": "Santiago",
+    "whoEs": "Santiago",
+    "sentences": [
+     {
+      "en": "That's great!",
+      "es": "¡Qué bien!"
+     },
+     {
+      "en": "What's your number?",
+      "es": "¿Cuál es tu número?"
+     },
+     {
+      "en": "Why don't we go to the movies one day?",
+      "es": "¿Por qué no vamos al cine un día?"
+     }
+    ]
+   },
+   {
+    "kind": "say",
+    "who": "Matt",
+    "whoEs": "Matt",
+    "sentences": [
+     {
+      "en": "Sure! When? Saturday?",
+      "es": "¡Claro! ¿Cuándo? ¿El sábado?"
+     }
+    ]
+   }
+  ]
+ },
  "leccion16": {
   "lines": [
    {
