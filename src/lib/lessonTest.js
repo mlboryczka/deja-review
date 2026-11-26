@@ -133,17 +133,21 @@ const recentAt = (iso, now) => {
   return Number.isFinite(t) && now - t < RECENT_DAYS * DAY_MS && t <= now;
 };
 
-// The way round a card is asked: the direction setting's, and under Mixed
-// the way answered longer ago, which is more of a test.
+// The way round a card is asked: a way already studied (owner, 2026-11-26:
+// a word studied only Spanish side up was counted "not studied yet" when the
+// test picked its English side). Of two ways studied, the direction setting's,
+// and under Mixed the way answered longer ago, which is more of a test. A
+// card studied neither way is asked no way: it counts as not known.
+const studiedWay = (side) => !!side.last_review && (side.fsrs_state ?? 0) !== 0;
 function wayOf(card, direction) {
   const dirs = directionsOf(card);
   if (dirs.length === 1 || !isTwoWay(card)) return dirs[0];
-  if (direction === "fr" || direction === "en") return dirs.includes(direction) ? direction : dirs[0];
-  const at = (d) => {
-    const t = Date.parse(sideOf(card, d).last_review ?? "");
-    return Number.isFinite(t) ? t : -Infinity;
-  };
-  return at(dirs[1]) < at(dirs[0]) ? dirs[1] : dirs[0];
+  const studied = dirs.filter((d) => studiedWay(sideOf(card, d)));
+  if (studied.length === 0) return dirs.includes(direction) ? direction : dirs[0];
+  if (studied.length === 1) return studied[0];
+  if (direction === "fr" || direction === "en") return direction;
+  const at = (d) => Date.parse(sideOf(card, d).last_review);
+  return at(studied[1]) < at(studied[0]) ? studied[1] : studied[0];
 }
 
 // One card as the test holds it: `k` its row and way round ("12:fr"), and
@@ -153,7 +157,7 @@ function cardEntry(card, direction, now) {
   const dir = wayOf(card, direction);
   const side = sideOf(card, dir);
   const k = `${card.row_id ?? card.id}:${dir}`;
-  if (!side.last_review || (side.fsrs_state ?? 0) === 0) return { k, r: false, why: "unseen" };
+  if (!studiedWay(side)) return { k, r: false, why: "unseen" };
   if (recentAt(side.last_review, now)) return { k, r: side.last_answer_correct === true, why: "recent" };
   return { k };
 }

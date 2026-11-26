@@ -11,7 +11,7 @@ import { reconcileLessons, ADOPTED_SOURCE } from "./lib/lessonSync";
 import { archivedSource, ARCHIVE_PREFIX } from "./lib/archive";
 import { readPlace, writePlace, dropSets, packSet, unpackEntries } from "./lib/studyPlace";
 import { CHOICE_KEY, choicesOf, startedLessons, lessonsInCards, onCards, setKeyOf, dealScopeOf } from "./lib/lessonChoice";
-import { TESTS_KEY, testsOf, masteredOf, withCardAnswer, toAsk, PASSED_TARGET } from "./lib/lessonTest";
+import { TESTS_KEY, testsOf, masteredOf, withCardAnswer, PASSED_TARGET } from "./lib/lessonTest";
 import { lessonOfExercises } from "./lib/lessonMastery";
 import MasteredBadge from "./MasteredBadge";
 import LessonPanel, { LESSON_PANEL_WIDTH } from "./LessonPanel";
@@ -1021,21 +1021,9 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   const enterLesson = useCallback((id) => {
     setTypeFilter("all");
     setLessonFilter(id);
-    setTestRun(null);
     setMode("study");
   }, []);
-  // A lesson test's flashcards (lib/lessonTest.js): the lesson, on Cards, as a
-  // set of their own. Studying the lesson the usual way is enterLesson.
-  const [testRun, setTestRun] = useState(null);
-  const startTestWords = useCallback((id) => {
-    setTypeFilter("all");
-    setLessonFilter(id);
-    setTestRun(id);
-    setMode("study");
-  }, []);
-  // Leaving Cards leaves the test's set: coming back to the lesson is studying it.
-  useEffect(() => { if (mode !== "study") setTestRun(null); }, [mode]);
-  // The test page, for this lesson.
+  // A Spanish lesson's test page (lib/lessonTest.js), for this lesson.
   const [testLesson, setTestLesson] = useState(null);
   const openLessonTest = useCallback((id) => {
     setTestLesson(id);
@@ -1415,11 +1403,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   useEffect(() => {
     if (mode === "lessontest" && !(spanish && lessonById(testLesson))) setMode("lessons");
   }, [mode, spanish, testLesson, lessonById]);
-  // The test's set on Cards is kept under a key of its own, one per test, so
-  // it never comes back as the lesson's set, nor an old test's as a new one's.
-  const testSig = testRun && lessonFilter === testRun ? `test:${lessonTests[testRun]?.test?.started || ""}` : "";
-  const testSigRef = useRef(testSig);
-  testSigRef.current = testSig;
+
   // Whether the account says the first-visit tour has been shown, read at the
   // same time: null until the server has answered (see the tour, below).
   const [accountTourSeen, setAccountTourSeen] = useState(null);
@@ -1531,7 +1515,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     // Direction is not part of this: changing it re-deals the cards still to
     // come (see the effect below) instead of dealing a new block, which threw
     // away the block's running count and a missed card's pending retry.
-    const filterSig = setKeyOf(typeFilter, lessonFilter, scope) + (testSig ? `|${testSig}` : "");
+    const filterSig = setKeyOf(typeFilter, lessonFilter, scope);
     // A set dealt, or brought back, that hasn't reached the screen yet is not
     // dealt again from the same deck. Under React's strict mode an effect runs
     // twice on mount, the second time before the first one's deck is in state:
@@ -1560,8 +1544,6 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     // no room for a retry does (placeRetry): due again tomorrow instead. The
     // set never ends before the card on screen.
     const redealRest = (entries, at, size = entries.length) => {
-      // A lesson test's set is its sample, and nothing else is dealt into it.
-      if (testSig) return entries;
       const head = entries.slice(0, at + 1);
       const tail = entries.slice(at + 1);
       const answered = (c) => blockAnswersRef.current.has(slotKeyOf(c));
@@ -1733,20 +1715,16 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     // which ways of words and phrases are dealt. Grammar and pronunciation
     // cards are rules with examples, not translations — always shown as
     // written, whatever the setting.
-    // A lesson test's flashcards: the ones it still has to ask, as practice
-    // (testSession; lib/lessonTest.js).
-    let dealt = testSig
-      ? testSession(candidates, toAsk(lessonTestsRef.current[testRun]?.test?.cards).map((e) => e.k))
-      : buildSession(candidates, {
-          direction: dirRef.current,
-          target: setSizeRef.current,
-          lessonMode: lessonFilter !== "all",
-          lessonRank,
-        });
+    let dealt = buildSession(candidates, {
+      direction: dirRef.current,
+      target: setSizeRef.current,
+      lessonMode: lessonFilter !== "all",
+      lessonRank,
+    });
     // A lesson with nothing due and nothing new is gone through again
     // (practiceSession): the rest of the time round, or from the top once
     // every card has been gone through, or when the student asked for it.
-    if (!testSig && dealt.queue.length === 0 && lessonFilter !== "all") {
+    if (dealt.queue.length === 0 && lessonFilter !== "all") {
       const done = practicedIn(filterSig);
       if (practiceFreshRef.current || !candidates.some((c) => !done.has(c.row_id ?? c.id))) done.clear();
       practiceFreshRef.current = false;
@@ -1795,7 +1773,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     setSessionDone(false);
     setStats({ answered:0, firstAnswered:0, firstGot:0 });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded, typeFilter, lessonFilter, scope, switchSig, userCards, blockSeq, deckFreshSeq, recheck, setSize, testSig]);
+  }, [loaded, typeFilter, lessonFilter, scope, switchSig, userCards, blockSeq, deckFreshSeq, recheck, setSize]);
 
   // Answers given somewhere else — another device, another tab — since the
   // deck in memory was fetched. Coming back to the tab asks for their ids,
@@ -2111,8 +2089,6 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     if (dirRef.current === dir) return;
     dirRef.current = dir;
     if (!deck.length || sessionDone) return;
-    // A lesson test asks each card the way round it chose.
-    if (testSigRef.current) return;
     const firstOpen = answerSeen ? idx + 1 : idx;
     const asked = (c) => !c.flippable || dir === "mix" || c.shownDir === dir;
     const head = deck.slice(0, firstOpen);
@@ -2404,6 +2380,77 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
 
   // Returns the schedule written for the way round shown, or null when the
   // answer wasn't counted (a retry, or a card already answered today).
+  // Today in the study calendar: the streak's day, once per day.
+  const markStudyDay = () => {
+    // Record today's review date for streak tracking.
+    // Write to Supabase (persists across devices) and update local state so
+    // the streak UI reflects it immediately without a refetch.
+    const todayISO = localISODate();
+    if (!reviewDates.has(todayISO)) {
+      setReviewDates(prev => {
+        const next = new Set(prev);
+        next.add(todayISO);
+        return next;
+      });
+      // Saved like each answer: tried again until it goes through, and counted
+      // in the "not saved yet" notice, since the day is added above before it
+      // is saved. upsert with ignoreDuplicates is idempotent against the
+      // (user_id, review_date) primary key, so a repeat is a no-op server-side.
+      save(`day:${todayISO}`, `day:${todayISO}`, () =>
+        supabase
+          .from(tbl("user_review_dates"))
+          .upsert(
+            { user_id: user.id, review_date: todayISO },
+            { onConflict: "user_id,review_date", ignoreDuplicates: true }
+          )
+      );
+    }
+  };
+
+  // ── A Spanish lesson's test: its flashcards (lib/lessonTest.js) ──
+  // Asked on the test page itself, marked as Cards marks them
+  // (markTypedAnswer), and kept as practice, as the test's rules say: the
+  // answer is recorded and changes no schedule. The status check wants every
+  // answer to come from a set dealt that day, so the cards asked are recorded
+  // as one (`deal`), as Cards records each set it deals.
+  const testCards = {
+    promptOf: (c, dir) => ({
+      front: dropFinalPeriod(oneAnswer(dir === "fr" ? cleanFrenchPrompt(c.f, c.b) : cleanEnglishPrompt(c.b))),
+      back: dropFinalPeriod(oneAnswer(dir === "fr" ? c.b : c.f)),
+      instruction: dir === "fr" ? cardInstructionFor(c) : null,
+      // As answerLang says on Cards (defined further down, past the page's
+      // own return): a drill's answer is in the course's language.
+      lang: dir === "en" || String(c.f || "").includes("→") ? course.language : "English",
+    }),
+    mark: (c, dir, typed) => {
+      const result = markTypedAnswer({ ...c, shownDir: dir }, typed);
+      return { result, got: typedGotIt(result) };
+    },
+    deal: (lessonId, started, cards, keys) => {
+      const dealt = testSession(cards, keys);
+      if (!dealt.queue.length) return;
+      recordDeal({ kind: "new", scope: dealScopeOf(`${setKeyOf("all", lessonId, "all")}|test:${started}`, switchSig), direction: dirRef.current, slots: dealt.queue.length, dealt });
+    },
+    record: (lessonId, c, dir, got) => {
+      const prev = progress[c.id] || { score:0, seen:0, got:0 };
+      updateCard(c.id, { score: Math.max(0, Math.min(5, prev.score + (got?1:-1))), seen: prev.seen + 1, got: prev.got + (got?1:0) });
+      if (c.row_id != null && user?.id) {
+        const reviewId = newReviewId();
+        knownReviewIdsRef.current.add(reviewId);
+        const row = reviewRow({ id: reviewId, userId: user.id, cardId: c.row_id, dir, got, before: null, after: null, at: Date.now(), settings: null, timeZone: null });
+        save(`review:${reviewId}`, reviewId, () => saveReviewRow(row));
+        answersHereRef.current.set(reviewId, row);
+      }
+      markStudyDay();
+      const k = `${c.row_id ?? c.id}:${dir}`;
+      saveLessonTests((all) => {
+        const t = all[lessonId]?.test;
+        const next = withCardAnswer(t, k, got);
+        return next === t ? all : { ...all, [lessonId]: { ...all[lessonId], test: next } };
+      });
+    },
+  };
+
   const answer = (got, source = "flip") => {
     if (!card) return null;
     // Once the queue is worked out the last card stays on screen behind the
@@ -2477,16 +2524,6 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
       if (recordsReview) sr = applyAnswer(card, got, answeredAt, cardDir, sched);
     }
     if (practice) practicedIn(deckSig).add(card.row_id ?? card.id);
-    // A lesson test's card: its first answer is its result in the test, and a
-    // correction (Previous card) replaces it. A retry is practice only.
-    if (practice && testSigRef.current && testRun && !card._retry) {
-      const k = itemKey(card);
-      saveLessonTests((all) => {
-        const t = all[testRun]?.test;
-        const next = withCardAnswer(t, k, got, { correction: isCorrection });
-        return next === t ? all : { ...all, [testRun]: { ...all[testRun], test: next } };
-      });
-    }
     lastAnsweredRef.current = card.row_id ?? card.id;
     const before = isCorrection ? earlier.before : recordsReview ? sideColumns(sideOf(card, cardDir), cardDir) : null;
     const reviewId = isCorrection ? earlier.reviewId : newReviewId();
@@ -2522,29 +2559,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
       // the database. A correction rewrites it under the same id.
       answersHereRef.current.set(reviewId, row);
     }
-    // Record today's review date for streak tracking.
-    // Write to Supabase (persists across devices) and update local state so
-    // the streak UI reflects it immediately without a refetch.
-    const todayISO = localISODate();
-    if (!reviewDates.has(todayISO)) {
-      setReviewDates(prev => {
-        const next = new Set(prev);
-        next.add(todayISO);
-        return next;
-      });
-      // Saved like each answer: tried again until it goes through, and counted
-      // in the "not saved yet" notice, since the day is added above before it
-      // is saved. upsert with ignoreDuplicates is idempotent against the
-      // (user_id, review_date) primary key, so a repeat is a no-op server-side.
-      save(`day:${todayISO}`, `day:${todayISO}`, () =>
-        supabase
-          .from(tbl("user_review_dates"))
-          .upsert(
-            { user_id: user.id, review_date: todayISO },
-            { onConflict: "user_id,review_date", ignoreDuplicates: true }
-          )
-      );
-    }
+    markStudyDay();
     // Accuracy counts typed answers only — those are verifiable, and a
     // flip-mode "got it" is self-reported. `answered` counts both, so the
     // end of a flip-only session still has something true to report.
@@ -2631,8 +2646,10 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   };
 
   // Submit typed answer
-  const submitTyped = () => {
-    if (!card || !typedAnswer.trim()) return;
+  // The verdict on `typed`, an answer to card `card` shown `card.shownDir` up:
+  // "correct", "close", "wrongAccent", "wrongArticle" or "wrong". Cards and a
+  // Spanish lesson's test (LessonTestPage) mark with it, so both mark alike.
+  const markTypedAnswer = (card, typedAnswer) => {
     const correctText = card.shownDir === "fr" ? card.b : card.f;
     const altKey = `${card.id}:${card.shownDir}`;
     // A French-answered drill ("vivre → je", "relatif → adverbe") is marked
@@ -2673,19 +2690,15 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     // matchAnswer).
     const exactWords = !spanish ? null : card.shownDir === "en" ? SPANISH_EXACT : ENGLISH_EXACT;
     const result = matchAnswer(typedAnswer, correctText, extraAlts, { exact: drill, meanings, articles, accents, exactWords });
-    if (result.match) {
-      setTypeResult(result.close ? "close" : "correct");
-      setFlipped(true);
-    } else if (result.wrongAccent) {
-      setTypeResult("wrongAccent");
-      setFlipped(true);
-    } else if (result.wrongArticle) {
-      setTypeResult("wrongArticle");
-      setFlipped(true);
-    } else {
-      setTypeResult("wrong");
-      setFlipped(true);
-    }
+    return result.match ? (result.close ? "close" : "correct")
+      : result.wrongAccent ? "wrongAccent"
+      : result.wrongArticle ? "wrongArticle"
+      : "wrong";
+  };
+  const submitTyped = () => {
+    if (!card || !typedAnswer.trim()) return;
+    setTypeResult(markTypedAnswer(card, typedAnswer));
+    setFlipped(true);
   };
 
   // Give up: reveal the answer without typing. Still counts as wrong for
@@ -4379,7 +4392,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   }
 
   // ── A LESSON'S TEST (Spanish, 2026-11-25) ───────────────────────────
-  // lib/lessonTest.js. Its flashcards are answered on Cards (startTestWords).
+  // lib/lessonTest.js. Everything is answered on the page, flashcards too.
   if (mode === "lessontest") {
     const lesson = spanish ? lessonById(testLesson) : null;
     if (lesson) {
@@ -4395,7 +4408,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
             cards={userCards.filter((c) => lessonIdOf(c) === lesson.id)}
             sectionOf={(c) => sectionOfFront.get(c.f) || ""}
             direction={dirRef.current}
-            onAnswerCards={() => startTestWords(lesson.id)}
+            testCards={testCards}
             onBack={() => setMode("lessons")}
             onNeedKey={openKeyModal}
           />
@@ -4867,23 +4880,12 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
               {spanish && mastered.has(lessonFilter) && <MasteredBadge small style={{ marginLeft: 8 }} />}
             </div>
           )}
-          {/* A lesson test's flashcards: how many are left, and the way back
-              to the test (lib/lessonTest.js). */}
-          {testSig && (() => {
-            const left = toAsk(lessonTests[testRun]?.test?.cards).length;
-            return (
-              <button style={S.chipToggle} onClick={() => openLessonTest(testRun)} data-lesson-test-chip>
-                {left
-                  ? `Lesson test: ${left} ${left === 1 ? "card" : "cards"} left · Back to the test`
-                  : "Lesson test: cards done · Back to the test"}
-              </button>
-            );
-          })()}
+
           {/* The lesson's progress. Read when the block was dealt and again at
               its checkpoint — never per answer, because a figure that moves
               on every card reads as noise rather than progress. Plain
               "N/M remembered" (owner, 2026-10-04). */}
-          {lessonFilter !== "all" && !testSig && (() => {
+          {lessonFilter !== "all" && (() => {
             const snap = (sessionDone && checkpoint ? checkpoint.after : blockStartRef.current)?.lessons?.[lessonFilter];
             return snap ? (
               <div style={S.lessonProgress} data-lesson-progress>

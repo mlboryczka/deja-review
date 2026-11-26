@@ -57,6 +57,19 @@ console.log("\nRecent and unseen");
   ck("toAsk lists only the card still to ask", toAsk(t.cards).length === 1);
 }
 
+console.log("\nThe way round a card is asked");
+{
+  const two = (extra) => card(50, { cat: "vocab", en_fsrs_state: 0, en_last_review: null, ...extra });
+  const fr = newTest({ lessonId: "x", cards: [two({})], direction: "mix", now, rng }).cards[0];
+  ck("a card studied only Spanish side up is asked that way, not counted unseen", fr.k === "50:fr" && fr.why !== "unseen", JSON.stringify(fr));
+  const en = newTest({ lessonId: "x", cards: [two({ fsrs_state: 0, last_review: null, en_fsrs_state: 2, en_last_review: "2026-10-01T10:00:00Z" })], direction: "fr", now, rng }).cards[0];
+  ck("a card studied only English side up is asked that way, whatever the setting", en.k === "50:en" && en.why !== "unseen", JSON.stringify(en));
+  const both = newTest({ lessonId: "x", cards: [two({ en_fsrs_state: 2, en_last_review: "2026-09-01T10:00:00Z" })], direction: "mix", now, rng }).cards[0];
+  ck("studied both ways, under Mixed the way answered longer ago", both.k === "50:en", both.k);
+  const none = newTest({ lessonId: "x", cards: [two({ fsrs_state: 0, last_review: null })], direction: "mix", now, rng }).cards[0];
+  ck("studied neither way, it counts as not known", none.why === "unseen" && none.r === false);
+}
+
 console.log("\nScoring");
 {
   const mk = (n, right) => Array.from({ length: n }, (_, i) => ({ k: `c${i}:fr`, r: i < right }));

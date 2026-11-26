@@ -2,13 +2,17 @@
 // exercise items and dialogue sentences, answered in one sitting. Passing
 // makes the lesson Mastered. The rules are in lib/lessonTest.js.
 //
-// The exercise items and sentences are answered on this page, in the same
-// boxes as on Exercises and Dialogues and kept in the same place. The
-// flashcards are answered on Cards, in a set of their own (testSession in
-// lib/sessionQueue.js), so they are marked as every card is; the shell
-// (FlashcardApp) records each one's result in the test.
+// Everything is answered on this page (owner, 2026-11-26: "the test should be
+// self-contained"). The exercise items and sentences in the same boxes as on
+// Exercises and Dialogues, kept in the same place. The flashcards one at a
+// time, marked as Cards marks a typed answer and kept as practice; the shell
+// (FlashcardApp) hands down how (`testCards`).
+//
+// Nothing takes the cursor when the page opens: a box that did scrolled the
+// page down to the dialogue (owner, 2026-11-26: "it took me to part 4
+// first"). Once you are answering, the next box takes it.
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { T } from "./theme";
 import { EXERCISES_BY_ID } from "./data/exercises/es/index.js";
 import { DIALOGUE_OF } from "./data/exercises/es/dialogues.js";
@@ -20,6 +24,8 @@ import { SPANISH_EXERCISES_PACK, SPANISH_DIALOGUES_PACK } from "./data/exercises
 import MasteredBadge from "./MasteredBadge";
 
 const LINE = "rgba(3,22,50,0.07)";
+const GREEN = "#2f6f5e";
+const RED = "#a3412e";
 const plural = (n, one, many) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 const dayOf = (iso) => new Date(iso).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
 
@@ -27,7 +33,7 @@ const dayOf = (iso) => new Date(iso).toLocaleDateString(undefined, { weekday: "l
 export const sheetsOf = (lessonId) =>
   [EXERCISES_BY_ID[lessonId], EXERCISES_BY_ID[`${lessonId}-anexo`]].filter(Boolean);
 
-export default function LessonTestPage({ user, lesson, tests, saveTests, cards, sectionOf, direction, onAnswerCards, onBack, onNeedKey }) {
+export default function LessonTestPage({ user, lesson, tests, saveTests, cards, sectionOf, direction, testCards, onBack, onNeedKey }) {
   // A lesson's test is Spanish only: the pages' pieces it draws use that course.
   setExercisesPack(SPANISH_EXERCISES_PACK);
   setDialoguesPack(SPANISH_DIALOGUES_PACK);
@@ -76,8 +82,6 @@ export default function LessonTestPage({ user, lesson, tests, saveTests, cards, 
   const mastered = result?.passed === true;
   const itemKeys = useMemo(() => toAsk(test?.items).map((e) => e.k), [test?.items]);
   const sentenceKeys = useMemo(() => toAsk(test?.sentences).map((e) => e.k), [test?.sentences]);
-  const cardsToAsk = toAsk(test?.cards);
-  const cardsLeft = cardsToAsk.length;
 
   return (
     <div style={S.scroll} data-lesson-test-page={lesson.id}>
@@ -136,13 +140,7 @@ export default function LessonTestPage({ user, lesson, tests, saveTests, cards, 
                     </p>
                   )}
                   {p.id === "words" && (
-                    cardsLeft > 0 ? (
-                      <button type="button" style={S.primary} onClick={onAnswerCards} data-lesson-test-cards>
-                        {cardsLeft === cardsToAsk.length && !cardsToAsk.some((e) => typeof e.r === "boolean")
-                          ? `Answer the ${plural(cardsLeft, "flashcard", "flashcards")} on Cards`
-                          : `Answer the other ${plural(cardsLeft, "flashcard", "flashcards")} on Cards`}
-                      </button>
-                    ) : null
+                    <TestCards lessonId={lesson.id} test={test} cards={cards} testCards={testCards} />
                   )}
                   {p.id === "grammar" && itemKeys.length > 0 && (
                     <TestExerciseItems user={user} keys={itemKeys} since={test.started} onNeedKey={onNeedKey} />
@@ -157,6 +155,104 @@ export default function LessonTestPage({ user, lesson, tests, saveTests, cards, 
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+// The flashcards still to ask, one at a time: type the answer, Check (or
+// Enter), see the verdict and the answer, Next. Each answer is kept as soon as
+// it is marked, so leaving halfway loses nothing.
+function TestCards({ lessonId, test, cards, testCards }) {
+  const byKey = useMemo(() => {
+    const m = new Map();
+    for (const c of cards || []) for (const d of ["fr", "en"]) m.set(`${c.row_id ?? c.id}:${d}`, c);
+    return m;
+  }, [cards]);
+  const asked = (test.cards || []).filter((e) => !e.why);
+  const left = toAsk(test.cards).filter((e) => byKey.has(e.k));
+  const [shown, setShown] = useState(null); // { k, result, typed } of the card just marked
+  const [typed, setTyped] = useState("");
+  const [going, setGoing] = useState(false); // answering: the next box takes the cursor
+  const inputRef = useRef(null);
+  const nextRef = useRef(null);
+
+  // The cards still to ask are recorded as a set dealt, once a page.
+  const dealtRef = useRef(null);
+  useEffect(() => {
+    if (dealtRef.current === test.started || !left.length) return;
+    dealtRef.current = test.started;
+    testCards.deal(lessonId, test.started, cards, left.map((e) => e.k));
+  });
+
+  const entry = shown ? asked.find((e) => e.k === shown.k) : left[0];
+  const card = entry ? byKey.get(entry.k) : null;
+  const dir = entry ? entry.k.split(":")[1] : "fr";
+  useEffect(() => {
+    if (!going) return;
+    (shown ? nextRef : inputRef).current?.focus({ preventScroll: true });
+  }, [going, shown, entry?.k]);
+
+  if (!asked.length) return null;
+  if (!card) {
+    return <p style={S.note} data-test-cards-done>{`All ${plural(asked.length, "card", "cards")} asked here are answered.`}</p>;
+  }
+  const p = testCards.promptOf(card, dir);
+  const check = (giveUp = false) => {
+    if (!giveUp && !typed.trim()) return;
+    const { result, got } = giveUp ? { result: "revealed", got: false } : testCards.mark(card, dir, typed);
+    testCards.record(lessonId, card, dir, got);
+    setShown({ k: entry.k, result, typed: typed.trim() });
+    setGoing(true);
+  };
+  const next = () => { setShown(null); setTyped(""); setGoing(true); };
+  const ok = shown && (shown.result === "correct" || shown.result === "close");
+  const number = asked.length - left.length + (shown ? 0 : 1);
+  return (
+    <div style={S.cardBox} data-test-card={entry.k} data-test-card-state={shown ? "marked" : "open"}>
+      <div style={S.cardCount}>{`Card ${Math.min(number, asked.length)} of ${asked.length}`}</div>
+      {p.instruction && <div style={S.cardInstr}>{p.instruction}</div>}
+      <div style={S.cardFront}>{p.front}</div>
+      {!shown ? (
+        <>
+          <div style={S.cardRow}>
+            <input
+              ref={inputRef}
+              style={S.cardInput}
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); check(); } }}
+              onFocus={() => setGoing(true)}
+              placeholder={`Type ${p.lang}…`}
+              autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
+              data-test-card-input
+            />
+            <button type="button" style={{ ...S.primary, ...(typed.trim() ? null : S.off) }} disabled={!typed.trim()} onClick={() => check()} data-test-card-check>Check</button>
+          </div>
+          <button type="button" style={{ ...S.link, marginTop: 10 }} onClick={() => check(true)} data-test-card-dontknow>I don't know</button>
+        </>
+      ) : (
+        <>
+          <div style={{ ...S.verdict, color: ok ? GREEN : RED }} data-test-card-verdict={shown.result}>
+            {shown.result === "correct" && "✓ Correct!"}
+            {shown.result === "close" && `✓ Close enough — you wrote: ${shown.typed}`}
+            {shown.result === "wrongArticle" && `✗ Wrong article — you wrote: ${shown.typed}`}
+            {shown.result === "wrongAccent" && `✗ The accent changes the tense — you wrote: ${shown.typed}`}
+            {shown.result === "wrong" && `✗ You wrote: ${shown.typed}`}
+            {shown.result === "revealed" && "Not answered"}
+          </div>
+          <div style={S.cardBack}>{`Answer: ${p.back}`}</div>
+          <button
+            ref={nextRef}
+            type="button"
+            style={{ ...S.primary, marginTop: 12 }}
+            onClick={next}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); next(); } }}
+            data-test-card-next
+          >
+            Next
+          </button>
+        </>
+      )}
     </div>
   );
 }
@@ -207,5 +303,13 @@ const S = {
   li: { margin: 0 },
   primary: { padding: "9px 16px", border: "none", borderRadius: T.radius.md, background: T.gradient.ink, color: T.color.onPrimary, fontFamily: T.font.sans, fontWeight: 700, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap" },
   off: { opacity: 0.5, cursor: "default" },
+  cardBox: { padding: "18px 20px", border: `1px solid ${LINE}`, borderRadius: T.radius.lg, background: T.color.surface },
+  cardCount: { fontSize: 12, color: T.color.onSurfaceVariant, marginBottom: 10, fontVariantNumeric: "tabular-nums" },
+  cardInstr: { fontSize: 13, fontStyle: "italic", color: T.color.onSurfaceVariant, marginBottom: 6 },
+  cardFront: { fontFamily: T.font.serif, fontSize: 22, color: T.color.primary, lineHeight: 1.3, marginBottom: 14 },
+  cardRow: { display: "flex", gap: 10, alignItems: "center" },
+  cardInput: { flex: 1, minWidth: 0, padding: "9px 12px", fontSize: 15, fontFamily: T.font.sans, border: `1px solid rgba(3,22,50,0.18)`, borderRadius: T.radius.md, background: T.color.surfaceLowest, color: T.color.onSurface, outline: "none" },
+  verdict: { fontSize: 14, fontWeight: 600, marginBottom: 6 },
+  cardBack: { fontSize: 15, color: T.color.onSurface },
   link: { padding: 0, border: "none", background: "transparent", fontFamily: T.font.sans, fontSize: 12, fontWeight: 600, color: T.color.onSurfaceVariant, cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 2 },
 };

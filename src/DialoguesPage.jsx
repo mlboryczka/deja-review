@@ -252,8 +252,12 @@ export function latestSentenceAnswer(store, key) {
 
 // The sampled sentences in the text's order, one at a time as on a lesson's
 // page: those answered, marked, then the next to type, with no Hint.
+// The page opening doesn't move the cursor to the first box (it scrolled the
+// test page down to it); once a sentence here is being answered, the next box
+// takes it, as on a lesson's page.
 export function TestSentences({ user, keys, since, onNeedKey }) {
   const store = useRows(user?.id);
+  const [going, setGoing] = useState(false);
   if (store.loading) return <p style={S.intro}>Loading your answers…</p>;
   const rows = [];
   let open = false, waiting = 0;
@@ -275,11 +279,12 @@ export function TestSentences({ user, keys, since, onNeedKey }) {
         store={store}
         onNeedKey={onNeedKey}
         noHint
+        focusOnMount={going}
       />
     );
   }
   return (
-    <section style={S.ex} data-test-dialogue>
+    <section style={S.ex} data-test-dialogue onFocus={() => setGoing(true)}>
       <ol style={S.items}>{rows}</ol>
       {waiting > 0 && <p style={{ ...S.intro, margin: "8px 0 0" }}>{`${waiting} more ${waiting === 1 ? "sentence" : "sentences"} after this one.`}</p>}
     </section>
@@ -525,7 +530,7 @@ function ReadIt({ dialogue }) {
 
 let ticketSeq = 0;
 
-function SentenceRow({ item, number, itemKeyValue: key, kind, who, answer, user, store, onNeedKey, noHint = false }) {
+function SentenceRow({ item, number, itemKeyValue: key, kind, who, answer, user, store, onNeedKey, noHint = false, focusOnMount = true }) {
   const state = !answer ? "open" : answer.pending ? "checking" : "done";
   const promptStyle = kind === "scene" ? { ...S.prompt, fontStyle: "italic" } : kind === "question" ? { ...S.prompt, fontWeight: 600 } : S.prompt;
   return (
@@ -537,15 +542,16 @@ function SentenceRow({ item, number, itemKeyValue: key, kind, who, answer, user,
         {answer ? (
           <Marked item={item} answer={answer} user={user} store={store} />
         ) : (
-          <SentenceBox key={key} item={item} itemKeyValue={key} user={user} store={store} onNeedKey={onNeedKey} noHint={noHint} />
+          <SentenceBox key={key} item={item} itemKeyValue={key} user={user} store={store} onNeedKey={onNeedKey} noHint={noHint} focusOnMount={focusOnMount} />
         )}
       </div>
     </li>
   );
 }
 
-// `noHint`: no Hint button, in a lesson test (lib/lessonTest.js).
-function SentenceBox({ item, itemKeyValue: key, user, store, onNeedKey, noHint = false }) {
+// `noHint`: no Hint button, in a lesson test (lib/lessonTest.js). `focusOnMount`
+// false: the box doesn't take the cursor or scroll to itself when it appears.
+function SentenceBox({ item, itemKeyValue: key, user, store, onNeedKey, noHint = false, focusOnMount = true }) {
   const draftKey = `${user?.id}|${key}`;
   const [typed, setTypedState] = useState(() => drafts.get(draftKey) ?? "");
   const setTyped = (v) => { drafts.set(draftKey, v); setTypedState(v); };
@@ -563,6 +569,7 @@ function SentenceBox({ item, itemKeyValue: key, user, store, onNeedKey, noHint =
   // tutor's), and comes into view: a frame later, since opening a lesson first
   // scrolls the page to its top, and a round carried on is further down.
   useEffect(() => {
+    if (!focusOnMount) return undefined;
     const active = document.activeElement;
     const elsewhere = /^(INPUT|TEXTAREA)$/.test(active?.tagName || "") && !active.closest("[data-dialogues-page]");
     if (!elsewhere) boxRef.current?.focus({ preventScroll: true });
