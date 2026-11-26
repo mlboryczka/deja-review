@@ -28,7 +28,7 @@ try {
   await page.click("[data-module='dialogues']");
   await page.waitForSelector("[data-dialogues-page]", { timeout: 8000 }).catch(() => {});
   const text = await page.textContent("body");
-  ck("Dialogues says to type each sentence back into French", /French one sentence at a time/.test(text), text.slice(0, 120));
+  ck("Dialogues has no intro line under its heading (owner, 2026-11-26)", !/one sentence at a time/.test(text), text.slice(0, 120));
   const dRows = await page.$$eval("[data-dialogue-lesson], [data-dlg-lesson]", (els) => els.length).catch(() => 0);
   ck("Dialogues has a row for each of the 22 texts", dRows === 22 || /Lesson 1 · Être/.test(text), String(dRows));
 } finally {

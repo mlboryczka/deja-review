@@ -327,10 +327,8 @@ function DialogueList({ store, mastered, onPick }) {
   };
   return (
     <>
+      {/* No intro line under the heading (owner, 2026-11-26). */}
       <h1 style={S.h1}>Dialogues</h1>
-      <p style={S.intro}>
-        Each lesson’s dialogue in English, to type back into {P.language} one sentence at a time.
-      </p>
       {P.DIALOGUE_GROUPS.map((stage) => {
         const closed = closedStages.has(stage.title);
         return (

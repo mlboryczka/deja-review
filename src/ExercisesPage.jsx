@@ -318,10 +318,8 @@ export default function ExercisesPage({ pack, user, view, setView, onNeedKey, on
           />
         ) : (
           <>
+            {/* No intro line under the heading (owner, 2026-11-26). */}
             <h1 style={S.h1}>Exercises</h1>
-            <p style={S.intro}>
-              The written exercises from each lesson’s sheet. Type your answer and press Enter: the answer key marks it straight away, and Claude marks any answer the key doesn’t have.
-            </p>
             {/* Under the course's four stages, as the Lessons page on
                 Flashcards is (owner, 2026-11-07). */}
             {P.EXERCISE_GROUPS.map((stage) => {
