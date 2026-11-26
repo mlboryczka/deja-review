@@ -15,7 +15,7 @@
 // No browser and no network.
 
 import { checker } from "../check.mjs";
-import { newTest, scoreTest, needed, spreadPick, spreadIndexes, withCardAnswer, toAsk, masteredOf, resultOf, PER_PART } from "../../src/lib/lessonTest.js";
+import { needsTheText, withoutTextItems, newTest, scoreTest, needed, spreadPick, spreadIndexes, withCardAnswer, toAsk, masteredOf, resultOf, PER_PART } from "../../src/lib/lessonTest.js";
 import { EXERCISES_BY_ID } from "../../src/data/exercises/es/index.js";
 import { DIALOGUE_OF } from "../../src/data/exercises/es/dialogues.js";
 import { makeScheduler, withTarget, toFsrsTime } from "../../src/lib/spacedRepetition.js";
@@ -44,6 +44,25 @@ console.log("\nWhat is asked");
   ck("a smaller part is asked in full", small.cards.length === 5 && small.items.length === 0 && small.sentences.length === 0);
   ck("spreadPick gives everything when there are fewer", spreadPick([[1, 2], [3]], 20).length === 3);
   ck("spreadIndexes of 14 asks all 14", spreadIndexes(14, 20).length === 14);
+}
+
+console.log("\nNothing that needs the lesson's text");
+{
+  const ex = (id) => EXERCISES_BY_ID[id].exercises;
+  ck("Lesson 1's true-or-false about the dialogue needs the text", needsTheText(ex("leccion1").find((e) => e.title === "Comprensión escrita")));
+  ck("Lesson 17's pronouns in the dialogue need the text", needsTheText(ex("leccion17")[0]));
+  ck("Lesson 14's sentences to translate don't", !needsTheText(ex("leccion14")[0]));
+  ck("nor a conjugation exercise", !needsTheText(ex("leccion1")[0]));
+  let picked = 0;
+  for (let i = 0; i < 30; i++) {
+    const t = newTest({ lessonId: "leccion1", cards: [], sheets: [EXERCISES_BY_ID.leccion1], now, rng });
+    picked += t.items.filter((e) => needsTheText(EXERCISES_BY_ID.leccion1.exercises.find((x) => x.n === Number(e.k.split("/")[1])))).length;
+    if (t.items.length !== 20) { picked = -1; break; }
+  }
+  ck("30 Lesson 1 tests ask 20 items each and none needing the text", picked === 0, String(picked));
+  const textEx = EXERCISES_BY_ID.leccion1.exercises.find((e) => needsTheText(e));
+  const old = { items: [{ k: `leccion1/${textEx.n}/1` }, { k: "leccion1/1/1" }] };
+  ck("a test begun before drops those items", withoutTextItems(old, EXERCISES_BY_ID).items.map((e) => e.k).join() === "leccion1/1/1");
 }
 
 console.log("\nRecent and unseen");

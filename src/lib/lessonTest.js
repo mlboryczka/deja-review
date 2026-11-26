@@ -45,7 +45,7 @@
 // way (null when none) and `result` the last one finished.
 
 import { sideOf, directionsOf, isTwoWay } from "./directions.js";
-import { countsAsRight } from "./exerciseMarking.js";
+import { countsAsRight, kindOf, findItem } from "./exerciseMarking.js";
 import { LEARNED_AT } from "./lessonMastery.js";
 
 export const TESTS_KEY = "es_lesson_tests";
@@ -60,6 +60,26 @@ export const PARTS = Object.freeze([
   { id: "grammar", label: "Grammar", list: "items", one: "exercise item", many: "exercise items" },
   { id: "text", label: "Text", list: "sentences", one: "dialogue sentence", many: "dialogue sentences" },
 ]);
+
+// An exercise that can only be answered with the lesson's text in front of
+// you: true or false about the dialogue, free writing, or one whose
+// instruction sends you to the text or the dialogue (Lessons 1–6's
+// Comprensión escrita, Lesson 16's text to translate, Lesson 17's pronouns in
+// the dialogue). The test leaves these out (owner, 2026-11-26: "don't ask me
+// questions about the dialogue ... the dialogue isn't even loaded"); its Text
+// part tests the dialogue by translating it into Spanish.
+export function needsTheText(exercise) {
+  if ((exercise?.items || []).some((it) => kindOf(it) === "truth" || kindOf(it) === "open")) return true;
+  return /\btexto\b|di[aá]logo|de la lecci[oó]n/i.test(`${exercise?.instruction ?? ""} ${exercise?.english ?? ""}`);
+}
+
+// A test begun before that rule, without the items it now leaves out. Their
+// answers, if any, stay kept; they just aren't part of the test.
+export function withoutTextItems(test, exercisesById) {
+  if (!test?.items) return test;
+  const items = test.items.filter((e) => !needsTheText(findItem(exercisesById, e.k)?.exercise));
+  return items.length === test.items.length ? test : { ...test, items };
+}
 
 // The student's tests as kept, { [lessonId]: { test, result } }.
 export function testsOf(user) {
@@ -186,7 +206,10 @@ export function newTest({ lessonId, cards, sectionOf = () => "", sheets = [], di
   const pickedCards = spreadPick([...bySection.values()], PER_PART, rng);
   const sheetGroups = [];
   for (const sheet of sheets) {
-    for (const ex of sheet.exercises || []) sheetGroups.push(ex.items.map((_, i) => `${sheet.id}/${ex.n}/${i + 1}`));
+    for (const ex of sheet.exercises || []) {
+      if (needsTheText(ex)) continue;
+      sheetGroups.push(ex.items.map((_, i) => `${sheet.id}/${ex.n}/${i + 1}`));
+    }
   }
   const pickedItems = spreadPick(sheetGroups, PER_PART, rng);
   const ex = dialogue?.exercises?.[0];

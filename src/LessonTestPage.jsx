@@ -17,7 +17,7 @@ import { T } from "./theme";
 import { EXERCISES_BY_ID } from "./data/exercises/es/index.js";
 import { DIALOGUE_OF } from "./data/exercises/es/dialogues.js";
 import { DIALOGUE_PREFIX } from "./lib/dialogueRounds.js";
-import { PARTS, PER_PART, RECENT_DAYS, newTest, scoreTest, resultOf, toAsk, needed } from "./lib/lessonTest.js";
+import { PARTS, PER_PART, RECENT_DAYS, newTest, scoreTest, resultOf, toAsk, needed, withoutTextItems } from "./lib/lessonTest.js";
 import { useExerciseAnswers, testAnswer, TestExerciseItems, setExercisesPack } from "./ExercisesPage";
 import { useDialogueRows, testSentenceAnswer, latestSentenceAnswer, TestSentences, setDialoguesPack } from "./DialoguesPage";
 import { SPANISH_EXERCISES_PACK, SPANISH_DIALOGUES_PACK } from "./data/exercises/es/packs.js";
@@ -40,7 +40,9 @@ export default function LessonTestPage({ user, lesson, tests, saveTests, cards, 
   const exStore = useExerciseAnswers(user?.id);
   const dgStore = useDialogueRows(user?.id);
   const kept = tests?.[lesson.id] || {};
-  const test = kept.test || null;
+  // Without exercises that need the lesson's text (lib/lessonTest.js), for a
+  // test begun before they were left out.
+  const test = useMemo(() => withoutTextItems(kept.test || null, EXERCISES_BY_ID), [kept.test]);
   const result = kept.result || null;
   const loading = exStore.loading || dgStore.loading;
 
