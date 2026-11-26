@@ -1425,6 +1425,9 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
       .then(({ data }) => {
         if (!live || data?.user?.id !== user.id) return;
         setLessonChoices(choicesOf(data.user));
+        // And the lesson tests, unless one is being saved: another computer,
+        // or a correction to a result, may have changed them since.
+        if (testSavesRef.current === 0) setLessonTests(testsOf(data.user));
         setAccountTourSeen(!!data.user.user_metadata?.tour_shown);
       })
       .catch(() => { /* the session's copy stands */ })
