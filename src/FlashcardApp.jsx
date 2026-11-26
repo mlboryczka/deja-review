@@ -2440,6 +2440,34 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
       const result = markTypedAnswer({ ...c, shownDir: dir }, typed);
       return { result, got: typedGotIt(result) };
     },
+    // "My answer should be accepted", as on Cards (submitFeedback and
+    // forceAcceptAnswer): Claude judges the answer, and an accepted one is
+    // kept as one of the card's answers from now on. `force` is Accept anyway.
+    // Resolves to the server's reply ({ verdict, reasoning, kept }), or throws
+    // with a plain sentence.
+    dispute: async (c, dir, typed, force = false) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/review-answer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}`, ...keyHeaders(user?.id) },
+        body: JSON.stringify({
+          card_id: c.id, direction: dir, french: c.f, english: c.b,
+          user_answer: typed, expected_answer: dir === "fr" ? c.b : c.f,
+          ...(force ? { force: true } : { drill: dir === "fr" && String(c.f || "").includes("→") && (isConjugationDrill(c.f) || !!lessonIdOf(c)) }),
+          ...(spanish ? { course: "es" } : {}),
+        }),
+      });
+      const text = await res.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch { data = null; }
+      if (!res.ok) throw new Error(data?.error || `The server answered ${res.status}. Try again.`);
+      const verdict = force ? "accept" : data?.verdict;
+      if (verdict === "accept") {
+        const key = `${c.id}:${dir}`;
+        setAlternates((prev) => ({ ...prev, [key]: [...(prev[key] || []), typed] }));
+      }
+      return { ...(data || {}), verdict };
+    },
     deal: (lessonId, started, cards, keys) => {
       const dealt = testSession(cards, keys);
       if (!dealt.queue.length) return;

@@ -155,8 +155,10 @@ export default function LessonTestPage({ user, lesson, tests, saveTests, cards, 
 }
 
 // The flashcards still to ask, one at a time: type the answer, Check (or
-// Enter), see the verdict and the answer, Next. Each answer is kept as soon as
-// it is marked, so leaving halfway loses nothing.
+// Enter), see the verdict and the answer, Next. Under a miss, "My answer
+// should be accepted" as on Cards (owner, 2026-11-26); so an answer is kept
+// when Next is pressed, with the verdict as it then stands, as Cards keeps it
+// on Continue.
 function TestCards({ lessonId, test, cards, testCards }) {
   const byKey = useMemo(() => {
     const m = new Map();
@@ -165,7 +167,8 @@ function TestCards({ lessonId, test, cards, testCards }) {
   }, [cards]);
   const asked = test.cards || [];
   const left = toAsk(test.cards).filter((e) => byKey.has(e.k));
-  const [shown, setShown] = useState(null); // { k, result, typed } of the card just marked
+  const [shown, setShown] = useState(null); // { k, result, typed, got, accepted } of the card just marked
+  const [dispute, setDispute] = useState(null); // null | { state: "asking" | "rejected" | "error", reasoning?, error? }
   const [typed, setTyped] = useState("");
   const [going, setGoing] = useState(false); // answering: the next box takes the cursor
   const inputRef = useRef(null);
@@ -195,13 +198,28 @@ function TestCards({ lessonId, test, cards, testCards }) {
   const check = (giveUp = false) => {
     if (!giveUp && !typed.trim()) return;
     const { result, got } = giveUp ? { result: "revealed", got: false } : testCards.mark(card, dir, typed);
-    testCards.record(lessonId, card, dir, got);
-    setShown({ k: entry.k, result, typed: typed.trim() });
+    setShown({ k: entry.k, result, typed: typed.trim(), got, accepted: false });
+    setDispute(null);
     setGoing(true);
   };
-  const next = () => { setShown(null); setTyped(""); setGoing(true); };
-  const ok = shown && (shown.result === "correct" || shown.result === "close");
-  const number = asked.length - left.length + (shown ? 0 : 1);
+  const askAccept = async (force = false) => {
+    const which = shown;
+    setDispute({ state: "asking" });
+    try {
+      const r = await testCards.dispute(card, dir, which.typed, force);
+      if (r.verdict === "accept") { setShown((s) => (s && s.k === which.k ? { ...s, accepted: true } : s)); setDispute(null); }
+      else setDispute({ state: "rejected", reasoning: r.reasoning || "Claude didn't accept that answer." });
+    } catch (e) {
+      setDispute({ state: "error", error: e?.message || "Couldn't send. Try again." });
+    }
+  };
+  const next = () => {
+    if (shown) testCards.record(lessonId, card, dir, shown.got || shown.accepted);
+    setShown(null); setTyped(""); setDispute(null); setGoing(true);
+  };
+  const ok = shown && (shown.got || shown.accepted);
+  // The card on screen is still to be kept until Next, so it is among `left`.
+  const number = asked.length - left.length + 1;
   return (
     <div style={S.cardBox} data-test-card={entry.k} data-test-card-state={shown ? "marked" : "open"}>
       <div style={S.cardCount}>{`Card ${Math.min(number, asked.length)} of ${asked.length}`}</div>
@@ -227,15 +245,35 @@ function TestCards({ lessonId, test, cards, testCards }) {
         </>
       ) : (
         <>
-          <div style={{ ...S.verdict, color: ok ? GREEN : RED }} data-test-card-verdict={shown.result}>
-            {shown.result === "correct" && "✓ Correct!"}
-            {shown.result === "close" && `✓ Close enough — you wrote: ${shown.typed}`}
-            {shown.result === "wrongArticle" && `✗ Wrong article — you wrote: ${shown.typed}`}
-            {shown.result === "wrongAccent" && `✗ The accent changes the tense — you wrote: ${shown.typed}`}
-            {shown.result === "wrong" && `✗ You wrote: ${shown.typed}`}
+          <div style={{ ...S.verdict, color: ok ? GREEN : RED }} data-test-card-verdict={shown.accepted ? "accepted" : shown.result}>
+            {shown.accepted && `✓ Accepted — you wrote: ${shown.typed}`}
+            {!shown.accepted && shown.result === "correct" && "✓ Correct!"}
+            {!shown.accepted && shown.result === "close" && `✓ Close enough — you wrote: ${shown.typed}`}
+            {!shown.accepted && shown.result === "wrongArticle" && `✗ Wrong article — you wrote: ${shown.typed}`}
+            {!shown.accepted && shown.result === "wrongAccent" && `✗ The accent changes the tense — you wrote: ${shown.typed}`}
+            {!shown.accepted && shown.result === "wrong" && `✗ You wrote: ${shown.typed}`}
             {shown.result === "revealed" && "Not answered"}
           </div>
           <div style={S.cardBack}>{`Answer: ${p.back}`}</div>
+          {!ok && shown.result !== "revealed" && (
+            <div style={{ marginTop: 8, fontSize: 12.5 }} data-test-card-dispute={dispute?.state || "none"}>
+              {!dispute && <button type="button" style={S.link} onClick={() => askAccept(false)} data-test-card-accept>My answer should be accepted</button>}
+              {dispute?.state === "asking" && <span style={{ color: T.color.onSurfaceVariant }}>Reviewing your answer…</span>}
+              {dispute?.state === "rejected" && (
+                <>
+                  <div style={{ color: T.color.onSurfaceVariant, marginBottom: 6, lineHeight: 1.5 }}>{dispute.reasoning}</div>
+                  <button type="button" style={S.link} onClick={() => askAccept(true)} data-test-card-force>Accept anyway</button>
+                </>
+              )}
+              {dispute?.state === "error" && (
+                <>
+                  <span style={{ color: RED, marginRight: 10 }}>{dispute.error}</span>
+                  <button type="button" style={S.link} onClick={() => askAccept(false)}>Try again</button>
+                </>
+              )}
+            </div>
+          )}
+          {shown.accepted && <div style={{ marginTop: 6, fontSize: 12.5, color: T.color.onSurfaceVariant }}>This answer will be accepted from now on.</div>}
           <button
             ref={nextRef}
             type="button"

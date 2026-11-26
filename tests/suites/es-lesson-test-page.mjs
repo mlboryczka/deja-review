@@ -80,8 +80,12 @@ try {
   await page.waitForSelector("[data-test-card-verdict]", { timeout: 5000 });
   const v2 = await page.getAttribute("[data-test-card-verdict]", "data-test-card-verdict");
   ck("a wrong answer is marked wrong", v2 === "wrong", v2);
+  ck("and offers My answer should be accepted, as Cards does", (await page.$("[data-test-card-accept]")) !== null);
+  ck("the card still says Card 2 of 20 until Next", /Card 2 of 20/.test(await page.textContent("[data-test-card]")));
   // SHOT=<file>: a picture of the page with the wrong answer marked.
   if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT });
+  await page.click("[data-test-card-next]");
+  await page.waitForSelector("[data-test-card-input]", { timeout: 5000 });
   const fig = await page.textContent("[data-lesson-test-figure='words']");
   ck("Words counts both answers, one right", /^2 of 20 cards answered · 1 right/.test(fig), fig);
 } finally {
