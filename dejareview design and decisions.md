@@ -2899,6 +2899,45 @@ page you were on (kept in this browser, `es-exercises-place:<user id>`).
   (403). Claude is paid for as everywhere else: the owner's account for the
   owner (and Laura on the test app), anyone else's own key.
 
+### French Exercises and Dialogues (2026-11-25)
+
+Owner: "extend the spanish dialogue and exercises modules to french". The French
+sidebar's switch is **Flashcards / Exercises / Dialogues**, with Podcasts
+still the owner's. The same two pages as Spanish: each takes its course from a
+`pack` (`src/data/exercises/es/packs.js`, `src/data/exercises/fr/packs.js`),
+loaded by a small page per course (`ExercisesPageEs/Fr`, `DialoguesPageEs/Fr`)
+so each course downloads only its own sheets. The answer key's marking is a
+factory (`makeMarking` in `src/lib/exerciseMarking.js`, Spanish rules in the
+same file, French in `src/lib/frenchMarking.js`). The server
+(`api/_lib/exercises.js`) marks a request with `course: "fr"` against the
+French sheets with French instructions (`FR_MARK_SYSTEM`, `FR_REVIEW_SYSTEM`)
+and keeps answers in `exercise_answers` and `exercise_disputes`
+(migration_036, the owner runs it); a request with no course is Spanish, as
+before.
+
+Content: Laura's own French sheets, 39 sheets (`src/data/exercises/fr`, one
+file each, the header saying what is left out and where the key comes from),
+165 exercises with 3,259 items; 22 lesson texts with her English
+(`dialogueTexts.js`, made by `scripts/fr-dialogues.mjs` from the texts in
+`.claude/french-exercises/dialogues`; the sheets were written by helpers from
+her Drive and the copies in `.claude/lessons-*-draft/sources`). The owner's
+Spanish rulings apply: nothing that asks for a sentence of your own, an answer
+about yourself, the question, a yes or no in a full sentence, dictation or an
+oral exercise. Where she has no key (Leçons 8, 12–14, 15's second sheet, 18
+and her topic lessons) the answers were written for the app and checked by
+four independent readers (14 changes in 1,200 or so items). "Adjectif ou
+adverbe ?" has no sheet of hers, so no exercises.
+
+French marking: verb forms from the Lefff (npm `french-verbs-lefff` 3.4.0,
+LGPL-LR; `scripts/fr-verb-forms.mjs` makes `src/data/exercises/fr/verbForms.js`;
+rerun it when the sheets change). Another form of the verb, even one letter
+off, is Wrong; a typo in another word is Almost; an accent counts only where
+it makes another form of the same verb ("parle" for "parlé"); an agreeing
+participle form ("allée" for "allé") is Claude's to judge. Tests:
+`tests/suites/fr-exercises.mjs` (no browser) and `fr-pages.mjs`. The test
+runner's ports can be set (`MOCK_PORT`, `APP_PORT`) so two checkouts can run it
+at once; `CHROME_PATH` names Chrome on a Mac.
+
 ### Dialogues (Spanish only)
 
 Laura's advice in class (2026-11-06, as the owner reported it; that class
