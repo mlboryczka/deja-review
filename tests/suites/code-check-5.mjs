@@ -18,8 +18,11 @@ const settings = read("src/useFsrsSettings.js");
 const deckHook = read("src/useUserDeck.js");
 const appShell = read("src/App.jsx");
 
-// 20: the Lessons page counts due cards the way the dealer does.
-ck("20 the lesson's due count is the dealer's own", /buildSession\(owned, \{[^}]*target: 0 \}\)\.dueRemaining/.test(app));
+// 20: the Lessons page counted due cards the way the dealer does, until it stopped showing them.
+// The Lessons page no longer shows a lesson's due count (owner, 2026-11-26:
+// the note under a switched-off lesson went with the other grey explainer
+// text), so there is no count to check.
+ck("20 the Lessons page shows no due count of its own", !/dueRemaining/.test(app.slice(app.indexOf('if (mode === "lessons")'), app.indexOf('if (mode === "lessons")') + 12000)));
 
 // 21: a new French student sees the lessons being added, not Welcome.
 ck("21 'Adding the lessons' shows while the sync runs on an empty deck",
