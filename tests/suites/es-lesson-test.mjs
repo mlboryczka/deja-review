@@ -15,7 +15,7 @@
 // No browser and no network.
 
 import { checker } from "../check.mjs";
-import { needsTheText, withoutTextItems, newTest, scoreTest, needed, spreadPick, spreadIndexes, withCardAnswer, toAsk, masteredOf, resultOf, PER_PART } from "../../src/lib/lessonTest.js";
+import { allAsked, needsTheText, withoutTextItems, newTest, scoreTest, needed, spreadPick, spreadIndexes, withCardAnswer, toAsk, masteredOf, resultOf, PER_PART } from "../../src/lib/lessonTest.js";
 import { EXERCISES_BY_ID } from "../../src/data/exercises/es/index.js";
 import { DIALOGUE_OF } from "../../src/data/exercises/es/dialogues.js";
 import { makeScheduler, withTarget, toFsrsTime } from "../../src/lib/spacedRepetition.js";
@@ -67,28 +67,19 @@ console.log("\nNothing that needs the lesson's text");
   ck("a test begun before drops those items", withoutTextItems(old, EXERCISES_BY_ID).items.map((e) => e.k).join() === "leccion1/1/1");
 }
 
-console.log("\nRecent and unseen");
+console.log("\nEvery question picked is asked");
 {
   const cards = [card(1, { last_review: "2026-11-29T10:00:00Z", last_answer_correct: false }), card(2, { fsrs_state: 0, last_review: null }), card(3)];
   const t = newTest({ lessonId: "x", cards, now, rng });
-  const by = Object.fromEntries(t.cards.map((e) => [e.k.split(":")[0], e]));
-  ck("a card answered 2 days ago isn't asked and counts as it was (wrong)", by[1].r === false && by[1].why === "recent");
-  ck("a card never studied counts as not known", by[2].r === false && by[2].why === "unseen");
-  ck("an older card is asked", by[3].r === undefined);
-  ck("toAsk lists only the card still to ask", toAsk(t.cards).length === 1);
-}
-
-console.log("\nThe way round a card is asked");
-{
-  const two = (extra) => card(50, { cat: "vocab", en_fsrs_state: 0, en_last_review: null, ...extra });
-  const fr = newTest({ lessonId: "x", cards: [two({})], direction: "mix", now, rng }).cards[0];
-  ck("a card studied only Spanish side up is asked that way, not counted unseen", fr.k === "50:fr" && fr.why !== "unseen", JSON.stringify(fr));
-  const en = newTest({ lessonId: "x", cards: [two({ fsrs_state: 0, last_review: null, en_fsrs_state: 2, en_last_review: "2026-10-01T10:00:00Z" })], direction: "fr", now, rng }).cards[0];
-  ck("a card studied only English side up is asked that way, whatever the setting", en.k === "50:en" && en.why !== "unseen", JSON.stringify(en));
-  const both = newTest({ lessonId: "x", cards: [two({ en_fsrs_state: 2, en_last_review: "2026-09-01T10:00:00Z" })], direction: "mix", now, rng }).cards[0];
-  ck("studied both ways, under Mixed the way answered longer ago", both.k === "50:en", both.k);
-  const none = newTest({ lessonId: "x", cards: [two({ fsrs_state: 0, last_review: null })], direction: "mix", now, rng }).cards[0];
-  ck("studied neither way, it counts as not known", none.why === "unseen" && none.r === false);
+  ck("a card answered 2 days ago is asked", t.cards.every((e) => e.r === undefined && !e.why), JSON.stringify(t.cards));
+  ck("so is a card never studied, and all 3 are left to ask", toAsk(t.cards).length === 3);
+  const leccion1 = newTest({ lessonId: "leccion1", cards: Array.from({ length: 30 }, (_, i) => card(i + 1)), sheets: [EXERCISES_BY_ID.leccion1], dialogue: DIALOGUE_OF.leccion1, latest: () => ({ verdict: "right", answeredAt: new Date(now - 86400000).toISOString() }), now, rng });
+  ck("items and sentences answered yesterday are asked too: 20, 20 and 14 to ask", toAsk(leccion1.cards).length === 20 && toAsk(leccion1.items).length === 20 && toAsk(leccion1.sentences).length === 14);
+  const old = { cards: [{ k: "1:fr", r: true, why: "recent" }, { k: "2:fr", r: false, why: "unseen" }, { k: "3:fr", r: true }], items: [{ k: "a", r: true, why: "recent" }], sentences: [] };
+  const fixed = allAsked(old);
+  ck("a test begun before asks what it had counted without asking", toAsk(fixed.cards).map((e) => e.k).join() === "1:fr,2:fr" && toAsk(fixed.items).length === 1);
+  ck("and keeps what was answered in it", fixed.cards[2].r === true);
+  ck("answering such a card records its result", withCardAnswer(old, "1:fr", false).cards[0].r === false);
 }
 
 console.log("\nScoring");

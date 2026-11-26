@@ -17,7 +17,7 @@ import { T } from "./theme";
 import { EXERCISES_BY_ID } from "./data/exercises/es/index.js";
 import { DIALOGUE_OF } from "./data/exercises/es/dialogues.js";
 import { DIALOGUE_PREFIX } from "./lib/dialogueRounds.js";
-import { PARTS, PER_PART, RECENT_DAYS, newTest, scoreTest, resultOf, toAsk, needed, withoutTextItems } from "./lib/lessonTest.js";
+import { PARTS, PER_PART, newTest, scoreTest, resultOf, toAsk, needed, withoutTextItems, allAsked } from "./lib/lessonTest.js";
 import { useExerciseAnswers, testAnswer, TestExerciseItems, setExercisesPack } from "./ExercisesPage";
 import { useDialogueRows, testSentenceAnswer, latestSentenceAnswer, TestSentences, setDialoguesPack } from "./DialoguesPage";
 import { SPANISH_EXERCISES_PACK, SPANISH_DIALOGUES_PACK } from "./data/exercises/es/packs.js";
@@ -42,7 +42,8 @@ export default function LessonTestPage({ user, lesson, tests, saveTests, cards, 
   const kept = tests?.[lesson.id] || {};
   // Without exercises that need the lesson's text (lib/lessonTest.js), for a
   // test begun before they were left out.
-  const test = useMemo(() => withoutTextItems(kept.test || null, EXERCISES_BY_ID), [kept.test]);
+  // And with every question asked, for a test begun when some weren't.
+  const test = useMemo(() => allAsked(withoutTextItems(kept.test || null, EXERCISES_BY_ID)), [kept.test]);
   const result = kept.result || null;
   const loading = exStore.loading || dgStore.loading;
 
@@ -105,7 +106,7 @@ export default function LessonTestPage({ user, lesson, tests, saveTests, cards, 
               {`This test asks up to ${PER_PART} of the lesson's flashcards, ${PER_PART} of its exercise items and ${PER_PART} of its dialogue sentences, picked from across the lesson. You pass with ${needed(PER_PART)} of ${PER_PART} or more right in each part, and the lesson is then Mastered.`}
             </p>
             <p style={S.para}>
-              {`Anything you answered in the last ${RECENT_DAYS} days isn't asked again: that answer counts. A flashcard you haven't studied yet counts as not known. There is no Hint.`}
+              There is no Hint.
             </p>
             <p style={S.para}>
               Once the lesson is Mastered, each of its cards you get right comes back about 3.5 times later than before. A card you get wrong comes back as soon as it always did.
@@ -133,14 +134,6 @@ export default function LessonTestPage({ user, lesson, tests, saveTests, cards, 
                       {`${s.answered} of ${plural(s.total, p.one, p.many)} answered · ${s.right} right · ${needed(s.total)} needed`}
                     </span>
                   </div>
-                  {(s.recent > 0 || s.unseen > 0) && (
-                    <p style={S.note}>
-                      {[
-                        s.recent ? `${plural(s.recent, p.one, p.many)} answered in the last ${RECENT_DAYS} days ${s.recent === 1 ? "counts" : "count"} as ${s.recent === 1 ? "it was" : "they were"}.` : "",
-                        s.unseen ? `${plural(s.unseen, p.one, p.many)} not studied yet ${s.unseen === 1 ? "counts" : "count"} as not known.` : "",
-                      ].filter(Boolean).join(" ")}
-                    </p>
-                  )}
                   {p.id === "words" && (
                     <TestCards lessonId={lesson.id} test={test} cards={cards} testCards={testCards} />
                   )}
@@ -170,7 +163,7 @@ function TestCards({ lessonId, test, cards, testCards }) {
     for (const c of cards || []) for (const d of ["fr", "en"]) m.set(`${c.row_id ?? c.id}:${d}`, c);
     return m;
   }, [cards]);
-  const asked = (test.cards || []).filter((e) => !e.why);
+  const asked = test.cards || [];
   const left = toAsk(test.cards).filter((e) => byKey.has(e.k));
   const [shown, setShown] = useState(null); // { k, result, typed } of the card just marked
   const [typed, setTyped] = useState("");

@@ -16,10 +16,11 @@
 //     least one each, the rest in proportion to each sheet's size; dialogue
 //     sentences are spread from the start of the text to its end; cards
 //     across the lesson's sections.
-//   - Something answered in the last RECENT_DAYS isn't asked again: that
-//     answer counts. Asked again so soon it would mostly show short-term
-//     memory (the same reason Stats waits a week before a redo counts,
-//     lib/lessonMastery.js).
+//   - Every question picked is asked (owner, 2026-11-26: "you are supposed
+//     to give me 20 questions for each section"). Until then, something
+//     answered in the last 7 days wasn't asked again and its answer counted,
+//     and a card never studied counted as not known without being asked: a
+//     part could ask 15 and say 5 were already answered.
 //   - Marking as everywhere else: Right and Almost are right; first try only.
 //     The test shows no Hint, so nothing is typed with one.
 //   - Passing: PASS_AT or more right in every part (the line Stats calls
@@ -36,9 +37,7 @@
 //   - A card is asked as practice (practiceSession in lib/sessionQueue.js): the
 //     answer is kept and changes no schedule, as for every card answered
 //     before it is due ("Nothing was asked before it was due").
-//   - A card never answered isn't asked: it counts as not known. Meeting a
-//     new word in a test is a guess, and dealing it as practice would be the
-//     word's first meeting.
+//   - A card is asked a way round it has been studied, where it has one.
 //
 // Kept on the student's account (Supabase's user_metadata, TESTS_KEY), as the
 // lesson switches are: { [lessonId]: { test, result } }, `test` the one under
@@ -50,7 +49,6 @@ import { LEARNED_AT } from "./lessonMastery.js";
 
 export const TESTS_KEY = "es_lesson_tests";
 export const PER_PART = 20;
-export const RECENT_DAYS = 7;
 export const PASS_AT = LEARNED_AT;
 export const PASSED_TARGET = 0.8;
 const DAY_MS = 86400000;
@@ -148,11 +146,6 @@ export function spreadIndexes(count, n, rng = Math.random) {
   return spreadPick(runs, n, rng);
 }
 
-const recentAt = (iso, now) => {
-  const t = Date.parse(iso ?? "");
-  return Number.isFinite(t) && now - t < RECENT_DAYS * DAY_MS && t <= now;
-};
-
 // The way round a card is asked: a way already studied (owner, 2026-11-26:
 // a word studied only Spanish side up was counted "not studied yet" when the
 // test picked its English side). Of two ways studied, the direction setting's,
@@ -170,23 +163,17 @@ function wayOf(card, direction) {
   return at(studied[1]) < at(studied[0]) ? studied[1] : studied[0];
 }
 
-// One card as the test holds it: `k` its row and way round ("12:fr"), and
-// `r` its result when it isn't asked: a recent answer's (`why: "recent"`), or
-// not known for a card never answered (`why: "unseen"`).
-function cardEntry(card, direction, now) {
-  const dir = wayOf(card, direction);
-  const side = sideOf(card, dir);
-  const k = `${card.row_id ?? card.id}:${dir}`;
-  if (!studiedWay(side)) return { k, r: false, why: "unseen" };
-  if (recentAt(side.last_review, now)) return { k, r: side.last_answer_correct === true, why: "recent" };
-  return { k };
-}
+// One card as the test holds it: `k`, its row and way round ("12:fr"), and
+// once answered `r`, its result.
+const cardEntry = (card, direction) => ({ k: `${card.row_id ?? card.id}:${wayOf(card, direction)}` });
 
-// An item or sentence: its latest answer, if recent, counts.
-function itemEntry(k, latest, now) {
-  const a = latest(k);
-  if (a && !a.pending && recentAt(a.answeredAt, now)) return { k, r: countsAsRight(a.verdict) && !(a.hints > 0), why: "recent" };
-  return { k };
+// A test begun before every question was asked: what it counted without
+// asking (`why` "recent" or "unseen") is asked after all.
+export function allAsked(test) {
+  if (!test) return test;
+  const ask = (list) => (list || []).map((e) => (e.why ? { k: e.k } : e));
+  const any = [test.cards, test.items, test.sentences].some((l) => (l || []).some((e) => e.why));
+  return any ? { ...test, cards: ask(test.cards), items: ask(test.items), sentences: ask(test.sentences) } : test;
 }
 
 // A new test.
@@ -219,9 +206,9 @@ export function newTest({ lessonId, cards, sectionOf = () => "", sheets = [], di
     lesson: lessonId,
     started: new Date(now).toISOString(),
     direction,
-    cards: pickedCards.map((c) => cardEntry(c, direction, now)),
-    items: pickedItems.map((k) => itemEntry(k, latest, now)),
-    sentences: pickedSentences.map((k) => itemEntry(k, latest, now)),
+    cards: pickedCards.map((c) => cardEntry(c, direction)),
+    items: pickedItems.map((k) => ({ k })),
+    sentences: pickedSentences.map((k) => ({ k })),
   };
 }
 
@@ -234,10 +221,10 @@ export function withCardAnswer(test, k, got, { correction = false } = {}) {
   if (!test) return test;
   let changed = false;
   const cards = test.cards.map((e) => {
-    if (e.k !== k || e.why) return e;
-    if (typeof e.r === "boolean" && !correction) return e;
+    if (e.k !== k) return e;
+    if (typeof e.r === "boolean" && !e.why && !correction) return e;
     changed = true;
-    return { ...e, r: !!got };
+    return { k: e.k, r: !!got };
   });
   return changed ? { ...test, cards } : test;
 }
