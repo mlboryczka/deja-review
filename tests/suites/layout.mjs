@@ -103,7 +103,10 @@ ck(
 ck("the shell stays one viewport tall", Math.abs(open.shellHeight - open.viewport) <= 1);
 
 console.log("\n  the card holds its position when it flips");
-await page.mouse.click(80, 60);   // dismiss the panel the last section opened
+// Dismiss the panel the last section opened, by pressing Flashcards in the
+// sidebar's switch (a click at a fixed spot lands on another button once the
+// switch has four).
+await page.click("[data-module='flashcards']");
 await settled(page);
 // The area below the card is a fixed-height well. Without it, the graded state
 // (result banner + dispute link + Continue) is taller than the input row, the
@@ -154,7 +157,7 @@ console.log("\n  the card survives having a panel open");
 // Making the card height-driven fixed the overflow but gave it no floor, so
 // it absorbed the entire squeeze: at 700px it collapsed to 80x50 with its
 // text still at 40px, while 130px of padding sat unused below it.
-await page.mouse.click(80, 60);
+await page.click("[data-module='flashcards']");
 await page.waitForTimeout(500);
 for (const height of [900, 800, 700, 640, 560]) {
   await page.setViewportSize({ width: 1400, height });
@@ -196,7 +199,7 @@ for (const height of [900, 800, 700, 640, 560]) {
     card.height === shut.height && card.top === shut.top,
     `${shut.height}@${shut.top} → ${card.height}@${card.top}`
   );
-  await page.mouse.click(80, 60);
+  await page.click("[data-module='flashcards']");
   await page.waitForTimeout(600);
 }
 await page.setViewportSize({ width: 1400, height: 900 });
