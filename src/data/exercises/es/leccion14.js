@@ -306,8 +306,8 @@ export default {
         { prompt: "There are only two bedrooms.", answer: "Solo hay dos habitaciones." },
         { prompt: "I only speak Spanish with my mom.", answer: "Solo hablo español con mi mamá.",
           also: ["Yo solo hablo español con mi mamá."] },
-        { prompt: "I can only see the smallest bedroom.", answer: "Solo puedo ver la habitación más pequeña.",
-          also: ["Solo puedo ver la habitación más chica.", "Yo solo puedo ver la habitación más pequeña."] },
+        { prompt: "In the photos, I can only see the smallest bedroom.", answer: "En las fotos, solo puedo ver la habitación más pequeña.",
+          also: ["En las fotos, solo puedo ver la habitación más chica.", "En las fotos, yo solo puedo ver la habitación más pequeña.", "Solo puedo ver la habitación más pequeña en las fotos."] },
       ],
     },
     {
