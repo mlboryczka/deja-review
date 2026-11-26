@@ -1,5 +1,5 @@
 import { feedbackRequest } from "./lib/feedbackApi";
-import { useState, useEffect, useCallback, useMemo, useRef, useId, Fragment, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, useId, Fragment, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { RAW } from "./data/cards"; // only used for the admin "seed demo deck" action
 import { lessonIdOf } from "./lib/lessonSource.js";
@@ -13,6 +13,7 @@ import { readPlace, writePlace, dropSets, packSet, unpackEntries } from "./lib/s
 import { CHOICE_KEY, choicesOf, startedLessons, lessonsInCards, onCards, setKeyOf, dealScopeOf } from "./lib/lessonChoice";
 import { TESTS_KEY, testsOf, masteredOf, withCardAnswer, PASSED_TARGET } from "./lib/lessonTest";
 import { lessonOfExercises } from "./lib/lessonMastery";
+import { lazyPage } from "./lib/lazyPage";
 import MasteredBadge from "./MasteredBadge";
 import LessonPanel, { LESSON_PANEL_WIDTH } from "./LessonPanel";
 import Tour from "./Tour";
@@ -109,15 +110,15 @@ import { testAppModulesOpenTo, podcastsOpenTo, usesOwnersKeyOnTestApp } from "./
 // pages since 2026-11-25 (owner: "extend the spanish dialogue and exercises
 // modules to french"), with its own sheets, loaded the same way: each course
 // downloads only its own.
-const ExercisesPageEs = lazy(() => import("./ExercisesPageEs"));
-const ExercisesPageFr = lazy(() => import("./ExercisesPageFr"));
+const ExercisesPageEs = lazyPage(() => import("./ExercisesPageEs"));
+const ExercisesPageFr = lazyPage(() => import("./ExercisesPageFr"));
 import { TITLES as ES_EXERCISE_TITLE_OF, TEXT_OF as ES_EXERCISE_TEXT_OF, EXERCISE_GROUPS as ES_EXERCISE_GROUPS } from "./data/exercises/es/titles.js";
 import { TITLES as FR_EXERCISE_TITLE_OF, TEXT_OF as FR_EXERCISE_TEXT_OF, EXERCISE_GROUPS as FR_EXERCISE_GROUPS } from "./data/exercises/fr/titles.js";
 // The Spanish Dialogues module (owner, 2026-11-07): each lesson's text, typed
 // back into Spanish from the sheet's English. Its pages are DialoguesPage's,
 // loaded only when Dialogues is opened, as with Exercises.
-const DialoguesPageEs = lazy(() => import("./DialoguesPageEs"));
-const DialoguesPageFr = lazy(() => import("./DialoguesPageFr"));
+const DialoguesPageEs = lazyPage(() => import("./DialoguesPageEs"));
+const DialoguesPageFr = lazyPage(() => import("./DialoguesPageFr"));
 import { DIALOGUE_TITLE_OF as ES_DIALOGUE_TITLE_OF, DIALOGUE_GROUPS as ES_DIALOGUE_GROUPS } from "./data/exercises/es/dialogueTitles.js";
 import { DIALOGUE_TITLE_OF as FR_DIALOGUE_TITLE_OF, DIALOGUE_GROUPS as FR_DIALOGUE_GROUPS } from "./data/exercises/fr/dialogueTitles.js";
 // Each course's lessons for Exercises and Dialogues, by course.
@@ -127,7 +128,7 @@ const EXERCISE_SIDES = {
 };
 // A Spanish lesson's test (lib/lessonTest.js, owner 2026-11-25), loaded only
 // when one is opened: it brings Exercises' and Dialogues' pages with it.
-const LessonTestPage = lazy(() => import("./LessonTestPage"));
+const LessonTestPage = lazyPage(() => import("./LessonTestPage"));
 import { stageOf } from "./data/lessons/es/stages.js";
 
 const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase();
