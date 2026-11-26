@@ -12,7 +12,9 @@ import {
   runMarksTest, disputeCases, classCases, disputeCall, remark, agrees, marksJudge, summarize, marksSlip,
   typedFromSpoken, MARKS_KIND, MARKS_VERSION, ASKS_PER_CASE, sourceOfKey,
 } from "../../api/_lib/markingChecks.js";
-import { MARK_SYSTEM } from "../../api/_lib/exercises.js";
+import { MARK_SYSTEM, REVIEW_SYSTEM, EITHER_YOU_RULE } from "../../api/_lib/exercises.js";
+import { markByKey } from "../../src/lib/exerciseMarking.js";
+import { FRENCH_MARKING } from "../../src/lib/frenchMarking.js";
 import { regressions } from "../../api/_lib/evalRuns.js";
 import { lookup } from "../../api/_lib/markingChecks.js";
 
@@ -76,12 +78,31 @@ console.log("\n  re-marked the way the app marks");
   ck("a gap answer kept as a line is read back into its blanks", gap.by === "key" && gap.verdict === "right", JSON.stringify(gap));
   const spokenGap = typedFromSpoken(lookup("leccion1/1/1").item, "Yo soy estadounidense, y tú, de dónde eres");
   ck("a gap sentence said in class is lined up with its blanks", JSON.stringify(spokenGap) === '["soy"]', JSON.stringify(spokenGap));
-  const form = remark({ key: "dialogo-leccion13/1/3", typed: "Y quieres comprar… verdad.", spoken: true });
-  ck("another form of the verb is Wrong by the key, as the app marks it", form.by === "key" && form.verdict === "wrong");
+  const tu = remark({ key: "dialogo-leccion13/1/3", typed: "Y quieres comprar… verdad.", spoken: true });
+  ck("the tú form where the English says only 'you' goes to Claude, not Wrong by the key (owner, 2026-11-26)", tu.by === "claude");
+  const form = remark({ key: "dialogo-leccion13/1/3", typed: "Y quieren comprar, verdad?", spoken: true });
+  ck("another form of the verb is still Wrong by the key", form.by === "key" && form.verdict === "wrong");
   const toClaude = remark({ key: "leccion1/4/1", typed: "Soy Nicolás.", spoken: false });
   ck("an answer the key doesn't have goes to Claude, with the app's own prompt",
      toClaude?.by === "claude" && toClaude.prompt.includes("<answer>\nSoy Nicolás.\n</answer>"), toClaude?.by);
   ck("an item no longer in the app can't be re-marked", remark({ key: "leccion99/1/1", typed: "x" }) === null);
+}
+
+console.log("\n  tú or usted where the English doesn't say which you");
+{
+  const item = (prompt) => ({ prompt, answer: "Quiere comprar la casa." });
+  ck("'you' with no label: the tú form is Claude's to judge, either way round",
+     markByKey(item("You want to buy the house."), "Quieres comprar la casa.") === null &&
+     markByKey({ prompt: "You want to buy the house.", answer: "Quieres comprar la casa." }, "Quiere comprar la casa.") === null);
+  ck("the key's own form is still Right", markByKey(item("You want to buy the house."), "Quiere comprar la casa.").verdict === "right");
+  ck("'(usted)' or '(formal)' says which: the tú form stays Wrong",
+     markByKey(item("You want to buy the house. (usted)"), "Quieres comprar la casa.")?.verdict === "wrong" &&
+     markByKey(item("You want to buy the house (formal)."), "Quieres comprar la casa.")?.verdict === "wrong");
+  ck("no 'you' at all: 'quieres' for 'he wants' stays Wrong", markByKey(item("He wants to buy the house."), "Quieres comprar la casa.")?.verdict === "wrong");
+  ck("French is untouched: 'parles' for 'parle' is still Wrong",
+     FRENCH_MARKING.markByKey({ prompt: "You speak French.", answer: "Il parle français." }, "Il parles français.")?.verdict === "wrong");
+  ck("Claude is told both are right, when marking and when looking again",
+     MARK_SYSTEM.includes(EITHER_YOU_RULE) && REVIEW_SYSTEM.includes(EITHER_YOU_RULE));
 }
 
 console.log("\n  agreeing with the owner");

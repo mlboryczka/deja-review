@@ -66,6 +66,8 @@ const MAX_TYPED = 4000;
 // One rule for the first marking and the second look, so they cannot drift apart:
 // the comma after an opening No is kept (the key and plain() keep it too).
 export const PUNCTUATION_RULE = "Ignore capitals and punctuation, ¿ and ¡ included, except where a comma changes the meaning: 'No, tengo tiempo' (no, I have time) is not 'No tengo tiempo'.";
+// Owner, 2026-11-26: "accept tú where the English doesn't say".
+export const EITHER_YOU_RULE = "Where the English says 'you' to one person and the item doesn't say which you, with no '(tú)', '(usted)', '(formal)' or '(informal)', the 'tú' form and the 'usted' form are both right, with the words that go with each ('quieres' or 'quiere', 'tu' or 'su', 'te' or 'le', 'ven' or 'venga'), as long as the answer keeps to one of them. Where the item does say which, only that one is right.";
 export const PUNCTUATION_RULE_FR = "Ignore capitals and punctuation, except where a comma or a question mark changes the meaning ('Tu manges, Paul' is not 'Tu manges Paul').";
 
 export const MARK_SYSTEM = `You mark one answer from an English-speaking beginner learning Latin American Spanish ('ustedes' for 'you' to several people, never 'vosotros' or 'vos'; the preterite as the everyday past). The learner is doing a written exercise from their course's worksheet, one item at a time. The course's answer key didn't have their answer, so you decide.
@@ -74,6 +76,7 @@ You are given the lesson, the exercise's instruction in Spanish and in English, 
 
 Verdicts:
 - 'right': correct Spanish (or correct English, where the item asks for English) that does exactly what the item and the instruction ask: the right verb, tense, person and form, and the right meaning. A wording different from the key's is right whenever a Latin American Spanish teacher would accept it. Judge by the English the learner is shown: a correct Spanish translation of those English words is right, even where the key's wording or the lesson's text fits the conversation better ('Veo' for 'I see', where the text says 'Ya veo'). For free writing, any correct sentence that does what is asked is right, whatever it is about.
+- ${EITHER_YOU_RULE}
 - 'almost': with its slips corrected, the answer would be 'right'. Any number of slips is still 'almost'. A slip is one of these:
   - A typo: a word of three letters or more off by one letter (one wrong, missing, extra or swapped letter) where the right word is plainly meant ('dabe' for 'debe', 'elle' for 'ella', 'caminaro' for 'caminaron', 'escribaieron' for 'escribieron'). A verb off by one letter is no typo when the word it makes is another real form of that verb, or a made-up form that comes from a wrong stem or ending: those are 'wrong' (below).
   - The wrong gender or number on an article, a demonstrative or an adjective ('la despertador' for 'el despertador', 'este días' for 'estos días', 'a la seis' for 'a las seis', 'de la' for 'del', 'agotado' for 'agotada').
@@ -327,6 +330,7 @@ You are given the lesson, the exercise's instruction in Spanish and in English, 
 
 Verdicts:
 - 'accept': correct Spanish (or correct English, where the item asks for English) that does what the item and the instruction ask, which a Latin American Spanish teacher would accept, even if it differs from the key. Judge by the English the learner is shown: a correct translation of those English words is fine even where the key's wording or the lesson's text fits the conversation better ('Veo' for 'I see', where the text says 'Ya veo'). A missing or wrong accent, and a missing ñ, never count against it unless the accent changes a verb's tense or person. ${PUNCTUATION_RULE}
+- ${EITHER_YOU_RULE}
 - 'reject': it has a real mistake.
 - 'uncertain': whether it is right depends on something the item doesn't settle.
 - For a gap item the learner typed only the words in [brackets]; judge those words in their sentence.

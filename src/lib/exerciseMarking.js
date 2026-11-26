@@ -148,12 +148,17 @@ export function makeMarking(rules) {
   // real form, a typo ("caminaro") or a made-up form ("fuemos"), which only
   // Claude can tell apart; or null, another word. A word of one to three letters
   // off by a letter isn't for the key to say: "se" for "te" is another word.
-  function slipKind(typed, want, after) {
+  //
+  // `either`: the item says "you" to one person without saying which you
+  // (owner, 2026-11-26: "accept tú where the English doesn't say"), so the tú
+  // form where the key has the usted form, or the other way round ("quieres"
+  // for "quiere"), isn't for the key to call another form: Claude judges it.
+  function slipKind(typed, want, after, either = false) {
     const [t, w] = [bare(typed), bare(want)];
     const family = WORD_FAMILY.get(want);
     if (family !== undefined && WORD_FAMILY.get(t) === family) return EITHER_GENDER.test(bare(after)) ? null : "slip";
     const forms = Object.hasOwn(VERB_FORMS, w) ? VERB_FORMS[w] : null;
-    if (forms?.includes(t)) return "form";
+    if (forms?.includes(t)) return either && rules.youForms?.(t, w) ? "verb" : "form";
     if (Math.min(t.length, w.length) < 4 || !oneLetterOff(t, w) || genderEnding(t, w)) return null;
     return forms ? "verb" : "slip";
   }
@@ -164,7 +169,7 @@ export function makeMarking(rules) {
   // [..] }): `slips` (Almost), `forms` (another form of a verb, Wrong; `accent`
   // when an accent that changes the tense makes it, "llego" for "llegó") and
   // `verbs` (Claude's to judge).
-  function slipsAgainst(typed, answer) {
+  function slipsAgainst(typed, answer, either = false) {
     const [t, a] = [typed.split(" "), answer.split(" ")];
     const found = { slips: [], forms: [], verbs: [] };
     let i = 0, j = 0;
@@ -175,7 +180,7 @@ export function makeMarking(rules) {
         i++; j++;
         continue;
       }
-      const kind = slipKind(t[i], a[j], a[j + 1]);
+      const kind = slipKind(t[i], a[j], a[j + 1], either);
       if (kind) {
         found[kind === "form" ? "forms" : kind === "verb" ? "verbs" : "slips"].push({ t: [i], a: [j] });
         i++; j++;
@@ -200,7 +205,7 @@ export function makeMarking(rules) {
   // judge (null), else one it matches but for another form of a verb. Free
   // writing has only an example to go by, so `slips` is off for it: "Mi hermano
   // es alto" for an example "Mi hermana es alta" is as good a sentence.
-  function against(typed, answers, { slips = true } = {}) {
+  function against(typed, answers, { slips = true, either = false } = {}) {
     const t = plain(typed);
     if (!t) return null;
     if (answers.some((a) => plain(a) === t)) return { mark: "right" };
@@ -210,7 +215,7 @@ export function makeMarking(rules) {
     if (!slips) return null;
     let best = null, wrong = null, unsure = false;
     for (const answer of answers) {
-      const found = slipsAgainst(t, plain(answer));
+      const found = slipsAgainst(t, plain(answer), either);
       if (!found) continue;
       if (found.forms.length) {
         if (!wrong || found.forms.length + found.slips.length < wrong.forms.length + wrong.slips.length) wrong = { mark: "forms", answer, forms: found.forms, slips: found.slips };
@@ -242,6 +247,12 @@ export function makeMarking(rules) {
     return !!plain(typed);
   }
 
+  // Whether an item says "you" in English without saying which you: no
+  // "(tú)", "(usted)", "(formal)", "(informal)", "(to a friend)" or the like.
+  // Only for a language whose rules say which forms are the two yous.
+  const SAYS_WHICH_YOU = /\([^)]*\b(?:tú|tu|usted|ustedes|formal|informal|friend|friends|several people|polite)\b[^)]*\)/i;
+  const eitherYou = (item) => !!rules.youForms && /\byou(?:r|rs|rself)?\b/i.test(String(item?.prompt || "")) && !SAYS_WHICH_YOU.test(String(item?.prompt || ""));
+
   // The key's verdict: { verdict: "right" }, { verdict: "almost", slips: true },
   // { verdict: "wrong", form: true } (another form of a verb, or an accent that
   // makes one), { verdict: "wrong", truth: true } (pressed the wrong way), or
@@ -257,7 +268,7 @@ export function makeMarking(rules) {
     if (!isAnswered(item, typed)) return null;
     const kind = kindOf(item);
     if (kind === "gaps") {
-      const each = item.gaps.map((list, i) => against(gapText(typed[i]), list));
+      const each = item.gaps.map((list, i) => against(gapText(typed[i]), list, { either: eitherYou(item) }));
       // Another form of a verb in one blank is Wrong, whatever the others are.
       if (each.some(isForm)) return verdictOf(each.filter(Boolean));
       if (each.some((v) => v === null)) return null;
@@ -265,7 +276,7 @@ export function makeMarking(rules) {
     }
     if (kind === "truth") {
       if (typed.truth !== item.truth) return { verdict: "wrong", truth: true };
-      const v = against(truthSentence(typed.text), answersOf(item).map(truthSentence));
+      const v = against(truthSentence(typed.text), answersOf(item).map(truthSentence), { either: eitherYou(item) });
       if (!v) return null;
       if (v.mark === "right") return { verdict: "right" };
       // The key's own answer it comes closest to, with its Verdadero. or Falso.,
@@ -275,7 +286,7 @@ export function makeMarking(rules) {
     }
     // Free writing matches only its own example word for word: anything else
     // is Claude's to judge.
-    const v = against(typed, answersOf(item), { slips: kind !== "open" });
+    const v = against(typed, answersOf(item), { slips: kind !== "open", either: eitherYou(item) });
     return !v ? null : v.mark === "right" ? { verdict: "right" } : { ...verdictOf([v]), correct: v.answer };
   }
 
@@ -324,7 +335,7 @@ export function makeMarking(rules) {
       .replace(/(^|[^\p{L}])([ap])\.\s?[mM]\.?(?!\p{L})/gu, "$1$2m")
       .replace(/[¿¡?!.,;:"“”«»()\[\]…–—\-/|]+/g, " ").trim().split(/\s+/);
     const name = (typed, answers) => {
-      const found = against(typed, answers, { slips: kind !== "open" });
+      const found = against(typed, answers, { slips: kind !== "open", either: eitherYou(item) });
       if (!found?.answer) return;
       const [want, got] = [plain(found.answer).split(" "), plain(typed).split(" ")];
       const [wantAs, typedAs] = [written(found.answer), written(typed)];
@@ -430,6 +441,10 @@ export const SPANISH_RULES = {
   eitherGender: EITHER_GENDER,
   truth: { yes: "Verdadero", no: "Falso" },
   nothing: "nada",
+  // The tú form and the usted form of a verb that differ only by the tú
+  // form's final s ("quieres" and "quiere", "estabas" and "estaba"): either is
+  // right where the English says "you" without saying which.
+  youForms: (a, b) => a === `${b}s` || b === `${a}s`,
   accentChanges: "tense",
 };
 export const SPANISH_MARKING = makeMarking(SPANISH_RULES);
