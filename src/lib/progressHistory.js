@@ -133,12 +133,19 @@ export function statsOverTime({ cards, rows, now = Date.now() }) {
     const index = new Map(starts.map((s, i) => [localISODate(new Date(s)), i]));
     for (let i = 0; i < starts.length; i++) {
       const end = i + 1 < starts.length ? starts[i + 1] - 1 : now;
-      days.push({ iso: localISODate(new Date(starts[i])), start: starts[i], end, cards: 0, fresh: 0, reviews: 0, retries: 0, right: 0, remembered: 0 });
+      days.push({ iso: localISODate(new Date(starts[i])), start: starts[i], end, cards: 0, fresh: 0, reviews: 0, practice: 0, retries: 0, right: 0, remembered: 0 });
     }
     // A retry is a way's later answer the same day: practice, or since
     // 2026-10-14 the repeat after a miss, which FSRS counts. Either way it
     // isn't a new card or a review, nor a first try.
+    //
+    // Practice is an answer FSRS doesn't count (a card asked before it was
+    // due: a lesson's test, a lesson gone through again). When it is the
+    // way's first answer of the day it is a first try, and counts towards
+    // Right first time (owner, 2026-11-26, after a lesson test: "this should
+    // show right first time today, as i just took a test").
     const countedOn = new Map(); // "card_id:direction" -> the day of its last counted answer
+    const answeredOn = new Map(); // "card_id:direction" -> the day of its last answer of any kind
     for (const rec of records) {
       const iso = localISODate(new Date(rec.at));
       const day = days[index.get(iso)];
@@ -146,7 +153,10 @@ export function statsOverTime({ cards, rows, now = Date.now() }) {
       day.cards++;
       const way = `${rec.card_id}:${rec.direction === "en" ? "en" : "fr"}`;
       const repeat = rec.counted && countedOn.get(way) === iso;
+      const firstToday = answeredOn.get(way) !== iso;
+      answeredOn.set(way, iso);
       if (rec.counted) countedOn.set(way, iso);
+      if (!rec.counted && firstToday) { day.practice++; if (rec.correct) day.right++; continue; }
       if (!rec.counted || repeat) { day.retries++; continue; }
       if (rec.fresh) day.fresh++;
       else day.reviews++;

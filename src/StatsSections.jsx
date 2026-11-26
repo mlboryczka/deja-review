@@ -15,7 +15,9 @@ const dayShort = (ms) => new Date(ms).toLocaleDateString(undefined, { day: "nume
 const plural = (n, one, many) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 
 // A day's cards in three: what the hover boxes and the Today figure say.
-export const splitText = (d) => `${d.fresh} new · ${plural(d.reviews, "review", "reviews")} · ${plural(d.retries, "retry", "retries")}`;
+// Practice (cards asked before they were due, in a lesson's test or a lesson
+// gone through again) only when there was some.
+export const splitText = (d) => `${d.fresh} new · ${plural(d.reviews, "review", "reviews")}${d.practice ? ` · ${d.practice} practice` : ""} · ${plural(d.retries, "retry", "retries")}`;
 
 // The hover box, kept on screen.
 function Tip({ tip }) {

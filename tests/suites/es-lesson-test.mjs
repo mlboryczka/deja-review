@@ -21,6 +21,8 @@ import { DIALOGUE_OF } from "../../src/data/exercises/es/dialogues.js";
 import { makeScheduler, withTarget, toFsrsTime } from "../../src/lib/spacedRepetition.js";
 import { scheduleAnswer } from "../../src/lib/spacedRepetition.js";
 import { testSession } from "../../src/lib/sessionQueue.js";
+import { statsOverTime } from "../../src/lib/progressHistory.js";
+import { answerDays } from "../../src/lib/lessonMastery.js";
 
 const ck = checker();
 const now = Date.parse("2026-12-01T15:00:00Z");
@@ -136,6 +138,24 @@ console.log("\nThe test's cards are practice");
   const s = testSession(cards, ["1:fr", "2:fr", "9:fr"]);
   ck("the cards asked are the ones named", s.queue.length === 2);
   ck("they are dealt as practice", s.queue.every((c) => c._bucket === "practice"));
+}
+
+console.log("\nRight first time today counts a test's answers");
+{
+  const D = (t) => `2026-11-26T${t}`;
+  const cards = [1, 2, 3].map((id) => ({ row_id: id, cat: "vocab", fsrs_state: 2, en_fsrs_state: 0 }));
+  const prac = (id, card, t, correct) => ({ id, card_id: card, direction: "fr", answered_at: D(t), correct, counted: false, state_before: null });
+  const rows = [prac(1, 1, "12:00:00", true), prac(2, 2, "12:01:00", true), prac(3, 3, "12:02:00", false), prac(4, 3, "12:03:00", true)];
+  const day = statsOverTime({ cards, rows, now: Date.parse(D("18:00:00")) }).days.at(-1);
+  ck("a card's first practice answer of the day is a first try", day.practice === 3, JSON.stringify(day));
+  ck("its later answer that day is a retry", day.retries === 1);
+  ck("and the right ones count as right first time", day.right === 2);
+  const a = (key, verdict, t, hints = 0) => ({ key, verdict, answeredAt: D(t), hints });
+  const days = answerDays([a("leccion1/1/1", "right", "12:00:00"), a("leccion1/1/1", "wrong", "12:05:00"), a("leccion1/1/2", "almost", "12:01:00"), a("leccion1/1/3", "right", "12:02:00", 1), a("dialogo-leccion1/1/1", "wrong", "12:03:00"), a("dialogo-leccion1/1/1", "right", "12:04:00")]);
+  const d = Object.values(days)[0];
+  ck("an item's first answer of the day counts, Almost as right, a hinted one not", d.itemsFirst === 3 && d.itemsRight === 2, JSON.stringify(d));
+  ck("a sentence's second try doesn't", d.sentencesFirst === 1 && d.sentencesRight === 0);
+  ck("every answer still counts in Today's totals", d.items === 4 && d.sentences === 2);
 }
 
 const n = ck.fails();

@@ -121,17 +121,27 @@ export function lessonRating({ words, grammar, text }) {
 export const RATING_LABEL = { "not-started": "Not started", learning: "Learning", learned: "Learned" };
 
 // The study days of exercise and dialogue answers, with how many items and
-// sentences were answered on each: { [YYYY-MM-DD]: { items, sentences } }.
-// Days are the app's study days, from 4am.
+// sentences were answered on each, and of each one's first answer that day
+// how many there were and how many were right (Right first time on Stats,
+// owner 2026-11-26): { [YYYY-MM-DD]: { items, sentences, itemsFirst,
+// itemsRight, sentencesFirst, sentencesRight } }. Right as Stats counts it:
+// Right or Almost, with no hint. Days are the app's study days, from 4am.
 export function answerDays(answers) {
   const days = {};
+  const seen = new Set(); // "<day>|<key>"
   for (const a of answers || []) {
     if (!a?.key || a.pending) continue;
     const at = Date.parse(a.answeredAt);
     if (!Number.isFinite(at)) continue;
-    const d = (days[localISODate(new Date(at))] ||= { items: 0, sentences: 0 });
-    if (a.key.startsWith(DIALOGUE_PREFIX)) d.sentences++;
+    const iso = localISODate(new Date(at));
+    const d = (days[iso] ||= { items: 0, sentences: 0, itemsFirst: 0, itemsRight: 0, sentencesFirst: 0, sentencesRight: 0 });
+    const sentence = a.key.startsWith(DIALOGUE_PREFIX);
+    if (sentence) d.sentences++;
     else d.items++;
+    if (seen.has(`${iso}|${a.key}`)) continue;
+    seen.add(`${iso}|${a.key}`);
+    if (sentence) { d.sentencesFirst++; if (isRightNow(a)) d.sentencesRight++; }
+    else { d.itemsFirst++; if (isRightNow(a)) d.itemsRight++; }
   }
   return days;
 }

@@ -4593,8 +4593,8 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     // with no split.
     let today;
     if (history) {
-      const d = history.days.at(-1)?.iso === todayISO ? history.days.at(-1) : { cards: 0, fresh: 0, reviews: 0, retries: 0, right: 0 };
-      today = { ...d, tries: d.fresh + d.reviews };
+      const d = history.days.at(-1)?.iso === todayISO ? history.days.at(-1) : { cards: 0, fresh: 0, reviews: 0, practice: 0, retries: 0, right: 0 };
+      today = { ...d, tries: d.fresh + d.reviews + (d.practice || 0) };
     } else {
       let tries = 0, right = 0;
       for (const c of userCards) for (const dir of directionsOf(c)) {
@@ -4712,15 +4712,33 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
                   </div>
                 )}
               </div>
-              <div style={S.metricCard} data-stats-first-time>
-                <div style={S.metricLabel}>Right first time today</div>
-                <div style={S.metricVal}>{today.tries > 0 ? `${Math.round((today.right / today.tries) * 100)}%` : "—"}</div>
-                <div style={S.metricSub}>
-                  {today.tries === 0 ? "nothing answered yet today"
-                    : `${today.right.toLocaleString()} of ${today.tries.toLocaleString()} ${today.tries === 1 ? "card" : "cards"}` +
-                      (today.fresh == null ? "" : ` (${today.fresh} new + ${today.reviews} ${today.reviews === 1 ? "review" : "reviews"})`)}
-                </div>
-              </div>
+              {(() => {
+                // Cards, and in Spanish exercise items and dialogue sentences:
+                // each one's first answer today (lib/lessonMastery.js
+                // answerDays), so a lesson's test counts in full.
+                const firstItems = todayAnswers?.itemsFirst || 0, firstSentences = todayAnswers?.sentencesFirst || 0;
+                const tries = today.tries + firstItems + firstSentences;
+                const right = today.right + (todayAnswers?.itemsRight || 0) + (todayAnswers?.sentencesRight || 0);
+                return (
+                  <div style={S.metricCard} data-stats-first-time>
+                    <div style={S.metricLabel}>Right first time today</div>
+                    <div style={S.metricVal}>{tries > 0 ? `${Math.round((right / tries) * 100)}%` : "—"}</div>
+                    <div style={S.metricSub}>
+                      {tries === 0 ? "nothing answered yet today"
+                        : today.tries === 0 ? ""
+                        : `${today.right.toLocaleString()} of ${today.tries.toLocaleString()} ${today.tries === 1 ? "card" : "cards"}` +
+                          (today.fresh == null ? "" : ` (${[`${today.fresh} new`, `${today.reviews} ${today.reviews === 1 ? "review" : "reviews"}`, ...(today.practice ? [`${today.practice} practice`] : [])].join(" + ")})`)}
+                    </div>
+                    {(firstItems > 0 || firstSentences > 0) && (
+                      <div style={S.metricSub} data-stats-first-time-answers>
+                        {[firstItems && `${(todayAnswers.itemsRight || 0).toLocaleString()} of ${firstItems.toLocaleString()} exercise ${firstItems === 1 ? "item" : "items"}`,
+                          firstSentences && `${(todayAnswers.sentencesRight || 0).toLocaleString()} of ${firstSentences.toLocaleString()} dialogue ${firstSentences === 1 ? "sentence" : "sentences"}`]
+                          .filter(Boolean).join(" · ")}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               <div style={S.streakCard}>
                 <div style={{fontSize:16}}>🔥</div>
                 <div style={S.streakNum}>{streak}</div>
