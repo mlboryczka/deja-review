@@ -3769,7 +3769,11 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
             data-module-switch
             role="group"
             aria-label={hasExercises ? (hasPodcasts ? "Flashcards, exercises, dialogues or podcasts" : "Flashcards, exercises or dialogues") : "Flashcards or podcasts"}
-            style={sidebarMin ? S.modSwitchMin : S.modSwitch}
+            // Four tabs (French, for the owner: Flashcards, Exercises,
+            // Dialogues, Podcasts) don't fit in one row of the sidebar: the
+            // names ran into each other (owner, 2026-11-26: "fix this"). They
+            // go in two rows of two; three stay in one row.
+            style={sidebarMin ? S.modSwitchMin : hasPodcasts && hasExercises ? S.modSwitchGrid : S.modSwitch}
           >
             {[
               ["flashcards", "Flashcards", NAV_ICONS.study, goFlashcards],
@@ -6433,6 +6437,7 @@ const S = {
   // carry a 4px marker border on their right, which moves their icons 2px
   // left of the rail's middle; this puts the switch's icons on that same line.
   modSwitch: { display:"flex", flexDirection:"row", gap:2, flex:"none", marginTop:0, marginRight:20, marginBottom:18, marginLeft:20, paddingTop:3, paddingRight:3, paddingBottom:3, paddingLeft:3, background:T.color.surfaceHigh, borderRadius:T.radius.lg, boxSizing:"border-box" },
+  modSwitchGrid: { display:"grid", gridTemplateColumns:"1fr 1fr", gap:2, flex:"none", marginTop:0, marginRight:20, marginBottom:18, marginLeft:20, paddingTop:3, paddingRight:3, paddingBottom:3, paddingLeft:3, background:T.color.surfaceHigh, borderRadius:T.radius.lg, boxSizing:"border-box" },
   modSwitchMin: { display:"flex", flexDirection:"column", gap:2, flex:"none", marginTop:6, marginRight:14, marginBottom:12, marginLeft:10, paddingTop:3, paddingRight:3, paddingBottom:3, paddingLeft:3, background:T.color.surfaceHigh, borderRadius:T.radius.lg, boxSizing:"border-box" },
   // A half. Its border is declared side by side and transparent, so nothing
   // that reads the nav's right-hand marker counts it as a marked page.
