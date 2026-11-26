@@ -1172,8 +1172,10 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   const goPodcasts = useCallback(() => {
     if (hasPodcasts) setMode("podcasts");
   }, [hasPodcasts]);
+  // Flashcards opens Cards, as Exercises opens Exercises: Lessons and Stats
+  // are in every tab now, so coming back to them is not this button's job.
   const goFlashcards = useCallback(() => {
-    setMode((m) => (m === "podcasts" || m === "exercises" || m === "dialogues" ? lastCardsModeRef.current || "study" : m));
+    setMode("study");
   }, []);
   // ── EXERCISES (Spanish, 2026-10-24) ──
   // The Exercises and Dialogues buttons of the Spanish switch, for the same people as Spanish.
@@ -1254,6 +1256,15 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   // as it unmounts. Keyed on the change itself, so it never runs for a
   // student, whose app can't change module.
   const moduleOn = podcastsOn || exercisesOn || dialoguesOn;
+  // The tab the sidebar is in (owner, 2026-11-26: "cards, exercises, dialogues
+  // change from tab to respective tab, but lessons, stats, and tutor should be
+  // the same for each ... for both spanish and french"). Each tab has its own
+  // first item; Lessons, Stats and Tutor are the same in all of them. Lessons,
+  // Stats and a lesson's test are shared pages, so on them the sidebar stays
+  // in the tab you came from.
+  const [homeTab, setHomeTab] = useState("flashcards");
+  const tab = podcastsOn ? "podcasts" : exercisesOn ? "exercises" : dialoguesOn ? "dialogues" : mode === "study" ? "flashcards" : homeTab;
+  useEffect(() => { if (tab !== homeTab) setHomeTab(tab); }, [tab, homeTab]);
   const moduleWasOnRef = useRef(moduleOn);
   useEffect(() => {
     if (moduleWasOnRef.current === moduleOn) return;
@@ -3592,7 +3603,10 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   // ── Podcasts' side of the sidebar (owner only, 2026-10-09) ──
   // Episodes, then My podcasts with the podcasts followed beneath it, then
   // Tutor, as on Flashcards. Same buttons, same marker, same rail.
-  const podNavItems = [["episodes", "Episodes"], ["mine", "My podcasts"]];
+  // Since 2026-11-26 My podcasts alone, with All episodes and the podcasts
+  // followed under it (owner: "my podcasts and episodes should all just be
+  // under my podcasts"), then Lessons, Stats and Tutor as in every tab.
+  const podNavItems = [["mine", "My podcasts"]];
   // Which one is marked: exactly one, as on Flashcards. Episodes and My
   // podcasts are their own pages. On a podcast's page, or one of its
   // episodes, the podcast under My podcasts is marked, however you got there.
@@ -3607,8 +3621,11 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   })();
   // Opening a podcasts page from the sidebar. An episode page is reached from
   // the pages themselves; they set `from`, which the back pill reads.
-  const openPodPage = (view, podcast = null) =>
+  // From Lessons or Stats in the Podcasts tab too, so it opens Podcasts.
+  const openPodPage = (view, podcast = null) => {
     setPodView({ ...POD_HOME, view, podcast, from: view === "podcast" ? "podcast" : "episodes" });
+    setMode("podcasts");
+  };
 
   // Exactly one thing in the nav is ever marked.
   //
@@ -3624,7 +3641,22 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   // everywhere else, so the sidebar is just its four items. On the Lessons
   // page a press on Lessons folds the list away or opens it again, as its
   // arrow says; it used to do nothing there.
-  const lessonsOpen = !lessonsFolded && (mode === "lessons" || (mode === "study" && lessonFilter !== "all"));
+  //
+  // In every tab (2026-11-26): a lesson picked there opens in the tab you are
+  // in, its cards on Flashcards, its sheet on Exercises, its text on
+  // Dialogues; on Podcasts, which has no lessons, its cards. The lesson open
+  // in the tab is the one marked.
+  const sheetOf = (titles, id) => (titles?.[id] ? id : Object.keys(titles || {}).find((k) => k.startsWith(`${id}-`)) || null);
+  const lessonOfSheet = (sheet) => (sheet ? LESSONS.find((l) => l.id === sheet || sheet.startsWith(`${l.id}-`))?.id ?? lessonOfExercises(sheet) : null);
+  const sideLessonHere = tab === "exercises" ? (exercisesOn ? lessonOfSheet(exView.lesson) : null)
+    : tab === "dialogues" ? (dialoguesOn ? lessonOfSheet(dgView.lesson) : null)
+    : lessonOpenHere;
+  const openLessonInTab = (id) => {
+    if (tab === "exercises") { setExView({ lesson: sheetOf(xs.titleOf, id) }); setMode("exercises"); }
+    else if (tab === "dialogues") { setDgView({ lesson: sheetOf(xs.dTitleOf, id) }); setMode("dialogues"); }
+    else enterLesson(id);
+  };
+  const lessonsOpen = !lessonsFolded && (mode === "lessons" || (mode === "study" && lessonFilter !== "all") || !!sideLessonHere);
 
   // Open the tutor panel and the app reflows to sit beside it rather than
   // being covered — you can still read the card you're asking about. Reflow
@@ -3747,7 +3779,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
               // Podcasts is French, and the owner's (podcastsOpenTo).
               ...(hasPodcasts ? [["podcasts", "Podcasts", NAV_ICONS.headphones, goPodcasts]] : []),
             ].map(([key, label, icon, go]) => {
-              const on = key === (podcastsOn ? "podcasts" : exercisesOn ? "exercises" : dialoguesOn ? "dialogues" : "flashcards");
+              const on = key === tab;
               return (
                 <button
                   key={key}
@@ -3769,9 +3801,11 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
             })}
           </div>
         )}
-        {podcastsOn && podNavItems.map(([key, label]) => {
+        {tab === "podcasts" && podNavItems.map(([key, label]) => {
           const baseStyle = sidebarMin ? { ...S.sideItem, ...S.sideItemMin } : S.sideItem;
-          const marked = podMarked === key;
+          // On the rail, which has no sub-items, My podcasts stands in for All
+          // episodes and for a podcast.
+          const marked = podcastsOn && (podMarked === key || sidebarMin);
           return (
             <Fragment key={key}>
               <button
@@ -3789,8 +3823,19 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
               {/* The podcasts followed, under My podcasts, each opening its
                   own page. Not on the rail, which has no room to nest
                   anything (as with the lessons under Lessons). */}
+              {key === "mine" && !sidebarMin && (
+                <button
+                  data-pod-nav="episodes"
+                  className="side-btn"
+                  aria-current={podcastsOn && podMarked === "episodes" ? "page" : undefined}
+                  style={podcastsOn && podMarked === "episodes" ? { ...S.sideSubItem, ...S.sideSubItemActive } : S.sideSubItem}
+                  onClick={() => openPodPage("episodes")}
+                >
+                  All episodes
+                </button>
+              )}
               {key === "mine" && !sidebarMin && followedSlugs.map((slug) => {
-                const on = podMarked === `follow:${slug}`;
+                const on = podcastsOn && podMarked === `follow:${slug}`;
                 return (
                   <button
                     key={slug}
@@ -3807,73 +3852,33 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
             </Fragment>
           );
         })}
-        {/* Exercises' side: All exercises, with every lesson beneath it,
-            the one open marked. Not on the rail, which has no room to nest
-            anything. All exercises, or the arrow beside it, folds the
-            lessons away and back (owner, 2026-10-26: not only the arrow);
-            All exercises also opens its page. Folded, the lesson you're in
-            still shows, as under Basic Lessons. Dialogues' side is the same,
-            with its own lessons. */}
-        {(exercisesOn || dialoguesOn) && (() => {
-          const side = exercisesOn
-            ? { all: "All exercises", view: exView, setView: setExView, stages: xs.groups, folds: exStageFolds, titles: xs.titleOf, data: "ex" }
-            : { all: "All dialogues", view: dgView, setView: setDgView, stages: xs.dGroups, folds: dgStageFolds, titles: xs.dTitleOf, data: "dlg" };
+        {/* Exercises' and Dialogues' own item: the page with every lesson's
+            sheet or text. The lessons themselves are under Lessons, as in
+            every tab, and open here (owner, 2026-11-26). */}
+        {(tab === "exercises" || tab === "dialogues") && (() => {
+          // Shown on Lessons and Stats too, from this tab: pressing it there
+          // opens its page.
+          const side = tab === "exercises"
+            ? { label: "Exercises", view: exView, setView: setExView, data: "ex", icon: NAV_ICONS.pencil, mode: "exercises", here: exercisesOn }
+            : { label: "Dialogues", view: dgView, setView: setDgView, data: "dlg", icon: NAV_ICONS.dialogues, mode: "dialogues", here: dialoguesOn };
+          const on = side.here && !side.view.lesson;
+          const base = sidebarMin ? { ...S.sideItem, ...S.sideItemMin } : S.sideItem;
           return (
-          <>
-            <div style={S.sideItemWrap}>
-              <button
-                {...{ [`data-${side.data}-nav`]: "all" }}
-                className="side-btn"
-                aria-current={!side.view.lesson ? "page" : undefined}
-                style={{ ...(sidebarMin ? { ...S.sideItem, ...S.sideItemMin } : S.sideItem), ...(!side.view.lesson || sidebarMin ? S.sideItemActive : null) }}
-                onClick={() => {
-                  // Already on All: nothing changes but the fold, so the phone's
-                  // drawer, which closes whenever the view changes, stays open.
-                  side.setView((v) => (v.lesson ? { lesson: null } : v));
-                  // The rail shows no lessons, so there is nothing to fold.
-                  if (!sidebarMin) setExLessonsFolded((v) => !v);
-                }}
-                title={sidebarMin ? side.all : undefined}
-                aria-label={sidebarMin ? side.all : undefined}
-                aria-expanded={!sidebarMin ? !exLessonsFolded : undefined}
-              >
-                <span style={S.sideIcon}>{NAV_ICONS.episodes}</span>
-                {!sidebarMin && side.all}
-              </button>
-              {!sidebarMin && (
-                <button
-                  {...{ [`data-${side.data}-fold`]: true }}
-                  className="side-btn"
-                  style={S.sideFoldBtn}
-                  onClick={() => setExLessonsFolded((v) => !v)}
-                  aria-expanded={!exLessonsFolded}
-                  aria-label={exLessonsFolded ? "Show the lessons" : "Hide the lessons"}
-                  title={exLessonsFolded ? "Show the lessons" : "Hide the lessons"}
-                >
-                  <span style={{ ...S.sideChevron, ...(exLessonsFolded ? null : S.sideChevronOpen), marginLeft:0 }} aria-hidden="true">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                  </span>
-                </button>
-              )}
-            </div>
-            {/* Folded, only the lesson you're in. Unfolded, the four stages
-                of the course (SideStages). */}
-            {!sidebarMin && (
-              <SideStages
-                stages={side.stages}
-                folds={side.folds}
-                folded={exLessonsFolded}
-                current={side.view.lesson}
-                titleOf={(id) => side.titles[id]}
-                onPick={(id) => side.setView({ lesson: id })}
-                data={side.data}
-                marked={markedLesson}
-              />
-            )}
-          </>
+            <button
+              {...{ [`data-${side.data}-nav`]: "all" }}
+              className="side-btn"
+              aria-current={on ? "page" : undefined}
+              style={on ? { ...base, ...S.sideItemActive } : base}
+              onClick={() => { side.setView((v) => (v.lesson ? { lesson: null } : v)); setMode(side.mode); }}
+              title={sidebarMin ? side.label : undefined}
+              aria-label={sidebarMin ? side.label : undefined}
+            >
+              <span style={S.sideIcon}>{side.icon}</span>
+              {!sidebarMin && side.label}
+            </button>
           );
         })()}
-        {!podcastsOn && !exercisesOn && !dialoguesOn && navItems.map(([m, label]) => {
+        {navItems.filter(([m]) => m !== "study" || tab === "flashcards").map(([m, label]) => {
           const baseStyle = sidebarMin ? { ...S.sideItem, ...S.sideItemMin } : S.sideItem;
           const activeStyle = S.sideItemActive;
           return (
@@ -3915,10 +3920,10 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
                 <SideStages
                   stages={sideLessonStages}
                   folds={lessonStageFolds}
-                  current={lessonOpenHere}
+                  current={sideLessonHere}
                   titleOf={(id) => lessonById(id)?.title}
                   tooltip={(id) => `Study ${lessonById(id)?.title}`}
-                  onPick={enterLesson}
+                  onPick={openLessonInTab}
                   data="lesson"
                   marked={markedLesson}
                 />
