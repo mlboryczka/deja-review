@@ -822,12 +822,12 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   // The same for Exercises, in Spanish.
   const exPlaceRef = useRef(undefined);
   if (exPlaceRef.current === undefined) {
-    exPlaceRef.current = modulesUser(user) ? readExercisesPlace(user?.id, course.id) : null;
+    exPlaceRef.current = podcastsUser(user) ? readExercisesPlace(user?.id, course.id) : null;
   }
   // And for Dialogues.
   const dgPlaceRef = useRef(undefined);
   if (dgPlaceRef.current === undefined) {
-    dgPlaceRef.current = modulesUser(user) ? readDialoguesPlace(user?.id, course.id) : null;
+    dgPlaceRef.current = podcastsUser(user) ? readDialoguesPlace(user?.id, course.id) : null;
   }
   // The page: study | lessons | stats | podcasts. "study" is Cards and also
   // the inside of a lesson (lessonFilter). "podcasts" is the whole Podcasts
