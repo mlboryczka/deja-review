@@ -40,7 +40,11 @@ const { browser, page } = await openApp({
 try {
   await page.click('[data-tour="nav-lessons"]');
   await page.waitForSelector("[data-lesson-test-open='leccion1']", { timeout: 10000 });
-  ck("Lessons has Test this lesson on Lesson 1", true);
+  ck("Lessons has Test on Lesson 1", true);
+  const row = await page.$eval("[data-tour-lesson='leccion1']", (el) => ({ h: Math.round(el.getBoundingClientRect().height), count: el.querySelector("[data-lesson-count]")?.textContent, text: el.textContent }));
+  ck("the lesson card is one row, under 90px tall", row.h < 90, `${row.h}px`);
+  ck("it says 43 cards, not N of M cards in your deck", row.count === "43 cards" && !/in your deck/.test(row.text), row.count);
+  if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT.replace(/\.png$/, "-lessons.png") });
   await page.click("[data-lesson-test-open='leccion1']");
   await page.waitForSelector("[data-lesson-test-start]:not([disabled])", { timeout: 10000 });
   await page.click("[data-lesson-test-start]");

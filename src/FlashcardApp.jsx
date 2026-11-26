@@ -4433,10 +4433,6 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   // The catalogue. A lesson you have added is studied from here or from the
   // sidebar; one you haven't is added, which copies its cards into your deck.
   if (mode === "lessons") {
-    // A lesson card whose front the deck already had as its own is not added
-    // (reconcileLessons' `taken`), but the word is there. The same for every
-    // lesson, so worked out once.
-    const ownFronts = new Set(userCards.filter((c) => !lessonIdOf(c)).map((c) => c.f));
     return (
       <div style={shellStyle}>
         {sidebar}
@@ -4466,83 +4462,65 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
               {!(group.folds && pageClosedGroups.has(group.title)) && group.lessons.map((lesson) => {
               const owned = userCards.filter((c) => lessonIdOf(c) === lesson.id);
               const added = owned.length > 0;
-              // A lesson card taken out as a repeat of a card in the deck is
-              // there as that card: "Allons-y !" as the notes card "On y va /
-              // Allons-y" (the owner, 2026-10-12: "why 107/108?").
-              const asRepeat = archivedCards.filter((c) => c.reason === "duplicate" &&
-                lessonIdOf({ source: String(c.source).slice(ARCHIVE_PREFIX.length) }) === lesson.id).length;
-              const inDeck = owned.length + lesson.cards.filter(([f]) => ownFronts.has(f)).length + asRepeat;
-              // Whether its cards come up on Cards (lib/lessonChoice.js), and
-              // how many are due today, the way the student is studying: in
-              // EN→FR a word due only French side up is not waiting for them.
+              // Whether its cards come up on Cards (lib/lessonChoice.js).
               const on = lessonsOn.has(lesson.id);
-              // The dealer's own count (a card once, and a way held back when
-              // its other way was answered today), with nothing taken.
-              const due = buildSession(owned, { now: Date.now(), direction: dir, target: 0 }).dueRemaining;
               return (
                 <div key={lesson.id} style={S.lessonCard} data-tour-lesson={lesson.id}>
-                  <div style={S.lessonHead}>
-                    <div>
-                      <div style={S.lessonTitle}>
-                        {lesson.title}
-                        {spanish && mastered.has(lesson.id) && <MasteredBadge small style={{ marginLeft: 8, position: "relative", top: -2 }} />}
-                      </div>
-                      {/* No description under the title, and no credit line
-                          (owner, 2026-11-26: "remove the grey explainer text
-                          everywhere", "remove this everywhere"). */}
+                  {/* One row (owner, 2026-11-26, Option 1 of three mockups:
+                      "a bit too much deadspace and the 43/43 cards in deck
+                      isn't that helpful. we should just indicate 43 cards"):
+                      the title with its card count under it, then the switch,
+                      then Test and Study. No description, credit or note
+                      under the switch ("remove the grey explainer text
+                      everywhere"). Lessons ship with the app and sync
+                      themselves into the deck on load, so there is no "add"
+                      step: Study says Adding… until they have. */}
+                  <div style={S.lessonCardName}>
+                    <div style={S.lessonTitle}>
+                      {lesson.title}
+                      {spanish && mastered.has(lesson.id) && <MasteredBadge small style={{ marginLeft: 8, position: "relative", top: -2 }} />}
                     </div>
-                    {/* No "add" step: lessons ship with the app and sync
-                        themselves into the deck on load. A student should
-                        find L'impératif already there. */}
-                    <div style={{ display: "flex", gap: 8, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                      {/* Spanish lessons have a test (lib/lessonTest.js). */}
-                      {spanish && (
-                        <button
-                          data-lesson-test-open={lesson.id}
-                          style={S.lessonStudyBtn}
-                          disabled={!added}
-                          onClick={() => openLessonTest(lesson.id)}
-                        >
-                          {lessonTests[lesson.id]?.test ? "Carry on with the test" : "Test this lesson"}
-                        </button>
-                      )}
-                      <button
-                        data-tour-study={lesson.id}
-                        style={S.lessonStudyBtn}
-                        disabled={!added}
-                        onClick={() => enterLesson(lesson.id)}
-                      >
-                        {added ? "Study" : "Adding…"}
-                      </button>
-                    </div>
+                    <div style={S.lessonCount} data-lesson-count>{`${lesson.cards.length} cards`}</div>
+                    {choiceFailed === lesson.id && (
+                      <div style={{ ...S.lessonCount, ...S.lessonSwitchFailed }} data-lesson-include-note>That didn't save. Try again.</div>
+                    )}
                   </div>
-                  <div style={S.lessonMeta}>
-                    {added
-                      ? `${Math.min(inDeck, lesson.cards.length)} of ${lesson.cards.length} cards in your deck`
-                      : `${lesson.cards.length} cards · adding to your deck`}
-                  </div>
-                  <div style={S.lessonSwitchRow} data-tour-include={lesson.id}>
+                  <div data-tour-include={lesson.id}>
                     <button
                       role="switch"
                       aria-checked={on}
                       data-lesson-include={lesson.id}
                       style={S.lessonSwitch}
                       onClick={() => setLessonChoice(lesson.id, !on)}
+                      title={on ? "Its cards come up on Cards each day" : "Its cards come up only when you study the lesson"}
                     >
                       <span style={on ? {...S.switchTrack, ...S.switchTrackOn} : S.switchTrack}>
                         <span style={on ? {...S.switchKnob, ...S.switchKnobOn} : S.switchKnob} />
                       </span>
-                      In my daily cards
+                      Daily cards
                     </button>
-                    <div style={choiceFailed === lesson.id ? {...S.lessonSwitchNote, ...S.lessonSwitchFailed} : S.lessonSwitchNote} data-lesson-include-note>
-                      {choiceFailed === lesson.id
-                        ? "That didn't save. Try again."
-                        : on
-                        ? null
-                        : due > 0
-                        ? `${due.toLocaleString()} ${due === 1 ? "card is" : "cards are"} due. While this is off, they come up only when you study the lesson.`
-                        : "Its cards come up only when you study the lesson."}
-                    </div>
+                  </div>
+                  <div style={S.lessonActs}>
+                    {/* Spanish lessons have a test (lib/lessonTest.js). */}
+                    {spanish && (
+                      <button
+                        data-lesson-test-open={lesson.id}
+                        style={S.lessonStudyBtn}
+                        disabled={!added}
+                        onClick={() => openLessonTest(lesson.id)}
+                        title={lessonTests[lesson.id]?.test ? "Carry on with this lesson's test" : "Test this lesson"}
+                      >
+                        {lessonTests[lesson.id]?.test ? "Carry on test" : "Test"}
+                      </button>
+                    )}
+                    <button
+                      data-tour-study={lesson.id}
+                      style={{ ...S.lessonStudyBtn, ...S.lessonStudyBtnMain }}
+                      disabled={!added}
+                      onClick={() => enterLesson(lesson.id)}
+                    >
+                      {added ? "Study" : "Adding…"}
+                    </button>
                   </div>
                 </div>
               );
@@ -6744,20 +6722,21 @@ const S = {
   lessonGroupHeading: { fontSize:20, fontWeight:600, color:T.color.primary, fontFamily:T.font.serif, margin:"32px 0 14px" },
   lessonGroupToggle: { display:"flex", alignItems:"center", gap:10, padding:0, border:"none", background:"transparent", cursor:"pointer", fontSize:20, fontWeight:600, color:T.color.primary, fontFamily:T.font.serif, margin:"32px 0 14px", textAlign:"left" },
   lessonGroupChevron: { display:"flex", opacity:0.6, transition:"transform 0.2s" },
-  lessonCard: { background:T.color.surfaceLowest, borderRadius:T.radius.xl, padding:"20px 24px", marginBottom:12, boxShadow:T.shadow.card, maxWidth:720 },
+  lessonCard: { background:T.color.surfaceLowest, borderRadius:T.radius.xl, padding:"14px 18px 14px 22px", marginBottom:8, boxShadow:T.shadow.card, maxWidth:720, display:"flex", alignItems:"center", gap:16, flexWrap:"wrap" },
+  lessonCardName: { flex:"1 1 200px", minWidth:0, display:"flex", flexDirection:"column", gap:2 },
+  lessonCount: { fontSize:12.5, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, fontVariantNumeric:"tabular-nums" },
+  lessonActs: { display:"flex", alignItems:"center", gap:8, flexShrink:0 },
   lessonHead: { display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:16 },
-  lessonTitle: { fontSize:18, fontFamily:T.font.serif, color:T.color.onSurface, marginBottom:4 },
+  lessonTitle: { fontSize:18, fontFamily:T.font.serif, color:T.color.onSurface },
   lessonSub: { fontSize:12, color:T.color.onSurfaceVariant, fontFamily:T.font.sans },
-  lessonMeta: { fontSize:11, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, marginTop:14, textTransform:"uppercase", letterSpacing:"0.06em" },
-  lessonSwitchRow: { display:"flex", alignItems:"center", gap:12, marginTop:14, flexWrap:"wrap" },
-  lessonSwitch: { display:"inline-flex", alignItems:"center", gap:8, padding:0, border:"none", background:"transparent", cursor:"pointer", fontSize:12, fontWeight:600, fontFamily:T.font.sans, color:T.color.onSurface, whiteSpace:"nowrap" },
+  lessonSwitch: { display:"inline-flex", alignItems:"center", gap:8, padding:0, marginRight:8, border:"none", background:"transparent", cursor:"pointer", fontSize:12.5, fontWeight:500, fontFamily:T.font.sans, color:T.color.onSurface, whiteSpace:"nowrap" },
   switchTrack: { position:"relative", width:30, height:18, borderRadius:T.radius.full, background:T.color.surfaceHighest, transition:"background 0.15s", flexShrink:0 },
   switchTrackOn: { background:T.color.primary },
   switchKnob: { display:"block", position:"absolute", top:2, left:2, width:14, height:14, borderRadius:"50%", background:T.color.surfaceLowest, boxShadow:"0 1px 2px rgba(3,22,50,0.2)", transition:"left 0.15s" },
   switchKnobOn: { left:14 },
-  lessonSwitchNote: { fontSize:12, color:T.color.onSurfaceVariant, fontFamily:T.font.sans },
   lessonSwitchFailed: { color:T.color.error },
-  lessonStudyBtn: { padding:"9px 18px", border:"none", borderRadius:T.radius.md, background:T.color.surfaceLow, color:T.color.primary, fontSize:12, fontWeight:600, fontFamily:T.font.sans, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0, boxShadow:T.shadow.focus },
+  lessonStudyBtnMain: { background:T.gradient.ink, color:T.color.onPrimary, boxShadow:"none" },
+  lessonStudyBtn: { padding:"8px 14px", border:"none", borderRadius:T.radius.md, background:T.color.surfaceLow, color:T.color.primary, fontSize:12, fontWeight:600, fontFamily:T.font.sans, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0, boxShadow:T.shadow.focus },
   empty: { textAlign:"center", padding:60, color:T.color.onSurfaceVariant, fontFamily:T.font.sans },
   sessionDone: { textAlign:"center", padding:24, background:T.color.surfaceLow, borderRadius:T.radius.xl, marginTop:12 },
   lessonProgress: { fontSize:12, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, fontWeight:600, whiteSpace:"nowrap", fontVariantNumeric:"tabular-nums", flexShrink:0 },
