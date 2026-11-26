@@ -52,6 +52,8 @@ import { useAnswerDispute, acceptedLine } from "./useAnswerDispute";
 import { VerdictMark, VERDICT_INK, MARKED_STYLE as M } from "./VerdictMark";
 import { BYOK_REQUIRED, BAD_KEY } from "./lib/anthropicKey";
 import { startOfLocalDay } from "./lib/studyDay";
+import { lessonOfExercises } from "./lib/lessonMastery";
+import MasteredBadge from "./MasteredBadge";
 
 // ── The course on show ───────────────────────────────────────────────────
 // The pack the page was last drawn with. The app shows one course at a time
@@ -265,7 +267,9 @@ function tutorExercise(lesson, latest, again, focusKey) {
 }
 
 // ── The page ─────────────────────────────────────────────────────────────
-export default function ExercisesPage({ pack, user, view, setView, onNeedKey, onTutorContext, openChat, notes = null }) {
+// `mastered`: the lessons whose test was passed (lib/lessonTest.js), shown
+// with a Mastered badge on the list and on the lesson's own page.
+export default function ExercisesPage({ pack, user, view, setView, onNeedKey, onTutorContext, openChat, notes = null, mastered = null }) {
   P = pack;
   const store = useAnswers(user?.id);
   const [again, setAgain] = useState(() => readAgain(user?.id));
@@ -305,6 +309,7 @@ export default function ExercisesPage({ pack, user, view, setView, onNeedKey, on
             store={store}
             again={again}
             startAgain={startAgain}
+            mastered={!!mastered?.has(lessonOfExercises(lesson.id))}
             onBack={() => setView({ lesson: null })}
             onNeedKey={onNeedKey}
             onTutorContext={onTutorContext}
@@ -335,7 +340,10 @@ export default function ExercisesPage({ pack, user, view, setView, onNeedKey, on
                     return (
                       <button key={l.id} type="button" className="ex-row" style={S.row} onClick={() => setView({ lesson: l.id })} data-exercise-lesson={l.id}>
                         <span style={S.rowMain}>
-                          <span style={S.rowTitle}>{l.title}</span>
+                          <span style={S.rowTitle}>
+                            {l.title}
+                            {mastered?.has(lessonOfExercises(l.id)) && <MasteredBadge small style={{ marginLeft: 8 }} />}
+                          </span>
                           <span style={S.rowCount}>{store.loading ? `${t.items} questions` : countLine(t)}</span>
                         </span>
                         <span style={S.bar} aria-hidden="true">
@@ -355,7 +363,7 @@ export default function ExercisesPage({ pack, user, view, setView, onNeedKey, on
 }
 
 // ── One lesson's exercises ───────────────────────────────────────────────
-function LessonExercises({ user, lesson, store, again, startAgain, onBack, onNeedKey, onTutorContext, openChat, notes }) {
+function LessonExercises({ user, lesson, store, again, startAgain, mastered = false, onBack, onNeedKey, onTutorContext, openChat, notes }) {
   const t = tally(lesson, store.latest, again);
   const listRef = useRef(null);
 
@@ -404,7 +412,10 @@ function LessonExercises({ user, lesson, store, again, startAgain, onBack, onNee
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
         All exercises
       </button>
-      <h1 style={S.h1}>{lesson.title}</h1>
+      <h1 style={S.h1}>
+        {lesson.title}
+        {mastered && <MasteredBadge style={{ marginLeft: 10, position: "relative", top: -3 }} />}
+      </h1>
       <div style={S.byline}>
         <span data-exercises-count>{countLine(t)}</span>
         {notes && (
@@ -437,6 +448,84 @@ function LessonExercises({ user, lesson, store, again, startAgain, onBack, onNee
         ))}
       </div>
     </>
+  );
+}
+
+// ── A lesson test's exercise items (lib/lessonTest.js) ───────────────────
+// The answers, as this page keeps them, for the test page to sample from and
+// to mark with: the same store, so an item answered there shows here too.
+export const useExerciseAnswers = useAnswers;
+// The lesson test (Spanish only) draws these pieces without the page, so it
+// names their course first.
+export const setExercisesPack = (pack) => { P = pack; };
+
+// The first answer to an item given at or after `since` (the test's start):
+// the store holds each item's latest, and an item answered in the test isn't
+// asked again there, so its latest is that answer unless it was answered
+// again on this page since.
+export function testAnswer(store, key, since) {
+  const a = store.latest[key];
+  if (!a) return null;
+  if (a.pending) return a;
+  return at(a.answeredAt) >= at(since) ? a : null;
+}
+
+// The sampled items, under their exercises' headings and instructions, in
+// sheet order, answered as on a lesson's page but with no Hint.
+export function TestExerciseItems({ user, keys, since, onNeedKey }) {
+  const store = useAnswers(user?.id);
+  const listRef = useRef(null);
+  const focusNext = useCallback((fromKey) => {
+    const items = [...(listRef.current?.querySelectorAll("[data-ex-item]") || [])];
+    const i = items.findIndex((el) => el.dataset.exItem === fromKey);
+    const next = items.slice(i + 1).find((el) => el.dataset.exState === "open");
+    const input = next?.querySelector("input, textarea, button[data-truth]");
+    if (input) {
+      input.focus({ preventScroll: true });
+      input.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+    }
+  }, []);
+  const groups = [];
+  for (const key of keys) {
+    const found = findItem(P.EXERCISES_BY_ID, key);
+    if (!found) continue;
+    const id = `${found.lesson.id}/${found.exercise.n}`;
+    let g = groups[groups.length - 1];
+    if (!g || g.id !== id) { g = { id, exercise: found.exercise, entries: [] }; groups.push(g); }
+    g.entries.push({ key, item: found.item, number: found.index + 1 });
+  }
+  if (store.loading) return <p style={S.intro}>Loading your answers…</p>;
+  return (
+    <div ref={listRef}>
+      {groups.map(({ id, exercise, entries }) => (
+        <section key={id} style={S.ex} data-test-exercise={id}>
+          <div style={S.exHead}>
+            <span style={S.exNum}>{P.exerciseWord} {exercise.number}</span>
+            <span style={S.exTitle}>{exercise.title}</span>
+          </div>
+          <div style={S.exInstr}><Rich text={exercise.instruction} /></div>
+          <div style={S.exEnglish}>{exercise.english}</div>
+          {exercise.example && <div style={S.exExample}><Rich text={exercise.example} /></div>}
+          <ol style={S.items}>
+            {entries.map((e) => (
+              <Item
+                key={e.key}
+                user={user}
+                item={e.item}
+                itemKeyValue={e.key}
+                number={e.number}
+                answer={testAnswer(store, e.key, since)}
+                store={store}
+                focusNext={focusNext}
+                onNeedKey={onNeedKey}
+                gapW={gapWidth(exercise.items)}
+                noHint
+              />
+            ))}
+          </ol>
+        </section>
+      ))}
+    </div>
   );
 }
 
@@ -512,7 +601,8 @@ const gapWidth = (items) => `${Math.max(9, Math.min(24, Math.max(0, ...items.fla
 
 let ticketSeq = 0;
 
-function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext, onNeedKey, gapW }) {
+// `noHint`: no Hint button, in a lesson test (lib/lessonTest.js).
+function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext, onNeedKey, gapW, noHint = false }) {
   const kind = kindOf(item);
   const draftKey = `${user?.id}|${key}`;
   const [typed, setTypedState] = useState(() => drafts.get(draftKey) ?? emptyTyped(item));
@@ -695,7 +785,7 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
                 the same line (owner, 2026-11-02: "what about Hint bottom left
                 aligned to your answer type space"). It goes once the whole
                 answer shows. */}
-            <div style={kind === "gaps" ? S.hintRow : { ...S.hintRow, ...S.hintRowUnder }}>
+            {!noHint && <div style={kind === "gaps" ? S.hintRow : { ...S.hintRow, ...S.hintRowUnder }}>
               {hint < levels && (
                 <button
                   type="button"
@@ -713,7 +803,7 @@ function Item({ user, item, itemKeyValue: key, number, answer, store, focusNext,
                   <b>Hint:</b> <span style={S.hintText}>{hintText(item, hint)}</span>
                 </span>
               )}
-            </div>
+            </div>}
             {problem && (
               <div style={S.inlineError} role="alert">
                 {problem.message}
