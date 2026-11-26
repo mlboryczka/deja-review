@@ -67,6 +67,16 @@ console.log("\nNothing that needs the lesson's text");
   ck("a test begun before drops those items", withoutTextItems(old, EXERCISES_BY_ID).items.map((e) => e.k).join() === "leccion1/1/1");
 }
 
+console.log("\nThe cards are asked both ways round");
+{
+  const two = Array.from({ length: 20 }, (_, i) => card(100 + i, { cat: "vocab" }));
+  const t = newTest({ lessonId: "x", cards: two, now, rng });
+  const en = t.cards.filter((e) => e.k.endsWith(":en")).length;
+  ck("of 20 two-way cards, 10 show the English and 10 the Spanish", en === 10 && t.cards.length === 20, String(en));
+  const drill = newTest({ lessonId: "x", cards: [card(200, { cat: "grammar" })], now, rng }).cards[0];
+  ck("a one-way card is asked its one way", drill.k === "200:fr", drill.k);
+}
+
 console.log("\nEvery question picked is asked");
 {
   const cards = [card(1, { last_review: "2026-11-29T10:00:00Z", last_answer_correct: false }), card(2, { fsrs_state: 0, last_review: null }), card(3)];

@@ -37,13 +37,17 @@
 //   - A card is asked as practice (practiceSession in lib/sessionQueue.js): the
 //     answer is kept and changes no schedule, as for every card answered
 //     before it is due ("Nothing was asked before it was due").
-//   - A card is asked a way round it has been studied, where it has one.
+//   - The cards are asked a mix of both ways round (owner, 2026-11-26:
+//     "should be a mix"): of the picked cards that go both ways, half show
+//     the English to type the Spanish and half the Spanish to type the
+//     English, at random. A card that goes one way only (a drill, a rule) is
+//     asked that way.
 //
 // Kept on the student's account (Supabase's user_metadata, TESTS_KEY), as the
 // lesson switches are: { [lessonId]: { test, result } }, `test` the one under
 // way (null when none) and `result` the last one finished.
 
-import { sideOf, directionsOf, isTwoWay } from "./directions.js";
+import { directionsOf, isTwoWay } from "./directions.js";
 import { countsAsRight, kindOf, findItem } from "./exerciseMarking.js";
 import { LEARNED_AT } from "./lessonMastery.js";
 
@@ -146,26 +150,18 @@ export function spreadIndexes(count, n, rng = Math.random) {
   return spreadPick(runs, n, rng);
 }
 
-// The way round a card is asked: a way already studied (owner, 2026-11-26:
-// a word studied only Spanish side up was counted "not studied yet" when the
-// test picked its English side). Of two ways studied, the direction setting's,
-// and under Mixed the way answered longer ago, which is more of a test. A
-// card studied neither way is asked no way: it counts as not known.
-const studiedWay = (side) => !!side.last_review && (side.fsrs_state ?? 0) !== 0;
-function wayOf(card, direction) {
-  const dirs = directionsOf(card);
-  if (dirs.length === 1 || !isTwoWay(card)) return dirs[0];
-  const studied = dirs.filter((d) => studiedWay(sideOf(card, d)));
-  if (studied.length === 0) return dirs.includes(direction) ? direction : dirs[0];
-  if (studied.length === 1) return studied[0];
-  if (direction === "fr" || direction === "en") return direction;
-  const at = (d) => Date.parse(sideOf(card, d).last_review);
-  return at(studied[1]) < at(studied[0]) ? studied[1] : studied[0];
-}
-
 // One card as the test holds it: `k`, its row and way round ("12:fr"), and
 // once answered `r`, its result.
-const cardEntry = (card, direction) => ({ k: `${card.row_id ?? card.id}:${wayOf(card, direction)}` });
+const cardEntry = (card, dir) => ({ k: `${card.row_id ?? card.id}:${dir}` });
+
+// The way round each picked card is asked: the two-way ones half and half,
+// at random; the others their one way.
+export function mixedWays(cards, rng = Math.random) {
+  const ways = new Map();
+  const twoWay = shuffledIn((cards || []).filter((c) => isTwoWay(c) && directionsOf(c).length > 1), rng);
+  twoWay.forEach((c, i) => ways.set(c, i % 2 === 0 ? "en" : "fr"));
+  return (c) => ways.get(c) || directionsOf(c)[0];
+}
 
 // A test begun before every question was asked: what it counted without
 // asking (`why` "recent" or "unseen") is asked after all.
@@ -191,6 +187,7 @@ export function newTest({ lessonId, cards, sectionOf = () => "", sheets = [], di
     bySection.get(s).push(c);
   }
   const pickedCards = spreadPick([...bySection.values()], PER_PART, rng);
+  const wayFor = mixedWays(pickedCards, rng);
   const sheetGroups = [];
   for (const sheet of sheets) {
     for (const ex of sheet.exercises || []) {
@@ -206,7 +203,7 @@ export function newTest({ lessonId, cards, sectionOf = () => "", sheets = [], di
     lesson: lessonId,
     started: new Date(now).toISOString(),
     direction,
-    cards: pickedCards.map((c) => cardEntry(c, direction)),
+    cards: pickedCards.map((c) => cardEntry(c, wayFor(c))),
     items: pickedItems.map((k) => ({ k })),
     sentences: pickedSentences.map((k) => ({ k })),
   };

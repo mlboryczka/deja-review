@@ -63,7 +63,6 @@ try {
   ck("the first card says Card 1 of 20", /Card 1 of 20/.test(count), count.slice(0, 40));
   const key = await page.getAttribute("[data-test-card]", "data-test-card");
   const [id, dir] = key.split(":");
-  ck("a card studied Spanish side up only is asked that way", dir === "fr", key);
   const c = byId.get(Number(id));
   const right = (dir === "fr" ? c.back : c.front).split(/[;,(]/)[0].trim();
   await page.fill("[data-test-card-input]", right);
