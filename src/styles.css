@@ -213,6 +213,17 @@ textarea:focus-visible {
   box-shadow: 0 0 0 7px rgba(156, 66, 52, 0.1);
 }
 
+/* A lesson's row on the Lessons page (2026-11-26): a faint shade under the
+   pointer, as the mockup the owner chose had. */
+.lesson-row:hover {
+  background: #fcfaf9;
+}
+.lesson-row button[data-tour-study]:disabled,
+.lesson-row button[data-lesson-test-open]:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* Sidebar buttons answer the pointer: a faint shade under it, darker while
    pressed and at once, so a press always shows, even one with nothing to do
    (Cards while on Cards). The page you're on keeps its own shade on hover.

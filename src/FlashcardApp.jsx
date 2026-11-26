@@ -4459,32 +4459,34 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
               ) : (
                 <h2 style={S.lessonGroupHeading} data-lesson-group-heading={group.title}>{group.title}</h2>
               ))}
-              {!(group.folds && pageClosedGroups.has(group.title)) && group.lessons.map((lesson) => {
+              {/* A list, one panel per stage (owner, 2026-11-26, Option 3 of
+                  three mockups, after Option 1 was built: "actually can we go
+                  with option 3"). Each lesson is a row: its title, its card
+                  count ("we should just indicate 43 cards"), the Daily cards
+                  switch, then Test (Spanish) and Study as links. No
+                  description, credit or note ("remove the grey explainer text
+                  everywhere"). Lessons ship with the app and sync themselves
+                  into the deck on load, so there is no "add" step: Study says
+                  Adding… until they have. */}
+              {!(group.folds && pageClosedGroups.has(group.title)) && (
+              <div style={S.lessonList} data-lesson-list={group.title || "lessons"}>
+              {group.lessons.map((lesson, i) => {
               const owned = userCards.filter((c) => lessonIdOf(c) === lesson.id);
               const added = owned.length > 0;
               // Whether its cards come up on Cards (lib/lessonChoice.js).
               const on = lessonsOn.has(lesson.id);
               return (
-                <div key={lesson.id} style={S.lessonCard} data-tour-lesson={lesson.id}>
-                  {/* One row (owner, 2026-11-26, Option 1 of three mockups:
-                      "a bit too much deadspace and the 43/43 cards in deck
-                      isn't that helpful. we should just indicate 43 cards"):
-                      the title with its card count under it, then the switch,
-                      then Test and Study. No description, credit or note
-                      under the switch ("remove the grey explainer text
-                      everywhere"). Lessons ship with the app and sync
-                      themselves into the deck on load, so there is no "add"
-                      step: Study says Adding… until they have. */}
+                <div key={lesson.id} style={i ? { ...S.lessonRow, ...S.lessonRowNext } : S.lessonRow} className="lesson-row" data-tour-lesson={lesson.id}>
                   <div style={S.lessonCardName}>
-                    <div style={S.lessonTitle}>
+                    <div style={S.lessonRowTitle}>
                       {lesson.title}
                       {spanish && mastered.has(lesson.id) && <MasteredBadge small style={{ marginLeft: 8, position: "relative", top: -2 }} />}
                     </div>
-                    <div style={S.lessonCount} data-lesson-count>{`${lesson.cards.length} cards`}</div>
                     {choiceFailed === lesson.id && (
                       <div style={{ ...S.lessonCount, ...S.lessonSwitchFailed }} data-lesson-include-note>That didn't save. Try again.</div>
                     )}
                   </div>
+                  <div style={S.lessonCount} data-lesson-count>{`${lesson.cards.length} cards`}</div>
                   <div data-tour-include={lesson.id}>
                     <button
                       role="switch"
@@ -4497,15 +4499,15 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
                       <span style={on ? {...S.switchTrack, ...S.switchTrackOn} : S.switchTrack}>
                         <span style={on ? {...S.switchKnob, ...S.switchKnobOn} : S.switchKnob} />
                       </span>
-                      Daily cards
+                      Daily
                     </button>
                   </div>
-                  <div style={S.lessonActs}>
+                  <div style={{ ...S.lessonActs, minWidth: spanish ? 104 : 44 }}>
                     {/* Spanish lessons have a test (lib/lessonTest.js). */}
                     {spanish && (
                       <button
                         data-lesson-test-open={lesson.id}
-                        style={S.lessonStudyBtn}
+                        style={S.lessonLink}
                         disabled={!added}
                         onClick={() => openLessonTest(lesson.id)}
                         title={lessonTests[lesson.id]?.test ? "Carry on with this lesson's test" : "Test this lesson"}
@@ -4515,7 +4517,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
                     )}
                     <button
                       data-tour-study={lesson.id}
-                      style={{ ...S.lessonStudyBtn, ...S.lessonStudyBtnMain }}
+                      style={S.lessonLink}
                       disabled={!added}
                       onClick={() => enterLesson(lesson.id)}
                     >
@@ -4525,6 +4527,8 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
                 </div>
               );
             })}
+              </div>
+              )}
               </Fragment>
             ))}
           </div>
@@ -6722,21 +6726,21 @@ const S = {
   lessonGroupHeading: { fontSize:20, fontWeight:600, color:T.color.primary, fontFamily:T.font.serif, margin:"32px 0 14px" },
   lessonGroupToggle: { display:"flex", alignItems:"center", gap:10, padding:0, border:"none", background:"transparent", cursor:"pointer", fontSize:20, fontWeight:600, color:T.color.primary, fontFamily:T.font.serif, margin:"32px 0 14px", textAlign:"left" },
   lessonGroupChevron: { display:"flex", opacity:0.6, transition:"transform 0.2s" },
-  lessonCard: { background:T.color.surfaceLowest, borderRadius:T.radius.xl, padding:"14px 18px 14px 22px", marginBottom:8, boxShadow:T.shadow.card, maxWidth:720, display:"flex", alignItems:"center", gap:16, flexWrap:"wrap" },
-  lessonCardName: { flex:"1 1 200px", minWidth:0, display:"flex", flexDirection:"column", gap:2 },
-  lessonCount: { fontSize:12.5, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, fontVariantNumeric:"tabular-nums" },
-  lessonActs: { display:"flex", alignItems:"center", gap:8, flexShrink:0 },
-  lessonHead: { display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:16 },
-  lessonTitle: { fontSize:18, fontFamily:T.font.serif, color:T.color.onSurface },
+  lessonList: { background:T.color.surfaceLowest, borderRadius:T.radius.xl, boxShadow:T.shadow.card, maxWidth:720, overflow:"hidden", marginBottom:12 },
+  lessonRow: { display:"grid", gridTemplateColumns:"1fr auto auto auto", alignItems:"center", columnGap:18, padding:"12px 18px 12px 22px" },
+  lessonRowNext: { borderTop:"1px solid rgba(3,22,50,0.07)" },
+  lessonRowTitle: { fontSize:16.5, fontFamily:T.font.serif, color:T.color.onSurface },
+  lessonCardName: { minWidth:0, display:"flex", flexDirection:"column", gap:2 },
+  lessonCount: { fontSize:12, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, fontVariantNumeric:"tabular-nums", whiteSpace:"nowrap", textAlign:"right" },
+  lessonLink: { padding:"4px 2px", border:"none", background:"transparent", cursor:"pointer", fontSize:12.5, fontWeight:600, fontFamily:T.font.sans, color:T.color.primary, textDecoration:"underline", textDecorationColor:"rgba(3,22,50,0.25)", textUnderlineOffset:3, whiteSpace:"nowrap" },
+  lessonActs: { display:"flex", alignItems:"center", justifyContent:"flex-end", gap:14 },
   lessonSub: { fontSize:12, color:T.color.onSurfaceVariant, fontFamily:T.font.sans },
-  lessonSwitch: { display:"inline-flex", alignItems:"center", gap:8, padding:0, marginRight:8, border:"none", background:"transparent", cursor:"pointer", fontSize:12.5, fontWeight:500, fontFamily:T.font.sans, color:T.color.onSurface, whiteSpace:"nowrap" },
+  lessonSwitch: { display:"inline-flex", alignItems:"center", gap:7, padding:0, border:"none", background:"transparent", cursor:"pointer", fontSize:12, fontWeight:500, fontFamily:T.font.sans, color:T.color.onSurfaceVariant, whiteSpace:"nowrap" },
   switchTrack: { position:"relative", width:30, height:18, borderRadius:T.radius.full, background:T.color.surfaceHighest, transition:"background 0.15s", flexShrink:0 },
   switchTrackOn: { background:T.color.primary },
   switchKnob: { display:"block", position:"absolute", top:2, left:2, width:14, height:14, borderRadius:"50%", background:T.color.surfaceLowest, boxShadow:"0 1px 2px rgba(3,22,50,0.2)", transition:"left 0.15s" },
   switchKnobOn: { left:14 },
   lessonSwitchFailed: { color:T.color.error },
-  lessonStudyBtnMain: { background:T.gradient.ink, color:T.color.onPrimary, boxShadow:"none" },
-  lessonStudyBtn: { padding:"8px 14px", border:"none", borderRadius:T.radius.md, background:T.color.surfaceLow, color:T.color.primary, fontSize:12, fontWeight:600, fontFamily:T.font.sans, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0, boxShadow:T.shadow.focus },
   empty: { textAlign:"center", padding:60, color:T.color.onSurfaceVariant, fontFamily:T.font.sans },
   sessionDone: { textAlign:"center", padding:24, background:T.color.surfaceLow, borderRadius:T.radius.xl, marginTop:12 },
   lessonProgress: { fontSize:12, color:T.color.onSurfaceVariant, fontFamily:T.font.sans, fontWeight:600, whiteSpace:"nowrap", fontVariantNumeric:"tabular-nums", flexShrink:0 },
