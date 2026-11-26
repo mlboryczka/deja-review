@@ -74,4 +74,4 @@ http.createServer((req,res)=>{
     if(req.url.includes('/rest/v1/')) return j(200,[]);
     j(200,{});
   });
-}).listen(5999,()=>console.log('deck mock up'));
+}).listen(Number(process.env.MOCK_PORT) || 5999,()=>console.log('deck mock up'));

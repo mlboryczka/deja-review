@@ -467,10 +467,13 @@ const toFlashcards = async (page) => {
 console.log("\n  a student's app");
 {
   const { browser, page } = await openApp({ app: APP });
-  // Since 2026-11-25 (owner: "do it!") every student has the modules.
-  await page.waitForSelector("[data-module-switch]", { timeout: 8000 }).catch(() => {});
-  const sw = await page.$("[data-module-switch]");
-  ck("on the students' app, a student has the Flashcards | Podcasts switch too", !!sw);
+  // Since 2026-11-25 (owner: "do it!") every student has the modules. French
+  // has Exercises and Dialogues too (owner: "extend the spanish dialogue and
+  // exercises modules to french"), so the switch is Flashcards | Exercises |
+  // Dialogues | Podcasts here.
+  await page.waitForSelector("[data-sidebar]", { timeout: 8000 }).catch(() => {});
+  const mods = await page.$$eval("[data-module-switch] [data-module]", (els) => els.map((e) => e.dataset.module));
+  ck("on the students' app, a French student's switch is Flashcards | Exercises | Dialogues | Podcasts", mods.join() === "flashcards,exercises,dialogues,podcasts", mods.join());
   await browser.close();
 }
 
