@@ -7,6 +7,7 @@ import { niceStep } from "./lib/niceStep.js";
 import { useState } from "react";
 import { T } from "./theme";
 import { localISODate } from "./lib/studyDay";
+import MasteredBadge from "./MasteredBadge";
 
 const NAVY = T.color.primary;
 const dayLong = (ms) => new Date(ms).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
@@ -268,7 +269,12 @@ function AreaRow({ row, name, onClick, open }) {
       data-stats-area={row.key}>
       <div style={S.areaHead}>
         <span style={S.areaName}>{name ?? row.label}</span>
-        {rating && <span style={{ ...S.rating, ...rating.style }} data-stats-rating={row.rating}>{rating.label}</span>}
+        {/* A lesson whose test was passed is Mastered (lib/lessonTest.js), in
+            place of its rating: a test samples the lesson, so a passed lesson
+            can still have items not tried, which the rating counts against it. */}
+        {row.mastered
+          ? <MasteredBadge style={{ marginLeft: 0 }} />
+          : rating && <span style={{ ...S.rating, ...rating.style }} data-stats-rating={row.rating}>{rating.label}</span>}
         {row.sub && <span style={S.areaSub}>{row.sub}</span>}
       </div>
       {row.parts ? (

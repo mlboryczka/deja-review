@@ -483,8 +483,25 @@ export function withdrawRetry(deck, idx, key) {
 // Returns that direction's columns, exactly as user_cards accepts them, so
 // callers can use the same object for the DB update and the optimistic
 // in-memory patch.
-export function applyAnswer(card, got, nowMs = Date.now(), dir = card?.shownDir ?? "fr") {
-  return sideColumns(scheduleAnswer(sideOf(card, dir), got, nowMs), dir);
+// `sched` is the scheduler to use, the one in use when left out: a mastered
+// lesson's card got right is scheduled at its lower target (lib/lessonTest.js).
+export function applyAnswer(card, got, nowMs = Date.now(), dir = card?.shownDir ?? "fr", sched = undefined) {
+  return sideColumns(scheduleAnswer(sideOf(card, dir), got, nowMs, sched), dir);
+}
+
+// A lesson test's cards (lib/lessonTest.js): the ones still to ask, each the
+// way round the test chose, dealt as practice, so their answers are kept and
+// change no schedule (practiceSession). `keys` are "<row id>:<way>".
+export function testSession(cards, keys) {
+  const byRow = new Map((cards || []).map((c) => [String(c.row_id ?? c.id), c]));
+  const queue = [];
+  for (const k of keys || []) {
+    const [row, dir] = String(k).split(":");
+    const card = byRow.get(row);
+    if (!card || !directionsOf(card).includes(dir)) continue;
+    queue.push({ ...card, shownDir: dir, flippable: isTwoWay(card), _bucket: "practice" });
+  }
+  return { queue, counts: countBuckets(queue), dueRemaining: 0, newAvailable: 0 };
 }
 
 // Whether FSRS counts an answer to one way of a card, given now: the day's

@@ -70,6 +70,17 @@ export function applySettings({ weights, retention } = {}) {
   return scheduler;
 }
 
+// The scheduler in use with another target and the same weights: a mastered
+// Spanish lesson's cards, got right, are scheduled at 80% (lib/lessonTest.js).
+// Kept per scheduler, so a student's settings changing makes a new one.
+const targetedOf = new WeakMap();
+export function withTarget(target, sched = scheduler) {
+  let byTarget = targetedOf.get(sched);
+  if (!byTarget) { byTarget = new Map(); targetedOf.set(sched, byTarget); }
+  if (!byTarget.has(target)) byTarget.set(target, makeScheduler({ weights: Array.from(sched.parameters.w), retention: target }));
+  return byTarget.get(target);
+}
+
 // What the scheduler in use schedules with, as ts-fsrs holds it: the target
 // and the 21 weights. Saved with each counted answer (lib/reviewLog.js).
 export function settingsInUse(sched = scheduler) {

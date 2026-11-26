@@ -11,6 +11,9 @@ import { reconcileLessons, ADOPTED_SOURCE } from "./lib/lessonSync";
 import { archivedSource, ARCHIVE_PREFIX } from "./lib/archive";
 import { readPlace, writePlace, dropSets, packSet, unpackEntries } from "./lib/studyPlace";
 import { CHOICE_KEY, choicesOf, startedLessons, lessonsInCards, onCards, setKeyOf, dealScopeOf } from "./lib/lessonChoice";
+import { TESTS_KEY, testsOf, masteredOf, withCardAnswer, toAsk, PASSED_TARGET } from "./lib/lessonTest";
+import { lessonOfExercises } from "./lib/lessonMastery";
+import MasteredBadge from "./MasteredBadge";
 import LessonPanel, { LESSON_PANEL_WIDTH } from "./LessonPanel";
 import Tour from "./Tour";
 import { tourSteps, TOUR_LESSON } from "./lib/tourSteps";
@@ -85,8 +88,8 @@ import { localISODate, reviewedToday, endOfLocalDay, browserTimeZone } from "./l
 import { progressByArea, progressChanges, aboutRemembered, areaDates } from "./lib/progress";
 import { statsOverTime, HISTORY_COLUMNS, endOfDayAgo, allSeenBy } from "./lib/progressHistory";
 import { RememberedChart, StudyCalendar, ProgressByLesson, Bands, splitText } from "./StatsSections";
-import { buildSession, practiceSession, applyAnswer, placeRetry, withdrawRetry, countBuckets, countsAnswer, BLOCK_SIZE } from "./lib/sessionQueue";
-import { RE_QUEUE_OFFSET, State, settingsInUse } from "./lib/spacedRepetition";
+import { buildSession, practiceSession, testSession, applyAnswer, placeRetry, withdrawRetry, countBuckets, countsAnswer, BLOCK_SIZE } from "./lib/sessionQueue";
+import { RE_QUEUE_OFFSET, State, settingsInUse, withTarget } from "./lib/spacedRepetition";
 import { sideOf, sideColumns, directionsOf, isTwoWay, itemKey, resetColumns } from "./lib/directions";
 import { newReviewId, reviewRow, withoutExtras, missingColumn } from "./lib/reviewLog";
 import { dealRow, missingTable } from "./lib/dealLog";
@@ -109,6 +112,9 @@ import { TITLES as EXERCISE_TITLE_OF, TEXT_OF as EXERCISE_TEXT_OF, EXERCISE_GROU
 // back into Spanish from the sheet's English. Its pages are DialoguesPage's,
 // loaded only when Dialogues is opened, as with Exercises.
 const DialoguesPage = lazy(() => import("./DialoguesPage"));
+// A Spanish lesson's test (lib/lessonTest.js, owner 2026-11-25), loaded only
+// when one is opened: it brings Exercises' and Dialogues' pages with it.
+const LessonTestPage = lazy(() => import("./LessonTestPage"));
 import { DIALOGUE_TITLE_OF, DIALOGUE_GROUPS } from "./data/exercises/es/dialogueTitles.js";
 import { stageOf } from "./data/lessons/es/stages.js";
 
@@ -999,7 +1005,25 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
   const enterLesson = useCallback((id) => {
     setTypeFilter("all");
     setLessonFilter(id);
+    setTestRun(null);
     setMode("study");
+  }, []);
+  // A lesson test's flashcards (lib/lessonTest.js): the lesson, on Cards, as a
+  // set of their own. Studying the lesson the usual way is enterLesson.
+  const [testRun, setTestRun] = useState(null);
+  const startTestWords = useCallback((id) => {
+    setTypeFilter("all");
+    setLessonFilter(id);
+    setTestRun(id);
+    setMode("study");
+  }, []);
+  // Leaving Cards leaves the test's set: coming back to the lesson is studying it.
+  useEffect(() => { if (mode !== "study") setTestRun(null); }, [mode]);
+  // The test page, for this lesson.
+  const [testLesson, setTestLesson] = useState(null);
+  const openLessonTest = useCallback((id) => {
+    setTestLesson(id);
+    setMode("lessontest");
   }, []);
 
   // Leaving the lesson page closes its notes, wherever you go: Stats, the
@@ -1341,6 +1365,43 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     if (choiceSavesRef.current > 0) return;
     setLessonChoices(JSON.parse(sessionChoices));
   }, [sessionChoices]);
+  // The student's Spanish lesson tests (lib/lessonTest.js), kept on their
+  // account as the lesson switches are, and read back the same way. A lesson
+  // whose last test was passed is Mastered.
+  const [lessonTests, setLessonTests] = useState(() => testsOf(user));
+  const lessonTestsRef = useRef(lessonTests);
+  lessonTestsRef.current = lessonTests;
+  const sessionTests = JSON.stringify(testsOf(user));
+  const testSavesRef = useRef(0);
+  useEffect(() => {
+    if (testSavesRef.current > 0) return;
+    setLessonTests(JSON.parse(sessionTests));
+  }, [sessionTests]);
+  const saveLessonTests = useCallback((update) => {
+    const next = update(lessonTestsRef.current);
+    if (next === lessonTestsRef.current) return;
+    lessonTestsRef.current = next;
+    setLessonTests(next);
+    testSavesRef.current += 1;
+    supabase.auth.updateUser({ data: { [TESTS_KEY]: next } })
+      .then(({ error }) => { if (error) console.error("Saving the lesson test failed:", error); })
+      .finally(() => { testSavesRef.current -= 1; });
+  }, []);
+  const mastered = useMemo(() => (spanish ? masteredOf(lessonTests) : new Set()), [spanish, lessonTests]);
+  const masteredRef = useRef(mastered);
+  masteredRef.current = mastered;
+  // For the sidebar's lists: a lesson's Exercises (Lesson 8's annex is Lesson
+  // 8), Dialogues and Cards ids all lead to the lesson.
+  const markedLesson = useMemo(() => (spanish ? (id) => mastered.has(lessonOfExercises(id)) : null), [spanish, mastered]);
+  // The test page with no lesson to show (French, or none chosen): the Lessons page.
+  useEffect(() => {
+    if (mode === "lessontest" && !(spanish && lessonById(testLesson))) setMode("lessons");
+  }, [mode, spanish, testLesson, lessonById]);
+  // The test's set on Cards is kept under a key of its own, one per test, so
+  // it never comes back as the lesson's set, nor an old test's as a new one's.
+  const testSig = testRun && lessonFilter === testRun ? `test:${lessonTests[testRun]?.test?.started || ""}` : "";
+  const testSigRef = useRef(testSig);
+  testSigRef.current = testSig;
   // Whether the account says the first-visit tour has been shown, read at the
   // same time: null until the server has answered (see the tour, below).
   const [accountTourSeen, setAccountTourSeen] = useState(null);
@@ -1452,7 +1513,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     // Direction is not part of this: changing it re-deals the cards still to
     // come (see the effect below) instead of dealing a new block, which threw
     // away the block's running count and a missed card's pending retry.
-    const filterSig = setKeyOf(typeFilter, lessonFilter, scope);
+    const filterSig = setKeyOf(typeFilter, lessonFilter, scope) + (testSig ? `|${testSig}` : "");
     // A set dealt, or brought back, that hasn't reached the screen yet is not
     // dealt again from the same deck. Under React's strict mode an effect runs
     // twice on mount, the second time before the first one's deck is in state:
@@ -1481,6 +1542,8 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     // no room for a retry does (placeRetry): due again tomorrow instead. The
     // set never ends before the card on screen.
     const redealRest = (entries, at, size = entries.length) => {
+      // A lesson test's set is its sample, and nothing else is dealt into it.
+      if (testSig) return entries;
       const head = entries.slice(0, at + 1);
       const tail = entries.slice(at + 1);
       const answered = (c) => blockAnswersRef.current.has(slotKeyOf(c));
@@ -1652,16 +1715,20 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     // which ways of words and phrases are dealt. Grammar and pronunciation
     // cards are rules with examples, not translations — always shown as
     // written, whatever the setting.
-    let dealt = buildSession(candidates, {
-      direction: dirRef.current,
-      target: setSizeRef.current,
-      lessonMode: lessonFilter !== "all",
-      lessonRank,
-    });
+    // A lesson test's flashcards: the ones it still has to ask, as practice
+    // (testSession; lib/lessonTest.js).
+    let dealt = testSig
+      ? testSession(candidates, toAsk(lessonTestsRef.current[testRun]?.test?.cards).map((e) => e.k))
+      : buildSession(candidates, {
+          direction: dirRef.current,
+          target: setSizeRef.current,
+          lessonMode: lessonFilter !== "all",
+          lessonRank,
+        });
     // A lesson with nothing due and nothing new is gone through again
     // (practiceSession): the rest of the time round, or from the top once
     // every card has been gone through, or when the student asked for it.
-    if (dealt.queue.length === 0 && lessonFilter !== "all") {
+    if (!testSig && dealt.queue.length === 0 && lessonFilter !== "all") {
       const done = practicedIn(filterSig);
       if (practiceFreshRef.current || !candidates.some((c) => !done.has(c.row_id ?? c.id))) done.clear();
       practiceFreshRef.current = false;
@@ -1710,7 +1777,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     setSessionDone(false);
     setStats({ answered:0, firstAnswered:0, firstGot:0 });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded, typeFilter, lessonFilter, scope, switchSig, userCards, blockSeq, deckFreshSeq, recheck, setSize]);
+  }, [loaded, typeFilter, lessonFilter, scope, switchSig, userCards, blockSeq, deckFreshSeq, recheck, setSize, testSig]);
 
   // Answers given somewhere else — another device, another tab — since the
   // deck in memory was fetched. Coming back to the tab asks for their ids,
@@ -2026,6 +2093,8 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     if (dirRef.current === dir) return;
     dirRef.current = dir;
     if (!deck.length || sessionDone) return;
+    // A lesson test asks each card the way round it chose.
+    if (testSigRef.current) return;
     const firstOpen = answerSeen ? idx + 1 : idx;
     const asked = (c) => !c.flippable || dir === "mix" || c.shownDir === dir;
     const head = deck.slice(0, firstOpen);
@@ -2376,17 +2445,30 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
     const isCorrection = !!earlier;
     const practice = card._bucket === "practice";
     const answeredAt = Date.now();
+    // A Mastered lesson's card got right is scheduled at the lower target, so
+    // it comes back later; one got wrong as always (lib/lessonTest.js).
+    const sched = spanish && got && masteredRef.current.has(lessonIdOf(card)) ? withTarget(PASSED_TARGET) : undefined;
     let recordsReview = false;
     let sr = null;
     if (isCorrection) {
       if (earlier.before && earlier.got !== got) {
-        sr = applyAnswer({ ...card, ...earlier.before }, got, answeredAt, cardDir);
+        sr = applyAnswer({ ...card, ...earlier.before }, got, answeredAt, cardDir, sched);
       }
     } else {
       recordsReview = !practice && countsAnswer(sideOf(card, cardDir), { retry: !!card._retry }, answeredAt);
-      if (recordsReview) sr = applyAnswer(card, got, answeredAt, cardDir);
+      if (recordsReview) sr = applyAnswer(card, got, answeredAt, cardDir, sched);
     }
     if (practice) practicedIn(deckSig).add(card.row_id ?? card.id);
+    // A lesson test's card: its first answer is its result in the test, and a
+    // correction (Previous card) replaces it. A retry is practice only.
+    if (practice && testSigRef.current && testRun && !card._retry) {
+      const k = itemKey(card);
+      saveLessonTests((all) => {
+        const t = all[testRun]?.test;
+        const next = withCardAnswer(t, k, got, { correction: isCorrection });
+        return next === t ? all : { ...all, [testRun]: { ...all[testRun], test: next } };
+      });
+    }
     lastAnsweredRef.current = card.row_id ?? card.id;
     const before = isCorrection ? earlier.before : recordsReview ? sideColumns(sideOf(card, cardDir), cardDir) : null;
     const reviewId = isCorrection ? earlier.reviewId : newReviewId();
@@ -2415,7 +2497,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
       const row = reviewRow({
         id: reviewId, userId: user.id, cardId: card.row_id, dir: cardDir, got,
         before, after: before ? sr : null, at: answeredAt,
-        settings: before ? settingsInUse() : null, timeZone: before ? browserTimeZone() : null,
+        settings: before ? settingsInUse(sched) : null, timeZone: before ? browserTimeZone() : null,
       });
       save(`review:${reviewId}`, reviewId, () => saveReviewRow(row));
       // Kept here too, for the Stats page while the record is on its way to
@@ -3752,6 +3834,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
                 titleOf={(id) => side.titles[id]}
                 onPick={(id) => side.setView({ lesson: id })}
                 data={side.data}
+                marked={markedLesson}
               />
             )}
           </>
@@ -3804,6 +3887,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
                   tooltip={(id) => `Study ${lessonById(id)?.title}`}
                   onPick={enterLesson}
                   data="lesson"
+                  marked={markedLesson}
                 />
               )}
               {/* Without stages, every group. With them, nothing here: the
@@ -4244,6 +4328,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
           onNeedKey={openKeyModal}
           onTutorContext={onTutorExercise}
           openChat={openChat}
+          mastered={mastered}
           notes={exNotesLesson?.notes?.length
             ? { open: showLessonPanel, onToggle: toggleLessonPanel, toggleRef: lessonToggleRef }
             : null}
@@ -4264,12 +4349,39 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
           onNeedKey={openKeyModal}
           onTutorContext={onTutorExercise}
           openChat={openChat}
+          mastered={mastered}
           notes={dgNotesLesson?.notes?.length
             ? { open: showLessonPanel, onToggle: toggleLessonPanel, toggleRef: lessonToggleRef }
             : null}
         />
       </Suspense>
     );
+  }
+
+  // ── A LESSON'S TEST (Spanish, 2026-11-25) ───────────────────────────
+  // lib/lessonTest.js. Its flashcards are answered on Cards (startTestWords).
+  if (mode === "lessontest") {
+    const lesson = spanish ? lessonById(testLesson) : null;
+    if (lesson) {
+      const sectionOfFront = new Map((lesson.cards || []).map(([f, , , section]) => [f, section || ""]));
+      return modulePage(
+        <Suspense fallback={null}>
+          <LessonTestPage
+            key={lesson.id}
+            user={user}
+            lesson={lesson}
+            tests={lessonTests}
+            saveTests={saveLessonTests}
+            cards={userCards.filter((c) => lessonIdOf(c) === lesson.id)}
+            sectionOf={(c) => sectionOfFront.get(c.f) || ""}
+            direction={dirRef.current}
+            onAnswerCards={() => startTestWords(lesson.id)}
+            onBack={() => setMode("lessons")}
+            onNeedKey={openKeyModal}
+          />
+        </Suspense>
+      );
+    }
   }
 
   // ── LESSONS ──────────────────────────────────────────────────────────
@@ -4326,20 +4438,36 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
                 <div key={lesson.id} style={S.lessonCard} data-tour-lesson={lesson.id}>
                   <div style={S.lessonHead}>
                     <div>
-                      <div style={S.lessonTitle}>{lesson.title}</div>
+                      <div style={S.lessonTitle}>
+                        {lesson.title}
+                        {spanish && mastered.has(lesson.id) && <MasteredBadge small style={{ marginLeft: 8, position: "relative", top: -2 }} />}
+                      </div>
                       <div style={S.lessonSub}>{lesson.subtitle}</div>
                     </div>
                     {/* No "add" step: lessons ship with the app and sync
                         themselves into the deck on load. A student should
                         find L'impératif already there. */}
-                    <button
-                      data-tour-study={lesson.id}
-                      style={S.lessonStudyBtn}
-                      disabled={!added}
-                      onClick={() => enterLesson(lesson.id)}
-                    >
-                      {added ? "Study" : "Adding…"}
-                    </button>
+                    <div style={{ display: "flex", gap: 8, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                      {/* Spanish lessons have a test (lib/lessonTest.js). */}
+                      {spanish && (
+                        <button
+                          data-lesson-test-open={lesson.id}
+                          style={S.lessonStudyBtn}
+                          disabled={!added}
+                          onClick={() => openLessonTest(lesson.id)}
+                        >
+                          {lessonTests[lesson.id]?.test ? "Carry on with the test" : "Test this lesson"}
+                        </button>
+                      )}
+                      <button
+                        data-tour-study={lesson.id}
+                        style={S.lessonStudyBtn}
+                        disabled={!added}
+                        onClick={() => enterLesson(lesson.id)}
+                      >
+                        {added ? "Study" : "Adding…"}
+                      </button>
+                    </div>
                   </div>
                   <div style={S.lessonMeta}>
                     {added
@@ -4479,6 +4607,7 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
         ...(m ? {
           parts: { grammar: m.grammar || null, text: m.text || null },
           rating: esMastery.rate({ words: areas.lessons[l.id], grammar: m.grammar, text: m.text }),
+          mastered: mastered.has(l.id),
         } : null),
       };
     };
@@ -4715,13 +4844,26 @@ export default function FlashcardApp({ user, onSignOut: rawSignOut, course: cour
           {lessonFilter !== "all" && (
             <div style={S.lessonName}>
               {LESSONS.find((l) => l.id === lessonFilter)?.title || lessonFilter}
+              {spanish && mastered.has(lessonFilter) && <MasteredBadge small style={{ marginLeft: 8 }} />}
             </div>
           )}
+          {/* A lesson test's flashcards: how many are left, and the way back
+              to the test (lib/lessonTest.js). */}
+          {testSig && (() => {
+            const left = toAsk(lessonTests[testRun]?.test?.cards).length;
+            return (
+              <button style={S.chipToggle} onClick={() => openLessonTest(testRun)} data-lesson-test-chip>
+                {left
+                  ? `Lesson test: ${left} ${left === 1 ? "card" : "cards"} left · Back to the test`
+                  : "Lesson test: cards done · Back to the test"}
+              </button>
+            );
+          })()}
           {/* The lesson's progress. Read when the block was dealt and again at
               its checkpoint — never per answer, because a figure that moves
               on every card reads as noise rather than progress. Plain
               "N/M remembered" (owner, 2026-10-04). */}
-          {lessonFilter !== "all" && (() => {
+          {lessonFilter !== "all" && !testSig && (() => {
             const snap = (sessionDone && checkpoint ? checkpoint.after : blockStartRef.current)?.lessons?.[lessonFilter];
             return snap ? (
               <div style={S.lessonProgress} data-lesson-progress>
@@ -5817,7 +5959,8 @@ function useStageFolds(stages, current) {
 // A closed stage still shows the lesson you're in, under its full title, and
 // `folded` (Exercises' fold) shows only that lesson. `data` names the test
 // hooks: data-ex-nav, data-lesson-nav and so on.
-function SideStages({ stages, folds, folded = false, current, titleOf, onPick, tooltip, data }) {
+// `marked(id)`: whether a lesson shows the Mastered badge (lib/lessonTest.js).
+function SideStages({ stages, folds, folded = false, current, titleOf, onPick, tooltip, data, marked = null }) {
   const hook = (what, value) => ({ [`data-${data}-${what}`]: value });
   const lessonBtn = (id, title, style) => {
     const on = current === id;
@@ -5832,6 +5975,7 @@ function SideStages({ stages, folds, folded = false, current, titleOf, onPick, t
         title={tooltip?.(id)}
       >
         {title}
+        {marked?.(id) && <MasteredBadge small style={{ marginLeft: 6 }} />}
       </button>
     );
   };

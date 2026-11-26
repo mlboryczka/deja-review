@@ -39,6 +39,7 @@ import { VerdictMark, VERDICT_INK, MARKED_STYLE as M } from "./VerdictMark";
 import { roundsOf, nextSentence, dialogueStatus, statusLine } from "./lib/dialogueRounds.js";
 import { BYOK_REQUIRED, BAD_KEY } from "./lib/anthropicKey";
 import { localISODate } from "./lib/studyDay";
+import MasteredBadge from "./MasteredBadge";
 
 // ── The answers, kept per user for as long as the page is open ───────────
 // Outside React, as on Exercises, so a mark still on its way lands when it
@@ -166,7 +167,9 @@ function tutorDialogue(dialogue, tries, focus) {
 }
 
 // ── The page ─────────────────────────────────────────────────────────────
-export default function DialoguesPage({ user, view, setView, onNeedKey, onTutorContext, openChat, notes = null }) {
+// `mastered`: the lessons whose test was passed (lib/lessonTest.js), shown
+// with a Mastered badge on the list and on the lesson's own page.
+export default function DialoguesPage({ user, view, setView, onNeedKey, onTutorContext, openChat, notes = null, mastered = null }) {
   const store = useRows(user?.id);
   const dialogue = view?.lesson ? DIALOGUE_OF[view.lesson] : null;
   const scrollRef = useRef(null);
@@ -190,6 +193,7 @@ export default function DialoguesPage({ user, view, setView, onNeedKey, onTutorC
             dialogue={dialogue}
             store={store}
             scrollRef={scrollRef}
+            mastered={!!mastered?.has(dialogue.lesson)}
             onBack={() => setView({ lesson: null })}
             onNeedKey={onNeedKey}
             onTutorContext={onTutorContext}
@@ -197,16 +201,77 @@ export default function DialoguesPage({ user, view, setView, onNeedKey, onTutorC
             notes={notes}
           />
         ) : (
-          <DialogueList store={store} onPick={(lesson) => setView({ lesson })} />
+          <DialogueList store={store} mastered={mastered} onPick={(lesson) => setView({ lesson })} />
         )}
       </div>
     </div>
   );
 }
 
+// ── A lesson test's dialogue sentences (lib/lessonTest.js) ───────────────
+// The answers, as this page keeps them, for the test page to sample from and
+// to mark with.
+export const useDialogueRows = useRows;
+
+const atMs = (iso) => Date.parse(iso) || 0;
+
+// The first answer to a sentence given at or after `since` (the test's start).
+export function testSentenceAnswer(store, key, since) {
+  const id = parseItemKey(key)?.lesson;
+  for (const r of store.rows[id] || NO_ROWS) {
+    if (r.key !== key) continue;
+    if (r.pending || atMs(r.answeredAt) >= atMs(since)) return r;
+  }
+  return null;
+}
+
+// A sentence's latest answer, for the test to know what was answered lately.
+export function latestSentenceAnswer(store, key) {
+  const id = parseItemKey(key)?.lesson;
+  let last = null;
+  for (const r of store.rows[id] || NO_ROWS) if (r.key === key) last = r;
+  return last;
+}
+
+// The sampled sentences in the text's order, one at a time as on a lesson's
+// page: those answered, marked, then the next to type, with no Hint.
+export function TestSentences({ user, keys, since, onNeedKey }) {
+  const store = useRows(user?.id);
+  if (store.loading) return <p style={S.intro}>Loading your answers…</p>;
+  const rows = [];
+  let open = false, waiting = 0;
+  for (const key of keys) {
+    const found = findItem(DIALOGUES_BY_ID, key);
+    if (!found) continue;
+    const answer = testSentenceAnswer(store, key, since);
+    if (!answer && open) { waiting++; continue; }
+    if (!answer) open = true;
+    rows.push(
+      <SentenceRow
+        key={key}
+        item={found.item}
+        number={found.index + 1}
+        itemKeyValue={key}
+        who={found.lesson.items?.[found.index]?.who}
+        answer={answer}
+        user={user}
+        store={store}
+        onNeedKey={onNeedKey}
+        noHint
+      />
+    );
+  }
+  return (
+    <section style={S.ex} data-test-dialogue>
+      <ol style={S.items}>{rows}</ol>
+      {waiting > 0 && <p style={{ ...S.intro, margin: "8px 0 0" }}>{`${waiting} more ${waiting === 1 ? "sentence" : "sentences"} after this one.`}</p>}
+    </section>
+  );
+}
+
 // ── The list ─────────────────────────────────────────────────────────────
 // Under the course's four stages, as on Exercises and on the Lessons page.
-function DialogueList({ store, onPick }) {
+function DialogueList({ store, mastered, onPick }) {
   const today = localISODate();
   const status = useMemo(() => Object.fromEntries(DIALOGUES.map((d) => [
     d.lesson,
@@ -224,7 +289,10 @@ function DialogueList({ store, onPick }) {
     return (
       <button key={d.id} type="button" style={S.row} onClick={() => onPick(d.lesson)} data-dialogue-lesson={d.lesson}>
         <span style={S.rowMain}>
-          <span style={S.rowTitle}>{d.title}</span>
+          <span style={S.rowTitle}>
+            {d.title}
+            {mastered?.has(d.lesson) && <MasteredBadge small style={{ marginLeft: 8 }} />}
+          </span>
           <span style={S.rowCount}>{store.loading ? `${count} sentences` : statusLine(count, st, today)}</span>
         </span>
         {st.done > 0 && (
@@ -260,7 +328,7 @@ function DialogueList({ store, onPick }) {
 }
 
 // ── One lesson's text ────────────────────────────────────────────────────
-function OneDialogue({ user, dialogue, store, scrollRef, onBack, onNeedKey, onTutorContext, openChat, notes }) {
+function OneDialogue({ user, dialogue, store, scrollRef, mastered = false, onBack, onNeedKey, onTutorContext, openChat, notes }) {
   const rows = store.rows[dialogue.id] || NO_ROWS;
   const count = dialogue.items.length;
   const today = localISODate();
@@ -325,7 +393,10 @@ function OneDialogue({ user, dialogue, store, scrollRef, onBack, onNeedKey, onTu
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
         All dialogues
       </button>
-      <h1 style={S.h1}>{dialogue.title}</h1>
+      <h1 style={S.h1}>
+        {dialogue.title}
+        {mastered && <MasteredBadge style={{ marginLeft: 10, position: "relative", top: -3 }} />}
+      </h1>
       <div style={S.byline}>
         <span data-dialogue-count>
           {`${count} sentences${tries.size ? ` · ${tries.size} done` : ""}`}
@@ -437,7 +508,7 @@ function ReadIt({ dialogue }) {
 
 let ticketSeq = 0;
 
-function SentenceRow({ item, number, itemKeyValue: key, kind, who, answer, user, store, onNeedKey }) {
+function SentenceRow({ item, number, itemKeyValue: key, kind, who, answer, user, store, onNeedKey, noHint = false }) {
   const state = !answer ? "open" : answer.pending ? "checking" : "done";
   const promptStyle = kind === "scene" ? { ...S.prompt, fontStyle: "italic" } : kind === "question" ? { ...S.prompt, fontWeight: 600 } : S.prompt;
   return (
@@ -449,14 +520,15 @@ function SentenceRow({ item, number, itemKeyValue: key, kind, who, answer, user,
         {answer ? (
           <Marked item={item} answer={answer} user={user} store={store} />
         ) : (
-          <SentenceBox key={key} item={item} itemKeyValue={key} user={user} store={store} onNeedKey={onNeedKey} />
+          <SentenceBox key={key} item={item} itemKeyValue={key} user={user} store={store} onNeedKey={onNeedKey} noHint={noHint} />
         )}
       </div>
     </li>
   );
 }
 
-function SentenceBox({ item, itemKeyValue: key, user, store, onNeedKey }) {
+// `noHint`: no Hint button, in a lesson test (lib/lessonTest.js).
+function SentenceBox({ item, itemKeyValue: key, user, store, onNeedKey, noHint = false }) {
   const draftKey = `${user?.id}|${key}`;
   const [typed, setTypedState] = useState(() => drafts.get(draftKey) ?? "");
   const setTyped = (v) => { drafts.set(draftKey, v); setTypedState(v); };
@@ -563,7 +635,7 @@ function SentenceBox({ item, itemKeyValue: key, user, store, onNeedKey }) {
         </button>
       </div>
       {/* Hint under the answer, at its left edge, as on Exercises. */}
-      <div style={S.hintRow}>
+      {!noHint && <div style={S.hintRow}>
         {hint < levels && (
           <button
             type="button"
@@ -581,7 +653,7 @@ function SentenceBox({ item, itemKeyValue: key, user, store, onNeedKey }) {
             <b>Hint:</b> <span style={S.hintText}>{hintText(item, hint)}</span>
           </span>
         )}
-      </div>
+      </div>}
       {problem && (
         <div style={S.inlineError} role="alert">
           {problem.message}
