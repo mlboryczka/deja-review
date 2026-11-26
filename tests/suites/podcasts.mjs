@@ -469,10 +469,13 @@ console.log("\n  a student's app");
 {
   const { browser, page } = await openApp({ app: APP });
   // Since 2026-11-25 Podcasts is the owner's alone ("Podcasts mine only"),
-  // so a student in French has no Flashcards | Podcasts switch.
+  // so a student in French has no Podcasts button. Since 2026-11-25 French has
+  // Exercises and Dialogues too (owner: "extend the spanish dialogue and
+  // exercises modules to french"), so the switch is Flashcards | Exercises |
+  // Dialogues, as in Spanish.
   await page.waitForSelector("[data-sidebar]", { timeout: 8000 }).catch(() => {});
-  const sw = await page.$("[data-module-switch]");
-  ck("on the students' app, a student has no Flashcards | Podcasts switch", !sw);
+  const mods = await page.$$eval("[data-module-switch] [data-module]", (els) => els.map((e) => e.dataset.module));
+  ck("on the students' app, a French student's switch is Flashcards | Exercises | Dialogues, with no Podcasts", mods.join() === "flashcards,exercises,dialogues", mods.join());
   await browser.close();
 }
 

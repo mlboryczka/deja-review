@@ -14,6 +14,10 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+// Ports: 5999 (mock Supabase) and 5173 (the app) unless the environment names
+// others, so two checkouts can run the suites at once.
+const MOCK_PORT = Number(process.env.MOCK_PORT) || 5999;
+const APP_PORT = Number(process.env.APP_PORT) || 5173;
 const ROOT = join(HERE, "..");
 // A suite needs the browser exactly when it imports the browser harness.
 const NEEDS_BROWSER = (name) => /from\s+["']\.\.\/harness\.mjs["']/.test(readFileSync(join(HERE, "suites", `${name}.mjs`), "utf8"));
@@ -77,7 +81,7 @@ function runSuite(name) {
     const c = spawn(process.execPath, [join(HERE, "suites", `${name}.mjs`)], {
       cwd: ROOT,
       stdio: "inherit",
-      env: { ...process.env, NO_PROXY: "*" },
+      env: { ...process.env, NO_PROXY: "*", APP_URL: `http://localhost:${APP_PORT}`, MOCK_URL: `http://127.0.0.1:${MOCK_PORT}` },
     });
     c.on("exit", (code) => resolve(code === 0));
   });
@@ -85,16 +89,16 @@ function runSuite(name) {
 
 if (suites.some(NEEDS_BROWSER)) {
   const mock = background(process.execPath, [join(HERE, "mock-supabase.mjs")]);
-  await waitFor("http://127.0.0.1:5999/rest/v1/user_cards", "mock Supabase", mock);
+  await waitFor(`http://127.0.0.1:${MOCK_PORT}/rest/v1/user_cards`, "mock Supabase", mock);
 
   // The app is pointed at the mock through the environment, not a settings
   // file: a checkout's own .env.local is never touched, and nothing is left
   // behind if the run is killed. The four VITE_ variables the app reads are all
   // set here, so a real .env.local can't leak in.
-  const vite = background("npx", ["vite", "--port", "5173", "--strictPort"], {
-    env: { ...process.env, VITE_SUPABASE_URL: "http://127.0.0.1:5999", VITE_SUPABASE_ANON_KEY: "test.key", VITE_ADMIN_EMAIL: "", VITE_API_BASE: "" },
+  const vite = background("npx", ["vite", "--port", String(APP_PORT), "--strictPort"], {
+    env: { ...process.env, VITE_SUPABASE_URL: `http://127.0.0.1:${MOCK_PORT}`, VITE_SUPABASE_ANON_KEY: "test.key", VITE_ADMIN_EMAIL: "", VITE_API_BASE: "" },
   });
-  await waitFor("http://localhost:5173/", "vite dev server", vite);
+  await waitFor(`http://localhost:${APP_PORT}/`, "vite dev server", vite);
 }
 
 // A browser suite that fails gets one more try. Their timing checks can fail
