@@ -57,6 +57,11 @@ const AT_ONCE = 12;
 // English side first (until 2026-11-13 the French was quoted there as "the
 // English side"). A drill ("vivre → je", "relatif → adverbe") is answered in
 // the language being learned, so its expected answer isn't called English.
+//
+// "got", "became" and "was" before a feeling or state (2026-11-27): Claude
+// refused "he was annoyed" for "il s'est énervé" (he got annoyed/irritated) on
+// some tries since 2026-10-14, though the owner counts it right; the question
+// now says both are right.
 export function answerPrompt({ direction, french, english, expected, typed, language = "French", drill = false }) {
   const shownSide = direction === "fr" ? language : "English";
   const expectedSide = direction === "fr" && !drill ? "English" : language;
@@ -73,6 +78,7 @@ Consider:
 - Whether the user's answer demonstrates correct understanding
 - For ${language} answers, grammatical gender must be correct (${language === "Spanish" ? "un vs una, el vs la" : "un vs une, le vs la"})${language === "Spanish" ? "\n- For Spanish answers, an accent counts only where it changes a verb's tense or person (habló vs hablo, hablé vs hable); any other missing or wrong accent, and a missing ñ, is no mistake (estan for están, esta for the verb está, tu for tú, ano for año)" : ""}
 - For English answers, articles (a/an/the) are interchangeable
+- For English answers, "got", "became" and "was" before a word for a feeling or state are interchangeable ("he got annoyed", "he became annoyed" and "he was annoyed" are all right)
 
 Do NOT accept:
 - Answers in the wrong language
